@@ -218,12 +218,13 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
                   <td className="col-actions">
                     <button
                       type="button"
-                      className="icon-btn"
+                      className="versions-btn"
                       onClick={() => setVersionsOf(nameKey(item.name))}
-                      title="Versions you own"
+                      title="Which versions and foils you own"
                       aria-label={`Versions of ${item.name} you own`}
                     >
                       <Icon name="versions" />
+                      Versions
                     </button>
                     <button
                       type="button"

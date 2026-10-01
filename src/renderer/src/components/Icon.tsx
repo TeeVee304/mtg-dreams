@@ -1,5 +1,6 @@
 const PATHS = {
-  versions: 'M7 3h11a2 2 0 0 1 2 2v11M4 7h11a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z',
+  // Two cards fanned out: a card and its other printings.
+  versions: 'M11 4h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zM8.2 6.6 5.6 7.3a1.8 1.8 0 0 0-1.3 2.2l2.6 9.6a1.8 1.8 0 0 0 2.2 1.3',
   external: 'M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
   close: 'M6 6l12 12M18 6L6 18',
   info: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16v-4.5M12 8h.01',

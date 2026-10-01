@@ -45,7 +45,6 @@ export function DeckStats({ rows }: { rows: StatsRow[] }) {
         Stats
         <span className="muted small">
           {`${counted(stats.spells, 'Card')} + ${counted(stats.lands, 'Land')}`}
-          {stats.averageManaValue !== null && ` · average mana value ${stats.averageManaValue.toFixed(2)}`}
           {stats.pending > 0 && ` · ${cardCount(stats.pending)} loading`}
         </span>
       </button>
@@ -86,6 +85,11 @@ function ManaCurve({ stats }: { stats: Stats }) {
           <span key={column.manaValue}>{label(column.manaValue)}</span>
         ))}
       </div>
+      {stats.averageManaValue !== null && (
+        <p className="curve-average">
+          Average Mana Value: <strong>{stats.averageManaValue.toFixed(2)}</strong>
+        </p>
+      )}
     </figure>
   )
 }
