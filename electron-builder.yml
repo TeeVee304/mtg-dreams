@@ -1,0 +1,28 @@
+appId: app.mtgdreams
+productName: MTG Dreams
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - resources/**
+  - package.json
+# Chromium's own text (context menus, built-in dialogs) in English only; the app's UI is English anyway.
+electronLanguages:
+  - en-US
+win:
+  target: nsis
+  icon: build/icon.ico
+# Installs for the current Windows user only (no admin rights needed), into
+# %LOCALAPPDATA%\Programs, with Start Menu and Desktop shortcuts. Uninstalling
+# never touches your lists, which live in the data folder (Documents by default).
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: MTG Dreams
+  artifactName: mtg-dreams-setup-${version}.${ext}
+portable:
+  artifactName: mtg-dreams-portable-${version}.${ext}

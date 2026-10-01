@@ -1,0 +1,184 @@
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { readFile, stat, writeFile } from 'node:fs/promises'
+import { basename, extname, join } from 'node:path'
+import type { AppSettings, PrintingsOptions, Theme } from '../shared/api'
+import { isSortKey } from '../shared/cards'
+import { isPriceBasis } from '../shared/pricing'
+import { isThemeColor } from '../shared/themes'
+import { TRADE_EXTENSION } from '../shared/trade'
+import { WINDOW_ICONS } from './icons'
+import { getPrecon, getPreconIndex } from './precons'
+import { priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
+import { autocomplete, getCardInfos, getPrintings } from './scryfall'
+import * as storage from './storage'
+
+const EXTERNAL_HOSTS = ['cardmarket.com', 'scryfall.com']
+// Trade lists are small; anything bigger is not one.
+const MAX_TRADE_FILE_BYTES = 5 * 1024 * 1024
+
+/** The renderer's CSS follows prefers-color-scheme, which Electron derives from themeSource. */
+export function applyTheme(theme: Theme): void {
+  nativeTheme.themeSource = theme
+}
+
+export function windowBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? '#121418' : '#f5f5f3'
+}
+
+/** Only opens https links to known card sites in the user's browser. */
+export function openExternalSafe(raw: string): void {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    return
+  }
+  const allowed = EXTERNAL_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))
+  if (url.protocol === 'https:' && allowed) void shell.openExternal(url.toString())
+}
+
+function text(value: unknown, what: string): string {
+  if (typeof value !== 'string') throw new Error(`Invalid ${what}.`)
+  return value
+}
+
+/** Tells every window that new prices are in, so it asks for them again. */
+export function notifyPricesUpdated(): void {
+  for (const window of BrowserWindow.getAllWindows()) window.webContents.send('prices:updated')
+}
+
+export function registerIpc(): void {
+  ipcMain.handle('data:load', () => storage.loadData())
+  ipcMain.handle('list:create', (_e, kind: unknown, name: unknown, body: unknown) =>
+    storage.createList(storage.validateKind(kind), storage.validateListName(name), text(body, 'list text'))
+  )
+  ipcMain.handle('list:write', (_e, kind: unknown, name: unknown, body: unknown) =>
+    storage.writeList(storage.validateKind(kind), storage.validateListName(name), text(body, 'list text'))
+  )
+  ipcMain.handle('list:rename', (_e, kind: unknown, from: unknown, to: unknown) =>
+    storage.renameList(storage.validateKind(kind), storage.validateListName(from), storage.validateListName(to))
+  )
+  ipcMain.handle('list:move', (_e, from: unknown, to: unknown, name: unknown) =>
+    storage.moveList(storage.validateKind(from), storage.validateKind(to), storage.validateListName(name))
+  )
+  ipcMain.handle('list:delete', (_e, kind: unknown, name: unknown) =>
+    storage.deleteList(storage.validateKind(kind), storage.validateListName(name))
+  )
+  ipcMain.handle('inventory:write', (_e, body: unknown) => storage.writeInventory(text(body, 'inventory text')))
+
+  ipcMain.handle('trade:write', (_e, name: unknown, body: unknown) =>
+    storage.writeTrade(storage.validateListName(name), text(body, 'trade list'))
+  )
+  ipcMain.handle('trade:delete', (_e, name: unknown) => storage.deleteTrade(storage.validateListName(name)))
+  ipcMain.handle('trade:open', async (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    const options: Electron.OpenDialogOptions = {
+      title: 'Import a trade list',
+      defaultPath: app.getPath('downloads'),
+      properties: ['openFile'],
+      filters: [
+        { name: 'Trade lists and collection exports', extensions: [TRADE_EXTENSION, 'txt', 'csv'] },
+        { name: 'All files', extensions: ['*'] }
+      ]
+    }
+    const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    const path = result.filePaths[0]
+    if ((await stat(path)).size > MAX_TRADE_FILE_BYTES) throw new Error('That file is too big to be a trade list.')
+    return { fileName: basename(path, extname(path)), text: await readFile(path, 'utf8') }
+  })
+  ipcMain.handle('trade:saveAs', async (event, name: unknown, body: unknown) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    const options: Electron.SaveDialogOptions = {
+      title: 'Save my trade list',
+      defaultPath: join(app.getPath('documents'), `${storage.validateListName(name)}.${TRADE_EXTENSION}`),
+      filters: [{ name: 'MTG Dreams trade list', extensions: [TRADE_EXTENSION] }]
+    }
+    const result = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
+    if (result.canceled || !result.filePath) return null
+    await writeFile(result.filePath, text(body, 'trade list'), 'utf8')
+    return result.filePath
+  })
+
+  ipcMain.handle('data:chooseDir', async (event) => {
+    const window = BrowserWindow.fromWebContents(event.sender)
+    const options: Electron.OpenDialogOptions = {
+      title: 'Choose data folder',
+      defaultPath: storage.dataDir(),
+      properties: ['openDirectory', 'createDirectory']
+    }
+    const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || result.filePaths.length === 0) return null
+    await storage.setDataDir(result.filePaths[0])
+    return result.filePaths[0]
+  })
+  ipcMain.handle('settings:get', () => storage.getAppSettings())
+  ipcMain.handle('settings:update', (event, raw: unknown) => {
+    const patch: Partial<AppSettings> = {}
+    const input = (raw ?? {}) as Record<string, unknown>
+    if ('theme' in input) {
+      if (input.theme !== 'system' && input.theme !== 'light' && input.theme !== 'dark') throw new Error('Invalid theme.')
+      patch.theme = input.theme as Theme
+    }
+    if ('color' in input) {
+      if (!isThemeColor(input.color)) throw new Error('Invalid color.')
+      patch.color = input.color
+    }
+    if ('bundleBasics' in input) {
+      if (typeof input.bundleBasics !== 'boolean') throw new Error('Invalid setting.')
+      patch.bundleBasics = input.bundleBasics
+    }
+    if ('tradeName' in input) {
+      if (typeof input.tradeName !== 'string' || input.tradeName.length > 100) throw new Error('Invalid name.')
+      patch.tradeName = input.tradeName.trim()
+    }
+    if ('priceBasis' in input) {
+      if (!isPriceBasis(input.priceBasis)) throw new Error('Invalid price basis.')
+      patch.priceBasis = input.priceBasis
+    }
+    if ('sort' in input) {
+      if (!isSortKey(input.sort)) throw new Error('Invalid sort.')
+      patch.sort = input.sort
+    }
+    storage.updateAppSettings(patch)
+    if (patch.theme) {
+      applyTheme(patch.theme)
+      BrowserWindow.fromWebContents(event.sender)?.setBackgroundColor(windowBackground())
+    }
+    if (patch.color) BrowserWindow.fromWebContents(event.sender)?.setIcon(WINDOW_ICONS[patch.color])
+  })
+
+  ipcMain.handle('data:openDir', async () => {
+    await shell.openPath(storage.dataDir())
+  })
+
+  ipcMain.handle('scryfall:autocomplete', (_e, query: unknown) => autocomplete(text(query, 'query')))
+  // Printings come from Scryfall, prices from Cardmarket's price guide.
+  ipcMain.handle('scryfall:printings', async (_e, name: unknown, options: unknown) => {
+    const opts = (options ?? {}) as PrintingsOptions
+    const result = await getPrintings(text(name, 'card name'), {
+      force: opts.force === true,
+      priority: opts.priority === 'high' ? 'high' : 'low',
+      full: opts.full === true
+    })
+    return withMarketPrices(result)
+  })
+  ipcMain.handle('prices:refresh', async () => {
+    const updated = await refreshPriceGuide()
+    if (updated) notifyPricesUpdated()
+    return { updated, pricedAt: priceGuideDate() }
+  })
+
+  ipcMain.handle('scryfall:cardInfos', (_e, names: unknown) => {
+    if (!Array.isArray(names) || names.length > 20_000 || !names.every((n) => typeof n === 'string')) {
+      throw new Error('Invalid card names.')
+    }
+    return getCardInfos(names)
+  })
+
+  ipcMain.handle('precons:index', () => getPreconIndex())
+  ipcMain.handle('precons:deck', (_e, fileName: unknown) => getPrecon(text(fileName, 'deck')))
+
+  ipcMain.handle('shell:openExternal', (_e, url: unknown) => openExternalSafe(text(url, 'URL')))
+  ipcMain.handle('clipboard:write', (_e, value: unknown) => clipboard.writeText(text(value, 'text')))
+}

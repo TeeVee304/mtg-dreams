@@ -1,0 +1,113 @@
+import { useState } from 'react'
+import type { AppSettings, Theme } from '../../../shared/api'
+import { PRICE_BASES } from '../../../shared/pricing'
+import { THEME_COLORS } from '../../../shared/themes'
+import { MANA_SYMBOLS, THEME_ICONS } from '../artwork'
+import { cleanError } from '../format'
+import { updateSettings, useSettings } from '../settings'
+import { Modal } from './Modal'
+
+const THEMES: Array<{ id: Theme; label: string; hint: string }> = [
+  { id: 'system', label: 'System', hint: 'Follow Windows' },
+  { id: 'light', label: 'Light', hint: 'Always light' },
+  { id: 'dark', label: 'Dark', hint: 'Always dark' }
+]
+
+export function SettingsDialog({ onClose }: { onClose: () => void }) {
+  const settings = useSettings()
+  const [error, setError] = useState<string | null>(null)
+
+  const change = (patch: Partial<AppSettings>) => {
+    setError(null)
+    updateSettings(patch).catch((e) => setError(cleanError(e)))
+  }
+
+  return (
+    <Modal title="Settings" onClose={onClose}>
+      <section className="settings-section">
+        <h3>Color</h3>
+        <div className="color-options" role="radiogroup" aria-label="Color">
+          {THEME_COLORS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={settings.color === option.id}
+              className={`color-option${settings.color === option.id ? ' selected' : ''}`}
+              onClick={() => change({ color: option.id })}
+              title={`${option.label} (${option.look})`}
+            >
+              <img className="color-icon" src={THEME_ICONS[option.id]} alt="" draggable={false} />
+              <span className="color-label">
+                <img className="color-mana" src={MANA_SYMBOLS[option.id]} alt="" draggable={false} />
+                {option.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h3>Mode</h3>
+        <div className="theme-options" role="radiogroup" aria-label="Mode">
+          {THEMES.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="radio"
+              aria-checked={settings.theme === option.id}
+              className={`theme-option theme-${option.id}${settings.theme === option.id ? ' selected' : ''}`}
+              onClick={() => change({ theme: option.id })}
+            >
+              <span className="theme-swatch" aria-hidden="true" />
+              <span className="theme-label">{option.label}</span>
+              <span className="muted tiny">{option.hint}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-section">
+        <h3>Prices</h3>
+        <div className="radio-options" role="radiogroup" aria-label="Price basis">
+          {PRICE_BASES.map((basis) => (
+            <label key={basis.id} className="radio-option">
+              <input
+                type="radio"
+                name="price-basis"
+                checked={settings.priceBasis === basis.id}
+                onChange={() => change({ priceBasis: basis.id })}
+              />
+              <span className="setting-text">
+                <span className="setting-label">{basis.label}</span>
+                <span className="muted small">{basis.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="muted tiny settings-note">From Cardmarket’s daily price guide, in EUR. Inventory Value always uses the typical price.</p>
+      </section>
+
+      <section className="settings-section">
+        <h3>Decks &amp; wishlists</h3>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">Bundle basic lands</span>
+            <span className="muted small">
+              Counts every version of Plains, Island, Swamp, Mountain and Forest as one generic card, free of charge.
+              Faster, since their versions aren't looked up. Your files keep their versions; turn this off to see them.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.bundleBasics}
+            onChange={(event) => change({ bundleBasics: event.target.checked })}
+          />
+        </label>
+      </section>
+      {error && <p className="warn">{error}</p>}
+    </Modal>
+  )
+}
