@@ -25,6 +25,7 @@ describe('deck stats', () => {
     expect(stats.curve[3]).toEqual({ manaValue: 3, creatures: 1, others: 0 })
     expect(stats.curve[7]).toEqual({ manaValue: 7, creatures: 0, others: 1 }) // 9 goes in 7+
     expect(stats.spells).toBe(8)
+    expect(stats.lands).toBe(20)
     expect(stats.averageManaValue).toBeCloseTo((4 + 2 + 3 + 9) / 8)
   })
 

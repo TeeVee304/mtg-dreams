@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { CURVE_TOP, deckStats, STAT_COLORS, type DeckStats as Stats, type StatsRow } from '../../../shared/deckStats'
 import { MANA_SYMBOLS } from '../artwork'
 import { cardCount } from '../format'
+import { Icon } from './Icon'
 
-// A collapsible panel under a list's value cards: its mana curve and colors. Both
-// charts are one series in the theme's accent; labels, not colors, say what each bar is.
+// A collapsible panel under a list's value cards: its mana curve and colors. The curve
+// is one series in the theme's accent; each color's bar wears that color (labels and
+// mana symbols still say which is which).
 
 const OPEN_KEY = 'mtg-dreams.statsOpen'
 const COLOR_NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' } as const
@@ -42,9 +44,8 @@ export function DeckStats({ rows }: { rows: StatsRow[] }) {
         </span>
         Stats
         <span className="muted small">
-          {stats.spells > 0
-            ? `${cardCount(stats.spells)} besides lands · average mana value ${stats.averageManaValue?.toFixed(2)}`
-            : 'No cards besides lands yet'}
+          {`${counted(stats.spells, 'Card')} + ${counted(stats.lands, 'Land')}`}
+          {stats.averageManaValue !== null && ` · average mana value ${stats.averageManaValue.toFixed(2)}`}
           {stats.pending > 0 && ` · ${cardCount(stats.pending)} loading`}
         </span>
       </button>
@@ -91,12 +92,11 @@ function ManaCurve({ stats }: { stats: Stats }) {
 
 const label = (manaValue: number) => (manaValue === CURVE_TOP ? `${CURVE_TOP}+` : String(manaValue))
 
-function tip(manaValue: number, creatures: number, others: number): string {
-  const total = creatures + others
-  if (total === 0) return `Mana value ${label(manaValue)}: no cards`
-  const parts = [creatures && `${creatures} ${creatures === 1 ? 'creature' : 'creatures'}`, others && `${others} other ${others === 1 ? 'spell' : 'spells'}`]
-  return `Mana value ${label(manaValue)}: ${cardCount(total)} (${parts.filter(Boolean).join(', ')})`
-}
+/** "1 Card", "63 Cards". */
+const counted = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+
+const tip = (manaValue: number, creatures: number, others: number) =>
+  `Mana Value (${label(manaValue)}): ${counted(creatures + others, 'Card')}`
 
 function ColorBreakdown({ stats }: { stats: Stats }) {
   const bars = [
@@ -107,7 +107,13 @@ function ColorBreakdown({ stats }: { stats: Stats }) {
   return (
     <figure className="stats-chart">
       <figcaption>
-        Colors <span className="muted tiny">· multicolored cards count toward each of their colors</span>
+        Color Distribution
+        <span className="info-tip" tabIndex={0} aria-label="Multicolored cards count toward each of their colors">
+          <Icon name="info" />
+          <span className="chart-tip" role="tooltip">
+            Multicolored cards count toward each of their colors
+          </span>
+        </span>
       </figcaption>
       <ul className="color-bars">
         {bars.map((bar) => (
@@ -117,7 +123,7 @@ function ColorBreakdown({ stats }: { stats: Stats }) {
               {bar.name}
             </span>
             <span className="color-bar-track">
-              <span className="color-bar-fill" style={{ width: `${(bar.count / stats.spells) * 100}%` }} />
+              <span className={`color-bar-fill bar-${bar.key}`} style={{ width: `${(bar.count / stats.spells) * 100}%` }} />
             </span>
             <span className="color-bar-count">{bar.count}</span>
           </li>

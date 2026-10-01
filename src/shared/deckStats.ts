@@ -26,6 +26,8 @@ export interface DeckStats {
   multicolor: number
   /** Non-land cards counted. */
   spells: number
+  /** Lands, which the curve and colors leave out. */
+  lands: number
   /** Their average mana value, or null without any. */
   averageManaValue: number | null
   /** Cards whose data hasn't loaded yet, so they're not counted. */
@@ -41,7 +43,7 @@ export interface StatsRow {
 export function deckStats(rows: StatsRow[]): DeckStats {
   const curve: CurveColumn[] = Array.from({ length: CURVE_TOP + 1 }, (_, manaValue) => ({ manaValue, creatures: 0, others: 0 }))
   const colors: Record<StatColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 }
-  const stats: DeckStats = { curve, colors, colorless: 0, multicolor: 0, spells: 0, averageManaValue: null, pending: 0 }
+  const stats: DeckStats = { curve, colors, colorless: 0, multicolor: 0, spells: 0, lands: 0, averageManaValue: null, pending: 0 }
   let totalManaValue = 0
 
   for (const { line, info } of rows) {
@@ -51,7 +53,10 @@ export function deckStats(rows: StatsRow[]): DeckStats {
     }
     if (!info) continue
     const types = frontTypeWords(info.typeLine)
-    if (types.includes('Land')) continue
+    if (types.includes('Land')) {
+      stats.lands += line.qty
+      continue
+    }
 
     const qty = line.qty
     stats.spells += qty

@@ -172,6 +172,60 @@
   border-radius: 0 4px 4px 0;
 }
 
+.color-bar-fill.bar-W {
+  background: var(--mana-w);
+}
+
+.color-bar-fill.bar-U {
+  background: var(--mana-u);
+}
+
+.color-bar-fill.bar-B {
+  background: var(--mana-b);
+}
+
+.color-bar-fill.bar-R {
+  background: var(--mana-r);
+}
+
+.color-bar-fill.bar-G {
+  background: var(--mana-g);
+}
+
+.color-bar-fill.bar-C {
+  background: var(--mana-c);
+}
+
+/* Multicolor shimmers like a foil card. */
+.color-bar-fill.bar-M {
+  background: var(--foil);
+}
+
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: -3px;
+  margin-left: 5px;
+  color: var(--muted);
+  cursor: help;
+  outline: none;
+}
+
+.info-tip svg {
+  width: 14px;
+  height: 14px;
+}
+
+.info-tip:hover,
+.info-tip:focus-visible {
+  color: var(--text);
+}
+
+.info-tip:hover .chart-tip,
+.info-tip:focus-visible .chart-tip {
+  display: block;
+}
+
 .color-bar-count {
   text-align: right;
   font-variant-numeric: tabular-nums;
