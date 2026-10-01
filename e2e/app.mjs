@@ -12,8 +12,9 @@ const PROJECT = join(dirname(fileURLToPath(import.meta.url)), '..')
  * @param services the running fake services
  * @param files    data folder contents, e.g. { 'decks/Burn.txt': '4 Lightning Bolt\n' }
  * @param settings extra settings.json values
+ * @param profileFiles files to put in the app's settings folder first, e.g. { 'price-history.json': '{...}' }
  */
-export async function launchApp(services, { files = {}, settings = {}, root } = {}) {
+export async function launchApp(services, { files = {}, settings = {}, profileFiles = {}, root } = {}) {
   const dir = root ?? mkdtempSync(join(tmpdir(), 'mtg-dreams-e2e-'))
   const profile = join(dir, 'profile')
   const data = join(dir, 'data')
@@ -22,6 +23,7 @@ export async function launchApp(services, { files = {}, settings = {}, root } = 
     mkdirSync(dirname(join(data, path)), { recursive: true })
     writeFileSync(join(data, path), text)
   }
+  for (const [path, text] of Object.entries(profileFiles)) writeFileSync(join(profile, path), text)
   if (!root) {
     writeFileSync(join(profile, 'settings.json'), JSON.stringify({ dataDir: data, theme: 'dark', ...settings }))
   }

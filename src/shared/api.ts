@@ -17,6 +17,21 @@ export interface AppSettings {
   sort: SortKey
   /** Which Cardmarket price cards are valued at, everywhere. */
   priceBasis: PriceBasis
+  /** Flag a wishlist card once its price falls this many percent below its price when added. */
+  dropAlertPercent: number
+}
+
+/** One day's typical prices (non-foil, foil; 0 = none) by Cardmarket product number. */
+export interface PriceSnapshot {
+  /** When Cardmarket published them. */
+  date: number
+  prices: Record<string, [number, number]>
+}
+
+/** A wishlist card's price when it first appeared on a wishlist, on each price basis. */
+export interface PriceBaseline {
+  at: number
+  prices: Partial<Record<PriceBasis, number>>
 }
 
 export interface ListFile {
@@ -80,6 +95,13 @@ export interface TrackerApi {
   refreshPrices(): Promise<{ updated: boolean; pricedAt: number | null }>
   /** Called whenever new prices are in. Returns an unsubscribe function. */
   onPricesUpdated(callback: () => void): () => void
+  /** Keeps a daily price history of these versions (Cardmarket product numbers). */
+  trackPrices(ids: number[]): Promise<void>
+  /** The newest snapshot, and the one in force at each moment of `at`; null without history. */
+  pricesAt(ids: number[], at: number[]): Promise<{ latest: PriceSnapshot; then: PriceSnapshot[] } | null>
+  /** Wishlist cards' prices when added, by line key. */
+  getBaselines(): Promise<Record<string, PriceBaseline>>
+  updateBaselines(set: Record<string, PriceBaseline>, remove: string[]): Promise<void>
   /** Card data keyed by nameKey; null for names Scryfall doesn't know. */
   getCardInfos(names: string[]): Promise<Record<string, CardInfo | null>>
   getPreconIndex(): Promise<PreconSummary[]>

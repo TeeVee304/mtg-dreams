@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { priceBasisLabel } from '../../../shared/pricing'
 import { matchTrades, type TradeCard, type TradeMatch, type TradeSnapshot, type Want } from '../../../shared/trade'
 import type { PriceBasis, Printing } from '../../../shared/types'
-import { formatEur, timeAgo } from '../format'
+import { cardCount, formatEur, timeAgo } from '../format'
 import type { LibraryActions, ListRef } from '../library'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../printings'
 import { useSettings } from '../settings'
@@ -25,10 +25,7 @@ const byValue = (a: PricedMatch, b: PricedMatch) =>
   (b.unit ?? -1) * b.qty - (a.unit ?? -1) * a.qty || a.name.localeCompare(b.name)
 
 const totalOf = (matches: PricedMatch[]) => matches.reduce((sum, m) => sum + (m.unit ?? 0) * m.qty, 0)
-const cardCount = (matches: TradeMatch[]) => {
-  const n = matches.reduce((sum, m) => sum + m.qty, 0)
-  return `${n} ${n === 1 ? 'card' : 'cards'}`
-}
+const matchedCards = (matches: TradeMatch[]) => cardCount(matches.reduce((sum, m) => sum + m.qty, 0))
 
 interface TradeViewProps {
   trade: TradeSnapshot
@@ -68,7 +65,7 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
         <div>
           <h1>Trading with {trade.name}</h1>
           <p className="muted">
-            {trade.name}'s list from {date.toLocaleDateString()} ({timeAgo(date.getTime())}) · {trade.haves.length} cards
+            {trade.name}'s list from {date.toLocaleDateString()} ({timeAgo(date.getTime())}) · {cardCount(trade.haves.length)}
             they have · {trade.wants.length} they want
           </p>
         </div>
@@ -97,12 +94,12 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
         <div className="stat accent">
           <span className="stat-label">{trade.name} can give you</span>
           <span className="stat-value">{formatEur(receiveTotal)}</span>
-          <span className="stat-note">{cardCount(receive)} your wishlists need</span>
+          <span className="stat-note">{matchedCards(receive)} your wishlists need</span>
         </div>
         <div className="stat">
           <span className="stat-label">You can give {trade.name}</span>
           <span className="stat-value">{formatEur(giveTotal)}</span>
-          <span className="stat-note">{cardCount(give)} on their wishlist</span>
+          <span className="stat-note">{matchedCards(give)} on their wishlist</span>
         </div>
         <div className="stat">
           <span className="stat-label">Balance</span>

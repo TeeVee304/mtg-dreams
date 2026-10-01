@@ -1,0 +1,240 @@
+/* Formats, legality tags and choosing a commander. */
+
+/* Formats and legality ------------------------------------------------------- */
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.format-field select {
+  padding: 4px 8px;
+}
+
+.chip.cheaper {
+  background: var(--good-soft);
+  color: var(--good);
+  cursor: help;
+}
+
+.nav-cheaper {
+  color: var(--good);
+}
+
+.percent-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.percent-field input {
+  width: 64px;
+  text-align: right;
+}
+
+.chip.illegal {
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.chip.restricted {
+  background: rgba(232, 181, 79, 0.16);
+  color: var(--warn);
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.chip.legal {
+  background: var(--good-soft);
+  color: var(--good);
+  font-weight: 600;
+}
+
+.card-view-info .chip.illegal,
+.card-view-info .chip.restricted {
+  margin-left: 0;
+}
+
+.issue-badge {
+  margin-left: 0;
+  cursor: pointer;
+  padding: 2px 10px;
+  font-size: 12px;
+  border: 1px solid transparent;
+}
+
+.issue-badge.on {
+  border-color: var(--bad);
+}
+
+.name-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  font-weight: 500;
+  color: inherit;
+  cursor: pointer;
+}
+
+.name-btn:hover:not(:disabled) {
+  background: none;
+  text-decoration: underline;
+}
+
+.section-row td {
+  background: var(--panel-2) !important;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding: 7px 10px;
+}
+
+/* Commander --------------------------------------------------------------------- */
+
+.wand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.wand-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  filter: brightness(1.15);
+}
+
+.wand-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.wand-btn:hover svg {
+  transform: rotate(-12deg) scale(1.1);
+}
+
+.wand-btn.on {
+  background: linear-gradient(120deg, var(--accent), var(--shine-2), var(--accent));
+  background-size: 200% 100%;
+  color: var(--accent-ink);
+  box-shadow: 0 0 0 3px var(--accent-soft), 0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent);
+  animation: wand-glow 1.6s linear infinite;
+}
+
+.wand-btn.on:hover:not(:disabled) {
+  background: linear-gradient(120deg, var(--accent), var(--shine-2), var(--accent));
+  background-size: 200% 100%;
+}
+
+.wand-btn.on svg {
+  animation: wand-wave 0.9s ease-in-out infinite alternate;
+}
+
+/* While picking: cards that can lead light up under a wand cursor; the rest fade out. */
+.cards-table.picking tr.pick-ok,
+.cards-table.picking tr.pick-ok * {
+  cursor:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'><g fill='none' stroke-linecap='round'><path d='M24 24 10 10' stroke='%23111' stroke-width='5'/><path d='M24 24 10 10' stroke='%23e8eaef' stroke-width='2.6'/><path d='M6 1v10M1 6h10' stroke='%23111' stroke-width='3.4'/><path d='M6 1.6v8.8M1.6 6h8.8' stroke='%23ffffff' stroke-width='1.6'/></g></svg>")
+      6 6,
+    pointer;
+}
+
+.cards-table.picking tr.pick-ok td {
+  transition: background 0.12s;
+}
+
+.cards-table.picking tr.pick-ok:hover td {
+  background: var(--accent-soft);
+}
+
+.cards-table.picking tr.pick-ok .card-name {
+  color: var(--accent);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.cards-table.picking tr.pick-no {
+  opacity: 0.35;
+  filter: grayscale(0.8);
+  cursor: not-allowed;
+}
+
+.cards-table.picking tr.pick-no * {
+  cursor: not-allowed;
+}
+
+.commander-section .section-row td {
+  color: var(--accent);
+  background: linear-gradient(90deg, var(--accent-soft), transparent 70%), var(--panel-2) !important;
+}
+
+.commander-section .section-row svg {
+  width: 13px;
+  height: 13px;
+  margin: 0 6px -2px 0;
+}
+
+.section-action {
+  margin-left: 10px;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--faint);
+  font: inherit;
+  font-size: 11px;
+}
+
+.section-action:hover:not(:disabled) {
+  background: none;
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.cards-table tr.leader td:first-child {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.cards-table tr.leader .card-name {
+  font-weight: 600;
+}
+
+.cards-table tr.crowned td {
+  animation: crowned 1.6s ease-out;
+}
+
+@keyframes wand-glow {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@keyframes wand-wave {
+  from {
+    transform: rotate(-14deg);
+  }
+  to {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes crowned {
+  0% {
+    background: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}

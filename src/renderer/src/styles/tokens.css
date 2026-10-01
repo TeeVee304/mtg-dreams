@@ -1,0 +1,127 @@
+/* Colors, sizes and the six mana-color themes, light and dark. */
+
+:root {
+  --bg: #121418;
+  --panel: #1a1d23;
+  --panel-2: #21252c;
+  --hover: #262a32;
+  --border: #2c313a;
+  --text: #e8eaef;
+  --muted: #979eac;
+  --faint: #6b7280;
+  --accent: #e3a94f;
+  --accent-ink: #1d1406;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  /* Bright gradients (Inventory Value, the wand while picking): the same in light and dark. */
+  --shine-1: #e3a94f;
+  --shine-2: #f6d989;
+  --shine-3: #c77d2a;
+  --shine-ink: #2a1a05;
+  --good: #5cc28a;
+  --good-soft: rgba(92, 194, 138, 0.14);
+  --warn: #e8b54f;
+  --bad: #ef6b6b;
+  --bad-soft: rgba(239, 107, 107, 0.14);
+  --foil: linear-gradient(100deg, #7dd3fc, #c4b5fd, #f9a8d4, #fde68a);
+  --radius: 8px;
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f5f5f3;
+    --panel: #ffffff;
+    --panel-2: #f0f0ed;
+    --hover: #e9e9e5;
+    --border: #dcdcd6;
+    --text: #1d2026;
+    --muted: #626a78;
+    --faint: #8b92a0;
+    --accent: #b8741a;
+    --accent-ink: #ffffff;
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+    --good: #238a55;
+    --good-soft: rgba(35, 138, 85, 0.12);
+    --warn: #a86a00;
+    --bad: #c9362f;
+    --bad-soft: rgba(201, 54, 47, 0.1);
+    --shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+    color-scheme: light;
+  }
+}
+
+/* Theme colors, one per mana color (Settings → Appearance). White is the gold default above;
+   Colorless is that gold put through a grayscale filter. */
+
+:root[data-color='U'] {
+  --accent: #7fb2ea;
+  --accent-ink: #0b1a2e;
+  --shine-1: #7fb2ea;
+  --shine-2: #cfe3f8;
+  --shine-3: #3d6fb3;
+  --shine-ink: #0b1a2e;
+}
+
+:root[data-color='B'] {
+  --accent: #a98ad8;
+  --accent-ink: #1a1029;
+  --shine-1: #a98ad8;
+  --shine-2: #ddd0f2;
+  --shine-3: #6b45a8;
+  --shine-ink: #1a1029;
+}
+
+:root[data-color='R'] {
+  --accent: #ec7680;
+  --accent-ink: #2a0a0e;
+  --shine-1: #ec7680;
+  --shine-2: #f9c2c6;
+  --shine-3: #b8303f;
+  --shine-ink: #2a0a0e;
+}
+
+:root[data-color='G'] {
+  --accent: #6fcf9f;
+  --accent-ink: #0c2118;
+  --shine-1: #6fcf9f;
+  --shine-2: #c9efda;
+  --shine-3: #2f8a62;
+  --shine-ink: #0c2118;
+}
+
+:root[data-color='C'] {
+  --accent: #b0b0b0;
+  --accent-ink: #151515;
+  --shine-1: #b0b0b0;
+  --shine-2: #d9d9d9;
+  --shine-3: #8a8a8a;
+  --shine-ink: #1c1c1c;
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-color='U'] {
+    --accent: #2f66b0;
+    --accent-ink: #ffffff;
+  }
+
+  :root[data-color='B'] {
+    --accent: #6b45a8;
+    --accent-ink: #ffffff;
+  }
+
+  :root[data-color='R'] {
+    --accent: #c0303f;
+    --accent-ink: #ffffff;
+  }
+
+  :root[data-color='G'] {
+    --accent: #23845a;
+    --accent-ink: #ffffff;
+  }
+
+  :root[data-color='C'] {
+    --accent: #7e7e7e;
+    --accent-ink: #ffffff;
+  }
+}

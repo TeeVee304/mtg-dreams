@@ -13,6 +13,7 @@ import {
 } from '../../../shared/cards'
 import { bundledBasic } from '../../../shared/basics'
 import { cardLines, nameKey, serializeInventory } from '../../../shared/decklist'
+import { hasVersions } from '../../../shared/inventory'
 import type { InventoryItem, ListKind } from '../../../shared/types'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../cardinfo'
 import type { CardList, LibraryActions, ListRef } from '../library'
@@ -20,6 +21,7 @@ import { usePrintingsVersion } from '../printings'
 import { updateSettings, useSettings } from '../settings'
 import { CardSearch } from './CardSearch'
 import { TextEditorDialog } from './Dialogs'
+import { copyLabel, InventoryVersionsDialog } from './InventoryVersions'
 import { FilterBar } from './FilterBar'
 import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
@@ -49,6 +51,9 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
   const sort = sortFor('inventory', settings.sort)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
   const [editing, setEditing] = useState(false)
+  /** The card (name key) whose versions are being edited. */
+  const [versionsOf, setVersionsOf] = useState<string | null>(null)
+  const versionsItem = versionsOf ? inventory.get(versionsOf) : undefined
 
   /** For each card: the decks using it and the wishlists wanting it. */
   const usage = useMemo(() => {
@@ -189,6 +194,20 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
                   </td>
                   <td className="col-name" {...previewFor(item.name)}>
                     <span className="card-name">{item.name}</span>
+                    {hasVersions(item) &&
+                      item.copies
+                        .filter((copy) => copy.set || copy.foil)
+                        .map((copy) => (
+                          <button
+                            key={copyLabel(copy)}
+                            type="button"
+                            className={`chip link${copy.foil ? ' foil' : ''}`}
+                            onClick={() => setVersionsOf(nameKey(item.name))}
+                            title="Your versions of this card"
+                          >
+                            {copy.qty}× {copyLabel(copy)}
+                          </button>
+                        ))}
                   </td>
                   <td>
                     <div className="chips">{usageChips(item, 'deck')}</div>
@@ -197,6 +216,15 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
                     <div className="chips">{usageChips(item, 'wishlist')}</div>
                   </td>
                   <td className="col-actions">
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      onClick={() => setVersionsOf(nameKey(item.name))}
+                      title="Versions you own"
+                      aria-label={`Versions of ${item.name} you own`}
+                    >
+                      <Icon name="versions" />
+                    </button>
                     <button
                       type="button"
                       className="icon-btn danger-ghost"
@@ -221,6 +249,14 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
             collection.
           </p>
         </div>
+      )}
+
+      {versionsItem && (
+        <InventoryVersionsDialog
+          item={versionsItem}
+          onChange={(copies) => actions.setCopies(versionsItem.name, copies)}
+          onClose={() => setVersionsOf(null)}
+        />
       )}
 
       {editing && (

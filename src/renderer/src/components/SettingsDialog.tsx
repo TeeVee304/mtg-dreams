@@ -86,6 +86,29 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           ))}
         </div>
         <p className="muted tiny settings-note">From Cardmarket’s daily price guide, in EUR. Inventory Value always uses the typical price.</p>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">Price drop alerts</span>
+            <span className="muted small">
+              Flags wishlist cards you still need once they&apos;re this much cheaper than when you added them.
+            </span>
+          </span>
+          <span className="percent-field">
+            <input
+              type="number"
+              min={1}
+              max={90}
+              step={1}
+              value={settings.dropAlertPercent}
+              aria-label="Price drop alert threshold in percent"
+              onChange={(event) => {
+                const percent = Math.round(Number(event.target.value))
+                if (percent >= 1 && percent <= 90) change({ dropAlertPercent: percent })
+              }}
+            />
+            %
+          </span>
+        </label>
       </section>
 
       <section className="settings-section">

@@ -118,6 +118,12 @@ export function priceGuideDate(): number | null {
   return guide?.createdAt ?? null
 }
 
+/** A product's typical prices (the trend) in the current guide, non-foil and foil; 0 = no price. */
+export function guideTrend(cardmarketId: number): [number, number] | undefined {
+  const row = guide?.rows.get(cardmarketId)
+  return row && [row[1], row[4]]
+}
+
 function merge(fallback: Prices, row: Row, offset: number): Prices {
   const prices: Prices = { ...fallback }
   BASES.forEach((basis, i) => {

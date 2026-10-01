@@ -2,15 +2,15 @@ import { cardLines } from '../../../shared/decklist'
 import { listFormat } from '../../../shared/formats'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '../../../shared/trade'
 import type { InventoryItem, ListKind } from '../../../shared/types'
-import { formatEur } from '../format'
+import { cardCount, formatEur } from '../format'
 import { sameList, type CardList, type ListRef } from '../library'
+import { priceDrop, useBaselines } from '../history'
 import { usePrintingsVersion } from '../printings'
 import { useSettings } from '../settings'
 import { buildRows, summarize } from '../summary'
 import { THEME_ICONS } from '../artwork'
 import { Icon } from './Icon'
 
-const cardCount = (n: number) => `${n} ${n === 1 ? 'card' : 'cards'}`
 
 export type View = { page: 'inventory' } | { page: 'list'; list: ListRef } | { page: 'trade'; friend: string }
 
@@ -38,9 +38,20 @@ export function Sidebar(props: SidebarProps) {
   const { trades, myTrade, onShareTrade, onImportTrade } = props
   usePrintingsVersion()
   const settings = useSettings()
+  const baselines = useBaselines()
 
   const renderList = (list: CardList) => {
-    const summary = summarize(buildRows(cardLines(list.lines), inventory, settings))
+    const rows = buildRows(cardLines(list.lines), inventory, settings)
+    const summary = summarize(rows)
+    // Wishlist cards that got cheaper since added (Settings → Prices sets how much).
+    const cheaper =
+      list.kind === 'wishlist'
+        ? rows.filter(
+            (row) =>
+              !row.bundledIds &&
+              priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
+          ).length
+        : 0
     const format = listFormat(list.lines)
     const active = view?.page === 'list' && sameList(view.list, list)
     const priced = summary.loading === 0 && summary.cards > 0
@@ -61,6 +72,12 @@ export function Sidebar(props: SidebarProps) {
             <span className="nav-complete">✓ Complete · {cardCount(summary.cards)}</span>
           ) : (
             `${summary.ownedCards}/${summary.cards}${priced ? ` · ${formatEur(summary.neededValue)}` : ''}`
+          )}
+          {cheaper > 0 && (
+            <span className="nav-cheaper" title={`${cheaper} still needed ${cheaper === 1 ? 'card got' : 'cards got'} cheaper since added`}>
+              {' '}
+              · ↓ {cheaper} cheaper
+            </span>
           )}
         </span>
       </button>

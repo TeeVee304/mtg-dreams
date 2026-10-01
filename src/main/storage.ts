@@ -3,7 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { basename, dirname, join } from 'node:path'
 import { CONFLICT_ERROR, type AppSettings, type ListFile, type LoadedData, type Theme } from '../shared/api'
 import { DEFAULT_SORT, isSortKey } from '../shared/cards'
-import { DEFAULT_PRICE_BASIS, isPriceBasis } from '../shared/pricing'
+import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS, isPriceBasis } from '../shared/pricing'
 import { fileNameProblem } from '../shared/filenames'
 import { DEFAULT_THEME_COLOR, isThemeColor } from '../shared/themes'
 import { TRADE_EXTENSION } from '../shared/trade'
@@ -28,6 +28,7 @@ interface Settings {
   tradeName?: string
   sort?: string
   priceBasis?: string
+  dropAlertPercent?: number
 }
 
 const settingsPath = () => join(env().userData, 'settings.json')
@@ -120,7 +121,11 @@ export function getAppSettings(): AppSettings {
     bundleBasics: settings.bundleBasics ?? true,
     tradeName: settings.tradeName ?? '',
     sort: isSortKey(settings.sort) ? settings.sort : DEFAULT_SORT,
-    priceBasis: isPriceBasis(settings.priceBasis) ? settings.priceBasis : DEFAULT_PRICE_BASIS
+    priceBasis: isPriceBasis(settings.priceBasis) ? settings.priceBasis : DEFAULT_PRICE_BASIS,
+    dropAlertPercent:
+      Number.isInteger(settings.dropAlertPercent) && settings.dropAlertPercent! >= 1 && settings.dropAlertPercent! <= 90
+        ? settings.dropAlertPercent!
+        : DEFAULT_DROP_ALERT_PERCENT
   }
 }
 

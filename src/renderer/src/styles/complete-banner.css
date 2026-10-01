@@ -1,0 +1,179 @@
+/* The "wishlist complete" banner. */
+
+/* Completed wishlist ------------------------------------------------------------ */
+
+.complete-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--good);
+  border-radius: var(--radius);
+  background: linear-gradient(100deg, var(--good-soft), var(--accent-soft)), var(--panel);
+  animation: banner-in 0.35s ease-out;
+}
+
+.complete-check {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #3fae72;
+  color: #fff;
+  animation: check-pop 0.5s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.complete-check svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 3;
+}
+
+.complete-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.complete-text strong {
+  font-size: 15.5px;
+}
+
+.move-wrap {
+  position: relative;
+  flex: none;
+}
+
+.move-btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3fae72, #2c8a57);
+  color: #fff;
+  font-size: 14.5px;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(63, 174, 114, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.move-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #46bb7c, #2f935d);
+  transform: translateY(-1px);
+  box-shadow: 0 9px 22px rgba(63, 174, 114, 0.45);
+}
+
+.move-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.move-btn:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+/* A light sweep across the button every few seconds. */
+.move-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  transform: skewX(-20deg);
+  animation: shine 3s ease-in-out infinite;
+}
+
+.move-btn svg {
+  transition: transform 0.2s ease;
+}
+
+.move-btn:hover:not(:disabled) svg,
+.complete-banner.moving .move-btn svg {
+  transform: translateX(3px);
+}
+
+.complete-banner.moving .move-btn {
+  transform: scale(1.05);
+}
+
+.confetti {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  pointer-events: none;
+}
+
+.confetti i {
+  position: absolute;
+  width: 8px;
+  height: 12px;
+  margin: -6px 0 0 -4px;
+  border-radius: 2px;
+  background: var(--color);
+  opacity: 0;
+  animation: confetti-burst 0.8s cubic-bezier(0.15, 0.7, 0.3, 1) var(--delay) forwards;
+}
+
+.nav-complete {
+  color: var(--good);
+  font-weight: 600;
+}
+
+@keyframes banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes check-pop {
+  from {
+    transform: scale(0);
+  }
+}
+
+@keyframes shine {
+  0%,
+  65% {
+    left: -60%;
+  }
+  100% {
+    left: 130%;
+  }
+}
+
+@keyframes confetti-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--angle)) translateY(0) rotate(0deg) scale(0.6);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateY(calc(-1 * var(--distance))) rotate(540deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .complete-banner,
+  .complete-check,
+  .move-btn::after {
+    animation: none;
+  }
+
+  .confetti {
+    display: none;
+  }
+}

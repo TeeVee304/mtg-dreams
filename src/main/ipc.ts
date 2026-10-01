@@ -1,7 +1,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
-import type { AppSettings, PrintingsOptions, Theme } from '../shared/api'
+import type { AppSettings, PriceBaseline, PrintingsOptions, Theme } from '../shared/api'
 import { isSortKey } from '../shared/cards'
 import { isPriceBasis } from '../shared/pricing'
 import { isThemeColor } from '../shared/themes'
@@ -9,6 +9,7 @@ import { TRADE_EXTENSION } from '../shared/trade'
 import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
 import { priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
+import { getBaselines, pricesAt, recordCurrentPrices, trackPrices, updateBaselines } from './priceHistory'
 import { autocomplete, getCardInfos, getPrintings } from './scryfall'
 import * as storage from './storage'
 
@@ -35,6 +36,30 @@ export function openExternalSafe(raw: string): void {
   }
   const allowed = EXTERNAL_HOSTS.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))
   if (url.protocol === 'https:' && allowed) void shell.openExternal(url.toString())
+}
+
+/** A list of Cardmarket product numbers (or timestamps) from the page. */
+function numbers(value: unknown, what: string, max = 50_000): number[] {
+  if (!Array.isArray(value) || value.length > max || !value.every((n) => Number.isSafeInteger(n))) {
+    throw new Error(`Invalid ${what}.`)
+  }
+  return value as number[]
+}
+
+/** Wishlist baselines from the page: { key: { at, prices: { basis: price } } }. */
+function baselines(value: unknown): Record<string, PriceBaseline> {
+  if (typeof value !== 'object' || value === null) throw new Error('Invalid baselines.')
+  const valid: Record<string, PriceBaseline> = {}
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+    const entry = raw as { at?: unknown; prices?: Record<string, unknown> }
+    if (key.length > 400 || typeof entry?.at !== 'number' || typeof entry.prices !== 'object' || entry.prices === null) continue
+    const prices: PriceBaseline['prices'] = {}
+    for (const [basis, price] of Object.entries(entry.prices)) {
+      if (isPriceBasis(basis) && typeof price === 'number' && Number.isFinite(price) && price > 0) prices[basis] = price
+    }
+    valid[key] = { at: entry.at, prices }
+  }
+  return valid
 }
 
 function text(value: unknown, what: string): string {
@@ -138,6 +163,11 @@ export function registerIpc(): void {
       if (!isPriceBasis(input.priceBasis)) throw new Error('Invalid price basis.')
       patch.priceBasis = input.priceBasis
     }
+    if ('dropAlertPercent' in input) {
+      const percent = input.dropAlertPercent
+      if (typeof percent !== 'number' || !Number.isInteger(percent) || percent < 1 || percent > 90) throw new Error('Invalid alert threshold.')
+      patch.dropAlertPercent = percent
+    }
     if ('sort' in input) {
       if (!isSortKey(input.sort)) throw new Error('Invalid sort.')
       patch.sort = input.sort
@@ -167,7 +197,10 @@ export function registerIpc(): void {
   })
   ipcMain.handle('prices:refresh', async () => {
     const updated = await refreshPriceGuide()
-    if (updated) notifyPricesUpdated()
+    if (updated) {
+      await recordCurrentPrices()
+      notifyPricesUpdated()
+    }
     return { updated, pricedAt: priceGuideDate() }
   })
 
@@ -178,6 +211,15 @@ export function registerIpc(): void {
     return getCardInfos(names)
   })
 
+  ipcMain.handle('history:track', (_e, ids: unknown) => trackPrices(numbers(ids, 'product numbers')))
+  ipcMain.handle('history:pricesAt', (_e, ids: unknown, at: unknown) =>
+    pricesAt(numbers(ids, 'product numbers'), numbers(at, 'dates', 10))
+  )
+  ipcMain.handle('history:baselines', () => getBaselines())
+  ipcMain.handle('history:updateBaselines', (_e, set: unknown, remove: unknown) => {
+    if (!Array.isArray(remove) || !remove.every((key) => typeof key === 'string')) throw new Error('Invalid baselines.')
+    return updateBaselines(baselines(set), remove)
+  })
   ipcMain.handle('precons:index', () => getPreconIndex())
   ipcMain.handle('precons:deck', (_e, fileName: unknown) => getPrecon(text(fileName, 'deck')))
 

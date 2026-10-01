@@ -1,5 +1,6 @@
 import { bundleBasicLines, genericBasic } from '../../shared/basics'
 import { allocateOwned, nameKey } from '../../shared/decklist'
+import { ownedVersion } from '../../shared/inventory'
 import { resolveLine, type Resolution } from '../../shared/pricing'
 import type { AppSettings } from '../../shared/api'
 import type { CardInfo, CardLine, InventoryItem } from '../../shared/types'
@@ -60,7 +61,13 @@ export function buildRows(
     }
     const entry = getPrintingsEntry(line.name)
     const data = entry?.data
-    const resolution = data && !data.notFound ? resolveLine(line, data.printings, priceBasis) : null
+    let resolution = data && !data.notFound ? resolveLine(line, data.printings, priceBasis) : null
+    // A line that names no version shows the version you own, when you recorded one.
+    const yours = !line.set && allocations[index].owned > 0 ? ownedVersion(inventory.get(nameKey(line.name)), line.foil) : null
+    if (yours && data && !data.notFound) {
+      const owned = resolveLine(yours, data.printings, priceBasis)
+      if (owned.printing && !owned.pinMissing) resolution = { ...owned, pinned: false, collectorMissing: false, fromInventory: true }
+    }
     return {
       line,
       entry,

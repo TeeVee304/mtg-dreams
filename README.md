@@ -22,8 +22,12 @@
 
 ### Your collection
 - **Inventory**: the cards you own, by name and quantity.
+- Optionally record which versions and foils you own (the versions button on each card); decks and wishlists then
+  show your version for lines that don't ask for one. Owning any version of a card still counts as owning it.
 - Each card shows which decks use it and which wishlists want it.
-- **Inventory Value** estimates what your inventory is worth and ranks your most valuable cards.
+- **Inventory Value** estimates what your inventory is worth and ranks your most valuable cards, each copy at the
+  version you recorded (the rest at the cheapest version).
+- It also shows how the value changed this week or this month, with the biggest risers and fallers.
 
 ### Decks and wishlists
 - **Decks** are built from your inventory: you can only add cards you own, up to the copies you have.
@@ -31,7 +35,10 @@
 - **Wishlists** list the cards you want and what they still cost.
 - Owned cards are ticked: a list that wants 4 while you own 2 shows `2/4`.
 - A complete wishlist offers **Move to Decks**.
+- Wishlist cards you still need are flagged once they're 15% cheaper than when you added them (adjustable in
+  Settings), and the sidebar counts them.
 - Both are grouped by card type, with a count and value per section.
+- A **Stats** panel shows the mana curve and the colors of the cards besides lands.
 
 ### Formats and Commander
 - Give a deck or wishlist a format: Standard, Pioneer, Modern, Commander, Pauper and more.
@@ -121,7 +128,8 @@ Documents\MTG Dreams\
 - If a file changes outside the app while you're working on it (e.g. OneDrive syncing an edit from another PC),
   the app asks before saving over it.
 - Uninstalling never deletes your data.
-- The caches are safe to delete; they are downloaded again.
+- The caches are safe to delete; they are downloaded again. The exception is `price-history.json`: deleting it
+  starts the price history (and wishlist price drops) over.
 - Data from the app's earlier names (*MTG Dream*, *MTG Wishlist Tracker*) is carried over on first launch.
 
 ### File format
@@ -136,7 +144,7 @@ Documents\MTG Dreams\
 
 - Comments, blank lines and headers such as `Sideboard` are kept.
 - Imports also understand Arena/Moxfield lines (`4 Lightning Bolt (2XM) 141`, `*F*`) and `4x` quantities.
-- `inventory.txt` uses the same format, without versions or foil.
+- `inventory.txt` uses the same format; a line without a version counts as any version.
 
 ## How prices work
 
@@ -157,6 +165,8 @@ Documents\MTG Dreams\
 - A foil-only printing counts at its foil price.
 - **Refresh prices** checks for a newer guide; the app also checks hourly.
 - Card versions are refreshed from Scryfall weekly, in the background.
+- The guide only has today's prices, so the app keeps its own daily history for the versions in your inventory.
+  Value changes appear from Cardmarket's next update after a card joins it.
 
 ## Development
 
@@ -199,3 +209,7 @@ Card data, images and mana symbols come from [Scryfall](https://scryfall.com). P
 
 Magic: The Gathering is © Wizards of the Coast. This project is not affiliated with or endorsed by Scryfall,
 MTGJSON, Cardmarket or Wizards of the Coast.
+
+## License
+
+[MIT](LICENSE), for the app's code. Card data, images and prices keep their owners' terms.

@@ -1,0 +1,75 @@
+/* Card search with autocomplete. */
+
+/* Card search ------------------------------------------------------------------ */
+
+.card-search {
+  position: relative;
+}
+
+.card-search input {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 15px;
+  border-radius: var(--radius);
+}
+
+.search-spinner {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.suggestions {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.suggestions li {
+  padding: 7px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.suggestions li.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+}
+
+.search-row .card-search {
+  flex: 1;
+}
+
+.search-row > button {
+  white-space: nowrap;
+  border-radius: var(--radius);
+}

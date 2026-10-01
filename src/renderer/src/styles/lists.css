@@ -1,0 +1,155 @@
+/* Deck and wishlist pages: sections, headers, settings rows. */
+
+/* Decks, sections and settings ------------------------------------------------ */
+
+.section-value {
+  float: right;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.suggestions li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.suggestion-hint {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.chip.link.deck {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.foot-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  margin-top: 8px;
+  background: transparent;
+  border-color: transparent;
+  padding: 6px 8px;
+  margin-left: -8px;
+  color: var(--muted);
+}
+
+.settings-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.settings-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 10px;
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.color-options {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+
+.color-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 4px 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.color-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.color-icon {
+  width: 48px;
+  height: 48px;
+  transition: transform 0.15s ease;
+}
+
+.color-option:hover .color-icon {
+  transform: translateY(-2px) rotate(-3deg);
+}
+
+.color-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.color-mana {
+  width: 14px;
+  height: 14px;
+}
+
+.theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  text-align: left;
+}
+
+.theme-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.theme-swatch {
+  width: 100%;
+  height: 44px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.theme-light .theme-swatch {
+  background: linear-gradient(135deg, #ffffff 55%, var(--accent) 55%);
+}
+
+.theme-dark .theme-swatch {
+  background: linear-gradient(135deg, #1a1d23 55%, var(--accent) 55%);
+}
+
+.theme-system .theme-swatch {
+  background: linear-gradient(90deg, #ffffff 50%, #1a1d23 50%);
+}
+
+.theme-label {
+  font-weight: 600;
+}
+
+.welcome-actions {
+  display: flex;
+  gap: 8px;
+}

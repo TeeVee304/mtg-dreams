@@ -1,27 +1,21 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { bundledBasic } from '../../../shared/basics'
 import { priceBasisLabel } from '../../../shared/pricing'
-import type { PriceBasis } from '../../../shared/types'
-import type { InventoryItem, Printing } from '../../../shared/types'
+import type { InventoryItem, PriceBasis } from '../../../shared/types'
+import { valueCollection } from '../collection'
 import { formatEur } from '../format'
 import { prefersReducedMotion } from '../motion'
-import { cheapestVersion, getPrintingsEntry, requestPrintings, usePrintingsVersion } from '../printings'
+import { requestPrintings, usePrintingsVersion } from '../printings'
 import { useSettings } from '../settings'
 import { previewHandlers } from './HoverPreview'
 import { Modal } from './Modal'
+import { ValueChange } from './ValueChange'
 
 const STEP = 5
 
 // What a collection is worth is a selling question, so it's always valued at Cardmarket's
 // typical price (the trend), whatever price basis Settings choose for buying.
 const VALUATION_BASIS: PriceBasis = 'trend'
-
-interface ValuedCard {
-  name: string
-  qty: number
-  unit: number
-  printing: Printing | null
-}
 
 /** Animates a number towards `target`, continuing from wherever it currently is. */
 function useCountUp(target: number): number {
@@ -55,8 +49,8 @@ interface CollectionValueDialogProps {
 
 /**
  * The inventory's estimated value and its most valuable cards, worked out each
- * time it opens. The inventory tracks names, not versions, so each card is
- * valued at its cheapest version.
+ * time it opens: copies with a recorded version at that version, the others at
+ * the card's cheapest version.
  */
 export function CollectionValueDialog({ inventory, onClose }: CollectionValueDialogProps) {
   usePrintingsVersion()
@@ -71,27 +65,7 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
   }, [inventory, bundleBasics])
 
   const items = [...inventory.values()]
-  let total = 0
-  let copies = 0
-  let pending = 0
-  let unpriced = 0
-  const valued: ValuedCard[] = []
-  for (const item of items) {
-    copies += item.qty
-    if (bundledBasic(item.name, bundleBasics)) continue
-    const cheapest = cheapestVersion(item.name, VALUATION_BASIS)
-    if (!cheapest) {
-      if (getPrintingsEntry(item.name)?.error) unpriced += 1
-      else pending += 1
-      continue
-    }
-    if (cheapest.unit === null) {
-      unpriced += 1
-      continue
-    }
-    total += cheapest.unit * item.qty
-    valued.push({ name: item.name, qty: item.qty, unit: cheapest.unit, printing: cheapest.printing })
-  }
+  const { total, copies, pending, unpriced, valued } = valueCollection(inventory, VALUATION_BASIS, bundleBasics)
   valued.sort((a, b) => b.unit - a.unit || b.unit * b.qty - a.unit * a.qty)
   const displayed = useCountUp(total)
   const priced = items.length - pending
@@ -119,13 +93,15 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
             )}
           </div>
 
+          <ValueChange valued={valued} ready={pending === 0} />
+
           {valued.length > 0 && (
             <>
               <h3 className="value-heading">Most valuable cards</h3>
               <ol className="value-list">
                 {valued.slice(0, shown).map((card, index) => (
                   <li
-                    key={card.name}
+                    key={`${card.name}|${card.copy.set ?? ''}|${card.copy.collector ?? ''}|${card.copy.foil}`}
                     className={`value-row rank-${index + 1}`}
                     style={{ '--stagger': `${(index % STEP) * 45}ms` } as CSSProperties}
                     {...previewHandlers({ src: card.printing?.imageNormal })}
@@ -141,6 +117,8 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
                       {card.printing && (
                         <span className="muted tiny">
                           {card.printing.set.toUpperCase()} #{card.printing.collectorNumber}
+                          {card.copy.foil && ' · foil'}
+                          {!card.copy.set && ' · cheapest version'}
                         </span>
                       )}
                     </span>
@@ -161,7 +139,8 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
           )}
 
           <p className="muted tiny value-note">
-            Estimated with each card's cheapest version at Cardmarket prices ({priceBasisLabel(VALUATION_BASIS)})
+            Estimated at Cardmarket prices ({priceBasisLabel(VALUATION_BASIS)}): copies at the version you recorded,
+            the rest at each card's cheapest version
             {bundleBasics ? '; bundled basic lands count as free' : ''}.
             {unpriced > 0 && ` ${unpriced} ${unpriced === 1 ? 'card has' : 'cards have'} no price and ${unpriced === 1 ? 'is' : 'are'} left out.`}
           </p>

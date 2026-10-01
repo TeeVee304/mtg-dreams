@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { SERVICES, setEnvironment } from './environment'
 import { applyTheme, notifyPricesUpdated, openExternalSafe, registerIpc, windowBackground } from './ipc'
 import { startPriceGuide } from './priceGuide'
+import { recordCurrentPrices } from './priceHistory'
 import { flushScryfallCache, loadScryfallCache } from './scryfallCache'
 import { WINDOW_ICONS } from './icons'
 import { getAppSettings, getTheme, migrateFromOldName } from './storage'
@@ -94,7 +95,7 @@ if (!app.requestSingleInstanceLock()) {
     registerIpc()
     createWindow()
     // Cardmarket prices: checked now and hourly; open windows reload prices when they change.
-    startPriceGuide(notifyPricesUpdated)
+    startPriceGuide(() => void recordCurrentPrices().finally(notifyPricesUpdated))
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()
     })

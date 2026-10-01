@@ -1,0 +1,178 @@
+/* The Stats panel: mana curve and colors. */
+
+/* Stats panel (mana curve, colors) ------------------------------------------------ */
+
+.deck-stats {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.deck-stats-toggle {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.deck-stats-chevron {
+  display: inline-block;
+  width: 10px;
+  transition: transform 0.15s ease;
+}
+
+.deck-stats.open .deck-stats-chevron {
+  transform: rotate(90deg);
+}
+
+.deck-stats-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  padding: 4px 16px 16px;
+}
+
+.stats-chart {
+  margin: 0;
+  min-width: 0;
+}
+
+.stats-chart figcaption {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.curve {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  align-items: end;
+  height: 110px;
+  border-bottom: 1px solid var(--border);
+}
+
+.curve-slot {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  outline: none;
+}
+
+.curve-value {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.curve-bar {
+  width: min(24px, 70%);
+  background: var(--accent);
+  border-radius: 4px 4px 0 0;
+  min-height: 0;
+}
+
+.curve-slot:hover .curve-bar,
+.curve-slot:focus-visible .curve-bar {
+  filter: brightness(1.15);
+}
+
+.curve-axis {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-tip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  white-space: nowrap;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 9px;
+  font-size: 12px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+.curve-slot:hover .chart-tip,
+.curve-slot:focus-visible .chart-tip {
+  display: block;
+}
+
+.color-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.color-bars li {
+  display: grid;
+  grid-template-columns: 112px 1fr 32px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.color-bars li.is-zero {
+  color: var(--muted);
+}
+
+.color-bar-name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.color-bar-name img,
+.multicolor-dot {
+  width: 15px;
+  height: 15px;
+  flex: none;
+}
+
+.multicolor-dot {
+  border-radius: 50%;
+  background: conic-gradient(#f3e9b5 0 20%, #6aa9de 0 40%, #4b4545 0 60%, #e06b4c 0 80%, #4f9a63 0);
+}
+
+.color-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.color-bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 0 4px 4px 0;
+}
+
+.color-bar-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

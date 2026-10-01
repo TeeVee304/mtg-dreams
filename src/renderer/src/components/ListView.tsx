@@ -1,16 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  filtersActive,
-  needsCardData,
-  NO_FILTERS,
-  sortFor,
-  sortOptionsFor,
-  type CardFilters,
-  type SortKey
-} from '../../../shared/cards'
+import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } from '../../../shared/cards'
 import { cardLines, nameKey } from '../../../shared/decklist'
-import { capEntries, commanderRule, FORMATS } from '../../../shared/formats'
-import { priceBasisLabel } from '../../../shared/pricing'
+import { commanderRule } from '../../../shared/formats'
+import type { Version } from '../../../shared/inventory'
 import {
   analyzeList,
   copyCaps,
@@ -22,32 +14,25 @@ import {
   sectionRows,
   sortRows
 } from '../../../shared/listModel'
-import type { CardLine, InventoryItem, PriceBasis } from '../../../shared/types'
+import type { CardLine, InventoryItem } from '../../../shared/types'
 import { bundledBasic } from '../../../shared/basics'
 import { getCardInfo } from '../cardinfo'
-import { cleanError, formatDay, formatEur } from '../format'
+import { cleanError, formatDay } from '../format'
 import type { CardList, LibraryActions, ListRef } from '../library'
+import { priceDrop, useBaselines } from '../history'
 import { requestPrintings, usePrintingsVersion } from '../printings'
-import { updateSettings, useSettings } from '../settings'
+import { useSettings } from '../settings'
 import { buildRows, summarize, type Row } from '../summary'
-import { CardDialog } from './CardDialog'
 import { CardRow } from './CardRow'
 import { AddCardPanel } from './CardEditors'
 import { CompleteBanner } from './CompleteBanner'
+import { DeckStats } from './DeckStats'
 import { CardSearch, type SearchChoice } from './CardSearch'
-import { ConfirmDialog, PromptDialog, TextEditorDialog } from './Dialogs'
-import { FilterBar } from './FilterBar'
-import { Icon } from './Icon'
-import { PreconDialog } from './PreconDialog'
+import { ListDialogs, type ListDialog } from './ListDialogs'
+import { ListHeader } from './ListHeader'
+import { ListTable } from './ListTable'
+import { ListValueCards } from './ListValueCards'
 import { useToast } from './Toasts'
-
-type Dialog =
-  | { kind: 'rename' }
-  | { kind: 'delete' }
-  | { kind: 'text' }
-  | { kind: 'card'; lineId: string }
-  | { kind: 'precon' }
-  | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
 
 interface ListViewProps {
   list: CardList
@@ -57,14 +42,18 @@ interface ListViewProps {
   onOpenList: (list: ListRef) => void
 }
 
-/** A deck (built from owned cards) or a wishlist (cards you want), grouped by card type. */
+/**
+ * A deck (built from owned cards) or a wishlist (cards you want), grouped by card type.
+ * Holds the page's state and what its controls do; the parts draw it (ListHeader,
+ * ListValueCards, DeckStats, ListTable, ListDialogs).
+ */
 export function ListView({ list, inventory, actions, onOpenList }: ListViewProps) {
   const toast = useToast()
   usePrintingsVersion()
   const isDeck = list.kind === 'deck'
   const noun = isDeck ? 'deck' : 'list'
   const [adding, setAdding] = useState<string | null>(null)
-  const [dialog, setDialog] = useState<Dialog | null>(null)
+  const [dialog, setDialog] = useState<ListDialog | null>(null)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
   const [hideOwned, setHideOwned] = useState(false)
   const [onlyProblems, setOnlyProblems] = useState(false)
@@ -81,6 +70,11 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   const sort = sortFor(sortView, settings.sort)
   const rows = buildRows(cards, inventory, settings)
   const summary = summarize(rows)
+  const baselines = useBaselines()
+  const dropOf = (row: Row) =>
+    isDeck || row.bundledIds
+      ? null
+      : priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
 
   // Legality, ownership and commander rules (shared/listModel.ts).
   const analysis = analyzeList(list.kind, list.lines, rows)
@@ -109,9 +103,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   const sections = sectionRows(visibleRows, analysis)
 
   const filtering = filtersActive(filters) || hideOwned || onlyProblems
-  const visibleSummary = summarize(visibleRows)
   const dataLoading = needsCardData(filters) && rows.some((row) => !row.info && !row.entry?.data?.notFound)
-  const lands = landCount(rows)
 
   const inventoryChoices = useMemo<SearchChoice[]>(
     () => [...inventory.values()].map((item) => ({ name: item.name, hint: `${item.qty} owned` })),
@@ -164,7 +156,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
 
   const toggleOwned = (row: Row) => {
     const change = ownedToggle(row)
-    if (change.kind === 'set') actions.setOwned(row.line.name, change.qty)
+    if (change.kind === 'set') actions.setOwned(row.line.name, change.qty, lineVersion(row.line))
     else setDialog({ kind: 'unown', line: row.line, inventoryQty: row.inventoryQty, target: change.target })
   }
 
@@ -199,7 +191,6 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
     toast(`${displayName(row)} now leads this ${noun}`)
   }
 
-  const columns = isDeck ? 6 : 7
   const renderRow = (row: Row) => (
     <CardRow
       key={row.line.id}
@@ -211,13 +202,14 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
       isDeck={isDeck}
       issue={analysis.issueOf(row)}
       shortfall={analysis.shortfallOf(row)}
+      drop={dropOf(row)}
       maxQty={maxFor(row.line)}
       maxTitle={limitFor(row.line.name)}
       onQty={(qty) =>
         row.bundledIds ? actions.setBundledQty(list, row.bundledIds, qty) : actions.updateCard(list, row.line.id, { qty })
       }
       onToggleOwned={() => toggleOwned(row)}
-      onOwnedDelta={(delta) => actions.setOwned(row.line.name, Math.max(0, row.inventoryQty + delta))}
+      onOwnedDelta={(delta) => actions.setOwned(row.line.name, Math.max(0, row.inventoryQty + delta), lineVersion(row.line))}
       onOpen={() => setDialog({ kind: 'card', lineId: row.line.id })}
       onRemove={() => (row.bundledIds ? actions.removeCards(list, row.bundledIds) : actions.removeCard(list, row.line.id))}
       onRename={(name) => actions.updateCard(list, row.line.id, { name })}
@@ -234,7 +226,6 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
     for (const name of needAllVersions.split('\n')) if (name) requestPrintings(name, { full: true })
   }, [needAllVersions])
 
-  const progress = summary.cards ? Math.round((summary.ownedCards / summary.cards) * 100) : 0
   const complete = !isDeck && summary.cards > 0 && summary.ownedCards >= summary.cards
 
   const moveToDecks = async () => {
@@ -247,121 +238,35 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
       throw error
     }
   }
-  const dialogRow = dialog?.kind === 'card' ? rows.find((row) => row.line.id === dialog.lineId) : undefined
 
   return (
     <div className="view">
-      <header className="view-header">
-        <div>
-          <h1>{list.name}</h1>
-          <div className="header-meta">
-            <label className="field-inline format-field">
-              Format
-              <select
-                value={format?.id ?? ''}
-                onChange={(event) => actions.setListFormat(list, event.target.value || null)}
-                aria-label="Deck format"
-              >
-                <option value="">No format (just a list)</option>
-                {FORMATS.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {format?.commander && cards.length > 0 && (
-              <button
-                type="button"
-                className={`wand-btn${picking ? ' on' : ''}`}
-                onClick={togglePicking}
-                aria-pressed={picking}
-                title={
-                  picking
-                    ? 'Cancel (Esc)'
-                    : `Then click the card that leads this ${noun}. In ${format.label} it must be ${commanderRule(format)}.`
-                }
-              >
-                <Icon name="wand" />
-                {picking ? 'Click your Commander… (Esc to cancel)' : hasCommander ? 'Change Commander' : 'Choose Commander'}
-              </button>
-            )}
-            {legalityErrors > 0 && (
-              <button
-                type="button"
-                className={`chip illegal issue-badge${onlyProblems ? ' on' : ''}`}
-                onClick={() => setOnlyProblems(!onlyProblems)}
-                title={onlyProblems ? 'Show all cards' : 'Show only cards with problems'}
-              >
-                {legalityErrors} {legalityErrors === 1 ? 'card breaks' : 'cards break'} {format?.label} rules
-              </button>
-            )}
-            {ownershipErrors > 0 && (
-              <button
-                type="button"
-                className={`chip illegal issue-badge${onlyProblems ? ' on' : ''}`}
-                onClick={() => setOnlyProblems(!onlyProblems)}
-                title={onlyProblems ? 'Show all cards' : 'Show only cards with problems'}
-              >
-                {ownershipErrors} {ownershipErrors === 1 ? 'card is' : 'cards are'} not in your inventory
-              </button>
-            )}
-            <span className="muted">
-              {summary.cards} cards ·{' '}
-              {summary.loading > 0
-                ? `loading prices ${cards.length - summary.loading}/${cards.length}…`
-                : summary.pricedAt
-                  ? `Cardmarket prices of ${formatDay(summary.pricedAt)}`
-                  : 'no prices yet'}
-            </span>
-          </div>
-        </div>
-        <div className="header-actions">
-          <button type="button" onClick={refreshPrices} disabled={cards.length === 0}>
-            Refresh prices
-          </button>
-          <button type="button" onClick={() => setDialog({ kind: 'text' })}>
-            Edit as text
-          </button>
-          <button
-            type="button"
-            onClick={() => window.api.copyText(list.text).then(() => toast(`${isDeck ? 'Deck' : 'List'} copied to clipboard`))}
-          >
-            Copy
-          </button>
-          <button type="button" onClick={() => setDialog({ kind: 'rename' })}>
-            Rename
-          </button>
-          <button type="button" className="danger-ghost" onClick={() => setDialog({ kind: 'delete' })}>
-            Delete
-          </button>
-        </div>
-      </header>
+      <ListHeader
+        name={list.name}
+        noun={noun}
+        format={format}
+        lines={cards.length}
+        summary={summary}
+        picking={picking}
+        hasCommander={hasCommander}
+        legalityErrors={legalityErrors}
+        ownershipErrors={ownershipErrors}
+        onlyProblems={onlyProblems}
+        onToggleProblems={() => setOnlyProblems(!onlyProblems)}
+        onTogglePicking={togglePicking}
+        onFormat={(formatId) => actions.setListFormat(list, formatId)}
+        onRefreshPrices={refreshPrices}
+        onEditText={() => setDialog({ kind: 'text' })}
+        onCopy={() => window.api.copyText(list.text).then(() => toast(`${isDeck ? 'Deck' : 'List'} copied to clipboard`))}
+        onRename={() => setDialog({ kind: 'rename' })}
+        onDelete={() => setDialog({ kind: 'delete' })}
+      />
 
       {complete && <CompleteBanner cards={summary.cards} onMove={moveToDecks} />}
 
-      {isDeck ? (
-        <section className="stats">
-          <Stat label="Deck value" value={formatEur(summary.total)} accent note={priceNote(summary, settings.priceBasis)} />
-          <Stat label="Cards" value={String(summary.cards)} note={`${lands} lands · ${summary.cards - lands} nonland`} />
-          <Stat label="Unique cards" value={String(cards.length)} />
-        </section>
-      ) : (
-        <section className="stats">
-          <Stat label="Still needed" value={formatEur(summary.neededValue)} accent note={priceNote(summary, settings.priceBasis)} />
-          <Stat label="List total" value={formatEur(summary.total)} />
-          <Stat label="Already owned" value={formatEur(summary.ownedValue)} />
-          <div className="stat">
-            <span className="stat-label">Collected</span>
-            <span className="stat-value">
-              {summary.ownedCards} / {summary.cards}
-            </span>
-            <div className="progress" aria-label={`${progress}% collected`}>
-              <div style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        </section>
-      )}
+      <ListValueCards isDeck={isDeck} summary={summary} lines={cards.length} lands={landCount(rows)} basis={settings.priceBasis} />
+
+      <DeckStats rows={rows} />
 
       <div className="search-row">
         {isDeck ? (
@@ -393,90 +298,24 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
       )}
 
       {cards.length > 0 ? (
-        <>
-          <FilterBar
-            filters={filters}
-            onChange={setFilters}
-            namePlaceholder="Filter by name…"
-            loadingNote={dataLoading ? 'Some cards are still loading and are hidden by these filters.' : undefined}
-          >
-            {!isDeck && (
-              <label className="check">
-                <input type="checkbox" checked={hideOwned} onChange={(event) => setHideOwned(event.target.checked)} />
-                Hide owned
-              </label>
-            )}
-            {filtering && (
-              <span className="muted small">
-                Showing {visibleSummary.cards} of {summary.cards} cards ·{' '}
-                {isDeck
-                  ? `${formatEur(visibleSummary.total)} value`
-                  : `${formatEur(visibleSummary.neededValue)} still needed`}
-              </span>
-            )}
-            <span className="spacer" />
-            <label className="field-inline">
-              Sort
-              <select
-                value={sort}
-                onChange={(event) => void updateSettings({ sort: event.target.value as SortKey })}
-                title="Applies to all decks, wishlists and the inventory"
-              >
-                {sortOptionsFor(sortView).map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </FilterBar>
-          <table className={`cards-table${picking ? ' picking' : ''}`}>
-            <thead>
-              <tr>
-                {!isDeck && (
-                  <th className="col-owned" title="Owned — shared across all lists through the Inventory">
-                    Owned
-                  </th>
-                )}
-                <th className="col-qty">Qty</th>
-                <th>Card</th>
-                <th className="col-version">Version</th>
-                <th className="col-num">Unit</th>
-                <th className="col-num">Total</th>
-                <th className="col-actions" aria-label="Actions" />
-              </tr>
-            </thead>
-            {sections.map((section) => {
-              const sectionSummary = summarize(section.rows)
-              const leaders = section.id === 'Commander'
-              return (
-                <tbody key={section.id} className={leaders ? 'commander-section' : undefined}>
-                  <tr className="section-row">
-                    <td colSpan={columns}>
-                      <span>
-                        {leaders && <Icon name="crown" />}
-                        {section.label} · {sectionSummary.cards}
-                      </span>
-                      {leaders && (
-                        <button
-                          type="button"
-                          className="section-action"
-                          onClick={() => actions.setListCommander(list, null)}
-                          title="Stop using this card as the commander. It goes back to its type section."
-                        >
-                          Unset
-                        </button>
-                      )}
-                      <span className="section-value">{formatEur(sectionSummary.total)}</span>
-                    </td>
-                  </tr>
-                  {section.rows.map(renderRow)}
-                </tbody>
-              )
-            })}
-          </table>
-          {visibleRows.length === 0 && <p className="muted empty-filter">No cards match the current filters.</p>}
-        </>
+        <ListTable
+          isDeck={isDeck}
+          sections={sections}
+          renderRow={renderRow}
+          visibleRows={visibleRows.length}
+          visibleSummary={summarize(visibleRows)}
+          totalCards={summary.cards}
+          sortView={sortView}
+          sort={sort}
+          filters={filters}
+          onFilters={setFilters}
+          hideOwned={hideOwned}
+          onHideOwned={setHideOwned}
+          filtering={filtering}
+          dataLoading={dataLoading}
+          picking={picking}
+          onUnsetCommander={() => actions.setListCommander(list, null)}
+        />
       ) : (
         !adding && (
           <div className="empty">
@@ -490,106 +329,24 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
         )
       )}
 
-      {dialog?.kind === 'rename' && (
-        <PromptDialog
-          title={`Rename ${noun}`}
-          label="Name"
-          initial={list.name}
-          confirmLabel="Rename"
-          onClose={() => setDialog(null)}
-          onSubmit={async (value) => {
-            if (value.trim() !== list.name) onOpenList(await actions.renameList(list, value))
-            setDialog(null)
-          }}
-        />
-      )}
-      {dialog?.kind === 'delete' && (
-        <ConfirmDialog
-          title={`Delete ${noun}`}
-          message={`Move “${list.name}” to the Recycle Bin? ${isDeck ? 'Its cards stay in your inventory.' : 'Your inventory is not affected.'}`}
-          confirmLabel="Delete"
-          danger
-          onClose={() => setDialog(null)}
-          onConfirm={async () => {
-            await actions.deleteList(list)
-            toast(`Deleted ${list.name}`)
-          }}
-        />
-      )}
-      {dialog?.kind === 'text' && (
-        <TextEditorDialog
-          title={`Edit “${list.name}” as text`}
-          initial={list.text}
-          mode="list"
-          onClose={() => setDialog(null)}
-          onSave={(text) => actions.replaceListText(list, text)}
-        />
-      )}
-      {dialogRow && (
-        <CardDialog
-          row={dialogRow}
-          format={format}
-          issue={analysis.issueOf(dialogRow)}
-          maxQty={maxFor(dialogRow.line)}
-          maxTitle={limitFor(dialogRow.line.name)}
-          onUpdate={(patch) => actions.updateCard(list, dialogRow.line.id, patch)}
-          onClose={() => setDialog(null)}
-        />
-      )}
-      {dialog?.kind === 'precon' && (
-        <PreconDialog
-          target={{ kind: 'list', listName: list.name }}
-          onClose={() => setDialog(null)}
-          onAdd={(deck, entries) => {
-            // A format with a copy limit keeps only what it allows.
-            const capped = capEntries(entries, (name) => capsFor(name).formatCap, copiesOf)
-            actions.addCards(list, capped.entries)
-            setDialog(null)
-            const added = capped.entries.reduce((sum, e) => sum + e.qty, 0)
-            toast(
-              `Added ${added} cards from ${deck.name}` +
-                (capped.skipped > 0
-                  ? ` · skipped ${capped.skipped} extra ${capped.skipped === 1 ? 'copy' : 'copies'} (${format?.label} limit)`
-                  : '')
-            )
-          }}
-        />
-      )}
-      {dialog?.kind === 'unown' && (
-        <ConfirmDialog
-          title="Update inventory"
-          message={
-            `You have ${dialog.inventoryQty}× ${dialog.line.name} in your inventory. ` +
-            (dialog.target === 0 ? 'Remove all of them?' : `Reduce it to ${dialog.target}?`) +
-            ' This applies to every list.'
-          }
-          confirmLabel={dialog.target === 0 ? 'Remove all' : `Reduce to ${dialog.target}`}
-          danger
-          onClose={() => setDialog(null)}
-          onConfirm={() => {
-            actions.setOwned(dialog.line.name, dialog.target)
-            setDialog(null)
-          }}
-        />
-      )}
+      <ListDialogs
+        dialog={dialog}
+        onClose={() => setDialog(null)}
+        list={list}
+        format={format}
+        analysis={analysis}
+        rows={rows}
+        actions={actions}
+        formatCap={(name) => capsFor(name).formatCap}
+        maxFor={maxFor}
+        limitFor={limitFor}
+        onOpenList={onOpenList}
+      />
     </div>
   )
 }
 
-/** Which price the value uses (Settings → Prices), and what's still missing from it. */
-function priceNote(summary: ReturnType<typeof summarize>, basis: PriceBasis): string {
-  const parts = [`${priceBasisLabel(basis)} prices`]
-  if (summary.loading) parts.push(`${summary.loading} loading`)
-  if (summary.unpriced) parts.push(`${summary.unpriced} without price`)
-  return parts.join(' · ')
-}
-
-function Stat({ label, value, accent, note }: { label: string; value: string; accent?: boolean; note?: string }) {
-  return (
-    <div className={`stat${accent ? ' accent' : ''}`}>
-      <span className="stat-label">{label}</span>
-      <span className="stat-value">{value}</span>
-      {note && <span className="stat-note">{note}</span>}
-    </div>
-  )
+/** The version a line asks for, recorded when its copies join the inventory; none for "any version". */
+function lineVersion(line: CardLine): Version | undefined {
+  return line.set ? { set: line.set, collector: line.collector, foil: line.foil } : undefined
 }

@@ -1,0 +1,26 @@
+/* The inventory versions dialog. */
+
+/* Inventory versions dialog ------------------------------------------------------- */
+
+.versions-table td {
+  vertical-align: middle;
+}
+
+.versions-thumb {
+  width: 40px;
+}
+
+.versions-thumb img,
+.versions-thumb span {
+  display: block;
+  width: 32px;
+  height: 45px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--panel-2);
+}
+
+.versions-table .col-actions {
+  white-space: nowrap;
+  text-align: right;
+}

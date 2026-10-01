@@ -80,7 +80,16 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, onC
             <dd>
               {printing ? (
                 <>
-                  {resolution?.pinned ? '' : <span className="auto-badge">Cheapest</span>} {printing.setName} (
+                  {resolution?.pinned ? (
+                    ''
+                  ) : resolution?.fromInventory ? (
+                    <span className="auto-badge yours" title="The version in your inventory">
+                      Yours
+                    </span>
+                  ) : (
+                    <span className="auto-badge">Cheapest</span>
+                  )}{' '}
+                  {printing.setName} (
                   {printing.set.toUpperCase()} #{printing.collectorNumber})
                   {printing.labels.length > 0 && (
                     <span className="chips">

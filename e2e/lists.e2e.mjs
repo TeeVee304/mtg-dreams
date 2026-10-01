@@ -25,6 +25,9 @@ test('a deck shows its prices, type sections and value', async () => {
     await run.waitForText('.stat.accent .stat-value', /12[,.]00/)
     const sections = await page.locator('.section-row td > span:first-child').allInnerTexts()
     assert.deepEqual(sections, ['CREATURES · 2', 'ARTIFACTS · 1', 'LANDS · 11'])
+    // Stats: Llanowar Elves and Sol Ring at 1, Atraxa at 4; lands left out.
+    await run.waitForText('.deck-stats-toggle', /3 cards besides lands · average mana value 2\.00/)
+    assert.equal(await page.locator('.curve-slot').nth(1).getAttribute('aria-label'), 'Mana value 1: 2 cards (1 creature, 1 other spell)')
     assert.deepEqual(run.errors, [])
   } finally {
     await run.close()

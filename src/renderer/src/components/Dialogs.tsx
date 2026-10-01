@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { cardLines, parseInventory, parseList, unrecognizedLines } from '../../../shared/decklist'
 import { FORMATS } from '../../../shared/formats'
 import type { ListKind } from '../../../shared/types'
+import { cardCount } from '../format'
 import { useAsyncAction } from '../useAsyncAction'
 import { Modal } from './Modal'
 
@@ -140,7 +141,7 @@ function ParseStats({ text, mode }: { text: string; mode: 'list' | 'inventory' }
   return (
     <div className="parse-stats">
       <span>
-        {stats.cards} cards · {stats.unique} {mode === 'inventory' ? 'unique names' : 'lines'}
+        {cardCount(stats.cards)} · {stats.unique} {mode === 'inventory' ? 'unique names' : 'lines'}
       </span>
       {stats.unrecognized.length > 0 && (
         <span className="warn" title={stats.unrecognized.join('\n')}>

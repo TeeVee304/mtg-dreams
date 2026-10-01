@@ -1,4 +1,5 @@
-import type { CardLine, InventoryItem, ListLine } from './types'
+import { itemFromCopies } from './inventory'
+import type { CardLine, InventoryItem, ListLine, OwnedCopy } from './types'
 
 let idCounter = 0
 
@@ -123,24 +124,34 @@ export function allocateOwned(lines: CardLine[], inventory: Map<string, Inventor
   })
 }
 
-/** Inventory is tracked by name only: versions and foiling are merged. */
+/**
+ * The inventory, by card name: lines of the same card (any versions and finishes)
+ * make one item, which keeps its copies by version.
+ */
 export function parseInventory(text: string): Map<string, InventoryItem> {
-  const items = new Map<string, InventoryItem>()
+  const cards = new Map<string, { name: string; copies: OwnedCopy[] }>()
   for (const card of cardLines(parseList(text))) {
     const key = nameKey(card.name)
-    const existing = items.get(key)
-    if (existing) existing.qty += card.qty
-    else items.set(key, { name: card.name, qty: card.qty })
+    const copy: OwnedCopy = { qty: card.qty, set: card.set, collector: card.collector, foil: card.foil }
+    const existing = cards.get(key)
+    if (existing) existing.copies.push(copy)
+    else cards.set(key, { name: card.name, copies: [copy] })
+  }
+  const items = new Map<string, InventoryItem>()
+  for (const [key, { name, copies }] of cards) {
+    const item = itemFromCopies(name, copies)
+    if (item) items.set(key, item)
   }
   return items
 }
 
+/** One line per version of each card, cards by name. */
 export function serializeInventory(items: Map<string, InventoryItem>): string {
   const sorted = [...items.values()]
     .filter((item) => item.qty > 0)
     .sort((a, b) => a.name.localeCompare(b.name))
-  return countLines(sorted)
-    .map((line) => `${line}\n`)
+  return sorted
+    .flatMap((item) => item.copies.map((copy) => `${serializeCard({ ...copy, name: item.name })}\n`))
     .join('')
 }
 

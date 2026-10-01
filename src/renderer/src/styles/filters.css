@@ -1,0 +1,85 @@
+/* The filter bar. */
+
+/* Filters --------------------------------------------------------------------- */
+
+.filter-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-row .filter {
+  width: 220px;
+}
+
+.toggle-group {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.mana,
+.rarity {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+  opacity: 0.45;
+  border: 2px solid transparent;
+}
+
+.mana.on,
+.rarity.on {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+.mana:hover:not(:disabled),
+.rarity:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+/* The real mana symbols fill the button; the ring shows it's selected. */
+.mana,
+.mana:hover:not(:disabled) {
+  background: none;
+}
+
+.mana img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.rarity {
+  border-radius: 6px;
+  background: var(--panel-2);
+}
+
+.rarity-common {
+  color: var(--text);
+}
+
+.rarity-uncommon {
+  color: #8fa3b5;
+}
+
+.rarity-rare {
+  color: #d4a73c;
+}
+
+.rarity-mythic {
+  color: #e0622f;
+}

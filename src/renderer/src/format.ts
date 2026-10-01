@@ -4,6 +4,11 @@ export function formatEur(value: number | null | undefined): string {
   return value === null || value === undefined ? '—' : eur.format(value)
 }
 
+/** "1 card", "2 cards". */
+export function cardCount(n: number): string {
+  return `${n} ${n === 1 ? 'card' : 'cards'}`
+}
+
 /** A day, short: "30 Sep". */
 export function formatDay(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })

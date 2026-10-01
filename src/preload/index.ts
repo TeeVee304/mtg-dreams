@@ -26,6 +26,10 @@ const api: TrackerApi = {
     ipcRenderer.on('prices:updated', listener)
     return () => ipcRenderer.removeListener('prices:updated', listener)
   },
+  trackPrices: (ids) => ipcRenderer.invoke('history:track', ids),
+  pricesAt: (ids, at) => ipcRenderer.invoke('history:pricesAt', ids, at),
+  getBaselines: () => ipcRenderer.invoke('history:baselines'),
+  updateBaselines: (set, remove) => ipcRenderer.invoke('history:updateBaselines', set, remove),
   getPreconIndex: () => ipcRenderer.invoke('precons:index'),
   getPrecon: (fileName) => ipcRenderer.invoke('precons:deck', fileName),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

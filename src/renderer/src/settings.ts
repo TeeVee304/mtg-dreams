@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { AppSettings } from '../../shared/api'
 import { DEFAULT_SORT } from '../../shared/cards'
-import { DEFAULT_PRICE_BASIS } from '../../shared/pricing'
+import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS } from '../../shared/pricing'
 import { DEFAULT_THEME_COLOR } from '../../shared/themes'
 
 // App settings, loaded once before the first render and saved on change.
@@ -12,7 +12,8 @@ let current: AppSettings = {
   bundleBasics: true,
   tradeName: '',
   sort: DEFAULT_SORT,
-  priceBasis: DEFAULT_PRICE_BASIS
+  priceBasis: DEFAULT_PRICE_BASIS,
+  dropAlertPercent: DEFAULT_DROP_ALERT_PERCENT
 }
 const listeners = new Set<() => void>()
 

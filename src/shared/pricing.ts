@@ -15,6 +15,9 @@ export const PRICE_BASES: Array<{ id: PriceBasis; label: string; hint: string }>
 
 export const DEFAULT_PRICE_BASIS: PriceBasis = 'trend'
 
+/** A wishlist card is flagged once its price falls this many percent below its price when added. */
+export const DEFAULT_DROP_ALERT_PERCENT = 15
+
 export function isPriceBasis(value: unknown): value is PriceBasis {
   return PRICE_BASES.some((basis) => basis.id === value)
 }
@@ -62,6 +65,8 @@ export interface Resolution {
   pinMissing: boolean
   /** The set exists but the `<...>` collector number doesn't, so the cheapest in the set is used. */
   collectorMissing: boolean
+  /** The line names no version, so it shows (and is priced at) the version you own. */
+  fromInventory?: boolean
 }
 
 export function resolveLine(

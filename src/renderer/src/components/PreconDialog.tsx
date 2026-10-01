@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { cardImageUrl } from '../../../shared/images'
 import { preconEntries, type PreconEntry, type PreconOptions } from '../../../shared/precons'
 import type { PreconCard, PreconDeck, PreconSummary } from '../../../shared/types'
-import { cleanError } from '../format'
+import { cardCount as cards, cleanError } from '../format'
 import { useAsyncAction } from '../useAsyncAction'
 import { previewHandlers } from './HoverPreview'
 import { Modal } from './Modal'
@@ -80,10 +80,10 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
 
   const actionLabel =
     target.kind === 'list'
-      ? `Add ${cardCount} cards to “${target.listName}”`
+      ? `Add ${cards(cardCount)} to “${target.listName}”`
       : target.kind === 'new-deck'
-        ? `Create deck with ${cardCount} cards`
-        : `Create wishlist with ${cardCount} cards`
+        ? `Create deck with ${cards(cardCount)}`
+        : `Create wishlist with ${cards(cardCount)}`
   const title =
     target.kind === 'new-deck' ? 'New deck from a precon' : target.kind === 'new-list' ? 'New wishlist from a precon' : 'Add a precon'
 
@@ -192,7 +192,7 @@ function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boole
     <div className="precon-deck">
       <h3>{deck.name}</h3>
       <p className="muted small">
-        {deck.type} · {deck.code} · released {deck.releaseDate || 'unknown'} · {total} cards
+        {deck.type} · {deck.code} · released {deck.releaseDate || 'unknown'} · {cards(total)}
       </p>
       {boards.map(({ board, cards }) => (
         <section key={board} className="precon-board">

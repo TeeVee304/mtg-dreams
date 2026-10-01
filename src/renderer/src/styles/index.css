@@ -1,0 +1,24 @@
+/* The stylesheet, by part. The order matters: later files win ties, as in one long file. */
+
+@import './tokens.css';
+@import './base.css';
+@import './layout.css';
+@import './stats.css';
+@import './search.css';
+@import './precons.css';
+@import './picker.css';
+@import './table.css';
+@import './filters.css';
+@import './formats.css';
+@import './card-view.css';
+@import './lists.css';
+@import './complete-banner.css';
+@import './price-progress.css';
+@import './settings.css';
+@import './inventory-value.css';
+@import './trades.css';
+@import './overlays.css';
+@import './inventory-versions.css';
+@import './deck-stats.css';
+@import './toasts.css';
+@import './narrow.css';

@@ -7,6 +7,7 @@ import { myTradeSide } from '../../shared/trade'
 import type { ListKind, PreconDeck } from '../../shared/types'
 import { CARD_SEARCH_ID } from './components/CardSearch'
 import { ConflictDialog, NewListDialog } from './components/Dialogs'
+import { HistorySync } from './components/HistorySync'
 import { HoverPreview } from './components/HoverPreview'
 import { InventoryView } from './components/InventoryView'
 import { CollectionValueDialog } from './components/CollectionValue'
@@ -18,7 +19,7 @@ import { ImportTradeDialog, ShareTradeDialog } from './components/TradeDialogs'
 import { TradeView } from './components/TradeView'
 import { Sidebar, type View } from './components/Sidebar'
 import { useToast } from './components/Toasts'
-import { cleanError } from './format'
+import { cardCount, cleanError } from './format'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './library'
 import { refreshStalePrintings, reloadPrices, requestPrintings } from './printings'
 import { useSettings } from './settings'
@@ -134,8 +135,8 @@ export default function App() {
     openList(created)
     toast(
       kind === 'deck'
-        ? `Created deck “${created.name}” and added its ${countCards(entries)} cards to your inventory`
-        : `Created “${created.name}” with ${countCards(entries)} cards`
+        ? `Created deck “${created.name}” and added its ${cardCount(countCards(entries))} to your inventory`
+        : `Created “${created.name}” with ${cardCount(countCards(entries))}`
     )
   }
 
@@ -225,6 +226,7 @@ export default function App() {
         )}
       </main>
       <HoverPreview />
+      <HistorySync ready={state.status === 'ready'} lists={state.lists} inventory={state.inventory} />
       {creating && (
         <NewListDialog
           kind={creating}
@@ -275,7 +277,7 @@ export default function App() {
             const name = await actions.saveTrade(snapshot)
             setImporting(null)
             setView({ page: 'trade', friend: name })
-            toast(`Imported ${name}'s trade list: ${snapshot.haves.length} cards they have, ${snapshot.wants.length} they want`)
+            toast(`Imported ${name}'s trade list: ${cardCount(snapshot.haves.length)} they have, ${snapshot.wants.length} they want`)
           }}
         />
       )}

@@ -1,0 +1,133 @@
+import { useEffect, useState } from 'react'
+import type { PriceSnapshot } from '../../../shared/api'
+import type { ValuedCopy } from '../collection'
+import { formatDay, formatEur } from '../format'
+import { valueChange, type ValueMove } from '../history'
+import { copyLabel } from './InventoryVersions'
+
+// How the inventory's value moved over the last week or month, from the app's own
+// price history, with the cards that moved it most. Only price changes count:
+// cards added or removed meanwhile don't.
+
+const DAY = 24 * 60 * 60 * 1000
+const RANGES = [
+  { id: 'week', label: 'This week', days: 7 },
+  { id: 'month', label: 'This month', days: 30 }
+] as const
+type Range = (typeof RANGES)[number]['id']
+const MOVERS = 3
+
+interface Snapshots {
+  latest: PriceSnapshot
+  week: PriceSnapshot
+  month: PriceSnapshot
+}
+
+/** `valued`: the inventory's copies with prices; `ready`: every card's price has loaded. */
+export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: boolean }) {
+  const [range, setRange] = useState<Range>('week')
+  const [snapshots, setSnapshots] = useState<Snapshots | 'none' | null>(null)
+  const ids = [...new Set(valued.map((v) => v.printing?.cardmarketId).filter((id): id is number => typeof id === 'number'))]
+  const idsKey = ids.sort((a, b) => a - b).join(',')
+
+  useEffect(() => {
+    if (!ready || !idsKey) return
+    let live = true
+    const now = Date.now()
+    window.api
+      .pricesAt(idsKey.split(',').map(Number), [now - 7 * DAY, now - 30 * DAY])
+      .then((result) => {
+        if (live) setSnapshots(result ? { latest: result.latest, week: result.then[0], month: result.then[1] } : 'none')
+      })
+      .catch(() => live && setSnapshots('none'))
+    return () => {
+      live = false
+    }
+  }, [ready, idsKey])
+
+  if (snapshots === null) return null
+  const days = RANGES.find((r) => r.id === range)!.days
+  const change = snapshots === 'none' ? null : valueChange(valued, snapshots[range], snapshots.latest)
+  const risers = change?.moves.filter((m) => m.change > 0).sort((a, b) => b.change - a.change).slice(0, MOVERS) ?? []
+  const fallers = change?.moves.filter((m) => m.change < 0).sort((a, b) => a.change - b.change).slice(0, MOVERS) ?? []
+  // While the history is younger than the range, say how far back it goes.
+  const partial = change && change.from > change.to - days * DAY + DAY
+
+  return (
+    <section className="value-change">
+      <div className="segmented" role="tablist" aria-label="Period">
+        {RANGES.map((option) => (
+          <button
+            key={option.id}
+            type="button"
+            role="tab"
+            aria-selected={range === option.id}
+            className={range === option.id ? 'selected' : undefined}
+            onClick={() => setRange(option.id)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {change ? (
+        <>
+          <p className="value-change-total">
+            <Delta value={change.change} />
+            <span className="muted small">
+              {partial ? `since ${formatDay(change.from)}, when price history began` : `since ${formatDay(change.from)}`}
+            </span>
+          </p>
+          {(risers.length > 0 || fallers.length > 0) && (
+            <div className="movers">
+              <Movers title="Biggest risers" moves={risers} />
+              <Movers title="Biggest fallers" moves={fallers} />
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="muted small value-change-empty">
+          Price changes show up here after Cardmarket&apos;s next daily price update: MTG Dreams keeps its own history
+          from the day it first sees your cards.
+        </p>
+      )}
+    </section>
+  )
+}
+
+function Delta({ value }: { value: number }) {
+  const direction = value > 0.005 ? 'up' : value < -0.005 ? 'down' : 'flat'
+  const sign = direction === 'up' ? '+' : direction === 'down' ? '−' : '±'
+  return (
+    <span className={`delta ${direction}`}>
+      <span aria-hidden="true">{direction === 'up' ? '▲' : direction === 'down' ? '▼' : '■'}</span>
+      {sign}
+      {formatEur(Math.abs(value))}
+    </span>
+  )
+}
+
+function Movers({ title, moves }: { title: string; moves: ValueMove[] }) {
+  return (
+    <div>
+      <h3 className="value-heading">{title}</h3>
+      {moves.length === 0 ? (
+        <p className="muted small">None</p>
+      ) : (
+        <ul className="movers-list">
+          {moves.map(({ valued, change }) => (
+            <li key={`${valued.name}|${copyLabel(valued.copy)}`}>
+              <span className="movers-name">
+                <span>{valued.name}</span>
+                <span className="muted tiny">
+                  {valued.qty > 1 ? `${valued.qty}× ` : ''}
+                  {valued.copy.set ? copyLabel(valued.copy) : `cheapest version${valued.copy.foil ? ' · Foil' : ''}`}
+                </span>
+              </span>
+              <Delta value={change} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}

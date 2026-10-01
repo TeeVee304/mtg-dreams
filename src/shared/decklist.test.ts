@@ -78,12 +78,14 @@ describe('allocateOwned', () => {
 })
 
 describe('inventory', () => {
-  it('merges versions and faces by name', () => {
+  it('counts each card once across versions and faces, keeping its versions', () => {
     const inventory = parseInventory(
       '2 Lightning Bolt [M11]\n1 lightning bolt (F)\n1 Delver of Secrets // Insectile Aberration\n1 Delver of Secrets'
     )
     expect(inventory.get('lightning bolt')?.qty).toBe(3)
     expect(inventory.get(nameKey('Delver of Secrets'))?.qty).toBe(2)
-    expect(serializeInventory(inventory)).toBe('2 Delver of Secrets // Insectile Aberration\n3 Lightning Bolt\n')
+    expect(serializeInventory(inventory)).toBe(
+      '2 Delver of Secrets // Insectile Aberration\n1 Lightning Bolt (F)\n2 Lightning Bolt [M11]\n'
+    )
   })
 })

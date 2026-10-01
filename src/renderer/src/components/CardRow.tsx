@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { nameKey } from '../../../shared/decklist'
 import type { LegalityIssue } from '../../../shared/formats'
-import { formatEur } from '../format'
+import { formatDay, formatEur } from '../format'
+import type { PriceDrop } from '../history'
 import type { Row } from '../summary'
 import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
@@ -22,6 +23,8 @@ interface CardRowProps {
   issue: LegalityIssue | null
   /** Deck copies not covered by the inventory. */
   shortfall: number
+  /** A wishlist card that got cheaper since added, past the alert threshold. */
+  drop?: PriceDrop | null
   maxQty?: number
   maxTitle?: string
   onQty: (qty: number) => void
@@ -33,7 +36,7 @@ interface CardRowProps {
 }
 
 export function CardRow(props: CardRowProps) {
-  const { row, pick, onPick, leader, crowned, isDeck, issue, shortfall, maxQty, maxTitle } = props
+  const { row, pick, onPick, leader, crowned, isDeck, issue, shortfall, drop, maxQty, maxTitle } = props
   const { onQty, onToggleOwned, onOwnedDelta, onOpen, onRemove, onRename } = props
   const { line, entry, resolution, owned, unit } = row
   const printing = resolution?.printing ?? null
@@ -131,6 +134,14 @@ export function CardRow(props: CardRowProps) {
         {issue && (
           <span className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`} title={issue.message}>
             {issue.message}
+          </span>
+        )}
+        {drop && (
+          <span
+            className="chip cheaper"
+            title={`${formatEur(drop.was)} when added on ${formatDay(drop.since)}, now ${formatEur(row.unit)}`}
+          >
+            ↓ {drop.percent}% cheaper
           </span>
         )}
         {shortfall > 0 && (
@@ -245,6 +256,14 @@ function VersionCell({ row }: { row: Row }) {
     )
   }
   const labels = printing.labels.length ? ` — ${printing.labels.join(', ')}` : ''
+  if (resolution.fromInventory) {
+    return (
+      <span className="version" title={`The version in your inventory: ${printing.setName}${labels}`}>
+        <span className="auto-badge yours">Yours</span>
+        <span className="muted">{where}</span>
+      </span>
+    )
+  }
   return (
     <span className="version" title={`${printing.setName}${labels}`}>
       {resolution.pinned ? <span className="set-code">{where}</span> : <span className="auto-badge">Cheapest</span>}

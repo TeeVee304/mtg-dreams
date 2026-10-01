@@ -1,0 +1,84 @@
+/* Trade pages and dialogs. */
+
+/* Trades ------------------------------------------------------------------------------ */
+
+.share-item .nav-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+}
+
+.trade-summary {
+  display: flex;
+  gap: 24px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.import-file {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.import-or {
+  margin: 16px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+.import-lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.import-lists .text-editor.short {
+  min-height: 220px;
+}
+
+.trade-note {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  background: var(--accent-soft);
+}
+
+.trade-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.trade-heading {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 8px;
+}
+
+.col-trade-qty {
+  width: 48px;
+  text-align: center !important;
+}
+
+.trade-qty-note {
+  display: block;
+}
+
+.empty-note {
+  padding: 22px 16px;
+  text-align: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.trade-footnote {
+  text-align: center;
+}

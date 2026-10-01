@@ -10,8 +10,9 @@ import {
 } from '../../shared/decklist'
 import { withCommander, withFormat, withoutMissingCommander } from '../../shared/formats'
 import { parseTradeText, serializeSnapshot, tradeName, type TradeSnapshot } from '../../shared/trade'
-import type { CardLine, InventoryItem, ListKind, ListLine } from '../../shared/types'
-import { cleanError } from './format'
+import { addCopies, itemFromCopies, withTotal, type Version } from '../../shared/inventory'
+import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '../../shared/types'
+import { cardCount, cleanError } from './format'
 
 /** A deck or a wishlist, backed by one text file. */
 export interface CardList {
@@ -451,13 +452,17 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         commit({ ...ref.current, lists: ref.current.lists.filter((list) => !sameList(list, target)) })
       },
 
-      /** Sets how many copies of a card (any version) you own. 0 removes it. */
-      setOwned(name: string, qty: number) {
+      /**
+       * Sets how many copies of a card you own in all; 0 removes it. Added copies are
+       * of `version` (e.g. the version a ticked wishlist line asks for), else any version.
+       */
+      setOwned(name: string, qty: number, version?: Version) {
         const inventory = new Map(ref.current.inventory)
         const key = nameKey(name)
         const existing = inventory.get(key)
-        if (qty <= 0) inventory.delete(key)
-        else inventory.set(key, { name: existing?.name ?? name, qty })
+        const item = withTotal(existing, name, Math.max(0, qty), version)
+        if (item) inventory.set(key, item)
+        else inventory.delete(key)
         const shown = existing?.name ?? name
         saveInventory(
           inventory,
@@ -468,24 +473,45 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
       },
 
       /**
-       * Adds owned copies in bulk. `onlyMissing` tops each card up to the given
-       * quantity instead of adding it (importing a deck you already own part of).
+       * Adds owned copies in bulk, in the versions given (a precon's exact printings),
+       * else as any version. `onlyMissing` tops each card up to the given quantity
+       * instead of adding it (importing a deck you already own part of).
        */
-      addOwned(items: Array<{ name: string; qty: number }>, onlyMissing = false) {
+      addOwned(items: Array<{ name: string; qty: number } & Partial<Version>>, onlyMissing = false) {
         const inventory = new Map(ref.current.inventory)
-        const wanted = new Map<string, { name: string; qty: number }>()
-        for (const { name, qty } of items) {
-          const key = nameKey(name)
-          wanted.set(key, { name, qty: (wanted.get(key)?.qty ?? 0) + qty })
+        let cards = 0
+        if (onlyMissing) {
+          const wanted = new Map<string, { name: string; qty: number }>()
+          for (const { name, qty } of items) {
+            const key = nameKey(name)
+            wanted.set(key, { name, qty: (wanted.get(key)?.qty ?? 0) + qty })
+          }
+          for (const [key, { name, qty }] of wanted) {
+            const existing = inventory.get(key)
+            const item = withTotal(existing, name, Math.max(existing?.qty ?? 0, qty))
+            if (item) inventory.set(key, item)
+            cards += qty
+          }
+        } else {
+          for (const { name, qty, set, collector, foil } of items) {
+            const key = nameKey(name)
+            const item = addCopies(inventory.get(key), name, qty, { set, collector, foil: foil ?? false })
+            if (item) inventory.set(key, item)
+            cards += qty
+          }
         }
-        for (const [key, { name, qty }] of wanted) {
-          const existing = inventory.get(key)
-          const owned = existing?.qty ?? 0
-          const total = onlyMissing ? Math.max(owned, qty) : owned + qty
-          inventory.set(key, { name: existing?.name ?? name, qty: total })
-        }
-        const cards = [...wanted.values()].reduce((sum, item) => sum + item.qty, 0)
-        saveInventory(inventory, { label: `Added ${cards} cards to your inventory` })
+        saveInventory(inventory, { label: `Added ${cardCount(cards)} to your inventory` })
+      },
+
+      /** Replaces a card's copies by version (the inventory's versions dialog). */
+      setCopies(name: string, copies: OwnedCopy[]) {
+        const inventory = new Map(ref.current.inventory)
+        const key = nameKey(name)
+        const existing = inventory.get(key)
+        const item = itemFromCopies(existing?.name ?? name, copies)
+        if (item) inventory.set(key, item)
+        else inventory.delete(key)
+        saveInventory(inventory, { label: `Changed the versions of ${existing?.name ?? name} you own` })
       },
 
       /** Saves a friend's trade list, replacing theirs if one with that name exists. */

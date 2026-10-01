@@ -1,0 +1,211 @@
+/* Card tables, their rows and version cells. */
+
+/* Table ------------------------------------------------------------------------ */
+
+.cards-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.cards-table th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel-2);
+}
+
+.cards-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.cards-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cards-table tbody tr:hover td {
+  background: var(--hover);
+}
+
+.cards-table tr.owned .card-name {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--good);
+}
+
+.col-owned {
+  width: 128px;
+}
+
+.col-qty {
+  width: 112px;
+}
+
+.col-version {
+  width: 260px;
+}
+
+.col-num {
+  width: 92px;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.col-num.strong {
+  font-weight: 600;
+}
+
+.col-actions {
+  width: 104px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.col-name {
+  cursor: default;
+}
+
+.col-name .chip {
+  vertical-align: 1px;
+}
+
+.card-name {
+  font-weight: 500;
+}
+
+.owned-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.owned-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  min-width: 26px;
+}
+
+tr.owned .owned-count {
+  color: var(--good);
+}
+
+.owned-adjust {
+  display: inline-flex;
+  gap: 2px;
+  visibility: hidden;
+}
+
+tr:hover .owned-adjust,
+.owned-adjust:focus-within {
+  visibility: visible;
+}
+
+.owned-adjust button {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  line-height: 1;
+  font-size: 13px;
+}
+
+.version {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.version .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12.5px;
+}
+
+.set-code {
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.auto-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--good-soft);
+  color: var(--good);
+}
+
+/* The version shown is the one in your inventory. */
+.auto-badge.yours {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.stale {
+  color: var(--warn);
+  cursor: help;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--panel);
+}
+
+.stepper button {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  width: 26px;
+  height: 28px;
+  padding: 0;
+}
+
+.stepper input {
+  width: 38px;
+  text-align: center;
+  border: none;
+  border-radius: 0;
+  padding: 4px 0;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty {
+  text-align: center;
+  padding: 48px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.empty.welcome {
+  padding-top: 18vh;
+  gap: 12px;
+}
+
+.empty-filter {
+  text-align: center;
+  padding: 12px;
+}

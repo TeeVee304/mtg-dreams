@@ -23,9 +23,20 @@ export interface TextLine {
 
 export type ListLine = CardLine | TextLine
 
+/** Owned copies of a card in one version and finish; without a set, "any version". */
+export interface OwnedCopy {
+  qty: number
+  set?: string
+  collector?: string
+  foil: boolean
+}
+
 export interface InventoryItem {
   name: string
+  /** Copies owned in all. */
   qty: number
+  /** The same copies by version and finish; their quantities add up to `qty`. */
+  copies: OwnedCopy[]
 }
 
 /**

@@ -1,0 +1,112 @@
+/* The card dialog. */
+
+/* Card view -------------------------------------------------------------------- */
+
+.card-view {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 22px;
+  margin-bottom: 18px;
+}
+
+.card-view-image {
+  aspect-ratio: 488 / 680;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--panel-2);
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+}
+
+.card-view-image img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.card-view-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.card-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 16px;
+  margin: 0;
+  align-items: center;
+}
+
+.card-facts dt {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.card-facts dd {
+  margin: 0;
+}
+
+.card-facts .chips {
+  display: inline-flex;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.legality-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 4px;
+  width: 100%;
+  font-size: 12px;
+}
+
+.legality {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  border: 1px solid transparent;
+}
+
+.legality.current {
+  border-color: var(--accent);
+}
+
+.legality-status {
+  font-weight: 600;
+}
+
+.legality.legal .legality-status {
+  color: var(--good);
+}
+
+.legality.not_legal .legality-status {
+  color: var(--faint);
+}
+
+.legality.banned .legality-status {
+  color: var(--bad);
+}
+
+.legality.restricted .legality-status {
+  color: var(--warn);
+}
+
+.change-version {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.change-version h3 {
+  font-size: 15px;
+}
+
+.change-version > p {
+  margin: 2px 0 10px;
+}
