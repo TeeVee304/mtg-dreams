@@ -44,11 +44,11 @@
 - Give a deck or wishlist a format: Standard, Pioneer, Modern, Commander, Pauper and more.
 - Quantities stop at the format's copy limit; basic lands and cards like Relentless Rats are exempt.
 - Cards that break the format get a red tag: banned, not legal, or over the limit.
-- In Commander-style formats, **Choose Commander** lights up the cards that can lead the deck.
+- In Commander-style formats, **Set Commander** lights up the cards that can lead the deck.
 - The chosen card moves to a **Commander** section at the top.
 
 ### Cards and prices
-- Card search has autocomplete, and typos are fuzzy-matched.
+- Card search has autocomplete with card pictures, and typos are fuzzy-matched.
 - Unless you pick a version, a card is priced at its cheapest paper printing.
 - Prices come from Cardmarket: typical, lowest listing or 30-day average, your choice in Settings.
 - The version picker shows every printing with its image and price.
@@ -72,6 +72,9 @@
 ### Look and feel
 - Filter by name, color identity, type, rarity and legendary.
 - One sort applies to every deck, wishlist and the inventory, and is remembered.
+- Decks and wishlists show as a **Table** or as **Cards** (a grid of card images, by type); the choice is remembered.
+- Small card pictures sit beside names in lists and search; **Settings → Card images in lists and search** turns
+  them off.
 - Six color themes, one per mana color, each with its own icon: White (gold, the default), Blue, Black, Red,
   Green and Colorless.
 - Light, dark, or following Windows.

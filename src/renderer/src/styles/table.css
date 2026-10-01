@@ -53,7 +53,7 @@
 }
 
 .col-version {
-  width: 260px;
+  width: 230px;
 }
 
 .col-num {
@@ -73,16 +73,25 @@
   white-space: nowrap;
 }
 
+/* Names get the room first: they stay on one line, and chips wrap below them instead. */
 .col-name {
   cursor: default;
+  min-width: 260px;
 }
 
 .col-name .chip {
   vertical-align: 1px;
 }
 
+/* One line; only the rare very long name is cut short (in full on hover). */
 .card-name {
+  display: inline-block;
+  max-width: 300px;
+  vertical-align: bottom;
   font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .owned-cell {
@@ -294,4 +303,21 @@ tr:hover .owned-adjust,
   align-items: flex-end;
   line-height: 1.25;
   font-variant-numeric: tabular-nums;
+}
+
+/* The inventory has more columns: its "In decks" / "Wanted in" chips give way to names,
+   cut short with the full name on hover. */
+.inventory-table .col-name {
+  min-width: 240px;
+}
+
+.inventory-table .chips .chip {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inventory-table .col-actions {
+  width: 150px;
 }

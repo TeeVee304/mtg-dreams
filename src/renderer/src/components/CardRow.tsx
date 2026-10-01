@@ -127,7 +127,12 @@ export function CardRow(props: CardRowProps) {
                 {line.name}
               </span>
             ) : (
-              <button type="button" className="name-btn card-name" onClick={onOpen} title="Card details and version">
+              <button
+                type="button"
+                className="name-btn card-name"
+                onClick={onOpen}
+                title={`${row.flavorName ?? line.name}: card details and version`}
+              >
                 {row.flavorName ?? line.name}
               </button>
             )}

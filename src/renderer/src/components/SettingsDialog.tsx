@@ -115,6 +115,22 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         <h3>Decks &amp; wishlists</h3>
         <label className="setting-toggle">
           <span className="setting-text">
+            <span className="setting-label">Card images in lists and search</span>
+            <span className="muted small">
+              A small picture beside each card in decks, wishlists, the inventory and card search. Hovering a card still
+              shows it large.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.cardImages}
+            onChange={(event) => change({ cardImages: event.target.checked })}
+          />
+        </label>
+        <label className="setting-toggle">
+          <span className="setting-text">
             <span className="setting-label">Bundle basic lands</span>
             <span className="muted small">
               Counts every version of Plains, Island, Swamp, Mountain and Forest as one generic card, free of charge.

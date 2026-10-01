@@ -11,8 +11,14 @@
 
 .suggestions li {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
+}
+
+/* The name takes the room between the card's picture and its hint. */
+.suggestion-name {
+  flex: 1;
+  min-width: 0;
 }
 
 .suggestion-hint {

@@ -213,7 +213,9 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
                     <div className="name-cell">
                       <CardThumb src={item.value.printing?.imageSmall} loading={item.value.status === 'loading'} />
                       <div className="name-main">
-                        <span className="card-name">{item.name}</span>
+                        <span className="card-name" title={item.name}>
+                          {item.name}
+                        </span>
                         {hasVersions(item) &&
                           item.copies
                             .filter((copy) => copy.set || copy.foil)

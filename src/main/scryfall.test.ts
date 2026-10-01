@@ -179,6 +179,17 @@ describe('getCardInfos', () => {
   })
 })
 
+describe('getCardImages', () => {
+  it('pictures cached cards from their printings and the rest with one batch request, kept for later', async () => {
+    const { scryfall } = await setup()
+    await scryfall.getPrintings('Sol Ring')
+    const images = await scryfall.getCardImages(['Sol Ring', 'Grist, the Hunger Tide', 'No Such Card'])
+    expect(images).toEqual({ 'sol ring': 'small.jpg', 'grist, the hunger tide': 'small.jpg', 'no such card': null })
+    await scryfall.getCardImages(['Grist, the Hunger Tide', 'No Such Card'])
+    expect(hits).toEqual(['/cards/search', '/cards/collection'])
+  })
+})
+
 describe('startup', () => {
   it('answers lookups made while the cache is loading from the cache, not the network', async () => {
     const first = await setup()

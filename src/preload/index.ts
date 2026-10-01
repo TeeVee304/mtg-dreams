@@ -20,6 +20,7 @@ const api: TrackerApi = {
   autocomplete: (query) => ipcRenderer.invoke('scryfall:autocomplete', query),
   getPrintings: (name, options) => ipcRenderer.invoke('scryfall:printings', name, options),
   getCardInfos: (names) => ipcRenderer.invoke('scryfall:cardInfos', names),
+  getCardImages: (names) => ipcRenderer.invoke('scryfall:images', names),
   refreshPrices: () => ipcRenderer.invoke('prices:refresh'),
   onPricesUpdated: (callback) => {
     const listener = () => callback()

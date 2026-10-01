@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { nameKey } from '../../../shared/decklist'
+import { useSettings } from '../settings'
+import { CardThumb } from './Placeholders'
 
 export interface SearchChoice {
   name: string
@@ -25,6 +28,9 @@ export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
   const [active, setActive] = useState(0)
   const [loading, setLoading] = useState(false)
   const requestSeq = useRef(0)
+  /** Pictures of the suggestions, by name key, when card images are on. */
+  const [images, setImages] = useState<Record<string, string | null>>({})
+  const { cardImages } = useSettings()
 
   const hints = useMemo(() => new Map(choices?.map((choice) => [choice.name, choice.hint])), [choices])
 
@@ -69,6 +75,20 @@ export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
     }, 180)
     return () => clearTimeout(timer)
   }, [query, choices])
+
+  // One batch lookup per set of suggestions; names already pictured aren't asked again.
+  const imagesKey = cardImages ? suggestions.filter((name) => !(nameKey(name) in images)).join('\n') : ''
+  useEffect(() => {
+    if (!imagesKey) return
+    let live = true
+    window.api
+      .getCardImages(imagesKey.split('\n'))
+      .then((found) => live && setImages((known) => ({ ...known, ...found })))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [imagesKey])
 
   const pick = (name: string) => {
     requestSeq.current += 1
@@ -131,7 +151,8 @@ export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
               onMouseEnter={() => setActive(index)}
               onClick={() => pick(name)}
             >
-              <span>{name}</span>
+              <CardThumb src={images[nameKey(name)]} loading={!(nameKey(name) in images)} />
+              <span className="suggestion-name">{name}</span>
               {hints.get(name) && <span className="suggestion-hint">{hints.get(name)}</span>}
             </li>
           ))}

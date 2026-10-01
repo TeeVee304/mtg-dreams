@@ -10,6 +10,8 @@ let current: AppSettings = {
   theme: 'system',
   color: DEFAULT_THEME_COLOR,
   bundleBasics: true,
+  cardImages: true,
+  cardView: 'table',
   tradeName: '',
   sort: DEFAULT_SORT,
   priceBasis: DEFAULT_PRICE_BASIS,

@@ -16,7 +16,6 @@ interface ListHeaderProps {
   summary: Summary
   /** Choosing a commander: the next card clicked becomes it. */
   picking: boolean
-  hasCommander: boolean
   legalityErrors: number
   ownershipErrors: number
   /** Showing only the cards with problems. */
@@ -32,7 +31,7 @@ interface ListHeaderProps {
 }
 
 export function ListHeader(props: ListHeaderProps) {
-  const { name, noun, format, lines, summary, picking, hasCommander, legalityErrors, ownershipErrors, onlyProblems } = props
+  const { name, noun, format, lines, summary, picking, legalityErrors, ownershipErrors, onlyProblems } = props
   const problemsTitle = onlyProblems ? 'Show all cards' : 'Show only cards with problems'
   return (
     <header className="view-header">
@@ -67,7 +66,7 @@ export function ListHeader(props: ListHeaderProps) {
               }
             >
               <Icon name="wand" />
-              {picking ? 'Click your Commander… (Esc to cancel)' : hasCommander ? 'Change Commander' : 'Choose Commander'}
+              {picking ? 'Click your Commander… (Esc to cancel)' : 'Set Commander'}
             </button>
           )}
           {legalityErrors > 0 && (

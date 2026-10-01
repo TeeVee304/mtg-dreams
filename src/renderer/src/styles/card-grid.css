@@ -1,0 +1,229 @@
+/* The Cards view of a deck or wishlist: card images in type sections. */
+
+.card-grid-view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* A section header, styled like the table's section rows. */
+.grid-section-head {
+  display: flex;
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding: 7px 10px;
+}
+
+.grid-section-head .section-value {
+  float: none;
+  margin-left: auto;
+}
+
+.commander-section .grid-section-head {
+  color: var(--accent);
+  background: linear-gradient(90deg, var(--accent-soft), transparent 70%), var(--panel-2);
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px 12px;
+  padding: 12px 2px 4px;
+}
+
+.card-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  border-radius: 10px;
+}
+
+.card-tile:hover:not(:disabled) {
+  background: none;
+}
+
+.card-tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+/* The picture keeps a card's proportions, rounded like a real card. */
+.card-tile-image {
+  position: relative;
+  display: block;
+  aspect-ratio: 488 / 680;
+  border-radius: 4.75% / 3.5%;
+  overflow: hidden;
+  background: var(--panel-2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-tile-image.skeleton {
+  display: block;
+  height: auto;
+}
+
+.card-tile:hover:not(:disabled) .card-tile-image,
+.card-tile:focus-visible .card-tile-image {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.4), 0 0 0 2px var(--accent);
+}
+
+.card-tile:focus-visible {
+  outline: none;
+}
+
+.card-tile-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.card-tile-name-only {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Foil: the same sheen as the Foil chip, lightly over the picture. */
+.card-tile-foil {
+  position: absolute;
+  inset: 0;
+  background: var(--foil);
+  mix-blend-mode: soft-light;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.card-tile-qty,
+.card-tile-owned,
+.card-tile-problem,
+.card-tile-crown {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: rgba(10, 12, 16, 0.82);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.card-tile-qty {
+  top: 8%;
+  right: 6px;
+}
+
+.card-tile-owned {
+  bottom: 6px;
+  left: 6px;
+}
+
+.card-tile-owned.done {
+  background: var(--good);
+  color: #fff;
+}
+
+.card-tile-owned svg {
+  width: 14px;
+  height: 14px;
+}
+
+.card-tile-problem {
+  bottom: 6px;
+  right: 6px;
+  background: var(--bad);
+  cursor: help;
+}
+
+.card-tile-problem.warning {
+  background: var(--warn);
+  color: #1b1b1b;
+}
+
+.card-tile-crown {
+  top: 8%;
+  left: 6px;
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.card-tile-crown svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* An owned wishlist card is done: it steps back. */
+.card-tile.owned .card-tile-image img {
+  opacity: 0.5;
+}
+
+.card-tile-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 0 2px;
+  font-size: 12.5px;
+}
+
+.card-tile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.card-tile-price {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Choosing a commander: cards that can lead stay bright; the rest fade. */
+.card-grid-view.picking .card-tile.pick-no {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.card-grid-view.picking .card-tile.pick-ok .card-tile-image {
+  box-shadow: 0 0 0 2px var(--accent), 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.card-tile.crowned .card-tile-image {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 24px var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-tile-image {
+    transition: none;
+  }
+
+  .card-tile:hover:not(:disabled) .card-tile-image {
+    transform: none;
+  }
+}

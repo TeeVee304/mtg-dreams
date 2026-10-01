@@ -160,14 +160,14 @@ describe('lists on disk', () => {
 describe('settings', () => {
   it('defaults, saves, and survives a restart; bad values fall back', async () => {
     const first = await setup()
-    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, tradeName: '', sort: 'file', priceBasis: 'trend', dropAlertPercent: 15 })
+    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', priceBasis: 'trend', dropAlertPercent: 15 })
     first.storage.updateAppSettings({ theme: 'dark', color: 'G', sort: 'mana' })
     const settingsFile = join(first.base, 'userData', 'settings.json')
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).toMatchObject({ theme: 'dark', color: 'G', sort: 'mana' })
 
     writeFileSync(settingsFile, JSON.stringify({ theme: 'neon', color: 'teal', sort: 'price', bundleBasics: false }))
     const restarted = await setup(first.base)
-    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, tradeName: '', sort: 'file', priceBasis: 'trend', dropAlertPercent: 15 })
+    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', priceBasis: 'trend', dropAlertPercent: 15 })
   })
 
   it('uses a chosen data folder', async () => {

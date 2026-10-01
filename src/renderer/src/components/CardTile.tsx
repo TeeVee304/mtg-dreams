@@ -1,0 +1,84 @@
+import type { LegalityIssue } from '../../../shared/formats'
+import { formatEur } from '../format'
+import type { Row } from '../summary'
+import { Icon } from './Icon'
+
+// One card of a deck or wishlist in the Cards view: its picture, with how many copies,
+// whether you own them (wishlists) and any problem on top, and its name and price below.
+// A click opens the card (or, while choosing a commander, picks it).
+
+interface CardTileProps {
+  row: Row
+  isDeck: boolean
+  /** While choosing a commander: whether this card can be picked. */
+  pick?: 'ok' | 'no'
+  leader: boolean
+  crowned: boolean
+  issue: LegalityIssue | null
+  /** Deck copies not covered by the inventory. */
+  shortfall: number
+  onOpen: () => void
+  onPick: () => void
+}
+
+export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall, onOpen, onPick }: CardTileProps) {
+  const { line, resolution, entry, owned, unit } = row
+  const printing = resolution?.printing ?? null
+  const image = printing?.imageNormal ?? printing?.imageSmall
+  const name = row.flavorName ?? line.name
+  const loading = !row.bundledIds && !entry?.data && !entry?.error
+  const complete = owned >= line.qty
+  const problem = issue?.message ?? (shortfall > 0 ? (row.inventoryQty === 0 ? 'Not in inventory' : `Only ${row.inventoryQty} owned`) : null)
+  const price = row.bundledIds ? 0 : unit === null ? null : unit * line.qty
+
+  const classes = [
+    'card-tile',
+    !isDeck && complete && 'owned',
+    leader && 'leader',
+    crowned && 'crowned',
+    pick && `pick-${pick}`
+  ].filter(Boolean)
+
+  return (
+    <button
+      type="button"
+      className={classes.join(' ')}
+      onClick={pick ? () => pick === 'ok' && onPick() : onOpen}
+      disabled={!!row.bundledIds && !pick}
+      title={
+        pick === 'ok'
+          ? `Make ${name} the commander`
+          : pick === 'no'
+            ? "Can't be the commander in this format"
+            : row.bundledIds
+              ? 'Bundled basic land: any version counts, for free'
+              : `${name}: card details and version`
+      }
+    >
+      <span className={`card-tile-image${loading ? ' skeleton' : ''}`}>
+        {image ? <img src={image} alt="" loading="lazy" draggable={false} /> : !loading && <span className="card-tile-name-only">{name}</span>}
+        {line.foil && <span className="card-tile-foil" aria-hidden="true" />}
+        {line.qty > 1 && <span className="card-tile-qty">×{line.qty}</span>}
+        {!isDeck && (
+          <span className={`card-tile-owned${complete ? ' done' : ''}`} title={`${owned} of ${line.qty} owned`}>
+            {complete ? <Icon name="check" /> : `${owned}/${line.qty}`}
+          </span>
+        )}
+        {problem && (
+          <span className={`card-tile-problem${issue?.severity === 'warning' ? ' warning' : ''}`} title={problem}>
+            !
+          </span>
+        )}
+        {leader && (
+          <span className="card-tile-crown" title="Commander">
+            <Icon name="crown" />
+          </span>
+        )}
+      </span>
+      <span className="card-tile-meta">
+        <span className="card-tile-name">{name}</span>
+        <span className="card-tile-price">{loading ? '…' : formatEur(price)}</span>
+      </span>
+    </button>
+  )
+}

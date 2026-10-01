@@ -11,6 +11,10 @@ export interface AppSettings {
   color: ThemeColor
   /** Count every version of Plains, Island, Swamp, Mountain and Forest as one generic, free card. */
   bundleBasics: boolean
+  /** Small card pictures beside names in lists and in card search. */
+  cardImages: boolean
+  /** Decks and wishlists as a table, or as a grid of card images. */
+  cardView: 'table' | 'grid'
   /** Your name on shared trade lists. */
   tradeName: string
   /** How decks, wishlists and the inventory are sorted (one choice for all of them). */
@@ -102,6 +106,8 @@ export interface TrackerApi {
   /** Wishlist cards' prices when added, by line key. */
   getBaselines(): Promise<Record<string, PriceBaseline>>
   updateBaselines(set: Record<string, PriceBaseline>, remove: string[]): Promise<void>
+  /** A small picture of each card (up to 75), keyed by nameKey; null when there's none. */
+  getCardImages(names: string[]): Promise<Record<string, string | null>>
   /** Card data keyed by nameKey; null for names Scryfall doesn't know. */
   getCardInfos(names: string[]): Promise<Record<string, CardInfo | null>>
   getPreconIndex(): Promise<PreconSummary[]>

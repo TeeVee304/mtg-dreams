@@ -366,6 +366,50 @@ export async function getCardInfos(names: string[]): Promise<Record<string, Card
   return result
 }
 
+// Pictures for search suggestions, by name key: from cached printings when there are
+// some, else one batch request for all the names that lack one. Kept for the session.
+const imageCache = new Map<string, string | null>()
+const MAX_IMAGE_CACHE = 2000
+
+function smallImageOf(card: any): string | null {
+  const images = card.image_uris ?? card.card_faces?.[0]?.image_uris ?? {}
+  return images.small?.split('?')[0] ?? null
+}
+
+/** A small picture of each card, keyed by nameKey (null when Scryfall has none). */
+export async function getCardImages(names: string[]): Promise<Record<string, string | null>> {
+  await scryfallCacheReady()
+  const result: Record<string, string | null> = {}
+  const missing = new Map<string, string>()
+  for (const name of names) {
+    const key = nameKey(name)
+    if (!key || key in result) continue
+    const cached = scryfallCache.entries[key]?.printings.find((p) => p.imageSmall)?.imageSmall
+    if (cached) result[key] = cached
+    else if (imageCache.has(key)) result[key] = imageCache.get(key) ?? null
+    else missing.set(key, name)
+  }
+  const pending = [...missing.values()].slice(0, COLLECTION_BATCH)
+  if (pending.length > 0) {
+    const identifiers = pending.map((name) => ({ name: name.split(' // ')[0] }))
+    const body = await searchQueue.run(() => getJson(`${env().scryfallApi}/cards/collection`, { identifiers }), 'high').promise
+    if (imageCache.size > MAX_IMAGE_CACHE) imageCache.clear()
+    for (const card of body?.data ?? []) {
+      const key = nameKey(card.name)
+      if (!missing.has(key)) continue
+      result[key] = smallImageOf(card)
+      imageCache.set(key, result[key])
+    }
+    // Names Scryfall doesn't know aren't asked about again either.
+    for (const key of pending.map(nameKey)) {
+      if (key in result) continue
+      result[key] = null
+      imageCache.set(key, null)
+    }
+  }
+  return result
+}
+
 const autocompleteCache = new Map<string, string[]>()
 
 export async function autocomplete(query: string): Promise<string[]> {

@@ -10,7 +10,7 @@ import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
 import { priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
 import { getBaselines, pricesAt, recordCurrentPrices, trackPrices, updateBaselines } from './priceHistory'
-import { autocomplete, getCardInfos, getPrintings } from './scryfall'
+import { autocomplete, getCardImages, getCardInfos, getPrintings } from './scryfall'
 import * as storage from './storage'
 
 const EXTERNAL_HOSTS = ['cardmarket.com', 'scryfall.com']
@@ -151,6 +151,14 @@ export function registerIpc(): void {
       if (!isThemeColor(input.color)) throw new Error('Invalid color.')
       patch.color = input.color
     }
+    if ('cardImages' in input) {
+      if (typeof input.cardImages !== 'boolean') throw new Error('Invalid setting.')
+      patch.cardImages = input.cardImages
+    }
+    if ('cardView' in input) {
+      if (input.cardView !== 'table' && input.cardView !== 'grid') throw new Error('Invalid view.')
+      patch.cardView = input.cardView
+    }
     if ('bundleBasics' in input) {
       if (typeof input.bundleBasics !== 'boolean') throw new Error('Invalid setting.')
       patch.bundleBasics = input.bundleBasics
@@ -204,6 +212,12 @@ export function registerIpc(): void {
     return { updated, pricedAt: priceGuideDate() }
   })
 
+  ipcMain.handle('scryfall:images', (_e, names: unknown) => {
+    if (!Array.isArray(names) || names.length > 75 || !names.every((n) => typeof n === 'string')) {
+      throw new Error('Invalid card names.')
+    }
+    return getCardImages(names)
+  })
   ipcMain.handle('scryfall:cardInfos', (_e, names: unknown) => {
     if (!Array.isArray(names) || names.length > 20_000 || !names.every((n) => typeof n === 'string')) {
       throw new Error('Invalid card names.')

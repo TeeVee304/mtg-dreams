@@ -24,6 +24,7 @@ import { requestPrintings, usePrintingsVersion } from '../printings'
 import { useSettings } from '../settings'
 import { buildRows, summarize, type Row } from '../summary'
 import { CardRow } from './CardRow'
+import { CardTile } from './CardTile'
 import { AddCardPanel } from './CardEditors'
 import { CompleteBanner } from './CompleteBanner'
 import { DeckStats } from './DeckStats'
@@ -216,6 +217,21 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
     />
   )
 
+  const renderTile = (row: Row) => (
+    <CardTile
+      key={row.line.id}
+      row={row}
+      isDeck={isDeck}
+      pick={picking ? (canBeCommander(row) ? 'ok' : 'no') : undefined}
+      leader={isCommander(row)}
+      crowned={crowned !== null && nameKey(row.line.name) === crowned}
+      issue={analysis.issueOf(row)}
+      shortfall={analysis.shortfallOf(row)}
+      onOpen={() => setDialog({ kind: 'card', lineId: row.line.id })}
+      onPick={() => chooseCommander(row)}
+    />
+  )
+
   // A line pinned to an older basic-land printing needs the full list of versions,
   // which is only fetched on demand. Retried once any refresh in progress finishes.
   const needAllVersions = rows
@@ -248,7 +264,6 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
         lines={cards.length}
         summary={summary}
         picking={picking}
-        hasCommander={hasCommander}
         legalityErrors={legalityErrors}
         ownershipErrors={ownershipErrors}
         onlyProblems={onlyProblems}
@@ -303,6 +318,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
           isDeck={isDeck}
           sections={sections}
           renderRow={renderRow}
+          renderTile={renderTile}
           visibleRows={visibleRows.length}
           visibleSummary={summarize(visibleRows)}
           totalCards={summary.cards}

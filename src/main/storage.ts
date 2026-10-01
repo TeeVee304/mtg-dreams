@@ -25,6 +25,8 @@ interface Settings {
   theme?: Theme
   color?: string
   bundleBasics?: boolean
+  cardImages?: boolean
+  cardView?: string
   tradeName?: string
   sort?: string
   priceBasis?: string
@@ -119,6 +121,8 @@ export function getAppSettings(): AppSettings {
     theme: getTheme(),
     color: isThemeColor(settings.color) ? settings.color : DEFAULT_THEME_COLOR,
     bundleBasics: settings.bundleBasics ?? true,
+    cardImages: settings.cardImages ?? true,
+    cardView: settings.cardView === 'grid' ? 'grid' : 'table',
     tradeName: settings.tradeName ?? '',
     sort: isSortKey(settings.sort) ? settings.sort : DEFAULT_SORT,
     priceBasis: isPriceBasis(settings.priceBasis) ? settings.priceBasis : DEFAULT_PRICE_BASIS,

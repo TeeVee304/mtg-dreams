@@ -6,6 +6,14 @@
   }
 
   .col-version {
-    width: 180px;
+    width: 170px;
+  }
+
+  .col-name {
+    min-width: 220px;
+  }
+
+  .card-name {
+    max-width: 220px;
   }
 }
