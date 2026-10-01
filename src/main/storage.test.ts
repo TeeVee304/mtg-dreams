@@ -101,6 +101,52 @@ describe('lists on disk', () => {
     expect(trashed).toEqual([join(data, 'decks', 'Burn.txt'), join(data, 'trades', 'Ana.mtgtrade')])
   })
 
+  it('refuses to overwrite a list another program changed, unless forced', async () => {
+    const { data, storage } = await setup()
+    const file = join(data, 'decks', 'Burn.txt')
+    await storage.writeList('deck', 'Burn', '4 Lightning Bolt\n')
+    writeFileSync(file, '4 Lava Spike\n') // e.g. OneDrive syncing an edit from another PC
+    await expect(storage.writeList('deck', 'Burn', '3 Lightning Bolt\n')).rejects.toThrow(/^Changed outside MTG Dreams:/)
+    expect(readFileSync(file, 'utf8')).toBe('4 Lava Spike\n')
+    await storage.writeList('deck', 'Burn', '3 Lightning Bolt\n', true)
+    expect(readFileSync(file, 'utf8')).toBe('3 Lightning Bolt\n')
+    await storage.writeList('deck', 'Burn', '2 Lightning Bolt\n') // the forced text is the known one now
+    expect(readFileSync(file, 'utf8')).toBe('2 Lightning Bolt\n')
+  })
+
+  it('accepts outside changes once it has read them again', async () => {
+    const { data, storage } = await setup()
+    await storage.writeInventory('4 Island\n')
+    writeFileSync(join(data, 'inventory.txt'), '5 Island\n')
+    expect((await storage.loadData()).inventory).toBe('5 Island\n')
+    await storage.writeInventory('6 Island\n')
+    expect(readFileSync(join(data, 'inventory.txt'), 'utf8')).toBe('6 Island\n')
+  })
+
+  it('treats an inventory that appeared outside the app as a change', async () => {
+    const { data, storage } = await setup()
+    await storage.loadData() // no inventory yet
+    writeFileSync(join(data, 'inventory.txt'), '1 Sol Ring\n')
+    await expect(storage.writeInventory('4 Island\n')).rejects.toThrow(/^Changed outside MTG Dreams:/)
+  })
+
+  it('keeps guarding a list after it is renamed or moved, and writes a deleted one again', async () => {
+    const { data, storage } = await setup()
+    await storage.writeList('wishlist', 'Wants', '1 A\n')
+    await storage.renameList('wishlist', 'Wants', 'Needs')
+    writeFileSync(join(data, 'lists', 'Needs.txt'), '1 B\n')
+    await expect(storage.writeList('wishlist', 'Needs', '2 A\n')).rejects.toThrow(/^Changed outside/)
+    await storage.writeList('wishlist', 'Needs', '2 A\n', true)
+    const moved = await storage.moveList('wishlist', 'deck', 'Needs')
+    writeFileSync(join(data, 'decks', `${moved}.txt`), '1 C\n')
+    await expect(storage.writeList('deck', moved, '3 A\n')).rejects.toThrow(/^Changed outside/)
+
+    await storage.writeList('deck', 'Gone', '1 A\n')
+    await rm(join(data, 'decks', 'Gone.txt'))
+    await storage.writeList('deck', 'Gone', '2 A\n')
+    expect(readFileSync(join(data, 'decks', 'Gone.txt'), 'utf8')).toBe('2 A\n')
+  })
+
   it('validates names before touching the disk', async () => {
     const { storage } = await setup()
     expect(() => storage.validateListName('  Burn  ')).not.toThrow()

@@ -10,6 +10,7 @@ import {
 } from '../../../shared/cards'
 import { cardLines, nameKey } from '../../../shared/decklist'
 import { capEntries, commanderRule, FORMATS } from '../../../shared/formats'
+import { priceBasisLabel } from '../../../shared/pricing'
 import {
   analyzeList,
   copyCaps,
@@ -21,7 +22,7 @@ import {
   sectionRows,
   sortRows
 } from '../../../shared/listModel'
-import type { CardLine, InventoryItem } from '../../../shared/types'
+import type { CardLine, InventoryItem, PriceBasis } from '../../../shared/types'
 import { bundledBasic } from '../../../shared/basics'
 import { getCardInfo } from '../cardinfo'
 import { cleanError, formatDay, formatEur } from '../format'
@@ -341,13 +342,13 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
 
       {isDeck ? (
         <section className="stats">
-          <Stat label="Deck value" value={formatEur(summary.total)} accent note={priceNote(summary)} />
+          <Stat label="Deck value" value={formatEur(summary.total)} accent note={priceNote(summary, settings.priceBasis)} />
           <Stat label="Cards" value={String(summary.cards)} note={`${lands} lands · ${summary.cards - lands} nonland`} />
           <Stat label="Unique cards" value={String(cards.length)} />
         </section>
       ) : (
         <section className="stats">
-          <Stat label="Still needed" value={formatEur(summary.neededValue)} accent note={priceNote(summary)} />
+          <Stat label="Still needed" value={formatEur(summary.neededValue)} accent note={priceNote(summary, settings.priceBasis)} />
           <Stat label="List total" value={formatEur(summary.total)} />
           <Stat label="Already owned" value={formatEur(summary.ownedValue)} />
           <div className="stat">
@@ -575,11 +576,12 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   )
 }
 
-function priceNote(summary: ReturnType<typeof summarize>): string | undefined {
-  const parts: string[] = []
+/** Which price the value uses (Settings → Prices), and what's still missing from it. */
+function priceNote(summary: ReturnType<typeof summarize>, basis: PriceBasis): string {
+  const parts = [`${priceBasisLabel(basis)} prices`]
   if (summary.loading) parts.push(`${summary.loading} loading`)
   if (summary.unpriced) parts.push(`${summary.unpriced} without price`)
-  return parts.length ? parts.join(' · ') : undefined
+  return parts.join(' · ')
 }
 
 function Stat({ label, value, accent, note }: { label: string; value: string; accent?: boolean; note?: string }) {

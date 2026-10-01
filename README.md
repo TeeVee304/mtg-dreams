@@ -68,6 +68,8 @@
 - Six color themes, one per mana color, each with its own icon: White (gold, the default), Blue, Black, Red,
   Green and Colorless.
 - Light, dark, or following Windows.
+- **Ctrl+Z** undoes your latest edits to decks, wishlists and the inventory, one step at a time; removing a card
+  shows an undo button too.
 - **Bundle basic lands** (on by default) counts every version of the five basics as one free card, which keeps
   land-heavy decks fast.
 
@@ -116,6 +118,8 @@ Documents\MTG Dreams\
 - If Windows backs up Documents to OneDrive, your data syncs too.
 - **Data folder → Change…** in the sidebar moves it anywhere.
 - Edits made outside the app show up when you switch back to it.
+- If a file changes outside the app while you're working on it (e.g. OneDrive syncing an edit from another PC),
+  the app asks before saving over it.
 - Uninstalling never deletes your data.
 - The caches are safe to delete; they are downloaded again.
 - Data from the app's earlier names (*MTG Dream*, *MTG Wishlist Tracker*) is carried over on first launch.

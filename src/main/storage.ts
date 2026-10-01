@@ -1,7 +1,7 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
-import type { AppSettings, ListFile, LoadedData, Theme } from '../shared/api'
+import { CONFLICT_ERROR, type AppSettings, type ListFile, type LoadedData, type Theme } from '../shared/api'
 import { DEFAULT_SORT, isSortKey } from '../shared/cards'
 import { DEFAULT_PRICE_BASIS, isPriceBasis } from '../shared/pricing'
 import { fileNameProblem } from '../shared/filenames'
@@ -153,11 +153,44 @@ const listPath = (kind: ListKind, name: string) => join(listsDir(kind), `${valid
 // its file's queue straight away (before any await), so writes land in the order made.
 const writeChains = new Map<string, Promise<void>>()
 
-function writeText(path: string, text: string): Promise<void> {
+// What each file held when the app last read or wrote it, by path. A save first checks
+// the file still holds that: if another program changed it meanwhile (e.g. OneDrive
+// syncing an edit made on another PC), the save is refused rather than overwrite it.
+const known = new Map<string, string>()
+
+/** The file's text, or null if there is no such file. */
+async function readIfExists(path: string): Promise<string | null> {
+  try {
+    return await readFile(path, 'utf8')
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    throw error
+  }
+}
+
+/** Carries what's known about a file over to its new path (rename, move). */
+function moveKnown(from: string, to: string): void {
+  const text = known.get(from)
+  known.delete(from)
+  if (text !== undefined) known.set(to, text)
+}
+
+/**
+ * Replaces a file's text. With `guard`, refuses (CONFLICT_ERROR) if the file changed
+ * since the app last read or wrote it; a file deleted meanwhile is simply written again.
+ */
+function writeText(path: string, text: string, guard: 'check' | 'force' | 'none' = 'none'): Promise<void> {
   const previous = writeChains.get(path) ?? Promise.resolve()
   const next = previous
     .catch(() => undefined)
     .then(async () => {
+      const expected = known.get(path)
+      if (guard === 'check' && expected !== undefined) {
+        const current = await readIfExists(path)
+        if (current !== null && current !== expected) {
+          throw new Error(`${CONFLICT_ERROR} "${basename(path)}" was changed by another program.`)
+        }
+      }
       await mkdir(dirname(path), { recursive: true })
       const tmp = `${path}.tmp`
       await writeFile(tmp, text, 'utf8')
@@ -168,6 +201,7 @@ function writeText(path: string, text: string): Promise<void> {
         await writeFile(path, text, 'utf8')
         await rm(tmp, { force: true })
       }
+      known.set(path, text)
     })
   writeChains.set(path, next)
   return next
@@ -184,7 +218,9 @@ async function readFolder(dir: string, extension: string, unreadable: string[]):
   const read = await Promise.all(
     files.map(async (file) => {
       try {
-        return { name: file.slice(0, -extension.length), text: await readFile(join(dir, file), 'utf8') }
+        const text = await readFile(join(dir, file), 'utf8')
+        known.set(join(dir, file), text)
+        return { name: file.slice(0, -extension.length), text }
       } catch {
         unreadable.push(`${basename(dir)}/${file}`)
         return null
@@ -206,6 +242,7 @@ export async function loadData(): Promise<LoadedData> {
   ])
   // The inventory is never skipped: the next save would replace it with an empty one.
   const inventory = existsSync(inventoryPath()) ? await readFile(inventoryPath(), 'utf8') : ''
+  known.set(inventoryPath(), inventory)
   return { dataDir: dataDir(), decks, wishlists, inventory, trades, unreadable }
 }
 
@@ -218,6 +255,7 @@ export async function deleteTrade(name: string): Promise<void> {
   const path = tradePath(name)
   await writeChains.get(path)?.catch(() => undefined)
   await env().trash(path)
+  known.delete(path)
 }
 
 export async function createList(kind: ListKind, name: string, text: string): Promise<void> {
@@ -227,8 +265,9 @@ export async function createList(kind: ListKind, name: string, text: string): Pr
   await writeText(path, text)
 }
 
-export async function writeList(kind: ListKind, name: string, text: string): Promise<void> {
-  await writeText(listPath(kind, name), text)
+/** Saves a list's text; with `force`, even if it changed outside the app since. */
+export async function writeList(kind: ListKind, name: string, text: string, force = false): Promise<void> {
+  await writeText(listPath(kind, name), text, force ? 'force' : 'check')
 }
 
 export async function renameList(kind: ListKind, from: string, to: string): Promise<void> {
@@ -238,6 +277,7 @@ export async function renameList(kind: ListKind, from: string, to: string): Prom
   if (!caseOnly && existsSync(target)) throw new Error(`A ${kind} called "${to.trim()}" already exists.`)
   await writeChains.get(source)?.catch(() => undefined)
   await rename(source, target)
+  moveKnown(source, target)
 }
 
 /** Moves a list to the other section (e.g. a completed wishlist becomes a deck). Returns its final name. */
@@ -249,6 +289,7 @@ export async function moveList(from: ListKind, to: ListKind, name: string): Prom
   for (let n = 2; existsSync(listPath(to, target)); n++) target = `${base} (${n})`
   await writeChains.get(source)?.catch(() => undefined)
   await rename(source, listPath(to, target))
+  moveKnown(source, listPath(to, target))
   return target
 }
 
@@ -257,8 +298,10 @@ export async function deleteList(kind: ListKind, name: string): Promise<void> {
   const path = listPath(kind, name)
   await writeChains.get(path)?.catch(() => undefined)
   await env().trash(path)
+  known.delete(path)
 }
 
-export async function writeInventory(text: string): Promise<void> {
-  await writeText(inventoryPath(), text)
+/** Saves the inventory; with `force`, even if it changed outside the app since. */
+export async function writeInventory(text: string, force = false): Promise<void> {
+  await writeText(inventoryPath(), text, force ? 'force' : 'check')
 }

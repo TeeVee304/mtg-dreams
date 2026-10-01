@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import type { ListFile } from '../../shared/api'
+import { CONFLICT_ERROR, type ListFile } from '../../shared/api'
 import {
   nameKey,
   newLineId,
@@ -42,6 +42,53 @@ export interface LibraryState {
 
 export type NewCard = Omit<CardLine, 'id' | 'kind'>
 
+/** What one edit changed: a deck or wishlist, or the inventory. */
+export type ChangeTarget = { type: 'list'; list: ListRef } | { type: 'inventory' }
+
+const sameTarget = (a: ChangeTarget, b: ChangeTarget) =>
+  a.type === 'inventory' ? b.type === 'inventory' : b.type === 'list' && sameList(a.list, b.list)
+
+/** A save refused because the file changed outside the app (e.g. synced from another PC). */
+export interface Conflict {
+  target: ChangeTarget
+  /** The list's name in quotes, or "Your inventory". */
+  name: string
+}
+
+/** Describes an edit for the undo history. `announce`: offer Undo in a toast (removals, bulk edits). */
+interface Change {
+  label: string
+  announce?: boolean
+}
+
+/** One step of the undo history. */
+interface HistoryEntry {
+  id: number
+  label: string
+  target: ChangeTarget
+  /** What the target held before the edit. */
+  before: ListLine[] | Map<string, InventoryItem>
+  /** Its saved text right after. Undo only applies while it still holds that. */
+  after: string
+  at: number
+  announced: boolean
+}
+
+const MAX_HISTORY = 50
+// Edits to the same list this close together (e.g. clicking + four times) undo as one.
+const MERGE_WITHIN_MS = 1000
+
+export interface UndoResult {
+  message: string
+  kind: 'info' | 'error'
+}
+
+export interface LibraryCallbacks {
+  onError: (message: string) => void
+  /** An edit worth announcing was made; `undo` reverts it. */
+  onUndoable: (label: string, undo: () => UndoResult) => void
+}
+
 const byName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
 
@@ -80,9 +127,10 @@ function toCardList(kind: ListKind, { name, text }: ListFile): CardList {
 
 /**
  * All deck, wishlist and inventory state plus the mutations on it. Every
- * change is applied optimistically and written straight to disk.
+ * change is applied optimistically and written straight to disk. Edits to
+ * lists and the inventory can be undone, most recent first.
  */
-export function useLibrary(onError: (message: string) => void) {
+export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
   const [state, setState] = useState<LibraryState>({
     status: 'loading',
     dataDir: '',
@@ -95,28 +143,73 @@ export function useLibrary(onError: (message: string) => void) {
   const pendingWrites = useRef(0)
   /** Files reported as unreadable, so the same ones aren't reported on every reload. */
   const reportedUnreadable = useRef('')
+  const history = useRef<HistoryEntry[]>([])
+  const nextHistoryId = useRef(0)
+  const [conflict, setConflict] = useState<Conflict | null>(null)
+  const conflictRef = useRef<Conflict | null>(null)
+  // Set below; lets toasts announced while saving call the latest undo.
+  const undoRef = useRef<(id?: number) => UndoResult>(() => ({ message: 'Nothing to undo', kind: 'info' }))
 
   const commit = useCallback((next: LibraryState) => {
     ref.current = next
     setState(next)
   }, [])
 
+  const showConflict = useCallback((next: Conflict | null) => {
+    conflictRef.current = next
+    setConflict(next)
+  }, [])
+
   const track = useCallback(
-    (write: Promise<unknown>) => {
+    (write: Promise<unknown>, target: ChangeTarget) => {
       pendingWrites.current += 1
       write
-        .catch((error) => onError(`Could not save: ${cleanError(error)}`))
+        .catch((error) => {
+          const message = cleanError(error)
+          if (!message.startsWith(CONFLICT_ERROR)) {
+            onError(`Could not save: ${message}`)
+          } else if (!conflictRef.current) {
+            // Later saves of the same edits are refused too; one question is enough.
+            showConflict({ target, name: target.type === 'list' ? `“${target.list.name}”` : 'Your inventory' })
+          }
+        })
         .finally(() => {
           pendingWrites.current -= 1
         })
     },
-    [onError]
+    [onError, showConflict]
+  )
+
+  /** The saved text of a list or the inventory, as the app holds it now; null if it's gone. */
+  const currentText = useCallback((target: ChangeTarget): string | null => {
+    if (target.type === 'inventory') return serializeInventory(ref.current.inventory)
+    return ref.current.lists.find((list) => sameList(list, target.list))?.text ?? null
+  }, [])
+
+  /** Adds an edit to the undo history, merging quick repeats on the same list. */
+  const record = useCallback(
+    (target: ChangeTarget, before: HistoryEntry['before'], after: string, change: Change) => {
+      const now = Date.now()
+      const top = history.current.at(-1)
+      if (!change.announce && top && !top.announced && sameTarget(top.target, target) && now - top.at < MERGE_WITHIN_MS) {
+        top.after = after
+        top.at = now
+        top.label = change.label
+        return
+      }
+      const id = ++nextHistoryId.current
+      history.current.push({ id, label: change.label, target, before, after, at: now, announced: !!change.announce })
+      if (history.current.length > MAX_HISTORY) history.current.shift()
+      if (change.announce) onUndoable(change.label, () => undoRef.current(id))
+    },
+    [onUndoable]
   )
 
   /** Re-reads the data folder, keeping unchanged lists as-is. Skipped while writes are pending. */
   const reload = useCallback(
     async (force = false) => {
-      if (!force && pendingWrites.current > 0) return
+      // While a conflict is being decided, the app's version must not be replaced unasked.
+      if (!force && (pendingWrites.current > 0 || conflictRef.current)) return
       try {
         const data = await window.api.loadData()
         if (!force && pendingWrites.current > 0) return
@@ -158,55 +251,134 @@ export function useLibrary(onError: (message: string) => void) {
     [commit, onError]
   )
 
+  /** Saves a list's new lines; `change` adds the edit to the undo history (undoing passes none). */
   const saveLines = useCallback(
-    (target: ListRef, lines: ListLine[]) => {
+    (target: ListRef, lines: ListLine[], change?: Change) => {
+      const list = ref.current.lists.find((l) => sameList(l, target))
+      if (!list) return
       const text = serializeList(lines)
+      if (text === list.text) return
       commit({
         ...ref.current,
-        lists: ref.current.lists.map((list) => (sameList(list, target) ? { ...list, lines, text } : list))
+        lists: ref.current.lists.map((l) => (sameList(l, target) ? { ...l, lines, text } : l))
       })
-      track(window.api.writeList(target.kind, target.name, text))
+      const changeTarget: ChangeTarget = { type: 'list', list: { kind: target.kind, name: target.name } }
+      if (change) record(changeTarget, list.lines, text, change)
+      track(window.api.writeList(target.kind, target.name, text), changeTarget)
     },
-    [commit, track]
+    [commit, record, track]
   )
 
   const updateLines = useCallback(
-    (target: ListRef, update: (lines: ListLine[]) => ListLine[]) => {
+    (target: ListRef, update: (lines: ListLine[]) => ListLine[], change: Change) => {
       const list = ref.current.lists.find((l) => sameList(l, target))
-      if (list) saveLines(target, update(list.lines))
+      if (list) saveLines(target, update(list.lines), change)
     },
     [saveLines]
   )
 
   const saveInventory = useCallback(
-    (inventory: Map<string, InventoryItem>) => {
+    (inventory: Map<string, InventoryItem>, change?: Change) => {
+      const before = ref.current.inventory
+      const text = serializeInventory(inventory)
+      if (text === serializeInventory(before)) return
       commit({ ...ref.current, inventory })
-      track(window.api.writeInventory(serializeInventory(inventory)))
+      if (change) record({ type: 'inventory' }, before, text, change)
+      track(window.api.writeInventory(text), { type: 'inventory' })
     },
-    [commit, track]
+    [commit, record, track]
+  )
+
+  /**
+   * Reverts the latest edit, or with `id` that edit only while it's still the latest
+   * (an Undo button on its toast). Edits whose list changed since are skipped.
+   */
+  const undo = useCallback(
+    (id?: number): UndoResult => {
+      const entries = history.current
+      if (id !== undefined && entries.at(-1)?.id !== id) {
+        return entries.some((entry) => entry.id === id)
+          ? { message: 'You changed more since. Press Ctrl+Z to undo step by step.', kind: 'error' }
+          : { message: 'That change can no longer be undone.', kind: 'error' }
+      }
+      for (let entry = entries.pop(); entry; entry = entries.pop()) {
+        if (currentText(entry.target) !== entry.after) {
+          if (id !== undefined) return { message: 'That change can no longer be undone.', kind: 'error' }
+          continue // changed since, e.g. edited outside the app
+        }
+        if (entry.target.type === 'list') saveLines(entry.target.list, entry.before as ListLine[])
+        else saveInventory(entry.before as Map<string, InventoryItem>)
+        return { message: `Undone: ${entry.label}`, kind: 'info' }
+      }
+      return { message: 'Nothing to undo', kind: 'info' }
+    },
+    [currentText, saveInventory, saveLines]
+  )
+  undoRef.current = undo
+
+  /** Points history entries for a list at its new name or section, or drops them (deleted). */
+  const retarget = useCallback((from: ListRef, to: ListRef | null) => {
+    history.current = history.current.flatMap((entry) => {
+      if (entry.target.type !== 'list' || !sameList(entry.target.list, from)) return [entry]
+      return to ? [{ ...entry, target: { type: 'list' as const, list: to } }] : []
+    })
+  }, [])
+
+  /** Answers a conflict: keep the app's version (overwriting the other), or load the other one. */
+  const resolveConflict = useCallback(
+    async (keepMine: boolean) => {
+      const current = conflictRef.current
+      if (!current) return
+      showConflict(null)
+      if (!keepMine) {
+        await reload(true)
+        return
+      }
+      const text = currentText(current.target)
+      if (text === null) return
+      track(
+        current.target.type === 'list'
+          ? window.api.writeList(current.target.list.kind, current.target.list.name, text, true)
+          : window.api.writeInventory(text, true),
+        current.target
+      )
+    },
+    [currentText, reload, showConflict, track]
   )
 
   const actions = useMemo(
     () => ({
       reload,
 
+      undo,
+      resolveConflict,
+
       /** Adds cards in one write, merging into identical lines. */
       addCards(target: ListRef, cards: NewCard[]) {
-        updateLines(target, (lines) => cards.reduce(mergeCard, lines))
+        const label = cards.length === 1 ? `Added ${cards[0].qty}× ${cards[0].name}` : `Added ${cards.length} cards`
+        updateLines(target, (lines) => cards.reduce(mergeCard, lines), { label })
       },
 
       updateCard(target: ListRef, id: string, patch: Partial<NewCard>) {
-        updateLines(target, (lines) =>
-          lines.map((line) => (line.id === id && line.kind === 'card' ? { ...line, ...patch } : line))
+        updateLines(
+          target,
+          (lines) => lines.map((line) => (line.id === id && line.kind === 'card' ? { ...line, ...patch } : line)),
+          { label: `Changed ${cardName(target, id)}` }
         )
       },
 
       removeCard(target: ListRef, id: string) {
-        updateLines(target, (lines) => withoutMissingCommander(lines.filter((line) => line.id !== id)))
+        updateLines(target, (lines) => withoutMissingCommander(lines.filter((line) => line.id !== id)), {
+          label: `Removed ${cardName(target, id)}`,
+          announce: true
+        })
       },
 
       removeCards(target: ListRef, ids: string[]) {
-        updateLines(target, (lines) => withoutMissingCommander(lines.filter((line) => !ids.includes(line.id))))
+        updateLines(target, (lines) => withoutMissingCommander(lines.filter((line) => !ids.includes(line.id))), {
+          label: `Removed ${cardName(target, ids[0])}`,
+          announce: true
+        })
       },
 
       /**
@@ -222,22 +394,25 @@ export function useLibrary(onError: (message: string) => void) {
               line.id === keep && line.kind === 'card'
                 ? { kind: 'card', id: line.id, qty, name: line.name, foil: false }
                 : line
-            )
+            ),
+          { label: `Changed ${cardName(target, keep)}` }
         )
       },
 
       /** Sets the deck format (stored as a "// Format: ..." line); null for no format. */
       setListFormat(target: ListRef, formatId: string | null) {
-        updateLines(target, (lines) => withFormat(lines, formatId))
+        updateLines(target, (lines) => withFormat(lines, formatId), { label: 'Changed the format' })
       },
 
       /** Sets the commander (stored as a "// Commander: ..." line); null for none. */
       setListCommander(target: ListRef, name: string | null) {
-        updateLines(target, (lines) => withCommander(lines, name))
+        updateLines(target, (lines) => withCommander(lines, name), {
+          label: name ? `Made ${name} the commander` : 'Removed the commander'
+        })
       },
 
       replaceListText(target: ListRef, text: string) {
-        saveLines(target, parseList(text))
+        saveLines(target, parseList(text), { label: `Edited the text of ${target.name}`, announce: true })
       },
 
       async createList(kind: ListKind, rawName: string, text: string): Promise<ListRef> {
@@ -250,6 +425,7 @@ export function useLibrary(onError: (message: string) => void) {
       async renameList(target: ListRef, rawTo: string): Promise<ListRef> {
         const to = rawTo.trim()
         await window.api.renameList(target.kind, target.name, to)
+        retarget(target, { kind: target.kind, name: to })
         commit({
           ...ref.current,
           lists: ref.current.lists.map((list) => (sameList(list, target) ? { ...list, name: to } : list)).sort(byName)
@@ -259,6 +435,7 @@ export function useLibrary(onError: (message: string) => void) {
 
       async moveList(target: ListRef, to: ListKind): Promise<ListRef> {
         const name = await window.api.moveList(target.kind, to, target.name)
+        retarget(target, { kind: to, name })
         commit({
           ...ref.current,
           lists: ref.current.lists
@@ -270,6 +447,7 @@ export function useLibrary(onError: (message: string) => void) {
 
       async deleteList(target: ListRef): Promise<void> {
         await window.api.deleteList(target.kind, target.name)
+        retarget(target, null)
         commit({ ...ref.current, lists: ref.current.lists.filter((list) => !sameList(list, target)) })
       },
 
@@ -280,7 +458,13 @@ export function useLibrary(onError: (message: string) => void) {
         const existing = inventory.get(key)
         if (qty <= 0) inventory.delete(key)
         else inventory.set(key, { name: existing?.name ?? name, qty })
-        saveInventory(inventory)
+        const shown = existing?.name ?? name
+        saveInventory(
+          inventory,
+          qty <= 0
+            ? { label: `Removed ${shown} from your inventory`, announce: true }
+            : { label: `Changed how many ${shown} you own` }
+        )
       },
 
       /**
@@ -300,7 +484,8 @@ export function useLibrary(onError: (message: string) => void) {
           const total = onlyMissing ? Math.max(owned, qty) : owned + qty
           inventory.set(key, { name: existing?.name ?? name, qty: total })
         }
-        saveInventory(inventory)
+        const cards = [...wanted.values()].reduce((sum, item) => sum + item.qty, 0)
+        saveInventory(inventory, { label: `Added ${cards} cards to your inventory` })
       },
 
       /** Saves a friend's trade list, replacing theirs if one with that name exists. */
@@ -337,20 +522,28 @@ export function useLibrary(onError: (message: string) => void) {
       },
 
       replaceInventoryText(text: string) {
-        saveInventory(parseInventory(text))
+        saveInventory(parseInventory(text), { label: 'Edited the inventory text', announce: true })
       },
 
       async chooseDataDir(): Promise<boolean> {
         const dir = await window.api.chooseDataDir()
         if (!dir) return false
+        history.current = []
         await reload(true)
         return true
       }
     }),
-    [commit, reload, saveInventory, saveLines, updateLines]
+    [commit, reload, resolveConflict, retarget, saveInventory, saveLines, undo, updateLines]
   )
 
-  return { state, actions }
+  /** A card's name in a list, for undo labels. */
+  function cardName(target: ListRef, id: string): string {
+    const list = ref.current.lists.find((l) => sameList(l, target))
+    const line = list?.lines.find((l) => l.id === id)
+    return line?.kind === 'card' ? line.name : 'a card'
+  }
+
+  return { state, actions, conflict }
 }
 
 export type LibraryActions = ReturnType<typeof useLibrary>['actions']

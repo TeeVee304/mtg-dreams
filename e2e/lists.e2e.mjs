@@ -46,8 +46,10 @@ test('prices come from Cardmarket, on the basis chosen in Settings', async () =>
     await run.pricesLoaded()
     // Scryfall's prices are double Cardmarket's in the stand-in: 12.00 means the price guide is used.
     await run.waitForText(deckValue, /12[,.]00/)
+    await run.waitForText('.stat.accent .stat-note', /^Typical prices/)
     await choose('Lowest listing')
     await run.waitForText(deckValue, /^6[,.]00/)
+    await run.waitForText('.stat.accent .stat-note', /^Lowest listing prices/)
     await choose('30-day average')
     await run.waitForText(deckValue, /12[,.]40/)
     assert.equal(JSON.parse(readFileSync(join(run.profile, 'settings.json'), 'utf8')).priceBasis, 'avg30')

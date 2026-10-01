@@ -52,8 +52,8 @@ export function registerIpc(): void {
   ipcMain.handle('list:create', (_e, kind: unknown, name: unknown, body: unknown) =>
     storage.createList(storage.validateKind(kind), storage.validateListName(name), text(body, 'list text'))
   )
-  ipcMain.handle('list:write', (_e, kind: unknown, name: unknown, body: unknown) =>
-    storage.writeList(storage.validateKind(kind), storage.validateListName(name), text(body, 'list text'))
+  ipcMain.handle('list:write', (_e, kind: unknown, name: unknown, body: unknown, force: unknown) =>
+    storage.writeList(storage.validateKind(kind), storage.validateListName(name), text(body, 'list text'), force === true)
   )
   ipcMain.handle('list:rename', (_e, kind: unknown, from: unknown, to: unknown) =>
     storage.renameList(storage.validateKind(kind), storage.validateListName(from), storage.validateListName(to))
@@ -64,7 +64,9 @@ export function registerIpc(): void {
   ipcMain.handle('list:delete', (_e, kind: unknown, name: unknown) =>
     storage.deleteList(storage.validateKind(kind), storage.validateListName(name))
   )
-  ipcMain.handle('inventory:write', (_e, body: unknown) => storage.writeInventory(text(body, 'inventory text')))
+  ipcMain.handle('inventory:write', (_e, body: unknown, force: unknown) =>
+    storage.writeInventory(text(body, 'inventory text'), force === true)
+  )
 
   ipcMain.handle('trade:write', (_e, name: unknown, body: unknown) =>
     storage.writeTrade(storage.validateListName(name), text(body, 'trade list'))

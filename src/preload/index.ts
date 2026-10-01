@@ -4,11 +4,11 @@ import type { TrackerApi } from '../shared/api'
 const api: TrackerApi = {
   loadData: () => ipcRenderer.invoke('data:load'),
   createList: (kind, name, text) => ipcRenderer.invoke('list:create', kind, name, text),
-  writeList: (kind, name, text) => ipcRenderer.invoke('list:write', kind, name, text),
+  writeList: (kind, name, text, force) => ipcRenderer.invoke('list:write', kind, name, text, force === true),
   renameList: (kind, from, to) => ipcRenderer.invoke('list:rename', kind, from, to),
   moveList: (from, to, name) => ipcRenderer.invoke('list:move', from, to, name),
   deleteList: (kind, name) => ipcRenderer.invoke('list:delete', kind, name),
-  writeInventory: (text) => ipcRenderer.invoke('inventory:write', text),
+  writeInventory: (text, force) => ipcRenderer.invoke('inventory:write', text, force === true),
   writeTrade: (name, text) => ipcRenderer.invoke('trade:write', name, text),
   deleteTrade: (name) => ipcRenderer.invoke('trade:delete', name),
   openTradeFile: () => ipcRenderer.invoke('trade:open'),

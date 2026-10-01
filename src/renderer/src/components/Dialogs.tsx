@@ -84,6 +84,48 @@ export function ConfirmDialog({ title, message, confirmLabel, danger, onConfirm,
   )
 }
 
+interface ConflictDialogProps {
+  /** The list's name in quotes, or "Your inventory". */
+  name: string
+  onKeepMine: () => void
+  /** Also what closing the dialog does: the other version is never overwritten unasked. */
+  onLoadOther: () => void
+}
+
+/** A save was refused because the file changed outside the app, e.g. synced from another PC. */
+export function ConflictDialog({ name, onKeepMine, onLoadOther }: ConflictDialogProps) {
+  return (
+    <Modal
+      title="Changed somewhere else"
+      onClose={onLoadOther}
+      footer={
+        <>
+          <span className="spacer" />
+          <button type="button" onClick={onKeepMine}>
+            Keep mine
+          </button>
+          <button type="button" className="primary" onClick={onLoadOther} autoFocus>
+            Load the other version
+          </button>
+        </>
+      }
+    >
+      <p>
+        {name} was changed outside MTG Dreams, maybe synced from another computer, so your latest change here
+        wasn&apos;t saved.
+      </p>
+      <ul className="muted small">
+        <li>
+          <strong>Load the other version</strong> shows what&apos;s in the file now, without your latest changes.
+        </li>
+        <li>
+          <strong>Keep mine</strong> saves your version over the other one.
+        </li>
+      </ul>
+    </Modal>
+  )
+}
+
 function ParseStats({ text, mode }: { text: string; mode: 'list' | 'inventory' }) {
   const stats = useMemo(() => {
     const lines = parseList(text)

@@ -35,6 +35,12 @@ export interface LoadedData {
   unreadable: string[]
 }
 
+/**
+ * Starts the message of a save refused because the file changed on disk since the app
+ * last read or wrote it (e.g. synced from another PC). Saving again with `force` overwrites it.
+ */
+export const CONFLICT_ERROR = 'Changed outside MTG Dreams:'
+
 export interface PrintingsOptions {
   /** Ignore the cache and fetch fresh prices. */
   force?: boolean
@@ -48,12 +54,14 @@ export interface PrintingsOptions {
 export interface TrackerApi {
   loadData(): Promise<LoadedData>
   createList(kind: ListKind, name: string, text: string): Promise<void>
-  writeList(kind: ListKind, name: string, text: string): Promise<void>
+  /** Rejects with CONFLICT_ERROR if the file changed outside the app, unless `force`. */
+  writeList(kind: ListKind, name: string, text: string, force?: boolean): Promise<void>
   renameList(kind: ListKind, from: string, to: string): Promise<void>
   /** Moves a list between decks and wishlists; resolves to its final name. */
   moveList(from: ListKind, to: ListKind, name: string): Promise<string>
   deleteList(kind: ListKind, name: string): Promise<void>
-  writeInventory(text: string): Promise<void>
+  /** Rejects with CONFLICT_ERROR if the file changed outside the app, unless `force`. */
+  writeInventory(text: string, force?: boolean): Promise<void>
   /** Saves a friend's trade list, replacing any with the same name. */
   writeTrade(name: string, text: string): Promise<void>
   deleteTrade(name: string): Promise<void>

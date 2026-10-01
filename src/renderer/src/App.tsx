@@ -6,7 +6,7 @@ import { preconListName, type PreconEntry } from '../../shared/precons'
 import { myTradeSide } from '../../shared/trade'
 import type { ListKind, PreconDeck } from '../../shared/types'
 import { CARD_SEARCH_ID } from './components/CardSearch'
-import { NewListDialog } from './components/Dialogs'
+import { ConflictDialog, NewListDialog } from './components/Dialogs'
 import { HoverPreview } from './components/HoverPreview'
 import { InventoryView } from './components/InventoryView'
 import { CollectionValueDialog } from './components/CollectionValue'
@@ -19,16 +19,31 @@ import { TradeView } from './components/TradeView'
 import { Sidebar, type View } from './components/Sidebar'
 import { useToast } from './components/Toasts'
 import { cleanError } from './format'
-import { sameList, useLibrary, type ListRef } from './library'
+import { sameList, useLibrary, type ListRef, type UndoResult } from './library'
 import { refreshStalePrintings, reloadPrices, requestPrintings } from './printings'
 import { useSettings } from './settings'
 
 const countCards = (entries: PreconEntry[]) => entries.reduce((sum, entry) => sum + entry.qty, 0)
 
+const NOT_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'])
+
+/** Whether keys go to a text field, which has its own Ctrl+Z. */
+function isTyping(target: EventTarget | null): boolean {
+  if (target instanceof HTMLTextAreaElement) return true
+  if (target instanceof HTMLInputElement) return !NOT_TEXT_INPUTS.has(target.type)
+  return target instanceof HTMLElement && target.isContentEditable
+}
+
 export default function App() {
   const toast = useToast()
   const onError = useCallback((message: string) => toast(message, 'error'), [toast])
-  const { state, actions } = useLibrary(onError)
+  const showUndone = useCallback((result: UndoResult) => toast(result.message, result.kind), [toast])
+  // Removals and bulk edits say what they did, with an Undo button; Ctrl+Z undoes any edit.
+  const onUndoable = useCallback(
+    (label: string, undo: () => UndoResult) => toast(label, 'info', { label: 'Undo', run: () => showUndone(undo()) }),
+    [toast, showUndone]
+  )
+  const { state, actions, conflict } = useLibrary({ onError, onUndoable })
   const [view, setView] = useState<View | null>(null)
   const [creating, setCreating] = useState<ListKind | null>(null)
   const [precon, setPrecon] = useState<ListKind | null>(null)
@@ -87,17 +102,23 @@ export default function App() {
   // New Cardmarket prices are announced by the main process.
   useEffect(() => window.api.onPricesUpdated(() => void reloadPrices()), [])
 
-  // Ctrl+K focuses the card search.
+  // Ctrl+K focuses the card search; Ctrl+Z undoes the latest edit, except while typing in a
+  // text field, where it undoes the typing as usual.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key.toLowerCase() === 'k') {
+      if (!event.ctrlKey || event.altKey) return
+      const key = event.key.toLowerCase()
+      if (key === 'k') {
         event.preventDefault()
         document.getElementById(CARD_SEARCH_ID)?.focus()
+      } else if (key === 'z' && !event.shiftKey && !isTyping(event.target)) {
+        event.preventDefault()
+        showUndone(actions.undo())
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [actions, showUndone])
 
   /** New deck or wishlist from a precon. A deck is something you own, so its cards join the inventory. */
   const createFromPrecon = async (kind: ListKind, deck: PreconDeck, entries: PreconEntry[]) => {
@@ -234,6 +255,13 @@ export default function App() {
         />
       )}
       {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {conflict && (
+        <ConflictDialog
+          name={conflict.name}
+          onKeepMine={() => void actions.resolveConflict(true)}
+          onLoadOther={() => void actions.resolveConflict(false)}
+        />
+      )}
       {valueOpen && <CollectionValueDialog inventory={state.inventory} onClose={() => setValueOpen(false)} />}
       {shareOpen && (
         <ShareTradeDialog inventory={state.inventory} wishlists={wishlists} onClose={() => setShareOpen(false)} />

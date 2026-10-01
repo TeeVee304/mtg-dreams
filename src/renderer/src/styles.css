@@ -2425,6 +2425,15 @@ input.switch:checked::after {
   max-width: 420px;
   cursor: pointer;
   animation: toast-in 0.18s ease-out;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.toast-action {
+  flex: none;
+  margin: -4px -6px -4px 0;
+  color: var(--accent);
 }
 
 .toast.error {
