@@ -23,6 +23,8 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: MTG Dreams
+  # Adds an "Uninstall MTG Dreams" Start Menu entry (build/installer.nsh).
+  include: build/installer.nsh
   artifactName: mtg-dreams-setup-${version}.${ext}
 portable:
   artifactName: mtg-dreams-portable-${version}.${ext}

@@ -101,7 +101,8 @@ npm run dist
 
 - This creates `dist/mtg-dreams-setup-<version>.exe`, which runs on any Windows PC without Node.js.
 - It installs for the current Windows user, without admin rights.
-- It adds Start Menu and Desktop shortcuts, and an uninstaller under *Settings → Apps*.
+- It adds Start Menu and Desktop shortcuts, and an uninstaller: *Uninstall MTG Dreams* in the Start Menu, or under
+  *Settings → Apps*.
 - The installer isn't code-signed, so Windows SmartScreen warns the first time: choose *More info → Run anyway*.
 - Running a newer installer updates the app; your data is kept.
 - `npm run dist:portable` builds `dist/mtg-dreams-portable-<version>.exe`, which runs without installing.
