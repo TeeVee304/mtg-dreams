@@ -15,8 +15,9 @@ import { readCacheFile, writeCacheFile, writeCacheFileNow } from './cacheFiles'
 
 const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 const SAVE_DELAY_MS = 2_000
-// During a long refresh, changes keep coming: save at least this often anyway.
-const MAX_SAVE_DELAY_MS = 10_000
+// During a long refresh, changes keep coming: save at least this often anyway. Each save
+// rewrites the whole file, so not too often; what a crash loses is simply fetched again.
+const MAX_SAVE_DELAY_MS = 60_000
 const VERSION = 7
 
 export interface CachedCardInfo {

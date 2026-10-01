@@ -154,7 +154,7 @@ describe('the cache file', () => {
     expect(JSON.parse(readFileSync(file, 'utf8')).entries).toHaveProperty(['sol ring'])
   })
 
-  it('saves shortly after changes, and at least every 10 seconds during a long refresh', async () => {
+  it('saves shortly after changes, and at least every minute during a long refresh', async () => {
     const { file, cache } = await setup()
     vi.useFakeTimers()
     cache.scryfallCache.entries.a = result([])
@@ -162,10 +162,11 @@ describe('the cache file', () => {
     vi.advanceTimersByTime(1_000)
     expect(existsSync(file)).toBe(false)
     // A change every second keeps postponing the save, but not forever.
-    for (let second = 1; second < 10; second++) {
+    for (let second = 1; second < 60; second++) {
       cache.scryfallCacheChanged()
       vi.advanceTimersByTime(1_000)
     }
+    expect(existsSync(file)).toBe(false)
     cache.scryfallCacheChanged()
     vi.advanceTimersByTime(1)
     vi.useRealTimers()
