@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { AppSettings, ListFile, LoadedData, Theme } from '../shared/api'
@@ -50,8 +50,19 @@ function readSettings(): Settings {
 
 function writeSettings(patch: Partial<Settings>): void {
   const settings = { ...readSettings(), ...patch }
-  writeFileSync(settingsPath(), JSON.stringify(settings, null, 2))
-  settingsCache = { path: settingsPath(), settings }
+  const path = settingsPath()
+  // Written to a temporary file first: a crash mid-write must not leave a truncated
+  // file, which would read as defaults and lose a custom data folder.
+  const tmp = `${path}.tmp`
+  writeFileSync(tmp, JSON.stringify(settings, null, 2))
+  try {
+    renameSync(tmp, path)
+  } catch {
+    // Something (antivirus, a sync client) briefly locks the target.
+    writeFileSync(path, JSON.stringify(settings, null, 2))
+    rmSync(tmp, { force: true })
+  }
+  settingsCache = { path, settings }
 }
 
 /**

@@ -133,6 +133,17 @@ describe('settings', () => {
     expect((await storage.loadData()).dataDir).toBe(elsewhere)
   })
 
+  it('replaces the settings file whole, leaving no temporary file', async () => {
+    const first = await setup()
+    const elsewhere = join(first.base, 'OneDrive', 'Cards')
+    await first.storage.setDataDir(elsewhere)
+    first.storage.updateAppSettings({ theme: 'dark' })
+    expect(readdirSync(join(first.base, 'userData'))).toEqual(['settings.json'])
+    const restarted = await setup(first.base)
+    expect(restarted.storage.dataDir()).toBe(elsewhere)
+    expect(restarted.storage.getTheme()).toBe('dark')
+  })
+
   it('carries settings, caches and data over from "MTG Dream"', async () => {
     const base = await mkdtemp(join(tmpdir(), 'mtg-dreams-'))
     const oldProfile = join(base, 'AppData', 'MTG Dream')

@@ -59,11 +59,15 @@ export default function App() {
   // Bundled basic lands need no lookups at all.
   const { bundleBasics } = useSettings()
   const active = view?.page === 'list' ? view.list : null
-  const namesKey = [...state.lists]
-    .sort((a, b) => Number(active !== null && sameList(b, active)) - Number(active !== null && sameList(a, active)))
-    .flatMap((list) => cardLines(list.lines).map((line) => line.name))
-    .filter((name) => !bundledBasic(name, bundleBasics))
-    .join('\n')
+  const namesKey = useMemo(
+    () =>
+      [...state.lists]
+        .sort((a, b) => Number(active !== null && sameList(b, active)) - Number(active !== null && sameList(a, active)))
+        .flatMap((list) => cardLines(list.lines).map((line) => line.name))
+        .filter((name) => !bundledBasic(name, bundleBasics))
+        .join('\n'),
+    [state.lists, active, bundleBasics]
+  )
   useEffect(() => {
     for (const name of namesKey.split('\n')) if (name) requestPrintings(name)
   }, [namesKey])
