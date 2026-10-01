@@ -187,3 +187,44 @@ input[type='checkbox'] {
   gap: 8px;
   color: var(--muted);
 }
+
+/* Text for screen readers only. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* A shimmering placeholder where something is still loading. */
+.skeleton {
+  display: inline-block;
+  height: 0.85em;
+  border-radius: 4px;
+  vertical-align: middle;
+  background: linear-gradient(90deg, var(--panel-2) 0%, var(--hover) 40%, var(--panel-2) 80%);
+  background-size: 300% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.skeleton-wrap {
+  display: inline-block;
+  line-height: 1;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

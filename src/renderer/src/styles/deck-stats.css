@@ -243,3 +243,32 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+/* Mana values as MTG's generic mana symbols (the curve's axis and its tooltips). */
+.mana-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  vertical-align: middle;
+}
+
+.mana-symbol {
+  width: 1.45em;
+  height: 1.45em;
+  flex: none;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.35));
+}
+
+.mana-symbol text {
+  font-size: 21px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.curve-axis {
+  margin-top: 6px;
+}
+
+.curve-axis .mana-cost {
+  justify-content: center;
+}

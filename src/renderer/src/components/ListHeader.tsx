@@ -2,6 +2,7 @@ import { commanderRule, FORMATS, type DeckFormat } from '../../../shared/formats
 import { cardCount, formatDay } from '../format'
 import type { Summary } from '../summary'
 import { Icon } from './Icon'
+import { MenuButton } from './MenuButton'
 
 // A deck's or wishlist's title bar: its format, commander choice, problem badges,
 // price status and the actions on the whole list.
@@ -106,15 +107,14 @@ export function ListHeader(props: ListHeaderProps) {
         <button type="button" onClick={props.onEditText}>
           Edit as text
         </button>
-        <button type="button" onClick={props.onCopy}>
-          Copy
-        </button>
-        <button type="button" onClick={props.onRename}>
-          Rename
-        </button>
-        <button type="button" className="danger-ghost" onClick={props.onDelete}>
-          Delete
-        </button>
+        <MenuButton
+          label={`More ${noun} actions`}
+          items={[
+            { label: 'Copy as text', onSelect: props.onCopy },
+            { label: 'Rename…', onSelect: props.onRename },
+            { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
+          ]}
+        />
       </div>
     </header>
   )

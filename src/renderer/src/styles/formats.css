@@ -181,10 +181,10 @@
   background: linear-gradient(90deg, var(--accent-soft), transparent 70%), var(--panel-2) !important;
 }
 
-.commander-section .section-row svg {
+/* The crown (the section toggle's own chevron is sized with it). */
+.commander-section .section-toggle > svg {
   width: 13px;
   height: 13px;
-  margin: 0 6px -2px 0;
 }
 
 .section-action {

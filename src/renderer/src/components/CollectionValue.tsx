@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { bundledBasic } from '../../../shared/basics'
 import { priceBasisLabel } from '../../../shared/pricing'
-import type { InventoryItem, PriceBasis } from '../../../shared/types'
-import { valueCollection } from '../collection'
+import type { InventoryItem } from '../../../shared/types'
+import { VALUATION_BASIS, valueCollection } from '../collection'
 import { formatEur } from '../format'
 import { prefersReducedMotion } from '../motion'
 import { requestPrintings, usePrintingsVersion } from '../printings'
@@ -12,10 +12,6 @@ import { Modal } from './Modal'
 import { ValueChange } from './ValueChange'
 
 const STEP = 5
-
-// What a collection is worth is a selling question, so it's always valued at Cardmarket's
-// typical price (the trend), whatever price basis Settings choose for buying.
-const VALUATION_BASIS: PriceBasis = 'trend'
 
 /** Animates a number towards `target`, continuing from wherever it currently is. */
 function useCountUp(target: number): number {

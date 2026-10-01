@@ -16,8 +16,10 @@ import { cardLines, nameKey, serializeInventory } from '../../../shared/decklist
 import { hasVersions } from '../../../shared/inventory'
 import type { InventoryItem, ListKind } from '../../../shared/types'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../cardinfo'
+import { VALUATION_BASIS, valueItem, type ItemValue } from '../collection'
+import { formatEur } from '../format'
 import type { CardList, LibraryActions, ListRef } from '../library'
-import { usePrintingsVersion } from '../printings'
+import { requestPrintings, usePrintingsVersion } from '../printings'
 import { updateSettings, useSettings } from '../settings'
 import { CardSearch } from './CardSearch'
 import { TextEditorDialog } from './Dialogs'
@@ -25,6 +27,7 @@ import { copyLabel, InventoryVersionsDialog } from './InventoryVersions'
 import { FilterBar } from './FilterBar'
 import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
+import { CardThumb, Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
 import { useToast } from './Toasts'
 
@@ -75,17 +78,28 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
   // Card data for filtering and sorting, fetched in batches.
   const namesKey = [...inventory.values()].map((item) => item.name).join('\n')
   useEffect(() => {
-    requestCardInfos(namesKey.split('\n').filter(Boolean), bundleBasics)
+    const names = namesKey.split('\n').filter(Boolean)
+    requestCardInfos(names, bundleBasics)
+    // Versions and prices, for the Value column and the pictures.
+    for (const name of names) if (!bundledBasic(name, bundleBasics)) requestPrintings(name)
   }, [namesKey, bundleBasics])
 
-  const items = [...inventory.values()].map((item) => ({ ...item, info: getCardInfo(item.name, bundleBasics) }))
+  const items = [...inventory.values()].map((item) => ({
+    ...item,
+    info: getCardInfo(item.name, bundleBasics),
+    value: valueItem(item, VALUATION_BASIS, bundleBasics)
+  }))
   const previewFor = (name: string) => {
     const generic = bundledBasic(name, bundleBasics)
     return previewHandlers(generic ? { src: generic.printing.imageNormal } : { name })
   }
   const visible = items.filter((item) => matchesFilters(item.name, item.info, undefined, filters))
   visible.sort((a, b) =>
-    isCardSort(sort) ? compareCards(sort, a, b) : b.qty - a.qty || a.name.localeCompare(b.name)
+    isCardSort(sort)
+      ? compareCards(sort, a, b)
+      : sort === 'value'
+        ? valueOrder(b.value) - valueOrder(a.value) || a.name.localeCompare(b.name)
+        : b.qty - a.qty || a.name.localeCompare(b.name)
   )
 
   const totalCopies = items.reduce((sum, item) => sum + item.qty, 0)
@@ -178,6 +192,9 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
                 <th>Card</th>
                 <th>In decks</th>
                 <th>Wanted in</th>
+                <th className="col-num" title="Cardmarket's typical price, as in Inventory Value">
+                  Value
+                </th>
                 <th className="col-actions" aria-label="Actions" />
               </tr>
             </thead>
@@ -193,27 +210,35 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
                     />
                   </td>
                   <td className="col-name" {...previewFor(item.name)}>
-                    <span className="card-name">{item.name}</span>
-                    {hasVersions(item) &&
-                      item.copies
-                        .filter((copy) => copy.set || copy.foil)
-                        .map((copy) => (
-                          <button
-                            key={copyLabel(copy)}
-                            type="button"
-                            className={`chip link${copy.foil ? ' foil' : ''}`}
-                            onClick={() => setVersionsOf(nameKey(item.name))}
-                            title="Your versions of this card"
-                          >
-                            {copy.qty}× {copyLabel(copy)}
-                          </button>
-                        ))}
+                    <div className="name-cell">
+                      <CardThumb src={item.value.printing?.imageSmall} loading={item.value.status === 'loading'} />
+                      <div className="name-main">
+                        <span className="card-name">{item.name}</span>
+                        {hasVersions(item) &&
+                          item.copies
+                            .filter((copy) => copy.set || copy.foil)
+                            .map((copy) => (
+                              <button
+                                key={copyLabel(copy)}
+                                type="button"
+                                className={`chip link${copy.foil ? ' foil' : ''}`}
+                                onClick={() => setVersionsOf(nameKey(item.name))}
+                                title="Your versions of this card"
+                              >
+                                {copy.qty}× {copyLabel(copy)}
+                              </button>
+                            ))}
+                      </div>
+                    </div>
                   </td>
                   <td>
                     <div className="chips">{usageChips(item, 'deck')}</div>
                   </td>
                   <td>
                     <div className="chips">{usageChips(item, 'wishlist')}</div>
+                  </td>
+                  <td className="col-num">
+                    <ValueCell value={item.value} qty={item.qty} />
                   </td>
                   <td className="col-actions">
                     <button
@@ -270,5 +295,29 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
         />
       )}
     </div>
+  )
+}
+
+/** For sorting by value: priced cards by worth, then those still loading, then unpriced. */
+function valueOrder(value: ItemValue): number {
+  if (value.status === 'priced' || value.status === 'free') return value.total
+  return value.status === 'loading' ? -1 : -2
+}
+
+function ValueCell({ value, qty }: { value: ItemValue; qty: number }) {
+  if (value.status === 'loading') return <Skeleton width={52} />
+  if (value.status === 'free') {
+    return (
+      <span className="muted" title="Bundled basic lands count as free">
+        {formatEur(0)}
+      </span>
+    )
+  }
+  if (value.status === 'unpriced') return <span className="muted" title="No Cardmarket price">—</span>
+  return (
+    <span className="value-cell" title={value.unpriced > 0 ? 'Some versions have no price and are left out' : undefined}>
+      <strong>{formatEur(value.total)}</strong>
+      {qty > 1 && value.unit !== null && <span className="muted small">{formatEur(value.unit)} each</span>}
+    </span>
   )
 }

@@ -74,7 +74,7 @@ function ManaCurve({ stats }: { stats: Stats }) {
               <span className="curve-value">{total > 0 ? total : ''}</span>
               <div className="curve-bar" style={{ height: `${(total / tallest) * 100}%` }} />
               <span className="chart-tip" role="tooltip">
-                {tip(column.manaValue, column.creatures, column.others)}
+                Mana Value <ManaCost manaValue={column.manaValue} />: {counted(column.creatures + column.others, 'Card')}
               </span>
             </div>
           )
@@ -82,7 +82,9 @@ function ManaCurve({ stats }: { stats: Stats }) {
       </div>
       <div className="curve-axis" aria-hidden="true">
         {stats.curve.map((column) => (
-          <span key={column.manaValue}>{label(column.manaValue)}</span>
+          <span key={column.manaValue}>
+            <ManaCost manaValue={column.manaValue} />
+          </span>
         ))}
       </div>
       {stats.averageManaValue !== null && (
@@ -134,5 +136,30 @@ function ColorBreakdown({ stats }: { stats: Stats }) {
         ))}
       </ul>
     </figure>
+  )
+}
+
+/** A mana value as MTG's generic mana symbol ("7+" for the last column). */
+function ManaCost({ manaValue }: { manaValue: number }) {
+  return (
+    <span className="mana-cost">
+      <ManaSymbol n={manaValue} />
+      {manaValue === CURVE_TOP && '+'}
+    </span>
+  )
+}
+
+/**
+ * The generic mana symbol for a number: a gray disc with the number, in the colors of
+ * Scryfall's symbols. Drawn here rather than shipped as images.
+ */
+function ManaSymbol({ n }: { n: number }) {
+  return (
+    <svg className="mana-symbol" viewBox="0 0 32 32" aria-hidden="true">
+      <circle cx="16" cy="16" r="16" fill="#cac5c0" />
+      <text x="16" y="17" textAnchor="middle" dominantBaseline="central" fill="#0d0f0f">
+        {n}
+      </text>
+    </svg>
   )
 }

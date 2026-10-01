@@ -82,3 +82,31 @@ test('a list changed outside the app is not overwritten unasked', async () => {
     run.remove()
   }
 })
+
+test('rename and delete live in the ⋯ menu, and type sections fold', async () => {
+  const run = await launchApp(services, { files })
+  const { page } = run
+  try {
+    await page.locator('.nav-item', { hasText: 'Ramp' }).click()
+    const creatures = page.locator('.section-toggle', { hasText: 'Creatures' })
+    await creatures.click()
+    assert.equal(await page.locator('tr', { hasText: 'Llanowar Elves' }).count(), 0)
+    await creatures.click()
+    await page.locator('tr', { hasText: 'Llanowar Elves' }).waitFor()
+
+    await page.getByRole('button', { name: 'More deck actions' }).click()
+    await page.getByRole('menuitem', { name: 'Rename…' }).click()
+    await page.locator('.modal input').fill('Big Ramp')
+    await page.locator('.modal').getByRole('button', { name: 'Rename' }).click()
+    await page.locator('h1', { hasText: 'Big Ramp' }).waitFor()
+
+    await page.getByRole('button', { name: 'More deck actions' }).click()
+    await page.getByRole('menuitem', { name: 'Delete deck…' }).click()
+    await page.locator('.modal').getByRole('button', { name: 'Delete' }).click()
+    await page.locator('.nav-item', { hasText: 'Big Ramp' }).waitFor({ state: 'detached' })
+    assert.deepEqual(run.errors, [])
+  } finally {
+    await run.close()
+    run.remove()
+  }
+})

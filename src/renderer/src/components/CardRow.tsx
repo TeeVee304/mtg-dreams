@@ -6,6 +6,7 @@ import type { PriceDrop } from '../history'
 import type { Row } from '../summary'
 import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
+import { CardThumb, Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
 
 // One row of a deck or wishlist table, and its version cell.
@@ -46,6 +47,8 @@ export function CardRow(props: CardRowProps) {
   // The line uses a name printed on some version (e.g. a Marvel reprint) rather than the official one.
   const printedAs = matchedName && data?.printings.some((p) => p.flavorName?.toLowerCase() === line.name.toLowerCase())
   const complete = owned >= line.qty
+  // Its versions and prices are still on their way.
+  const loading = !row.bundledIds && !data && !entry?.error
   const checkbox = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -116,59 +119,70 @@ export function CardRow(props: CardRowProps) {
         />
       </td>
       <td className="col-name" {...previewHandlers({ src: printing?.imageNormal })}>
-        {row.bundledIds ? (
-          <span className="card-name" title="Basic lands are bundled: any version counts, for free. Change this in Settings.">
-            {line.name}
-          </span>
-        ) : (
-          <button type="button" className="name-btn card-name" onClick={onOpen} title="Card details and version">
-            {row.flavorName ?? line.name}
-          </button>
-        )}
-        {row.flavorName && (
-          <span className="muted small official-name" title="The card's official name">
-            {line.name}
-          </span>
-        )}
-        {line.foil && <span className="chip foil">Foil</span>}
-        {issue && (
-          <span className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`} title={issue.message}>
-            {issue.message}
-          </span>
-        )}
-        {drop && (
-          <span
-            className="chip cheaper"
-            title={`${formatEur(drop.was)} when added on ${formatDay(drop.since)}, now ${formatEur(row.unit)}`}
-          >
-            ↓ {drop.percent}% cheaper
-          </span>
-        )}
-        {shortfall > 0 && (
-          <span className="chip illegal" title="Decks can only use cards from your inventory">
-            {row.inventoryQty === 0 ? 'Not in inventory' : `Only ${row.inventoryQty} owned`}
-          </span>
-        )}
-        {matchedName && (
-          <button
-            type="button"
-            className="chip link fix-name"
-            onClick={() => onRename(matchedName)}
-            title={
-              printedAs
-                ? `“${line.name}” is a printed name of “${matchedName}”. Use the official name so your inventory and other versions match.`
-                : `Scryfall matched this to “${matchedName}”. Click to use that name.`
-            }
-          >
-            Use “{matchedName}”
-          </button>
-        )}
+        <div className="name-cell">
+          <CardThumb src={printing?.imageSmall} loading={loading} />
+          <div className="name-main">
+            {row.bundledIds ? (
+              <span className="card-name" title="Basic lands are bundled: any version counts, for free. Change this in Settings.">
+                {line.name}
+              </span>
+            ) : (
+              <button type="button" className="name-btn card-name" onClick={onOpen} title="Card details and version">
+                {row.flavorName ?? line.name}
+              </button>
+            )}
+            {row.flavorName && (
+              <span className="muted small official-name" title="The card's official name">
+                {line.name}
+              </span>
+            )}
+            {line.foil && <span className="chip foil">Foil</span>}
+            {issue && (
+              <span className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`} title={issue.message}>
+                {issue.message}
+              </span>
+            )}
+            {drop && (
+              <span
+                className="chip cheaper"
+                title={`${formatEur(drop.was)} when added on ${formatDay(drop.since)}, now ${formatEur(row.unit)}`}
+              >
+                ↓ {drop.percent}% cheaper
+              </span>
+            )}
+            {shortfall > 0 && (
+              <span className="chip illegal" title="Decks can only use cards from your inventory">
+                {row.inventoryQty === 0 ? 'Not in inventory' : `Only ${row.inventoryQty} owned`}
+              </span>
+            )}
+            {matchedName && (
+              <button
+                type="button"
+                className="chip link fix-name"
+                onClick={() => onRename(matchedName)}
+                title={
+                  printedAs
+                    ? `“${line.name}” is a printed name of “${matchedName}”. Use the official name so your inventory and other versions match.`
+                    : `Scryfall matched this to “${matchedName}”. Click to use that name.`
+                }
+              >
+                Use “{matchedName}”
+              </button>
+            )}
+          </div>
+        </div>
       </td>
       <td className="col-version">
         <VersionCell row={row} />
       </td>
       <td className="col-num" title={entry?.data && unit === null ? 'No Cardmarket price for this version and finish' : undefined}>
-        {row.bundledIds ? <span className="muted" title="Bundled basic lands count as free">{formatEur(0)}</span> : formatEur(unit)}
+        {row.bundledIds ? (
+          <span className="muted" title="Bundled basic lands count as free">{formatEur(0)}</span>
+        ) : loading ? (
+          <Skeleton width={44} />
+        ) : (
+          formatEur(unit)
+        )}
         {entry?.data?.staleError && (
           <span className="stale" title={`Showing cached price: ${entry.data.staleError}`}>
             {' '}
@@ -179,6 +193,8 @@ export function CardRow(props: CardRowProps) {
       <td className="col-num strong">
         {row.bundledIds ? (
           <span className="muted" title="Bundled basic lands count as free">{formatEur(0)}</span>
+        ) : loading ? (
+          <Skeleton width={52} />
         ) : unit === null ? (
           '—'
         ) : (
@@ -233,10 +249,10 @@ function VersionCell({ row }: { row: Row }) {
   const data = entry?.data
   if (!data) {
     if (entry?.error) return <span className="warn" title={entry.error}>Price unavailable</span>
-    return <span className="muted">Loading…</span>
+    return <Skeleton width={120} />
   }
   if (data.notFound) return <span className="warn">Not found on Scryfall</span>
-  if (resolution?.pinMissing && data.partial) return <span className="muted">Loading version…</span>
+  if (resolution?.pinMissing && data.partial) return <Skeleton width={120} />
   if (resolution?.pinMissing) {
     return (
       <span className="warn">
@@ -264,10 +280,19 @@ function VersionCell({ row }: { row: Row }) {
       </span>
     )
   }
+  // The cheapest version is the usual case: plain, so the exceptions (a version asked
+  // for, yours, missing) stand out.
+  if (!resolution.pinned) {
+    return (
+      <span className="version" title={`Cheapest version: ${printing.setName}${labels}`}>
+        <span className="muted">{where}</span>
+      </span>
+    )
+  }
   return (
     <span className="version" title={`${printing.setName}${labels}`}>
-      {resolution.pinned ? <span className="set-code">{where}</span> : <span className="auto-badge">Cheapest</span>}
-      <span className="muted">{resolution.pinned ? printing.setName : where}</span>
+      <span className="set-code">{where}</span>
+      <span className="muted">{printing.setName}</span>
     </span>
   )
 }

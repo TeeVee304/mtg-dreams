@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { sortOptionsFor, type CardFilters, type SortKey } from '../../../shared/cards'
 import type { Section } from '../../../shared/listModel'
 import { cardCount, formatEur } from '../format'
@@ -8,9 +8,14 @@ import { FilterBar } from './FilterBar'
 import { Icon } from './Icon'
 
 // A list's cards: the filter bar, then a table with one section per card type (the
-// commander on top). Rows are drawn by the caller, which owns what they do.
+// commander on top). Rows are drawn by the caller, which owns what they do. Sections
+// fold away; which are folded is remembered per list while the app is open.
+
+const folded = new Map<string, Set<string>>()
 
 interface ListTableProps {
+  /** Identifies the list, to remember its folded sections. */
+  listKey: string
   isDeck: boolean
   sections: Section<Row>[]
   renderRow: (row: Row) => ReactNode
@@ -37,6 +42,14 @@ interface ListTableProps {
 
 export function ListTable(props: ListTableProps) {
   const { isDeck, sections, renderRow, visibleSummary, filtering } = props
+  const [closed, setClosed] = useState<Set<string>>(() => folded.get(props.listKey) ?? new Set())
+  const toggle = (id: string) => {
+    const next = new Set(closed)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    folded.set(props.listKey, next)
+    setClosed(next)
+  }
   return (
     <>
       <FilterBar
@@ -92,14 +105,27 @@ export function ListTable(props: ListTableProps) {
         {sections.map((section) => {
           const sectionSummary = summarize(section.rows)
           const leaders = section.id === 'Commander'
+          // While choosing a commander every card must be clickable, so nothing stays folded.
+          const open = props.picking || !closed.has(section.id)
           return (
             <tbody key={section.id} className={leaders ? 'commander-section' : undefined}>
-              <tr className="section-row">
+              <tr className={`section-row${open ? '' : ' folded'}`}>
                 <td colSpan={isDeck ? 6 : 7}>
-                  <span>
+                  <button
+                    type="button"
+                    className="section-toggle"
+                    onClick={() => toggle(section.id)}
+                    aria-expanded={open}
+                    title={open ? `Fold ${section.label.toLowerCase()}` : `Show ${section.label.toLowerCase()}`}
+                  >
+                    <span className="section-chevron" aria-hidden="true">
+                      <Icon name="chevron" />
+                    </span>
                     {leaders && <Icon name="crown" />}
-                    {section.label} · {sectionSummary.cards}
-                  </span>
+                    <span className="section-label">
+                      {section.label} · {sectionSummary.cards}
+                    </span>
+                  </button>
                   {leaders && (
                     <button
                       type="button"
@@ -113,7 +139,7 @@ export function ListTable(props: ListTableProps) {
                   <span className="section-value">{formatEur(sectionSummary.total)}</span>
                 </td>
               </tr>
-              {section.rows.map(renderRow)}
+              {open && section.rows.map(renderRow)}
             </tbody>
           )
         })}

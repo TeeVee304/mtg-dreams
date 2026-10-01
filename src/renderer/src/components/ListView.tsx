@@ -299,6 +299,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
 
       {cards.length > 0 ? (
         <ListTable
+          listKey={`${list.kind}/${list.name}`}
           isDeck={isDeck}
           sections={sections}
           renderRow={renderRow}

@@ -134,6 +134,7 @@ export const SORT_OPTIONS = [
   { id: 'name', label: 'Name', views: EVERYWHERE },
   { id: 'qty', label: 'Quantity', views: EVERYWHERE },
   { id: 'unit', label: 'Unit price', views: LISTS },
+  { id: 'value', label: 'Value', views: ['inventory'] },
   { id: 'needed', label: 'Cost still needed', views: ['wishlist'] },
   { id: 'mana', label: 'Mana value', views: EVERYWHERE },
   { id: 'color', label: 'Color', views: EVERYWHERE },
@@ -163,6 +164,9 @@ export function isCardSort(sort: SortKey): sort is CardSort {
 export function sortFor(view: SortView, sort: SortKey): SortKey {
   if (sortOptionsFor(view).some((option) => option.id === sort)) return sort
   if (sort === 'needed' && view === 'deck') return 'unit'
+  // The nearest thing to a price sort in the other kind of view.
+  if ((sort === 'unit' || sort === 'needed') && view === 'inventory') return 'value'
+  if (sort === 'value' && view !== 'inventory') return 'unit'
   return view === 'inventory' ? 'name' : 'file'
 }
 

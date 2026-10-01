@@ -50,3 +50,9 @@
   width: 15px;
   height: 15px;
 }
+
+/* Keeps the remove button level with it. */
+.versions-btn + .icon-btn {
+  vertical-align: middle;
+  margin-left: 4px;
+}

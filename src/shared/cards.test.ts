@@ -112,7 +112,10 @@ describe('sortFor', () => {
 
   it('falls back to the closest sort a view offers', () => {
     expect(sortFor('deck', 'needed')).toBe('unit')
-    expect(sortFor('inventory', 'needed')).toBe('name')
+    // Price sorts map to each other: lists sort by unit price, the inventory by value.
+    expect(sortFor('inventory', 'needed')).toBe('value')
+    expect(sortFor('inventory', 'unit')).toBe('value')
+    expect(sortFor('wishlist', 'value')).toBe('unit')
     expect(sortFor('inventory', 'file')).toBe('name')
     expect(sortFor('deck', 'type')).toBe('file')
   })
