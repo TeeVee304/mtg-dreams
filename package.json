@@ -1,7 +1,7 @@
 {
   "name": "mtg-dreams",
   "productName": "MTG Dreams",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Magic: The Gathering deck organizer and wishlist tracker with European (Cardmarket) prices via Scryfall.",
   "private": true,
   "license": "MIT",
