@@ -215,11 +215,9 @@ e2e/            End-to-end tests, against local stand-ins for Scryfall, MTGJSON 
 
 ## Credits
 
-Card data, images and mana symbols come from [Scryfall](https://scryfall.com). Prices come from
-[Cardmarket](https://www.cardmarket.com)'s price guide. Official decklists come from [MTGJSON](https://mtgjson.com).
+Card data, images and mana symbols come from [Scryfall](https://scryfall.com). Prices come from [Cardmarket](https://www.cardmarket.com)'s price guide. Official decklists come from [MTGJSON](https://mtgjson.com).
 
-Magic: The Gathering is © Wizards of the Coast. This project is not affiliated with or endorsed by Scryfall,
-MTGJSON, Cardmarket or Wizards of the Coast.
+*Magic: The Gathering is © Wizards of the Coast. This project is not affiliated with or endorsed by Scryfall, MTGJSON, Cardmarket or Wizards of the Coast.*
 
 ## License
 
