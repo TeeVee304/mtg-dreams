@@ -1,4 +1,4 @@
-import { useSettings } from '../settings'
+import { useSettings } from '../stores/settings'
 
 /** Shimmering text placeholder. */
 export function Skeleton({ width = 64 }: { width?: number }) {

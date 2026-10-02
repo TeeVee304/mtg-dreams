@@ -1,10 +1,10 @@
-import { bundleBasicLines, genericBasic } from '../../shared/basics'
-import { allocateOwned, nameKey } from '../../shared/decklist'
-import { ownedVersion } from '../../shared/inventory'
-import { resolveLine, type Resolution } from '../../shared/pricing'
-import type { AppSettings } from '../../shared/api'
-import type { CardInfo, CardLine, InventoryItem } from '../../shared/types'
-import { getPrintingsEntry, type PrintingsEntry } from './printings'
+import { bundleBasicLines, genericBasic } from '@shared/basics'
+import { allocateOwned, nameKey } from '@shared/decklist'
+import { ownedVersion } from '@shared/inventory'
+import { resolveLine, type Resolution } from '@shared/pricing'
+import type { AppSettings } from '@shared/api'
+import type { CardInfo, CardLine, InventoryItem } from '@shared/types'
+import { getPrintingsEntry, type PrintingsEntry } from '../stores/printings'
 
 /** Priced list row. */
 export interface Row {

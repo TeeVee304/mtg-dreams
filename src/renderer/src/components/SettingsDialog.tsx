@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import type { AppSettings, Theme } from '../../../shared/api'
-import { PRICE_BASES } from '../../../shared/pricing'
-import { THEME_COLORS } from '../../../shared/themes'
-import { MANA_SYMBOLS, THEME_ICONS } from '../artwork'
-import { cleanError } from '../format'
-import { updateSettings, useSettings } from '../settings'
+import type { AppSettings, Theme } from '@shared/api'
+import { PRICE_BASES } from '@shared/pricing'
+import { THEME_COLORS } from '@shared/themes'
+import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
+import { cleanError } from '../lib/format'
+import { updateSettings, useSettings } from '../stores/settings'
 import { Modal } from './Modal'
 
 const THEMES: Array<{ id: Theme; label: string; hint: string }> = [

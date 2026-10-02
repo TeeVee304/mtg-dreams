@@ -1,7 +1,7 @@
-import { priceBasisLabel } from '../../../shared/pricing'
-import type { PriceBasis } from '../../../shared/types'
-import { formatEur } from '../format'
-import type { Summary } from '../summary'
+import { priceBasisLabel } from '@shared/pricing'
+import type { PriceBasis } from '@shared/types'
+import { formatEur } from '../lib/format'
+import type { Summary } from '../lib/summary'
 
 /** Props of {@link ListValueCards}. */
 interface ListValueCardsProps {

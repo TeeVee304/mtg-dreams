@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
-import { bundledBasic } from '../../shared/basics'
-import { nameKey } from '../../shared/decklist'
-import type { CardInfo } from '../../shared/types'
+import { bundledBasic } from '@shared/basics'
+import { nameKey } from '@shared/decklist'
+import type { CardInfo } from '@shared/types'
 import { getPrintingsEntry } from './printings'
 
 /**

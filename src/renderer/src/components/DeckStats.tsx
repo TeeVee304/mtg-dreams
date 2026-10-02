@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { CURVE_TOP, deckStats, STAT_COLORS, type DeckStats as Stats, type StatsRow } from '../../../shared/deckStats'
-import { MANA_SYMBOLS } from '../artwork'
-import { cardCount } from '../format'
+import { CURVE_TOP, deckStats, STAT_COLORS, type DeckStats as Stats, type StatsRow } from '@shared/deckStats'
+import { MANA_SYMBOLS } from '../lib/artwork'
+import { cardCount } from '../lib/format'
 import { Icon } from './Icon'
 
 /** localStorage key of the panel's open state. */

@@ -1,6 +1,6 @@
-import type { LegalityIssue } from '../../../shared/formats'
-import { formatEur } from '../format'
-import type { Row } from '../summary'
+import type { LegalityIssue } from '@shared/formats'
+import { formatEur } from '../lib/format'
+import type { Row } from '../lib/summary'
 import { Icon } from './Icon'
 
 /** Props of {@link CardTile}. */

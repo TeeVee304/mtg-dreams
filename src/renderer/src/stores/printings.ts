@@ -1,9 +1,9 @@
 import { useSyncExternalStore } from 'react'
-import type { PrintingsOptions } from '../../shared/api'
-import { nameKey } from '../../shared/decklist'
-import { PRINTINGS_MAX_AGE_MS, resolveLine } from '../../shared/pricing'
-import type { PriceBasis, Printing, PrintingsResult } from '../../shared/types'
-import { cleanError } from './format'
+import type { PrintingsOptions } from '@shared/api'
+import { nameKey } from '@shared/decklist'
+import { PRINTINGS_MAX_AGE_MS, resolveLine } from '@shared/pricing'
+import type { PriceBasis, Printing, PrintingsResult } from '@shared/types'
+import { cleanError } from '../lib/format'
 
 /**
  * Session store of printings by nameKey. Rate limiting, caching and prices live in the main process.

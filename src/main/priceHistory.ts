@@ -1,4 +1,4 @@
-import type { PriceBaseline, PriceSnapshot } from '../shared/api'
+import type { PriceBaseline, PriceSnapshot } from '@shared/api'
 import { readCacheFile, writeCacheFile } from './cacheFiles'
 import { guideTrend, loadPriceGuide, priceGuideDate } from './priceGuide'
 

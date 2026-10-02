@@ -1,4 +1,4 @@
-import type { ThemeColor } from '../shared/themes'
+import type { ThemeColor } from '@shared/themes'
 import black from '../../resources/icons/B.png?asset'
 import colorless from '../../resources/icons/C.png?asset'
 import green from '../../resources/icons/G.png?asset'

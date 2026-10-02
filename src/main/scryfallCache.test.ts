@@ -3,8 +3,8 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { PRINTINGS_MAX_AGE_MS } from '../shared/pricing'
-import type { Printing, PrintingsResult } from '../shared/types'
+import { PRINTINGS_MAX_AGE_MS } from '@shared/pricing'
+import type { Printing, PrintingsResult } from '@shared/types'
 
 const printing = (id: string, extra: Partial<Printing> = {}): Printing => ({
   id,

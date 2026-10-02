@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
-import { cardLines, parseInventory, parseList, unrecognizedLines } from '../../../shared/decklist'
-import { FORMATS } from '../../../shared/formats'
-import type { ListKind } from '../../../shared/types'
-import { cardCount } from '../format'
-import { useAsyncAction } from '../useAsyncAction'
+import { cardLines, parseInventory, parseList, unrecognizedLines } from '@shared/decklist'
+import { FORMATS } from '@shared/formats'
+import type { ListKind } from '@shared/types'
+import { cardCount } from '../lib/format'
+import { useAsyncAction } from '../hooks/useAsyncAction'
 import { Modal } from './Modal'
 
 /** Props of {@link PromptDialog}. */

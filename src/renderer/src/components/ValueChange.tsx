@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import type { PriceSnapshot } from '../../../shared/api'
-import type { ValuedCopy } from '../collection'
-import { formatDay, formatEur } from '../format'
-import { valueChange, type ValueMove } from '../history'
+import type { PriceSnapshot } from '@shared/api'
+import type { ValuedCopy } from '../lib/collection'
+import { formatDay, formatEur } from '../lib/format'
+import { valueChange, type ValueMove } from '../stores/history'
 import { copyLabel } from './InventoryVersions'
 
 const DAY = 24 * 60 * 60 * 1000

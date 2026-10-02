@@ -1,4 +1,4 @@
-import { getRefreshProgress, usePrintingsVersion } from '../printings'
+import { getRefreshProgress, usePrintingsVersion } from '../stores/printings'
 
 /** Top progress bar for background printings refreshes ({@link getRefreshProgress}). */
 export function PriceProgress() {

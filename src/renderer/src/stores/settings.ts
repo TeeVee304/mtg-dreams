@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react'
-import type { AppSettings } from '../../shared/api'
-import { DEFAULT_SORT } from '../../shared/cards'
-import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS } from '../../shared/pricing'
-import { DEFAULT_THEME_COLOR } from '../../shared/themes'
+import type { AppSettings } from '@shared/api'
+import { DEFAULT_SORT } from '@shared/cards'
+import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS } from '@shared/pricing'
+import { DEFAULT_THEME_COLOR } from '@shared/themes'
 
 /** Current settings; defaults until {@link loadSettings} resolves. */
 let current: AppSettings = {

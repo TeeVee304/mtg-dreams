@@ -1,6 +1,6 @@
-import { commanderRule, FORMATS, type DeckFormat } from '../../../shared/formats'
-import { cardCount, formatDay } from '../format'
-import type { Summary } from '../summary'
+import { commanderRule, FORMATS, type DeckFormat } from '@shared/formats'
+import { cardCount, formatDay } from '../lib/format'
+import type { Summary } from '../lib/summary'
 import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
 

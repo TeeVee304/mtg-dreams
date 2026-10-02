@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { CARD_TYPES, filtersActive, NO_FILTERS, type CardFilters, type ColorFilter, type ColorMode } from '../../../shared/cards'
-import { MANA_SYMBOLS } from '../artwork'
+import { CARD_TYPES, filtersActive, NO_FILTERS, type CardFilters, type ColorFilter, type ColorMode } from '@shared/cards'
+import { MANA_SYMBOLS } from '../lib/artwork'
 
 const COLOR_BUTTONS: Array<{ id: ColorFilter; label: string }> = [
   { id: 'W', label: 'White' },

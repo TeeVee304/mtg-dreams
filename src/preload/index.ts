@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { TrackerApi } from '../shared/api'
+import type { TrackerApi } from '@shared/api'
 
 /** {@link TrackerApi} implementation over `ipcRenderer`, exposed as `window.api`. */
 const api: TrackerApi = {

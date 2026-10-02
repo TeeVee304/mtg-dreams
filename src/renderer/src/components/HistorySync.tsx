@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
-import type { InventoryItem } from '../../../shared/types'
-import { loadBaselines, syncBaselines, syncTracked } from '../history'
-import type { CardList } from '../library'
-import { usePrintingsVersion } from '../printings'
-import { useSettings } from '../settings'
+import type { InventoryItem } from '@shared/types'
+import { loadBaselines, syncBaselines, syncTracked } from '../stores/history'
+import type { CardList } from '../stores/library'
+import { usePrintingsVersion } from '../stores/printings'
+import { useSettings } from '../stores/settings'
 
 /** Debounce before syncing after changes. */
 const SETTLE_MS = 2000

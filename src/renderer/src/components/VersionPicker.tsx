@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { priceOf, resolveLine, sortPrintings } from '../../../shared/pricing'
-import type { Printing } from '../../../shared/types'
-import { formatEur } from '../format'
-import { useSettings } from '../settings'
+import { priceOf, resolveLine, sortPrintings } from '@shared/pricing'
+import type { Printing } from '@shared/types'
+import { formatEur } from '../lib/format'
+import { useSettings } from '../stores/settings'
 import { previewHandlers } from './HoverPreview'
 
 /** Selection value for the cheapest printing. */

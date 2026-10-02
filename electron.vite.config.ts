@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { defineConfig } from 'electron-vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -11,10 +12,14 @@ function devServerSocket(): Plugin {
   }
 }
 
+/** `@shared/*` import alias, mirrored in the tsconfig `paths` and `vitest.config.ts`. */
+const alias = { '@shared': resolve(__dirname, 'src/shared') }
+
 export default defineConfig({
-  main: {},
-  preload: {},
+  main: { resolve: { alias } },
+  preload: { resolve: { alias } },
   renderer: {
+    resolve: { alias },
     plugins: [react(), devServerSocket()],
     /** Minify the renderer; electron-vite builds are unminified by default. */
     build: { minify: true }

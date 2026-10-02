@@ -1,6 +1,6 @@
-import { cardImageUrl } from '../shared/images'
-import { PRINTINGS_MAX_AGE_MS } from '../shared/pricing'
-import type { CardInfo, Printing, PrintingsResult } from '../shared/types'
+import { cardImageUrl } from '@shared/images'
+import { PRINTINGS_MAX_AGE_MS } from '@shared/pricing'
+import type { CardInfo, Printing, PrintingsResult } from '@shared/types'
 import { readCacheFile, writeCacheFile, writeCacheFileNow } from './cacheFiles'
 
 /**

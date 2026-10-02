@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { nameKey } from '../../../shared/decklist'
-import { useSettings } from '../settings'
+import { nameKey } from '@shared/decklist'
+import { useSettings } from '../stores/settings'
 import { CardThumb } from './Placeholders'
 
 /** Local search option. */

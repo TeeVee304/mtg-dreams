@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } from '../../../shared/cards'
-import { cardLines, nameKey } from '../../../shared/decklist'
-import { commanderRule } from '../../../shared/formats'
-import type { Version } from '../../../shared/inventory'
+import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } from '@shared/cards'
+import { cardLines, nameKey } from '@shared/decklist'
+import { commanderRule } from '@shared/formats'
+import type { Version } from '@shared/inventory'
 import {
   analyzeList,
   copyCaps,
@@ -13,16 +13,16 @@ import {
   ownedToggle,
   sectionRows,
   sortRows
-} from '../../../shared/listModel'
-import type { CardLine, InventoryItem } from '../../../shared/types'
-import { bundledBasic } from '../../../shared/basics'
-import { getCardInfo } from '../cardinfo'
-import { cleanError, formatDay } from '../format'
-import type { CardList, LibraryActions, ListRef } from '../library'
-import { priceDrop, useBaselines } from '../history'
-import { requestPrintings, usePrintingsVersion } from '../printings'
-import { useSettings } from '../settings'
-import { buildRows, summarize, type Row } from '../summary'
+} from '@shared/listModel'
+import type { CardLine, InventoryItem } from '@shared/types'
+import { bundledBasic } from '@shared/basics'
+import { getCardInfo } from '../stores/cardinfo'
+import { cleanError, formatDay } from '../lib/format'
+import type { CardList, LibraryActions, ListRef } from '../stores/library'
+import { priceDrop, useBaselines } from '../stores/history'
+import { requestPrintings, usePrintingsVersion } from '../stores/printings'
+import { useSettings } from '../stores/settings'
+import { buildRows, summarize, type Row } from '../lib/summary'
 import { CardRow } from './CardRow'
 import { CardTile } from './CardTile'
 import { AddCardPanel } from './CardEditors'

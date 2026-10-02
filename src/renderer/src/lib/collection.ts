@@ -1,7 +1,7 @@
-import { bundledBasic } from '../../shared/basics'
-import { resolveLine } from '../../shared/pricing'
-import type { InventoryItem, OwnedCopy, PriceBasis, Printing } from '../../shared/types'
-import { getPrintingsEntry } from './printings'
+import { bundledBasic } from '@shared/basics'
+import { resolveLine } from '@shared/pricing'
+import type { InventoryItem, OwnedCopy, PriceBasis, Printing } from '@shared/types'
+import { getPrintingsEntry } from '../stores/printings'
 
 /**
  * Inventory valuation: versioned copies at their printing's price, unversioned copies at the

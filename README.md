@@ -196,10 +196,17 @@ src/
 ├── preload/    The bridge exposing `window.api` to the UI
 ├── shared/     Pure logic: list parsing, pricing, formats, deck rules, trades
 └── renderer/   React UI
+    └── src/
+        ├── components/   UI components
+        ├── stores/       Session state: library, settings, printings, card data, price history
+        ├── lib/          Helpers: formatting, valuation, list summaries, artwork
+        └── hooks/        Reusable React hooks
 e2e/            End-to-end tests, against local stand-ins for Scryfall, MTGJSON and Cardmarket
 ```
 
 - Unit tests (`*.test.ts`) sit next to the code they test.
+- Code outside `shared/` imports it as `@shared/...` (alias set in the tsconfigs, `electron.vite.config.ts` and
+  `vitest.config.ts`).
 - Main-process modules get their folders and service addresses from `main/environment.ts`, so tests run them
   without Electron.
 - End-to-end tests drive the built app with Playwright, each with its own temporary profile.

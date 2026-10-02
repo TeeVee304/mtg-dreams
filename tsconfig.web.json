@@ -13,7 +13,8 @@
     "noFallthroughCasesInSwitch": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": { "@shared/*": ["./src/shared/*"] }
   },
   "include": ["src/renderer/src/**/*", "src/shared/**/*"],
   "exclude": ["src/shared/**/*.test.ts"]

@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore, type MouseEvent } from 'react'
-import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../printings'
-import { useSettings } from '../settings'
+import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
+import { useSettings } from '../stores/settings'
 
 /** Preview source: image URL, or card name resolved to its cheapest printing. */
 interface Target {

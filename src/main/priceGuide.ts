@@ -1,4 +1,4 @@
-import type { PriceBasis, Prices, PrintingsResult } from '../shared/types'
+import type { PriceBasis, Prices, PrintingsResult } from '@shared/types'
 import { readCacheFile, writeCacheFile } from './cacheFiles'
 import { env } from './environment'
 import { fetchJson, fetchLastModified } from './http'

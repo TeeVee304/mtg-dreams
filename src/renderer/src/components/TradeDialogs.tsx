@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { countLines } from '../../../shared/decklist'
+import { countLines } from '@shared/decklist'
 import {
   buildSnapshot,
   parseTradeText,
@@ -8,12 +8,12 @@ import {
   tradeName,
   type TradeCard,
   type TradeSnapshot
-} from '../../../shared/trade'
-import type { InventoryItem } from '../../../shared/types'
-import { cleanError } from '../format'
-import type { CardList } from '../library'
-import { updateSettings, useSettings } from '../settings'
-import { useAsyncAction } from '../useAsyncAction'
+} from '@shared/trade'
+import type { InventoryItem } from '@shared/types'
+import { cleanError } from '../lib/format'
+import type { CardList } from '../stores/library'
+import { updateSettings, useSettings } from '../stores/settings'
+import { useAsyncAction } from '../hooks/useAsyncAction'
 import { Modal } from './Modal'
 import { useToast } from './Toasts'
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { CardLine, Printing } from '../../shared/types'
-import type { ValuedCopy } from './collection'
+import type { CardLine, Printing } from '@shared/types'
+import type { ValuedCopy } from '../lib/collection'
 import { lineKey, priceDrop, valueChange } from './history'
 
 const line = (qty: number, extra: Partial<CardLine> = {}): CardLine => ({ kind: 'card', id: 'l1', qty, name: 'Sheoldred, the Apocalypse', foil: false, ...extra })

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { CONFLICT_ERROR, type ListFile } from '../../shared/api'
+import { CONFLICT_ERROR, type ListFile } from '@shared/api'
 import {
   nameKey,
   newLineId,
@@ -7,12 +7,12 @@ import {
   parseList,
   serializeInventory,
   serializeList
-} from '../../shared/decklist'
-import { withCommander, withFormat, withoutMissingCommander } from '../../shared/formats'
-import { parseTradeText, serializeSnapshot, tradeName, type TradeSnapshot } from '../../shared/trade'
-import { addCopies, itemFromCopies, withTotal, type Version } from '../../shared/inventory'
-import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '../../shared/types'
-import { cardCount, cleanError } from './format'
+} from '@shared/decklist'
+import { withCommander, withFormat, withoutMissingCommander } from '@shared/formats'
+import { parseTradeText, serializeSnapshot, tradeName, type TradeSnapshot } from '@shared/trade'
+import { addCopies, itemFromCopies, withTotal, type Version } from '@shared/inventory'
+import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
+import { cardCount, cleanError } from '../lib/format'
 
 /** Deck or wishlist backed by one text file. */
 export interface CardList {

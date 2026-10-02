@@ -1,5 +1,5 @@
-import { simplifyCardName } from '../shared/precons'
-import type { PreconCard, PreconDeck, PreconSummary } from '../shared/types'
+import { simplifyCardName } from '@shared/precons'
+import type { PreconCard, PreconDeck, PreconSummary } from '@shared/types'
 import { readCacheFile, writeCacheFile } from './cacheFiles'
 import { env } from './environment'
 import { fetchJson } from './http'

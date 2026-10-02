@@ -5,7 +5,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import type { Printing, PrintingsResult } from '../shared/types'
+import type { Printing, PrintingsResult } from '@shared/types'
 
 /** Local Cardmarket price guide payload. */
 const published = {

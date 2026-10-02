@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { prefersReducedMotion } from '../motion'
+import { prefersReducedMotion } from '../lib/motion'
 import { Icon } from './Icon'
 
 const CONFETTI_COLORS = ['#e3a94f', '#5cc28a', '#7fb0ff', '#f0a58a', '#c4b5fd', '#f8f3d9']

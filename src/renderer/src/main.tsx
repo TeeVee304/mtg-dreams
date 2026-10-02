@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastProvider } from './components/Toasts'
-import { loadSettings } from './settings'
+import { loadSettings } from './stores/settings'
 import './styles/index.css'
 
 /** Renderer entry. Settings load before the first render so lists render with the correct `bundleBasics`. */
