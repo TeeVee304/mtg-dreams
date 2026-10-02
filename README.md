@@ -5,7 +5,7 @@
 <h1 align="center">MTG Dreams</h1>
 
 <p align="center">
-  Organize the Magic: The Gathering decks you own and plan wishlists, with Cardmarket prices in EUR.
+  Organize the *Magic: The Gathering* decks you own and plan wishlists, with Cardmarket prices in EUR.
 </p>
 
 <p align="center">
@@ -40,13 +40,6 @@
 - Both are grouped by card type, with a count and value per section.
 - A **Stats** panel shows the mana curve and the colors of the cards besides lands.
 
-### Formats and Commander
-- Give a deck or wishlist a format: Standard, Pioneer, Modern, Commander, Pauper and more.
-- Quantities stop at the format's copy limit; basic lands and cards like Relentless Rats are exempt.
-- Cards that break the format get a red tag: banned, not legal, or over the limit.
-- In Commander-style formats, **Set Commander** lights up the cards that can lead the deck.
-- The chosen card moves to a **Commander** section at the top.
-
 ### Cards and prices
 - Card search has autocomplete with card pictures, and typos are fuzzy-matched.
 - Unless you pick a version, a card is priced at its cheapest paper printing.
@@ -59,29 +52,13 @@
 - Hover a card for a preview; `↗` opens it on Cardmarket.
 
 ### Precons
-- Pick from about 3,000 official products: Commander decks, Challenger decks, Secret Lair drops and more.
+- Pick from about 3 000 official products: Commander decks, Challenger decks, Secret Lair drops and more.
 - A precon you own becomes a deck, with its exact printings, and its cards join your inventory.
-- Commander precons start with their commander chosen.
 
 ### Trades with friends
-- **Share my trade list** saves a small `.mtgtrade` file, or copies it as text for a chat.
-- It holds the cards you own and what your wishlists need; never prices, decks or file paths.
+- **Share my trade list** saves a small `.mtgtrade` file, or copies it as text for a chat. It holds the cards you own and what your wishlists need.
 - Import a friend's list to see what each of you can give the other, and what each side is worth.
-- Friends without the app can send a plain card list or a Moxfield/Deckbox export instead.
-
-### Look and feel
-- Filter by name, color identity, type, rarity and legendary.
-- One sort applies to every deck, wishlist and the inventory, and is remembered.
-- Decks and wishlists show as a **Table** or as **Cards** (a grid of card images, by type); the choice is remembered.
-- Small card pictures sit beside names in lists and search; **Settings → Card images in lists and search** turns
-  them off.
-- Six color themes, one per mana color, each with its own icon: White (gold, the default), Blue, Black, Red,
-  Green and Colorless.
-- Light, dark, or following Windows.
-- **Ctrl+Z** undoes your latest edits to decks, wishlists and the inventory, one step at a time; removing a card
-  shows an undo button too.
-- **Bundle basic lands** (on by default) counts every version of the five basics as one free card, which keeps
-  land-heavy decks fast.
+- Friends without the app can send a plain card list or a Moxfield export instead.
 
 ## Getting started
 
@@ -215,9 +192,11 @@ e2e/            End-to-end tests, against local stand-ins for Scryfall, MTGJSON 
 
 ## Credits
 
-Card data, images and mana symbols come from [Scryfall](https://scryfall.com). Prices come from [Cardmarket](https://www.cardmarket.com)'s price guide. Official decklists come from [MTGJSON](https://mtgjson.com).
+Card data, images and mana symbols come from [Scryfall](https://scryfall.com). Prices come from
+[Cardmarket](https://www.cardmarket.com)'s price guide. Official decklists come from [MTGJSON](https://mtgjson.com).
 
-*Magic: The Gathering is © Wizards of the Coast. This project is not affiliated with or endorsed by Scryfall, MTGJSON, Cardmarket or Wizards of the Coast.*
+*Magic: The Gathering* is © Wizards of the Coast. This project is not affiliated with or endorsed by Scryfall,
+MTGJSON, Cardmarket or Wizards of the Coast.
 
 ## License
 
