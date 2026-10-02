@@ -94,13 +94,12 @@ Documents\MTG Dreams\
 ## How prices work
 
 - Prices come from Cardmarket's daily price guide, in EUR.
-- The guide is one file for every card: the app downloads it (about 26 MB) only when Cardmarket publishes a new
-  one, and keeps a 5 MB copy.
-- **Settings → Prices** picks which price counts (Inventory Value always uses the typical one):
+- The guide is one file for every card: the app downloads it (about 26 MB) only when Cardmarket publishes a new one, and keeps a 5 MB copy.
+- **Settings → Prices** picks which price counts:
 
   | Basis | What it is |
   | --- | --- |
-  | Typical (default) | Cardmarket's price trend: what copies usually sell for |
+  | Typical (*default*) | Cardmarket's price trend: what copies usually sell for |
   | Lowest listing | The cheapest copy on offer, in any condition or language |
   | 30-day average | What copies sold for over the last month |
 
