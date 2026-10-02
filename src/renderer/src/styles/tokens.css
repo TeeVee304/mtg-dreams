@@ -64,10 +64,24 @@
   }
 }
 
-/* Theme colors, one per mana color (Settings → Appearance). White is the gold default above;
-   Colorless is that gold put through a grayscale filter. */
+/* Theme colors, one per mana color: on <html> for the app theme (Settings), or on any element
+   for a list's own color, overriding the app theme inside it. White repeats the gold defaults so
+   it can override another app theme. */
 
-:root[data-color='U'] {
+[data-color] {
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+[data-color='W'] {
+  --accent: #e3a94f;
+  --accent-ink: #1d1406;
+  --shine-1: #e3a94f;
+  --shine-2: #f6d989;
+  --shine-3: #c77d2a;
+  --shine-ink: #2a1a05;
+}
+
+[data-color='U'] {
   --accent: #7fb2ea;
   --accent-ink: #0b1a2e;
   --shine-1: #7fb2ea;
@@ -76,7 +90,7 @@
   --shine-ink: #0b1a2e;
 }
 
-:root[data-color='B'] {
+[data-color='B'] {
   --accent: #a98ad8;
   --accent-ink: #1a1029;
   --shine-1: #a98ad8;
@@ -85,7 +99,7 @@
   --shine-ink: #1a1029;
 }
 
-:root[data-color='R'] {
+[data-color='R'] {
   --accent: #ec7680;
   --accent-ink: #2a0a0e;
   --shine-1: #ec7680;
@@ -94,7 +108,7 @@
   --shine-ink: #2a0a0e;
 }
 
-:root[data-color='G'] {
+[data-color='G'] {
   --accent: #6fcf9f;
   --accent-ink: #0c2118;
   --shine-1: #6fcf9f;
@@ -103,7 +117,7 @@
   --shine-ink: #0c2118;
 }
 
-:root[data-color='C'] {
+[data-color='C'] {
   --accent: #b0b0b0;
   --accent-ink: #151515;
   --shine-1: #b0b0b0;
@@ -113,27 +127,36 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root[data-color='U'] {
+  [data-color] {
+    --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+
+  [data-color='W'] {
+    --accent: #b8741a;
+    --accent-ink: #ffffff;
+  }
+
+  [data-color='U'] {
     --accent: #2f66b0;
     --accent-ink: #ffffff;
   }
 
-  :root[data-color='B'] {
+  [data-color='B'] {
     --accent: #6b45a8;
     --accent-ink: #ffffff;
   }
 
-  :root[data-color='R'] {
+  [data-color='R'] {
     --accent: #c0303f;
     --accent-ink: #ffffff;
   }
 
-  :root[data-color='G'] {
+  [data-color='G'] {
     --accent: #23845a;
     --accent-ink: #ffffff;
   }
 
-  :root[data-color='C'] {
+  [data-color='C'] {
     --accent: #7e7e7e;
     --accent-ink: #ffffff;
   }

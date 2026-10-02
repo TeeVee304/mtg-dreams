@@ -151,8 +151,3 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
-
-.chip.link.done {
-  background: var(--good-soft);
-  color: var(--good);
-}

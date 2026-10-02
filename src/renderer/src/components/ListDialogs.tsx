@@ -1,11 +1,16 @@
 import { capEntries, type DeckFormat } from '@shared/formats'
+import { listColor } from '@shared/listColor'
 import type { ListAnalysis } from '@shared/listModel'
+import { THEME_COLORS, type ThemeColor } from '@shared/themes'
 import type { CardLine } from '@shared/types'
+import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
 import { cardCount } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import type { Row } from '../lib/summary'
+import { useSettings } from '../stores/settings'
 import { CardDialog } from './CardDialog'
 import { ConfirmDialog, PromptDialog, TextEditorDialog } from './Dialogs'
+import { Modal } from './Modal'
 import { PreconDialog } from './PreconDialog'
 import { useToast } from './Toasts'
 
@@ -16,6 +21,7 @@ export type ListDialog =
   | { kind: 'text' }
   | { kind: 'card'; lineId: string }
   | { kind: 'precon' }
+  | { kind: 'color' }
   | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
 
 /** Props of {@link ListDialogs}. */
@@ -41,6 +47,7 @@ interface ListDialogsProps {
 export function ListDialogs(props: ListDialogsProps) {
   const { dialog, onClose, list, format, analysis, actions, maxFor, limitFor } = props
   const toast = useToast()
+  const settings = useSettings()
   const isDeck = list.kind === 'deck'
   const noun = isDeck ? 'deck' : 'list'
   const cardRow = dialog?.kind === 'card' ? props.rows.find((row) => row.line.id === dialog.lineId) : undefined
@@ -133,6 +140,47 @@ export function ListDialogs(props: ListDialogsProps) {
           }}
         />
       )
+    case 'color': {
+      const current = listColor(list.lines)
+      const choose = (color: ThemeColor | null) => {
+        actions.setListColor(list, color)
+        onClose()
+      }
+      return (
+        <Modal title={`${isDeck ? 'Deck' : 'List'} color`} size="medium" onClose={onClose}>
+          <div className="color-options list-colors" role="radiogroup" aria-label="Color">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={current === null}
+              className={`color-option${current === null ? ' selected' : ''}`}
+              onClick={() => choose(null)}
+              title="Follow the app color (Settings)"
+            >
+              <img className="color-icon" src={THEME_ICONS[settings.color]} alt="" draggable={false} />
+              <span className="color-label">Default</span>
+            </button>
+            {THEME_COLORS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={current === option.id}
+                className={`color-option${current === option.id ? ' selected' : ''}`}
+                onClick={() => choose(option.id)}
+                title={`${option.label} (${option.look})`}
+              >
+                <img className="color-icon" src={THEME_ICONS[option.id]} alt="" draggable={false} />
+                <span className="color-label">
+                  <img className="color-mana" src={MANA_SYMBOLS[option.id]} alt="" draggable={false} />
+                  {option.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )
+    }
     default:
       return null
   }

@@ -16,6 +16,13 @@ export function formatDay(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
 }
 
+/** @returns Local date as `dd/mm/yyyy`. */
+export function formatDate(timestamp: number): string {
+  const date = new Date(timestamp)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`
+}
+
 /** @returns Relative time: `just now`, minutes, hours (< 48), or days. */
 export function timeAgo(timestamp: number): string {
   const minutes = Math.round((Date.now() - timestamp) / 60_000)

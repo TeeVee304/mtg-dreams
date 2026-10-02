@@ -27,7 +27,7 @@
   white-space: nowrap;
 }
 
-.chip.link.deck {
+.chip.link.list-chip {
   background: var(--accent-soft);
   color: var(--accent);
 }
@@ -74,6 +74,10 @@
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 8px;
+}
+
+.color-options.list-colors {
+  grid-template-columns: repeat(7, 1fr);
 }
 
 .color-option {

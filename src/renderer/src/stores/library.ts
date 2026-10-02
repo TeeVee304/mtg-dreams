@@ -9,6 +9,8 @@ import {
   serializeList
 } from '@shared/decklist'
 import { withCommander, withFormat, withoutMissingCommander } from '@shared/formats'
+import { withColor } from '@shared/listColor'
+import type { ThemeColor } from '@shared/themes'
 import { parseTradeText, serializeSnapshot, tradeName, type TradeSnapshot } from '@shared/trade'
 import { addCopies, itemFromCopies, withTotal, type Version } from '@shared/inventory'
 import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
@@ -425,6 +427,11 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
       /** Sets or clears (`null`) the format header. */
       setListFormat(target: ListRef, formatId: string | null) {
         updateLines(target, (lines) => withFormat(lines, formatId), { label: 'Changed the format' })
+      },
+
+      /** Sets or clears (`null`) the color header. */
+      setListColor(target: ListRef, color: ThemeColor | null) {
+        updateLines(target, (lines) => withColor(lines, color), { label: 'Changed the color' })
       },
 
       /** Sets or clears (`null`) the commander header. */

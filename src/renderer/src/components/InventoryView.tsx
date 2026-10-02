@@ -14,6 +14,8 @@ import {
 import { bundledBasic } from '@shared/basics'
 import { cardLines, nameKey, serializeInventory } from '@shared/decklist'
 import { hasVersions } from '@shared/inventory'
+import { listColor } from '@shared/listColor'
+import type { ThemeColor } from '@shared/themes'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../stores/cardinfo'
 import { VALUATION_BASIS, valueItem, type ItemValue } from '../lib/collection'
@@ -35,6 +37,8 @@ import { useToast } from './Toasts'
 interface Usage {
   list: string
   qty: number
+  /** List color; null = app accent. */
+  color: ThemeColor | null
 }
 
 /** Props of {@link InventoryView}. */
@@ -69,12 +73,13 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
     const byKind: Record<ListKind, Map<string, Usage[]>> = { deck: new Map(), wishlist: new Map() }
     for (const list of lists) {
       const map = byKind[list.kind]
+      const color = listColor(list.lines)
       for (const line of cardLines(list.lines)) {
         const key = nameKey(line.name)
         const entries = map.get(key) ?? []
         const existing = entries.find((e) => e.list === list.name)
         if (existing) existing.qty += line.qty
-        else entries.push({ list: list.name, qty: line.qty })
+        else entries.push({ list: list.name, qty: line.qty, color })
         map.set(key, entries)
       }
     }
@@ -118,7 +123,8 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
       <button
         key={entry.list}
         type="button"
-        className={`chip link${kind === 'deck' ? ' deck' : item.qty >= entry.qty ? ' done' : ''}`}
+        className="chip link list-chip"
+        data-color={entry.color ?? undefined}
         onClick={() => onOpenList({ kind, name: entry.list })}
         title={kind === 'deck' ? `${entry.list} uses ${entry.qty}` : `${entry.list} wants ${entry.qty}`}
       >

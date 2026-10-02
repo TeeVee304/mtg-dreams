@@ -24,7 +24,7 @@ interface Snapshots {
 
 /**
  * Inventory value change over a week or month from local price history, with top movers. Counts
- * price changes only, not additions or removals; notes when history is shorter than the range.
+ * price changes only, not additions or removals.
  * @param valued - Priced inventory copies.
  * @param ready - All prices loaded.
  */
@@ -50,11 +50,9 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
   }, [ready, idsKey])
 
   if (snapshots === null) return null
-  const days = RANGES.find((r) => r.id === range)!.days
   const change = snapshots === 'none' ? null : valueChange(valued, snapshots[range], snapshots.latest)
   const risers = change?.moves.filter((m) => m.change > 0).sort((a, b) => b.change - a.change).slice(0, MOVERS) ?? []
   const fallers = change?.moves.filter((m) => m.change < 0).sort((a, b) => a.change - b.change).slice(0, MOVERS) ?? []
-  const partial = change && change.from > change.to - days * DAY + DAY
 
   return (
     <section className="value-change">
@@ -77,13 +75,13 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
           <p className="value-change-total">
             <Delta value={change.change} />
             <span className="muted small">
-              {partial ? `since ${formatDay(change.from)}, when price history began` : `since ${formatDay(change.from)}`}
+              since {formatDay(change.from)}
             </span>
           </p>
           {(risers.length > 0 || fallers.length > 0) && (
             <div className="movers">
-              <Movers title="Biggest risers" moves={risers} />
-              <Movers title="Biggest fallers" moves={fallers} />
+              <Movers title="Biggest rises" moves={risers} />
+              <Movers title="Biggest falls" moves={fallers} />
             </div>
           )}
         </>

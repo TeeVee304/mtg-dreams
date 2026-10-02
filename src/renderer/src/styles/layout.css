@@ -150,6 +150,12 @@
   max-width: 100%;
 }
 
+.nav-icon-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .nav-meta {
   font-size: 12px;
   color: var(--muted);

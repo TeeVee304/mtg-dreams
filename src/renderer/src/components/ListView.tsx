@@ -3,6 +3,7 @@ import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } f
 import { cardLines, nameKey } from '@shared/decklist'
 import { commanderRule } from '@shared/formats'
 import type { Version } from '@shared/inventory'
+import { listColor } from '@shared/listColor'
 import {
   analyzeList,
   copyCaps,
@@ -251,7 +252,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   }
 
   return (
-    <div className="view">
+    <div className="view" data-color={listColor(list.lines) ?? undefined}>
       <ListHeader
         name={list.name}
         noun={noun}
@@ -268,6 +269,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
         onRefreshPrices={refreshPrices}
         onEditText={() => setDialog({ kind: 'text' })}
         onCopy={() => window.api.copyText(list.text).then(() => toast(`${isDeck ? 'Deck' : 'List'} copied to clipboard`))}
+        onColor={() => setDialog({ kind: 'color' })}
         onRename={() => setDialog({ kind: 'rename' })}
         onDelete={() => setDialog({ kind: 'delete' })}
       />

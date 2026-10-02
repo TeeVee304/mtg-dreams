@@ -1,5 +1,6 @@
 import { cardLines } from '@shared/decklist'
 import { listFormat } from '@shared/formats'
+import { listColor } from '@shared/listColor'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { cardCount, formatEur } from '../lib/format'
@@ -63,6 +64,7 @@ export function Sidebar(props: SidebarProps) {
         key={`${list.kind}/${list.name}`}
         type="button"
         className={`nav-item${active ? ' active' : ''}`}
+        data-color={listColor(list.lines) ?? undefined}
         onClick={() => onSelect({ page: 'list', list: { kind: list.kind, name: list.name } })}
       >
         <span className="nav-name">{list.name}</span>
@@ -75,13 +77,15 @@ export function Sidebar(props: SidebarProps) {
           ) : (
             `${summary.ownedCards}/${summary.cards}${priced ? ` · ${formatEur(summary.neededValue)}` : ''}`
           )}
-          {cheaper > 0 && (
-            <span className="nav-cheaper" title={`${cheaper} still needed ${cheaper === 1 ? 'card got' : 'cards got'} cheaper since added`}>
-              {' '}
-              · ↓ {cheaper} cheaper
-            </span>
-          )}
         </span>
+        {cheaper > 0 && (
+          <span
+            className="nav-meta nav-cheaper"
+            title={`${cheaper} still needed ${cheaper === 1 ? 'card got' : 'cards got'} cheaper since added`}
+          >
+            ↓ {cheaper} cheaper
+          </span>
+        )}
       </button>
     )
   }
@@ -118,7 +122,9 @@ export function Sidebar(props: SidebarProps) {
           className={`nav-item${view?.page === 'inventory' ? ' active' : ''}`}
           onClick={() => onSelect({ page: 'inventory' })}
         >
-          <span className="nav-name">Inventory</span>
+          <span className="nav-name nav-icon-name">
+            Inventory <Icon name="backpack" />
+          </span>
           <span className="nav-meta">{cardCount(inventory.size)}</span>
         </button>
         <button type="button" className="value-btn" onClick={onCollectionValue} title="What is my collection worth?">

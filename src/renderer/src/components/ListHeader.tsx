@@ -1,5 +1,5 @@
 import { commanderRule, FORMATS, type DeckFormat } from '@shared/formats'
-import { cardCount, formatDay } from '../lib/format'
+import { cardCount, formatDate } from '../lib/format'
 import type { Summary } from '../lib/summary'
 import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
@@ -26,6 +26,8 @@ interface ListHeaderProps {
   onEditText: () => void
   /** Copies the list text to the clipboard. */
   onCopy: () => void
+  /** Opens the color picker. */
+  onColor: () => void
   onRename: () => void
   onDelete: () => void
 }
@@ -95,7 +97,7 @@ export function ListHeader(props: ListHeaderProps) {
             {summary.loading > 0
               ? `loading prices ${lines - summary.loading}/${lines}…`
               : summary.pricedAt
-                ? `Cardmarket prices of ${formatDay(summary.pricedAt)}`
+                ? formatDate(summary.pricedAt)
                 : 'no prices yet'}
           </span>
         </div>
@@ -111,6 +113,7 @@ export function ListHeader(props: ListHeaderProps) {
           label={`More ${noun} actions`}
           items={[
             { label: 'Copy as text', onSelect: props.onCopy },
+            { label: 'Color…', onSelect: props.onColor },
             { label: 'Rename…', onSelect: props.onRename },
             { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
           ]}
