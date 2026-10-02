@@ -20,36 +20,19 @@
 
 ## Features
 
-### Your collection
+### Collection
 - **Inventory**: the cards you own, by name and quantity.
 - Optionally record which versions and foils you own (the versions button on each card); decks and wishlists then
   show your version for lines that don't ask for one. Owning any version of a card still counts as owning it.
 - Each card shows which decks use it and which wishlists want it.
-- **Inventory Value** estimates what your inventory is worth and ranks your most valuable cards, each copy at the
-  version you recorded (the rest at the cheapest version).
-- It also shows how the value changed this week or this month, with the biggest risers and fallers.
+- **Inventory Value** estimates what your inventory is worth and ranks your most valuable cards. It also shows how the value changed this week or this month.
 
 ### Decks and wishlists
 - **Decks** are built from your inventory: you can only add cards you own, up to the copies you have.
 - The same card can be in several decks.
-- **Wishlists** list the cards you want and what they still cost.
-- Owned cards are ticked: a list that wants 4 while you own 2 shows `2/4`.
-- A complete wishlist offers **Move to Decks**.
-- Wishlist cards you still need are flagged once they're 15% cheaper than when you added them (adjustable in
-  Settings), and the sidebar counts them.
-- Both are grouped by card type, with a count and value per section.
+- **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
+- Wishlist cards you still need are flagged once they're 15% cheaper than when you added them, by default.
 - A **Stats** panel shows the mana curve and the colors of the cards besides lands.
-
-### Cards and prices
-- Card search has autocomplete with card pictures, and typos are fuzzy-matched.
-- Unless you pick a version, a card is priced at its cheapest paper printing.
-- Prices come from Cardmarket: typical, lowest listing or 30-day average, your choice in Settings.
-- The version picker shows every printing with its image and price.
-- A picked version is saved in the file, e.g. `1 Ragavan, Nimble Pilferer <138> [MH2]`.
-- Foil is set per line.
-- Versions printed under another name (e.g. *Franklin's Finality*) show that name; files keep the official one.
-- Click a card to see it large, with its legality in every format.
-- Hover a card for a preview; `↗` opens it on Cardmarket.
 
 ### Precons
 - Pick from about 3 000 official products: Commander decks, Challenger decks, Secret Lair drops and more.
@@ -84,7 +67,7 @@ npm run dist
 - Running a newer installer updates the app; your data is kept.
 - `npm run dist:portable` builds `dist/mtg-dreams-portable-<version>.exe`, which runs without installing.
 
-## Your data
+## Data
 
 Everything is stored per Windows user.
 
@@ -96,40 +79,21 @@ Everything is stored per Windows user.
 
 ```
 Documents\MTG Dreams\
-├── decks\Calling All Angels.txt
-├── lists\Burn upgrades.txt
-├── trades\Ana.mtgtrade
+├── decks\deck.txt
+├── lists\wishlist.txt
+├── trades\friend.mtgtrade
 └── inventory.txt
 ```
 
-- Your data is plain text: back it up, sync it, or edit it by hand.
-- If Windows backs up Documents to OneDrive, your data syncs too.
+- If Windows backs up Documents to OneDrive, your data syncs too. 
 - **Data folder → Change…** in the sidebar moves it anywhere.
-- Edits made outside the app show up when you switch back to it.
-- If a file changes outside the app while you're working on it (e.g. OneDrive syncing an edit from another PC),
-  the app asks before saving over it.
-- Uninstalling never deletes your data.
+- Uninstalling doesn't delete your data.
 - The caches are safe to delete; they are downloaded again. The exception is `price-history.json`: deleting it
-  starts the price history (and wishlist price drops) over.
-- Data from the app's earlier names (*MTG Dream*, *MTG Wishlist Tracker*) is carried over on first launch.
-
-### File format
-
-```
-// Format: Modern                     the format (optional)
-// Commander: Mister Fantastic        the commander (Commander-style formats)
-4 Lightning Bolt                      any version, priced at the cheapest
-1 Lightning Bolt <141> [A25]          a specific printing: collector number and set
-1 Sheoldred, the Apocalypse (F)       foil
-```
-
-- Comments, blank lines and headers such as `Sideboard` are kept.
-- Imports also understand Arena/Moxfield lines (`4 Lightning Bolt (2XM) 141`, `*F*`) and `4x` quantities.
-- `inventory.txt` uses the same format; a line without a version counts as any version.
+  resets the price history.
 
 ## How prices work
 
-- Prices come from Cardmarket's daily price guide, in EUR; they are not live listings.
+- Prices come from Cardmarket's daily price guide, in EUR.
 - The guide is one file for every card: the app downloads it (about 26 MB) only when Cardmarket publishes a new
   one, and keeps a 5 MB copy.
 - **Settings → Prices** picks which price counts (Inventory Value always uses the typical one):
