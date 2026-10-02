@@ -4,14 +4,11 @@ import { MANA_SYMBOLS } from '../artwork'
 import { cardCount } from '../format'
 import { Icon } from './Icon'
 
-// A collapsible panel under a list's value cards: its mana curve and colors. The curve
-// is one series in the theme's accent; each color's bar wears that color (labels and
-// mana symbols still say which is which).
-
+/** localStorage key of the panel's open state. */
 const OPEN_KEY = 'mtg-dreams.statsOpen'
 const COLOR_NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' } as const
 
-/** Whether the panel was left open (it starts open). Storage can be unavailable. */
+/** @returns Stored open state; true by default or if storage is unavailable. */
 function readOpen(): boolean {
   try {
     return localStorage.getItem(OPEN_KEY) !== 'false'
@@ -20,14 +17,14 @@ function readOpen(): boolean {
   }
 }
 
+/** Persists the open state; storage errors are ignored. */
 function saveOpen(open: boolean): void {
   try {
     localStorage.setItem(OPEN_KEY, String(open))
-  } catch {
-    // Remembering is a convenience only.
-  }
+  } catch {}
 }
 
+/** Collapsible stats panel: mana curve and color breakdown (see {@link deckStats}). */
 export function DeckStats({ rows }: { rows: StatsRow[] }) {
   const [open, setOpen] = useState(readOpen)
   const stats = deckStats(rows)
@@ -58,6 +55,7 @@ export function DeckStats({ rows }: { rows: StatsRow[] }) {
   )
 }
 
+/** Mana curve bar chart, creatures and others stacked, in the accent color. */
 function ManaCurve({ stats }: { stats: Stats }) {
   const tallest = Math.max(1, ...stats.curve.map((column) => column.creatures + column.others))
   const summary = stats.curve
@@ -96,14 +94,17 @@ function ManaCurve({ stats }: { stats: Stats }) {
   )
 }
 
+/** Curve column label; the last is `N+`. */
 const label = (manaValue: number) => (manaValue === CURVE_TOP ? `${CURVE_TOP}+` : String(manaValue))
 
-/** "1 Card", "63 Cards". */
+/** @returns Pluralized title-case count, e.g. `1 Card`. */
 const counted = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
+/** Curve bar tooltip. */
 const tip = (manaValue: number, creatures: number, others: number) =>
   `Mana Value (${label(manaValue)}): ${counted(creatures + others, 'Card')}`
 
+/** Per-color spell bars in each color, plus colorless and multicolor counts. */
 function ColorBreakdown({ stats }: { stats: Stats }) {
   const bars = [
     ...STAT_COLORS.map((color) => ({ key: color, name: COLOR_NAMES[color], icon: MANA_SYMBOLS[color], count: stats.colors[color] })),
@@ -139,7 +140,7 @@ function ColorBreakdown({ stats }: { stats: Stats }) {
   )
 }
 
-/** A mana value as MTG's generic mana symbol ("7+" for the last column). */
+/** Generic mana symbol for a curve column; the last shows `N+`. */
 function ManaCost({ manaValue }: { manaValue: number }) {
   return (
     <span className="mana-cost">
@@ -149,10 +150,7 @@ function ManaCost({ manaValue }: { manaValue: number }) {
   )
 }
 
-/**
- * The generic mana symbol for a number: a gray disc with the number, in the colors of
- * Scryfall's symbols. Drawn here rather than shipped as images.
- */
+/** Inline SVG generic mana symbol (gray disc with number) in Scryfall's symbol colors. */
 function ManaSymbol({ n }: { n: number }) {
   return (
     <svg className="mana-symbol" viewBox="0 0 32 32" aria-hidden="true">

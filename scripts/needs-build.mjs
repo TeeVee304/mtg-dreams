@@ -1,5 +1,9 @@
-// Used by "mtg-dreams.bat": exits 0 when the build in out/ is newer than every
-// source file, 1 when the app needs rebuilding (or has never been built).
+/**
+ * Build freshness check for `mtg-dreams.bat`. Exits 0 if every build output in `out/` is newer than
+ * all inputs, 1 if a rebuild is needed or outputs are missing.
+ *
+ * @packageDocumentation
+ */
 import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -17,6 +21,10 @@ const inputs = [
   'tsconfig.web.json'
 ]
 
+/**
+ * @param {string} path - File or directory.
+ * @returns {number} Newest mtime (ms) in the tree.
+ */
 function newest(path) {
   const stats = statSync(path)
   if (!stats.isDirectory()) return stats.mtimeMs

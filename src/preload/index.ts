@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { TrackerApi } from '../shared/api'
 
+/** {@link TrackerApi} implementation over `ipcRenderer`, exposed as `window.api`. */
 const api: TrackerApi = {
   loadData: () => ipcRenderer.invoke('data:load'),
   createList: (kind, name, text) => ipcRenderer.invoke('list:create', kind, name, text),

@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
-// A local stand-in for MTGJSON.
+/** Local MTGJSON stand-in. */
 let server: Server
 let base = ''
 let online = true
@@ -67,7 +67,6 @@ describe('precons', () => {
       expect.objectContaining({ name: 'Island', qty: 30, basic: true })
     ])
     await expect(precons.getPrecon('../../secrets')).rejects.toThrow('Invalid deck name.')
-    // Both are cached in the background (the app doesn't wait for it).
     await vi.waitFor(() => expect(readdirSync(join(dir, 'precons')).filter((f) => f.endsWith('.json'))).toHaveLength(2))
   })
 

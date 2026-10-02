@@ -31,34 +31,40 @@ import { CardThumb, Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
 import { useToast } from './Toasts'
 
+/** Copies of a card used by one list. */
 interface Usage {
   list: string
   qty: number
 }
 
+/** Props of {@link InventoryView}. */
 interface InventoryViewProps {
   inventory: Map<string, InventoryItem>
   lists: CardList[]
   actions: LibraryActions
   onOpenList: (list: ListRef) => void
+  /** Opens precon import. */
   onAddPrecon: () => void
 }
 
+/**
+ * Inventory page: filterable, sortable table with value, version editing and list usage. Uses the
+ * nearest inventory equivalent of the global sort. Requests card data and printings for all items.
+ */
 export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrecon }: InventoryViewProps) {
   const toast = useToast()
   useCardInfoVersion()
   usePrintingsVersion()
   const settings = useSettings()
   const { bundleBasics } = settings
-  // The sort is one app-wide choice; the inventory uses the closest one it offers.
   const sort = sortFor('inventory', settings.sort)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
   const [editing, setEditing] = useState(false)
-  /** The card (name key) whose versions are being edited. */
+  /** nameKey of the item in the versions dialog. */
   const [versionsOf, setVersionsOf] = useState<string | null>(null)
   const versionsItem = versionsOf ? inventory.get(versionsOf) : undefined
 
-  /** For each card: the decks using it and the wishlists wanting it. */
+  /** Per nameKey: decks using and wishlists wanting the card. */
   const usage = useMemo(() => {
     const byKind: Record<ListKind, Map<string, Usage[]>> = { deck: new Map(), wishlist: new Map() }
     for (const list of lists) {
@@ -75,12 +81,10 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
     return byKind
   }, [lists])
 
-  // Card data for filtering and sorting, fetched in batches.
   const namesKey = [...inventory.values()].map((item) => item.name).join('\n')
   useEffect(() => {
     const names = namesKey.split('\n').filter(Boolean)
     requestCardInfos(names, bundleBasics)
-    // Versions and prices, for the Value column and the pictures.
     for (const name of names) if (!bundledBasic(name, bundleBasics)) requestPrintings(name)
   }, [namesKey, bundleBasics])
 
@@ -300,12 +304,13 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
   )
 }
 
-/** For sorting by value: priced cards by worth, then those still loading, then unpriced. */
+/** Value sort rank: priced by total, then loading, then unpriced. */
 function valueOrder(value: ItemValue): number {
   if (value.status === 'priced' || value.status === 'free') return value.total
   return value.status === 'loading' ? -1 : -2
 }
 
+/** Value column cell by {@link ItemValue.status}. */
 function ValueCell({ value, qty }: { value: ItemValue; qty: number }) {
   if (value.status === 'loading') return <Skeleton width={52} />
   if (value.status === 'free') {

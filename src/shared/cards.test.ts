@@ -75,7 +75,6 @@ describe('matchesFilters', () => {
     expect(matchesFilters(bolt.name, bolt, undefined, filters({ legendary: true }))).toBe(false)
     expect(matchesFilters(delver.name, delver, undefined, filters({ type: 'Creature' }))).toBe(true)
     expect(matchesFilters(tower.name, tower, undefined, filters({ type: 'Land', colors: ['C'] }))).toBe(true)
-    // The specific printing's rarity wins over the card's default rarity.
     expect(matchesFilters(bolt.name, bolt, 'uncommon', filters({ rarities: ['uncommon'] }))).toBe(true)
     expect(matchesFilters(bolt.name, bolt, undefined, filters({ rarities: ['uncommon'] }))).toBe(false)
   })
@@ -112,7 +111,6 @@ describe('sortFor', () => {
 
   it('falls back to the closest sort a view offers', () => {
     expect(sortFor('deck', 'needed')).toBe('unit')
-    // Price sorts map to each other: lists sort by unit price, the inventory by value.
     expect(sortFor('inventory', 'needed')).toBe('value')
     expect(sortFor('inventory', 'unit')).toBe('value')
     expect(sortFor('wishlist', 'value')).toBe('unit')

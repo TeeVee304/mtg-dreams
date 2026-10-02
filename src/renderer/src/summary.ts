@@ -6,32 +6,37 @@ import type { AppSettings } from '../../shared/api'
 import type { CardInfo, CardLine, InventoryItem } from '../../shared/types'
 import { getPrintingsEntry, type PrintingsEntry } from './printings'
 
+/** Priced list row. */
 export interface Row {
   line: CardLine
+  /** Printings store entry; undefined for bundled basics or before requesting. */
   entry: PrintingsEntry | undefined
+  /** Resolved printing and price; null until printings load. */
   resolution: Resolution | null
   /** Copies of this line covered by the inventory. */
   owned: number
-  /** Copies of the same card wanted by earlier lines in this list. */
+  /** Copies of the same card claimed by earlier lines. */
   before: number
+  /** Total copies in the inventory. */
   inventoryQty: number
+  /** EUR unit price; null if unknown. */
   unit: number | null
-  /** Card data (colors, type, legality); undefined until prices have loaded. */
+  /** Card data; undefined until printings load. */
   info: CardInfo | undefined
-  /** Rarity of the printing this line is priced with. */
+  /** Rarity of the resolved printing. */
   rarity: string | undefined
-  /** Set on a bundled basic land: the ids of the file lines it stands for. */
+  /** Bundled basics only: merged line ids. */
   bundledIds?: string[]
-  /** Name printed on the pinned version when it differs from the card's official name. */
+  /** Printed name of a pinned printing, if different from the oracle name. */
   flavorName?: string
 }
 
-/** The settings that decide how a list is priced. */
+/** Settings affecting list pricing. */
 export type PricingSettings = Pick<AppSettings, 'bundleBasics' | 'priceBasis'>
 
 /**
- * One row per line, priced on the chosen basis. With `bundleBasics`, one generic, free
- * row per regular basic land instead.
+ * Builds priced rows. With `bundleBasics`, regular basics merge into one free row each. Unpinned
+ * lines with owned copies resolve to the owned printing ({@link ownedVersion}).
  */
 export function buildRows(
   lines: CardLine[],
@@ -62,7 +67,6 @@ export function buildRows(
     const entry = getPrintingsEntry(line.name)
     const data = entry?.data
     let resolution = data && !data.notFound ? resolveLine(line, data.printings, priceBasis) : null
-    // A line that names no version shows the version you own, when you recorded one.
     const yours = !line.set && allocations[index].owned > 0 ? ownedVersion(inventory.get(nameKey(line.name)), line.foil) : null
     if (yours && data && !data.notFound) {
       const owned = resolveLine(yours, data.printings, priceBasis)
@@ -82,19 +86,25 @@ export function buildRows(
   })
 }
 
+/** List totals. Values are EUR over priced rows. */
 export interface Summary {
+  /** Total copies. */
   cards: number
+  /** Owned copies. */
   ownedCards: number
   total: number
   ownedValue: number
+  /** Value of copies not owned. */
   neededValue: number
-  /** Lines whose price is known to be unavailable. */
+  /** Loaded rows without a price. */
   unpriced: number
+  /** Rows awaiting printings. */
   loading: number
-  /** When the oldest prices in the list were published. */
+  /** Oldest price publication time (epoch ms) among rows. */
   pricedAt: number | null
 }
 
+/** Aggregates rows; bundled basics count as copies only. */
 export function summarize(rows: Row[]): Summary {
   const summary: Summary = {
     cards: 0, ownedCards: 0, total: 0, ownedValue: 0, neededValue: 0, unpriced: 0, loading: 0, pricedAt: null
@@ -102,7 +112,6 @@ export function summarize(rows: Row[]): Summary {
   for (const row of rows) {
     summary.cards += row.line.qty
     summary.ownedCards += row.owned
-    // Bundled basic lands are free: nothing to load or add up.
     if (row.bundledIds) continue
     if (!row.entry || (row.entry.loading && !row.entry.data)) {
       summary.loading += 1

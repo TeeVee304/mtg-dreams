@@ -25,10 +25,10 @@ const lookup = (id: number) => prices[id]
 describe('price history', () => {
   it('records each day once for the tracked versions, skipping ones without a price', async () => {
     const { history } = await setup()
-    await history.trackPrices([2, 1, 3, 1]) // no guide yet: nothing recorded
+    await history.trackPrices([2, 1, 3, 1])
     expect(await history.pricesAt([1], [0])).toBeNull()
     expect(await history.recordPrices(DAY, lookup)).toBe(true)
-    expect(await history.recordPrices(DAY, lookup)).toBe(false) // already there
+    expect(await history.recordPrices(DAY, lookup)).toBe(false)
     const result = await history.pricesAt([1, 2, 3], [0])
     expect(result?.latest).toEqual({ date: DAY, prices: { 1: [10, 20], 2: [1, 0] } })
   })

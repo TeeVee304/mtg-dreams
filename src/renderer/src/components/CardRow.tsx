@@ -9,45 +9,50 @@ import { Icon } from './Icon'
 import { CardThumb, Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
 
-// One row of a deck or wishlist table, and its version cell.
-
+/** Props of {@link CardRow}. */
 interface CardRowProps {
   row: Row
-  /** While choosing a commander: whether this card can be picked. Clicks then pick instead of editing. */
+  /** Commander picking mode: whether this card is eligible. Row clicks pick instead of editing. */
   pick?: 'ok' | 'no'
   onPick: () => void
-  /** The deck's commander. */
+  /** Row is the commander. */
   leader: boolean
-  /** Just chosen as commander. */
+  /** Just chosen as commander (animation). */
   crowned: boolean
   isDeck: boolean
   issue: LegalityIssue | null
   /** Deck copies not covered by the inventory. */
   shortfall: number
-  /** A wishlist card that got cheaper since added, past the alert threshold. */
+  /** Wishlist price drop past the alert threshold. */
   drop?: PriceDrop | null
   maxQty?: number
+  /** Tooltip when `maxQty` is reached. */
   maxTitle?: string
   onQty: (qty: number) => void
+  /** Toggles a wishlist line's owned state. */
   onToggleOwned: () => void
+  /** Adjusts owned copies by `delta`. */
   onOwnedDelta: (delta: number) => void
+  /** Opens the card dialog. */
   onOpen: () => void
   onRemove: () => void
+  /** Renames the line to `name` (e.g. Scryfall's matched name). */
   onRename: (name: string) => void
 }
 
+/**
+ * Deck or wishlist table row. Flags fuzzy-matched names (offering a rename to the canonical name,
+ * since inventory matching is by name) and flavor names.
+ */
 export function CardRow(props: CardRowProps) {
   const { row, pick, onPick, leader, crowned, isDeck, issue, shortfall, drop, maxQty, maxTitle } = props
   const { onQty, onToggleOwned, onOwnedDelta, onOpen, onRemove, onRename } = props
   const { line, entry, resolution, owned, unit } = row
   const printing = resolution?.printing ?? null
-  // A typo that Scryfall fuzzy-matched: prices work, but inventory matching needs the real name.
   const data = entry?.data
   const matchedName = data && !data.notFound && nameKey(data.name) !== nameKey(line.name) ? data.name : null
-  // The line uses a name printed on some version (e.g. a Marvel reprint) rather than the official one.
   const printedAs = matchedName && data?.printings.some((p) => p.flavorName?.toLowerCase() === line.name.toLowerCase())
   const complete = owned >= line.qty
-  // Its versions and prices are still on their way.
   const loading = !row.bundledIds && !data && !entry?.error
   const checkbox = useRef<HTMLInputElement>(null)
 
@@ -62,7 +67,6 @@ export function CardRow(props: CardRowProps) {
     pick && `pick-${pick}`
   ].filter(Boolean)
 
-  // While choosing a commander, a click anywhere on the row picks it (and edits nothing).
   return (
     <tr
       className={classes.length ? classes.join(' ') : undefined}
@@ -241,6 +245,7 @@ export function CardRow(props: CardRowProps) {
   )
 }
 
+/** Version cell: plain for the cheapest printing; highlights pinned, owned and missing printings. */
 function VersionCell({ row }: { row: Row }) {
   const { line, entry, resolution } = row
   if (row.bundledIds) {
@@ -285,8 +290,6 @@ function VersionCell({ row }: { row: Row }) {
       </span>
     )
   }
-  // The cheapest version is the usual case: plain, so the exceptions (a version asked
-  // for, yours, missing) stand out.
   if (!resolution.pinned) {
     return (
       <span className="version" title={`Cheapest version: ${printing.setName}${labels}`}>

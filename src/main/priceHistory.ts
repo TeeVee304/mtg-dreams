@@ -2,26 +2,30 @@ import type { PriceBaseline, PriceSnapshot } from '../shared/api'
 import { readCacheFile, writeCacheFile } from './cacheFiles'
 import { guideTrend, loadPriceGuide, priceGuideDate } from './priceGuide'
 
-// Cardmarket's price guide only ever holds today's prices, so the app keeps its own
-// history (userData/price-history.json): each day's typical price (the trend) for the
-// versions your inventory is valued at, which the app tells it about ("tracked").
-// Snapshots build up from the first day a version is tracked.
-//
-// The file also keeps each wishlist card's price when it first appeared on a
-// wishlist (its baseline), for price-drop alerts.
+/**
+ * Local price history (`userData/price-history.json`): daily trend prices of tracked Cardmarket
+ * products, accumulated from the day each is tracked, plus wishlist baselines for price-drop alerts.
+ *
+ * @packageDocumentation
+ */
 
+/** History file name. */
 const FILE = 'price-history.json'
+/** History schema version. */
 const VERSION = 1
-/** Days of snapshots kept: a little over a year. */
+/** Max snapshots retained (~13 months). */
 const MAX_DAYS = 400
-/** Versions tracked at most (a very large collection). */
+/** Max tracked product ids. */
 const MAX_TRACKED = 50_000
 
+/** On-disk history. */
 interface HistoryFile {
   version: number
+  /** Tracked product ids, ascending. */
   tracked: number[]
-  /** Oldest first, one per guide (Cardmarket publishes daily). */
+  /** Snapshots, oldest first, one per guide publication. */
   days: PriceSnapshot[]
+  /** Wishlist baselines by line key. */
   baselines: Record<string, PriceBaseline>
 }
 
@@ -29,6 +33,7 @@ let history: HistoryFile | null = null
 let loading: Promise<HistoryFile> | null = null
 let writing: Promise<void> = Promise.resolve()
 
+/** Loads the history once; invalid files reset to empty. */
 function load(): Promise<HistoryFile> {
   loading ??= (async () => {
     const file = await readCacheFile<HistoryFile>(FILE)
@@ -41,20 +46,22 @@ function load(): Promise<HistoryFile> {
   return loading
 }
 
+/** Queues a whole-file write after pending ones. */
 function save(file: HistoryFile): Promise<void> {
   writing = writing.then(() => writeCacheFile(FILE, file))
   return writing
 }
 
 /**
- * Records the prices published on `date` for every tracked version still missing
- * from that day. `lookup` gives a version's [non-foil, foil] trend (0 = none).
- * Resolves to whether anything was added.
+ * Adds prices for tracked ids missing from the `date` snapshot, creating it if new. Ignored if
+ * older than the newest snapshot.
+ * @param lookup - `[nonFoil, foil]` trend per id (0 = none).
+ * @returns Whether any price was added.
  */
 export async function recordPrices(date: number, lookup: (id: number) => [number, number] | undefined): Promise<boolean> {
   const file = await load()
   const last = file.days.at(-1)
-  if (last && last.date > date) return false // an older guide than the newest day recorded
+  if (last && last.date > date) return false
   const day = last?.date === date ? last : { date, prices: {} }
   let added = false
   for (const id of file.tracked) {
@@ -74,14 +81,14 @@ export async function recordPrices(date: number, lookup: (id: number) => [number
   return true
 }
 
-/** Records today's guide prices for the tracked versions (when a new guide arrives, and on tracking). */
+/** Records the loaded guide's prices for tracked ids. */
 export async function recordCurrentPrices(): Promise<void> {
   await loadPriceGuide()
   const date = priceGuideDate()
   if (date !== null) await recordPrices(date, guideTrend)
 }
 
-/** Sets which versions (Cardmarket product numbers) to keep a history of, and records today's prices for them. */
+/** Replaces the tracked id set (deduplicated, capped at {@link MAX_TRACKED}) and records current prices if it changed. */
 export async function trackPrices(ids: number[]): Promise<void> {
   const file = await load()
   const tracked = [...new Set(ids)].slice(0, MAX_TRACKED).sort((a, b) => a - b)
@@ -92,9 +99,10 @@ export async function trackPrices(ids: number[]): Promise<void> {
 }
 
 /**
- * The newest snapshot, and for each moment in `at` the snapshot in force then: the
- * newest one not after it, or the oldest one when the history doesn't go back that
- * far. Only the prices of `ids` are returned. Null without any history.
+ * @param ids - Product ids to include.
+ * @param at - Epoch ms timestamps.
+ * @returns Newest snapshot and, per `at`, the newest snapshot not after it (oldest if none),
+ * filtered to `ids`; null without history.
  */
 export async function pricesAt(ids: number[], at: number[]): Promise<{ latest: PriceSnapshot; then: PriceSnapshot[] } | null> {
   const { days } = await load()
@@ -108,11 +116,12 @@ export async function pricesAt(ids: number[], at: number[]): Promise<{ latest: P
   return { latest: pick(days[days.length - 1]), then }
 }
 
+/** @returns Copy of all wishlist baselines. */
 export async function getBaselines(): Promise<Record<string, PriceBaseline>> {
   return { ...(await load()).baselines }
 }
 
-/** Adds or replaces wishlist baselines, and forgets those of cards no longer on any wishlist. */
+/** Upserts `set` and deletes `remove` keys. */
 export async function updateBaselines(set: Record<string, PriceBaseline>, remove: string[]): Promise<void> {
   const file = await load()
   Object.assign(file.baselines, set)
@@ -120,7 +129,7 @@ export async function updateBaselines(set: Record<string, PriceBaseline>, remove
   await save(file)
 }
 
-/** Waits for saves in progress (for tests). */
+/** @returns Promise settling after pending writes (tests). */
 export function priceHistorySaved(): Promise<void> {
   return writing
 }

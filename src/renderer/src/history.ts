@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { PriceBaseline, PriceSnapshot } from '../../shared/api'
+import type { PriceBaseline, PriceSnapshot, TrackerApi } from '../../shared/api'
 import { bundledBasic } from '../../shared/basics'
 import { allocateOwned, cardLines, nameKey } from '../../shared/decklist'
 import { PRICE_BASES, resolveLine } from '../../shared/pricing'
@@ -9,34 +9,36 @@ import { valueCollection } from './collection'
 import type { CardList } from './library'
 import { getPrintingsEntry } from './printings'
 
-// Price history, as the page sees it. The main process keeps the snapshots
-// (priceHistory.ts); this module tells it which versions to keep, works out how the
-// inventory's value changed, and flags wishlist cards that got cheaper since added.
+/**
+ * Renderer side of price history: wishlist baselines and price-drop detection, tracked product ids,
+ * and inventory value changes between snapshots. Snapshots are stored by the main process.
+ *
+ * @packageDocumentation
+ */
 
-// --- Wishlist baselines -------------------------------------------------------
-
+/** Wishlist baselines by {@link lineKey}. */
 let baselines: Record<string, PriceBaseline> = {}
-/** Never note new baselines before the saved ones are in: they'd replace them. */
+/** Saved baselines loaded; {@link syncBaselines} is a no-op until then to avoid overwriting them. */
 let baselinesLoaded = false
 let baselinesVersion = 0
 const listeners = new Set<() => void>()
 
+/** Bumps the baselines version and notifies subscribers. */
 function emit(): void {
   baselinesVersion += 1
   for (const listener of listeners) listener()
 }
 
+/** Loads saved baselines; on failure, baselines stay disabled. */
 export async function loadBaselines(): Promise<void> {
   try {
     baselines = await window.api.getBaselines()
     baselinesLoaded = true
     emit()
-  } catch {
-    // No alerts until the next change saves new baselines.
-  }
+  } catch {}
 }
 
-/** Re-renders the caller when baselines change; returns them. */
+/** Hook re-rendering on baseline changes. @returns Current baselines. */
 export function useBaselines(): Record<string, PriceBaseline> {
   useSyncExternalStore(
     (listener) => {
@@ -48,13 +50,13 @@ export function useBaselines(): Record<string, PriceBaseline> {
   return baselines
 }
 
-/** A wishlist line's baseline key: the card, the version it asks for and its finish. */
+/** @returns Baseline key: `nameKey|set|collector|foil`. */
 export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foil'>) =>
   `${nameKey(line.name)}|${line.set ?? ''}|${line.collector ?? ''}|${line.foil}`
 
 /**
- * Notes the price of wishlist cards seen for the first time (on every price basis),
- * and forgets cards no longer on any wishlist. Only cards still needed get one.
+ * Records baselines (all price bases) for loaded, not fully owned wishlist lines lacking one, and
+ * removes baselines of lines no longer on any wishlist. Persists changes; save errors are ignored.
  */
 export function syncBaselines(wishlists: CardList[], inventory: Map<string, InventoryItem>, bundleBasics: boolean): void {
   if (!baselinesLoaded) return
@@ -87,14 +89,21 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
   void window.api.updateBaselines(set, remove).catch(() => undefined)
 }
 
+/** Detected price drop. */
 export interface PriceDrop {
-  /** How much cheaper, in percent of the baseline. */
+  /** Drop in percent of the baseline, rounded. */
   percent: number
+  /** Baseline unit price. */
   was: number
+  /** Baseline capture time (epoch ms). */
   since: number
 }
 
-/** How much cheaper a wishlist line still needed got since added, when past the alert threshold. */
+/**
+ * @param unit - Current unit price on `basis`.
+ * @param owned - Owned copies allocated to the line.
+ * @returns Drop if the line is still needed and its price fell at least `thresholdPercent`; else null.
+ */
 export function priceDrop(
   line: CardLine,
   unit: number | null,
@@ -111,11 +120,10 @@ export function priceDrop(
   return percent >= thresholdPercent ? { percent: Math.round(percent), was, since: baseline.at } : null
 }
 
-// --- Inventory history ----------------------------------------------------------
-
+/** Last tracked id set sent, comma-joined; reset on failure to retry. */
 let trackedKey = ''
 
-/** Tells the main process which versions the inventory is valued at, so it keeps their history. */
+/** Sends the inventory's valued product ids to {@link TrackerApi.trackPrices} when the set changes. */
 export function syncTracked(inventory: Map<string, InventoryItem>, bundleBasics: boolean): void {
   const ids = new Set<number>()
   for (const valued of valueCollection(inventory, 'trend', bundleBasics).valued) {
@@ -131,22 +139,26 @@ export function syncTracked(inventory: Map<string, InventoryItem>, bundleBasics:
   })
 }
 
+/** Value change of one copy group. */
 export interface ValueMove {
   valued: ValuedCopy
-  /** Change in the copies' total value, in EUR. */
+  /** EUR change of the group's total value. */
   change: number
 }
 
+/** Inventory value change between two snapshots. */
 export interface ValueChange {
-  /** Total change in value. */
+  /** EUR total change. */
   change: number
-  /** When the earlier prices are from (later than asked for while the history is short). */
+  /** Earlier snapshot date; may be later than requested if history is short. */
   from: number
+  /** Later snapshot date. */
   to: number
+  /** Per-group changes of at least €0.005. */
   moves: ValueMove[]
 }
 
-/** The price of a copy in a snapshot: foil when it's foil, or the version only exists in foil. */
+/** @returns Snapshot trend for the copy (foil column if foil or foil-only printing); null if none. */
 function snapshotPrice(valued: ValuedCopy, snapshot: PriceSnapshot): number | null {
   const id = valued.printing?.cardmarketId
   const prices = id === null || id === undefined ? undefined : snapshot.prices[id]
@@ -156,7 +168,7 @@ function snapshotPrice(valued: ValuedCopy, snapshot: PriceSnapshot): number | nu
   return price > 0 ? price : null
 }
 
-/** How the value of these copies changed between two snapshots; null when they're the same day. */
+/** @returns Change over copies priced in both snapshots; null unless `then` precedes `latest`. */
 export function valueChange(valued: ValuedCopy[], then: PriceSnapshot, latest: PriceSnapshot): ValueChange | null {
   if (then.date >= latest.date) return null
   const moves: ValueMove[] = []

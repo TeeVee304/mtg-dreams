@@ -9,8 +9,7 @@ import { ConfirmDialog, PromptDialog, TextEditorDialog } from './Dialogs'
 import { PreconDialog } from './PreconDialog'
 import { useToast } from './Toasts'
 
-// The dialogs a deck or wishlist page opens, one at a time.
-
+/** Dialog open on a list page; `unown` confirms reducing inventory below other lists' needs. */
 export type ListDialog =
   | { kind: 'rename' }
   | { kind: 'delete' }
@@ -19,6 +18,7 @@ export type ListDialog =
   | { kind: 'precon' }
   | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
 
+/** Props of {@link ListDialogs}. */
 interface ListDialogsProps {
   dialog: ListDialog | null
   onClose: () => void
@@ -27,15 +27,17 @@ interface ListDialogsProps {
   analysis: ListAnalysis<Row>
   rows: Row[]
   actions: LibraryActions
-  /** The format's copy limit for a card (Infinity without one). */
+  /** Format copy limit per card; Infinity without a format. */
   formatCap: (name: string) => number
-  /** Most copies a line may have, and why. */
+  /** Max quantity of a line; undefined if unlimited. */
   maxFor: (line: CardLine) => number | undefined
+  /** Limit reason per card. */
   limitFor: (name: string) => string
-  /** Called when the list's identity changes (renamed). */
+  /** Called with the new ref after a rename. */
   onOpenList: (list: ListRef) => void
 }
 
+/** Renders the active list page dialog. Precon imports into a formatted list are capped to format limits. */
 export function ListDialogs(props: ListDialogsProps) {
   const { dialog, onClose, list, format, analysis, actions, maxFor, limitFor } = props
   const toast = useToast()
@@ -100,7 +102,6 @@ export function ListDialogs(props: ListDialogsProps) {
           target={{ kind: 'list', listName: list.name }}
           onClose={onClose}
           onAdd={(deck, entries) => {
-            // A format with a copy limit keeps only what it allows.
             const capped = capEntries(entries, props.formatCap, analysis.copiesOf)
             actions.addCards(list, capped.entries)
             onClose()

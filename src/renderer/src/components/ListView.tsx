@@ -35,18 +35,19 @@ import { ListTable } from './ListTable'
 import { ListValueCards } from './ListValueCards'
 import { useToast } from './Toasts'
 
+/** Props of {@link ListView}. */
 interface ListViewProps {
   list: CardList
   inventory: Map<string, InventoryItem>
   actions: LibraryActions
-  /** Called when the list's identity changes (renamed, or moved to Decks). */
+  /** Called with the new ref after a rename or move. */
   onOpenList: (list: ListRef) => void
 }
 
 /**
- * A deck (built from owned cards) or a wishlist (cards you want), grouped by card type.
- * Holds the page's state and what its controls do; the parts draw it (ListHeader,
- * ListValueCards, DeckStats, ListTable, ListDialogs).
+ * Deck or wishlist page: state and handlers; rendering is delegated to ListHeader, ListValueCards,
+ * DeckStats, ListTable and ListDialogs. Rules come from {@link analyzeList}. Lines pinned to
+ * printings missing from a partial (basic land) result trigger a `full` fetch.
  */
 export function ListView({ list, inventory, actions, onOpenList }: ListViewProps) {
   const toast = useToast()
@@ -58,15 +59,14 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
   const [hideOwned, setHideOwned] = useState(false)
   const [onlyProblems, setOnlyProblems] = useState(false)
-  /** Choosing a commander: the next card clicked becomes it. */
+  /** Commander picking mode: the next clicked card becomes commander. */
   const [picking, setPicking] = useState(false)
-  /** The commander just chosen (name key), celebrated for a moment. */
+  /** nameKey of the just-chosen commander, for a brief animation. */
   const [crowned, setCrowned] = useState<string | null>(null)
 
   const cards = cardLines(list.lines)
   const settings = useSettings()
   const { bundleBasics } = settings
-  // The sort is one app-wide choice; this view uses the closest one it offers.
   const sortView = isDeck ? 'deck' : 'wishlist'
   const sort = sortFor(sortView, settings.sort)
   const rows = buildRows(cards, inventory, settings)
@@ -77,7 +77,6 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
       ? null
       : priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
 
-  // Legality, ownership and commander rules (shared/listModel.ts).
   const analysis = analyzeList(list.kind, list.lines, rows)
   const { format, copiesOf, isCommander, canBeCommander, hasCommander, legalityErrors, ownershipErrors } = analysis
 
@@ -122,7 +121,6 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
       toast(`${limitFor(name)}, and this ${noun} already has ${inList}.`, 'error')
       return
     }
-    // A bundled basic land has no versions to pick: add one straight away.
     const generic = bundledBasic(name, bundleBasics)
     if (generic) {
       actions.addCards(list, [{ qty: 1, name: generic.info.name, foil: false }])
@@ -143,7 +141,6 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
     .filter(Boolean)
     .join(' · ')
 
-  // Prices come from Cardmarket's daily price guide: ask whether a newer one is out.
   const refreshPrices = () =>
     window.api.refreshPrices().then(
       ({ updated, pricedAt }) =>
@@ -232,8 +229,6 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
     />
   )
 
-  // A line pinned to an older basic-land printing needs the full list of versions,
-  // which is only fetched on demand. Retried once any refresh in progress finishes.
   const needAllVersions = rows
     .filter((row) => row.resolution?.pinMissing && row.entry?.data?.partial && !row.entry.refreshing)
     .map((row) => row.line.name)
@@ -363,7 +358,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   )
 }
 
-/** The version a line asks for, recorded when its copies join the inventory; none for "any version". */
+/** @returns Version of a pinned line, used when its copies are added to the inventory; undefined if unpinned. */
 function lineVersion(line: CardLine): Version | undefined {
   return line.set ? { set: line.set, collector: line.collector, foil: line.foil } : undefined
 }

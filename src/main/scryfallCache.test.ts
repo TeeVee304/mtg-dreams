@@ -60,7 +60,7 @@ describe('stored printings', () => {
     expect(stored).not.toHaveProperty('imageSmall')
     expect(stored).not.toHaveProperty('imageNormal')
     expect(stored.cardmarket).toBe(721234)
-    expect(stored).not.toHaveProperty('cardmarketId') // the product number gives it
+    expect(stored).not.toHaveProperty('cardmarketId')
     expect(stored).toMatchObject({ eur: 1.5, eurFoil: 3 })
     expect(cache.unpackPrinting(stored)).toEqual(full)
     expect(JSON.stringify(stored).length).toBeLessThan(JSON.stringify(full).length / 2)
@@ -106,11 +106,9 @@ describe('the cache file', () => {
     const v5 = await setup(userData)
     await v5.cache.loadScryfallCache()
     expect(v5.cache.scryfallCache.entries['sol ring']).toEqual(entry)
-    // ...and rewrites it in the current format straight after.
     v5.cache.flushScryfallCache()
     expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(7)
 
-    // Version 6: compact, with null for a missing price.
     const v6Printing = { ...v5.cache.packPrinting(printing('aaa')), eurFoil: null }
     writeFileSync(file, JSON.stringify({ version: 6, entries: { 'sol ring': { ...entry, printings: [v6Printing] } }, cards: {} }))
     const v6 = await setup(userData)
@@ -130,7 +128,6 @@ describe('the cache file', () => {
     await loaded.cache.loadScryfallCache()
     expect(loaded.cache.scryfallCache.entries).toEqual({})
 
-    // One damaged card is dropped; the rest are kept.
     const good = { ...result([]), printings: [] }
     writeFileSync(file, JSON.stringify({ version: 6, entries: { bad: { ...good, printings: null }, good }, cards: {} }))
     const partial = await setup(userData)
@@ -148,7 +145,7 @@ describe('the cache file', () => {
     writeFileSync(file, JSON.stringify({ version: 6, entries: { 'sol ring': { ...result([]), printings: [] } }, cards: {} }))
     const run = await setup(userData)
     const loading = run.cache.loadScryfallCache()
-    run.cache.scryfallCacheChanged() // a change before the file is read must not trigger a save
+    run.cache.scryfallCacheChanged()
     run.cache.flushScryfallCache()
     await loading
     expect(JSON.parse(readFileSync(file, 'utf8')).entries).toHaveProperty(['sol ring'])
@@ -161,7 +158,6 @@ describe('the cache file', () => {
     cache.scryfallCacheChanged()
     vi.advanceTimersByTime(1_000)
     expect(existsSync(file)).toBe(false)
-    // A change every second keeps postponing the save, but not forever.
     for (let second = 1; second < 60; second++) {
       cache.scryfallCacheChanged()
       vi.advanceTimersByTime(1_000)

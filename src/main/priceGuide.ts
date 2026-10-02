@@ -3,33 +3,43 @@ import { readCacheFile, writeCacheFile } from './cacheFiles'
 import { env } from './environment'
 import { fetchJson, fetchLastModified } from './http'
 
-// Cardmarket's price guide: one file, published daily, with the prices of every Magic
-// product (trend, lowest listing and 30-day average, for non-foil and foil). It is
-// checked hourly by its date alone, and downloaded (about 26 MB) only when Cardmarket
-// has published a new one. A compact copy (about 5 MB) is kept in userData.
-//
-// Printings come from Scryfall; their Cardmarket product number links the two.
+/**
+ * Cardmarket daily price guide (low/trend/avg30, non-foil and foil, for every product). Polled
+ * hourly via `Last-Modified`; the ~26 MB file is downloaded only when it changes and cached
+ * compactly (~5 MB) in userData. Joined to Scryfall printings by Cardmarket product id.
+ *
+ * @packageDocumentation
+ */
 
+/** Cache file name. */
 const FILE = 'price-guide.json'
+/** Cache schema version. */
 const VERSION = 1
+/** Timeout for the full download. */
 const DOWNLOAD_TIMEOUT_MS = 180_000
+/** Poll interval. */
 const CHECK_EVERY_MS = 60 * 60 * 1000
-// Without a date to compare (a server that doesn't send one), download at most this often.
+/** Min download interval when the server sends no `Last-Modified`. */
 const MIN_DOWNLOAD_INTERVAL_MS = 12 * 60 * 60 * 1000
 
+/** Column order of {@link Row} per finish. */
 const BASES: PriceBasis[] = ['low', 'trend', 'avg30']
-/** One product's prices, in BASES order for non-foil then foil; 0 = no price. */
+/** Product prices: {@link BASES} for non-foil, then foil; 0 = none. */
 type Row = [number, number, number, number, number, number]
 
+/** In-memory guide. */
 interface Guide {
-  /** When Cardmarket published these prices. */
+  /** Epoch ms of Cardmarket publication. */
   createdAt: number
-  /** When they were downloaded. */
+  /** Epoch ms of download. */
   fetchedAt: number
+  /** `Last-Modified` of the downloaded file. */
   lastModified: string | null
+  /** Prices by product id. */
   rows: Map<number, Row>
 }
 
+/** On-disk form of {@link Guide}. */
 interface GuideFile {
   version: number
   createdAt: number
@@ -42,11 +52,10 @@ let guide: Guide | null = null
 let loading: Promise<void> | null = null
 let refreshing: Promise<boolean> | null = null
 
-/** Reads the saved guide from disk (once; later calls share the same read). */
+/** Loads the cached guide once; concurrent and later calls share the same promise. Invalid or outdated caches are ignored. */
 export function loadPriceGuide(): Promise<void> {
   loading ??= (async () => {
     const file = await readCacheFile<GuideFile>(FILE)
-    // None yet, unreadable or outdated: downloaded again.
     if (file?.version !== VERSION || typeof file.rows !== 'object') return
     const rows = new Map(Object.entries(file.rows).map(([id, row]) => [Number(id), row] as const))
     guide = { createdAt: file.createdAt, fetchedAt: file.fetchedAt, lastModified: file.lastModified, rows }
@@ -54,8 +63,10 @@ export function loadPriceGuide(): Promise<void> {
   return loading
 }
 
+/** Positive number, else 0. */
 const positive = (value: unknown) => (typeof value === 'number' && value > 0 ? value : 0)
 
+/** Builds a {@link Guide} from Cardmarket's JSON; falls back to now if `createdAt` is invalid. */
 function toGuide(data: any, lastModified: string | null): Guide {
   const rows = new Map<number, Row>()
   for (const p of data.priceGuides as any[]) {
@@ -69,6 +80,7 @@ function toGuide(data: any, lastModified: string | null): Guide {
   return { createdAt: Number.isNaN(createdAt) ? Date.now() : createdAt, fetchedAt: Date.now(), lastModified, rows }
 }
 
+/** Persists the guide to the cache file. */
 function save(next: Guide): Promise<void> {
   const file: GuideFile = {
     version: VERSION,
@@ -80,7 +92,11 @@ function save(next: Guide): Promise<void> {
   return writeCacheFile(FILE, file)
 }
 
-/** Downloads the guide if Cardmarket has published a new one. Resolves to whether prices changed. */
+/**
+ * Downloads the guide if a newer one is published; concurrent calls share one refresh.
+ * @returns Whether the publication date changed.
+ * @throws Error on network failure or invalid response.
+ */
 export function refreshPriceGuide(): Promise<boolean> {
   refreshing ??= (async () => {
     try {
@@ -106,24 +122,25 @@ export function refreshPriceGuide(): Promise<boolean> {
   return refreshing
 }
 
-/** Keeps the guide current: now, then hourly. `onUpdate` runs whenever prices change. */
+/** Refreshes now and every {@link CHECK_EVERY_MS}; calls `onUpdate` when prices change. Errors are ignored. */
 export function startPriceGuide(onUpdate: () => void): void {
   const check = () => refreshPriceGuide().then((changed) => changed && onUpdate(), () => undefined)
   void check()
   setInterval(check, CHECK_EVERY_MS)
 }
 
-/** When the current prices were published, or null without a guide. */
+/** @returns Epoch ms of the loaded guide's publication; null if none. */
 export function priceGuideDate(): number | null {
   return guide?.createdAt ?? null
 }
 
-/** A product's typical prices (the trend) in the current guide, non-foil and foil; 0 = no price. */
+/** @returns `[nonFoil, foil]` trend prices of a product (0 = none); undefined if absent. */
 export function guideTrend(cardmarketId: number): [number, number] | undefined {
   const row = guide?.rows.get(cardmarketId)
   return row && [row[1], row[4]]
 }
 
+/** Overlays positive guide prices of one finish (`offset` 0 or 3) onto `fallback`. */
 function merge(fallback: Prices, row: Row, offset: number): Prices {
   const prices: Prices = { ...fallback }
   BASES.forEach((basis, i) => {
@@ -133,8 +150,8 @@ function merge(fallback: Prices, row: Row, offset: number): Prices {
 }
 
 /**
- * The printings with Cardmarket's guide prices. Where the guide has no price,
- * Scryfall's trend stays. Returns a new result: cached data is never changed.
+ * @returns Copy of `result` with guide prices overlaid (Scryfall trend kept where the guide has
+ * none) and `pricedAt` set; `result` itself if no printing is in the guide.
  */
 export async function withMarketPrices(result: PrintingsResult): Promise<PrintingsResult> {
   await loadPriceGuide()

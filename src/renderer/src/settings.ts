@@ -4,8 +4,7 @@ import { DEFAULT_SORT } from '../../shared/cards'
 import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS } from '../../shared/pricing'
 import { DEFAULT_THEME_COLOR } from '../../shared/themes'
 
-// App settings, loaded once before the first render and saved on change.
-
+/** Current settings; defaults until {@link loadSettings} resolves. */
 let current: AppSettings = {
   theme: 'system',
   color: DEFAULT_THEME_COLOR,
@@ -19,25 +18,26 @@ let current: AppSettings = {
 }
 const listeners = new Set<() => void>()
 
+/** `useSyncExternalStore` subscribe. */
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
 
-/** The color theme is a page attribute the stylesheet keys its accent colors on. */
+/** Sets `data-color` on `<html>`, which keys the accent palette in CSS. */
 function applyColor(): void {
   document.documentElement.dataset.color = current.color
 }
 
+/** Loads settings from the main process (defaults kept on failure) and applies the color theme. */
 export async function loadSettings(): Promise<void> {
   try {
     current = await window.api.getSettings()
-  } catch {
-    // Keep the defaults.
-  }
+  } catch {}
   applyColor()
 }
 
+/** Applies a patch locally, notifies subscribers and persists it. */
 export function updateSettings(patch: Partial<AppSettings>): Promise<void> {
   current = { ...current, ...patch }
   applyColor()
@@ -45,6 +45,7 @@ export function updateSettings(patch: Partial<AppSettings>): Promise<void> {
   return window.api.updateSettings(patch)
 }
 
+/** Hook returning current settings. */
 export function useSettings(): AppSettings {
   return useSyncExternalStore(subscribe, () => current)
 }

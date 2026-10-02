@@ -1,7 +1,7 @@
 import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell } from 'electron'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
-import type { AppSettings, PriceBaseline, PrintingsOptions, Theme } from '../shared/api'
+import type { AppSettings, PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '../shared/api'
 import { isSortKey } from '../shared/cards'
 import { isPriceBasis } from '../shared/pricing'
 import { isThemeColor } from '../shared/themes'
@@ -13,20 +13,22 @@ import { getBaselines, pricesAt, recordCurrentPrices, trackPrices, updateBaselin
 import { autocomplete, getCardImages, getCardInfos, getPrintings } from './scryfall'
 import * as storage from './storage'
 
+/** Hosts (and subdomains) allowed for external links. */
 const EXTERNAL_HOSTS = ['cardmarket.com', 'scryfall.com']
-// Trade lists are small; anything bigger is not one.
+/** Max imported trade file size. */
 const MAX_TRADE_FILE_BYTES = 5 * 1024 * 1024
 
-/** The renderer's CSS follows prefers-color-scheme, which Electron derives from themeSource. */
+/** Sets `nativeTheme.themeSource`, which drives the renderer's `prefers-color-scheme`. */
 export function applyTheme(theme: Theme): void {
   nativeTheme.themeSource = theme
 }
 
+/** @returns Window background color for the current light/dark mode. */
 export function windowBackground(): string {
   return nativeTheme.shouldUseDarkColors ? '#121418' : '#f5f5f3'
 }
 
-/** Only opens https links to known card sites in the user's browser. */
+/** Opens `raw` in the system browser if it is an https URL on {@link EXTERNAL_HOSTS}; otherwise ignores it. */
 export function openExternalSafe(raw: string): void {
   let url: URL
   try {
@@ -38,7 +40,10 @@ export function openExternalSafe(raw: string): void {
   if (url.protocol === 'https:' && allowed) void shell.openExternal(url.toString())
 }
 
-/** A list of Cardmarket product numbers (or timestamps) from the page. */
+/**
+ * Validates an array of safe integers from the renderer.
+ * @throws Error if invalid or longer than `max`.
+ */
 function numbers(value: unknown, what: string, max = 50_000): number[] {
   if (!Array.isArray(value) || value.length > max || !value.every((n) => Number.isSafeInteger(n))) {
     throw new Error(`Invalid ${what}.`)
@@ -46,7 +51,10 @@ function numbers(value: unknown, what: string, max = 50_000): number[] {
   return value as number[]
 }
 
-/** Wishlist baselines from the page: { key: { at, prices: { basis: price } } }. */
+/**
+ * Validates baselines from the renderer; drops malformed entries and non-positive prices.
+ * @throws Error if `value` is not an object.
+ */
 function baselines(value: unknown): Record<string, PriceBaseline> {
   if (typeof value !== 'object' || value === null) throw new Error('Invalid baselines.')
   const valid: Record<string, PriceBaseline> = {}
@@ -62,16 +70,18 @@ function baselines(value: unknown): Record<string, PriceBaseline> {
   return valid
 }
 
+/** @throws Error if `value` is not a string. */
 function text(value: unknown, what: string): string {
   if (typeof value !== 'string') throw new Error(`Invalid ${what}.`)
   return value
 }
 
-/** Tells every window that new prices are in, so it asks for them again. */
+/** Sends `prices:updated` to all windows. */
 export function notifyPricesUpdated(): void {
   for (const window of BrowserWindow.getAllWindows()) window.webContents.send('prices:updated')
 }
 
+/** Registers all IPC handlers backing {@link TrackerApi}. All renderer input is validated. */
 export function registerIpc(): void {
   ipcMain.handle('data:load', () => storage.loadData())
   ipcMain.handle('list:create', (_e, kind: unknown, name: unknown, body: unknown) =>
@@ -193,7 +203,6 @@ export function registerIpc(): void {
   })
 
   ipcMain.handle('scryfall:autocomplete', (_e, query: unknown) => autocomplete(text(query, 'query')))
-  // Printings come from Scryfall, prices from Cardmarket's price guide.
   ipcMain.handle('scryfall:printings', async (_e, name: unknown, options: unknown) => {
     const opts = (options ?? {}) as PrintingsOptions
     const result = await getPrintings(text(name, 'card name'), {

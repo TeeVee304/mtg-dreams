@@ -9,9 +9,12 @@ import { Modal } from './Modal'
 import { Stepper } from './Stepper'
 import { AUTO, VersionPicker } from './VersionPicker'
 
+/** Printing has a foil or etched finish. */
 const hasFoil = (p: Printing) => p.finishes.includes('foil') || p.finishes.includes('etched')
+/** Printing has a non-foil finish. */
 const hasNonfoil = (p: Printing) => p.finishes.includes('nonfoil')
 
+/** Display labels of Scryfall legality values. */
 const STATUS_LABELS: Record<string, string> = {
   legal: 'Legal',
   not_legal: 'Not legal',
@@ -19,26 +22,28 @@ const STATUS_LABELS: Record<string, string> = {
   restricted: 'Restricted'
 }
 
+/** Props of {@link CardDialog}. */
 interface CardDialogProps {
-  /** The current row for the line; changes apply immediately and come back through here. */
+  /** Current row; updated after each change. */
   row: Row
   format: DeckFormat | null
   issue: LegalityIssue | null
-  /** The format's copy limit and, for decks, the copies you own. */
+  /** Max quantity (format and, for decks, ownership). */
   maxQty?: number
+  /** Tooltip when `maxQty` is reached. */
   maxTitle?: string
+  /** Applies a line patch immediately. */
   onUpdate: (patch: Partial<NewCard>) => void
   onClose: () => void
 }
 
-/** Card details with instant version, finish and quantity changes. */
+/** Card details dialog; version, finish and quantity changes apply immediately. A pinned single-finish printing locks the finish. */
 export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, onClose }: CardDialogProps) {
   const { line, resolution, unit, info } = row
   const entry = usePrintingsFor(line.name)
   const printings = entry?.data?.printings ?? []
   const printing = resolution?.printing ?? null
   const pinned = resolution?.pinned ? printing : null
-  // A pinned version that only exists in one finish decides the finish.
   const foilLocked = pinned ? !(hasFoil(pinned) && hasNonfoil(pinned)) : false
   const selected = line.set ? (printing?.id ?? '') : AUTO
 

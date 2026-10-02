@@ -5,11 +5,10 @@ import type { CardList } from '../library'
 import { usePrintingsVersion } from '../printings'
 import { useSettings } from '../settings'
 
-// Keeps the price history in step with your lists, in the background: which versions
-// to keep a history of, and wishlist cards' prices when added. Draws nothing.
-
+/** Debounce before syncing after changes. */
 const SETTLE_MS = 2000
 
+/** Renderless: debounced {@link syncTracked} and {@link syncBaselines} after list, inventory or price changes. */
 export function HistorySync({ ready, lists, inventory }: { ready: boolean; lists: CardList[]; inventory: Map<string, InventoryItem> }) {
   const printingsVersion = usePrintingsVersion()
   const { bundleBasics } = useSettings()
@@ -18,7 +17,6 @@ export function HistorySync({ ready, lists, inventory }: { ready: boolean; lists
     void loadBaselines()
   }, [])
 
-  // Waits for edits and price loading to settle rather than run on every change.
   useEffect(() => {
     if (!ready) return
     const timer = setTimeout(() => {

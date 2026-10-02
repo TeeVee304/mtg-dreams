@@ -6,7 +6,7 @@ import { ToastProvider } from './components/Toasts'
 import { loadSettings } from './settings'
 import './styles/index.css'
 
-// Settings first, so lists render with basic lands bundled (or not) from the start.
+/** Renderer entry. Settings load before the first render so lists render with the correct `bundleBasics`. */
 void loadSettings().then(() =>
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

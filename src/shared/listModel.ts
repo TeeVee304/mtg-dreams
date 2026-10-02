@@ -20,52 +20,62 @@ import {
 } from './formats'
 import type { CardInfo, CardLine, ListKind, ListLine, Printing } from './types'
 
-// The rules behind a deck or wishlist page, kept apart from the page itself so
-// they can be tested: legality and ownership problems, the commander, which rows
-// show and in what order, the type sections, and how many copies a card may have.
+/**
+ * UI-independent list page logic: legality and ownership checks, commander, filtering,
+ * sorting, type sections and copy caps.
+ *
+ * @packageDocumentation
+ */
 
-/** What the rules need to know about one row of a list (one line, or one bundled basic land). */
+/** List row input: one line, or one bundled basic land. */
 export interface ModelRow {
   line: CardLine
-  /** Card data; undefined while it loads. */
+  /** Card data; undefined while loading, null if unknown. */
   info?: CardInfo | null
-  /** Scryfall's answer for the card, once it has one. */
+  /** Printings lookup state; `data` is set once loaded. */
   entry?: { data?: { printings: Printing[]; notFound?: boolean } }
-  /** Copies of the card in the inventory. */
+  /** Total copies of the card in the inventory. */
   inventoryQty: number
   /** Copies of this line covered by the inventory. */
   owned: number
-  /** Copies of the same card wanted by earlier lines of the list. */
+  /** Copies of the same card claimed by earlier lines. */
   before: number
+  /** Unit price in EUR; null if unknown. */
   unit: number | null
+  /** Rarity of the resolved printing. */
   rarity?: string
-  /** Name printed on the pinned version, when it isn't the official one. */
+  /** Printed name of the resolved printing, if different from the oracle name. */
   flavorName?: string
-  /** Set on a bundled basic land. */
+  /** Merged line ids; set only on bundled basic lands. */
   bundledIds?: string[]
 }
 
+/** Derived list state from {@link analyzeList}. */
 export interface ListAnalysis<R extends ModelRow> {
   format: DeckFormat | null
-  /** Copies of a card across every line of the list. */
+  /** Total copies of a card across all lines. */
   copiesOf(name: string): number
-  /** The commander's name key, in a commander format that has one set. */
+  /** Commander nameKey; null outside commander formats or if unset. */
   commanderKey: string | null
+  /** Row is the commander (never a bundled basic). */
   isCommander(row: R): boolean
-  /** Whether the card could be chosen as commander in this format. */
+  /** Row's card is eligible as commander in this format. */
   canBeCommander(row: R): boolean
+  /** Some row is the commander. */
   hasCommander: boolean
-  /** Why the card breaks the format, or null (also null without a format or card data). */
+  /** Format issue; null if none, no format, or no card data. */
   issueOf(row: R): LegalityIssue | null
-  /** Decks only use cards you own: copies missing from the inventory. Always 0 for wishlists. */
+  /** Decks: list copies exceeding inventory copies. Wishlists: 0. */
   shortfallOf(row: R): number
-  /** Rows breaking the format's rules. */
+  /** Rows with an error-severity issue. */
   legalityErrors: number
-  /** Rows of a deck with cards you don't own. */
+  /** Rows with a nonzero shortfall. */
   ownershipErrors: number
+  /** Row has an error-severity issue or a shortfall. */
   hasProblem(row: R): boolean
 }
 
+/** Computes format, commander, legality and ownership state for a list. */
 export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[], rows: R[]): ListAnalysis<R> {
   const format = listFormat(lines)
   const copies = new Map<string, number>()
@@ -109,14 +119,16 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
   }
 }
 
+/** Row filter options. */
 export interface RowFilters {
   filters: CardFilters
-  /** Wishlists: hide lines you already own. */
+  /** Wishlists only: hide fully owned lines. */
   hideOwned: boolean
-  /** Only rows with a red tag (rules or ownership). */
+  /** Show only rows where {@link ListAnalysis.hasProblem} holds. */
   onlyProblems: boolean
 }
 
+/** @returns Rows passing card filters (name matched against oracle and flavor name) and row options. */
 export function filterRows<R extends ModelRow>(
   rows: R[],
   kind: ListKind,
@@ -131,7 +143,10 @@ export function filterRows<R extends ModelRow>(
   )
 }
 
-/** Rows in the chosen order; "List order" keeps the file's. Unpriced cards sort after priced ones. */
+/**
+ * @returns Rows in `sort` order; `file` returns the input as is. Price sorts are descending
+ * with unpriced rows last.
+ */
 export function sortRows<R extends ModelRow>(rows: R[], sort: SortKey): R[] {
   const byName = (a: R, b: R) => a.line.name.localeCompare(b.line.name)
   const neededValue = (row: R) => (row.unit ?? -1) * (row.line.qty - row.owned)
@@ -152,13 +167,14 @@ export function sortRows<R extends ModelRow>(rows: R[], sort: SortKey): R[] {
   }
 }
 
+/** Rendered list section. */
 export interface Section<R> {
   id: string
   label: string
   rows: R[]
 }
 
-/** The commander on top, then one section per card type; empty sections are left out. */
+/** @returns Commander section, then one per {@link TYPE_GROUPS} entry; empty sections omitted. */
 export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysis<R>): Section<R>[] {
   const { isCommander } = analysis
   return [
@@ -171,19 +187,25 @@ export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysi
   ].filter((section) => section.rows.length > 0)
 }
 
+/** @returns Total land copies. */
 export function landCount(rows: ModelRow[]): number {
   return rows.filter((row) => typeGroup(row.info) === 'Land').reduce((sum, row) => sum + row.line.qty, 0)
 }
 
+/** Copy limits of a card in a list. */
 export interface CopyCaps {
-  /** The format's limit (Infinity without a format, and for basic lands or "any number" cards). */
+  /** Format limit; Infinity without a format or for unlimited cards. */
   formatCap: number
-  /** Decks: the copies you own. Infinity for wishlists. */
+  /** Decks: owned copies. Wishlists: Infinity. */
   ownedCap: number
+  /** Effective limit: min of both. */
   cap: number
 }
 
-/** Copies of a card a list may hold. */
+/**
+ * @param ownedQty - Inventory copies of the card.
+ * @returns Format, ownership and effective copy limits.
+ */
 export function copyCaps(
   kind: ListKind,
   format: DeckFormat | null,
@@ -198,7 +220,7 @@ export function copyCaps(
 
 const copyWord = (n: number) => (n === 1 ? 'copy' : 'copies')
 
-/** Why a card can't get more copies, for tooltips and messages. */
+/** @returns User-facing reason for the binding cap (format if it is the lower one, else ownership). */
 export function limitReason(format: DeckFormat | null, name: string, { formatCap, ownedCap }: CopyCaps): string {
   return format && formatCap <= ownedCap
     ? `${format.label} allows ${formatCap} ${copyWord(formatCap)} of ${name}`
@@ -206,20 +228,21 @@ export function limitReason(format: DeckFormat | null, name: string, { formatCap
 }
 
 /**
- * The most a line's quantity may reach, given the other lines of the same card.
- * A line already over the limit keeps its copies but can't grow. Undefined: no limit.
+ * @param copiesInList - Total copies of the card across the list, including this line.
+ * @returns Max quantity for this line, never below its current qty; undefined if unlimited.
  */
 export function lineMax(line: CardLine, caps: CopyCaps, copiesInList: number): number | undefined {
   const room = caps.cap - (copiesInList - line.qty)
   return Number.isFinite(room) ? Math.max(line.qty, room) : undefined
 }
 
+/** Result of {@link ownedToggle}: set inventory total, or confirm before reducing it to `target`. */
 export type OwnedChange = { kind: 'set'; qty: number } | { kind: 'confirm'; target: number }
 
 /**
- * Ticking a wishlist line's "owned" box. Earlier lines of the same card get the
- * inventory first, so owning this line means covering them plus it. Unticking
- * asks first when it would remove copies that other lists may count on.
+ * Toggles a wishlist line's owned state. Owning sets the inventory total to cover earlier lines
+ * plus this one. Unowning reduces it to `before`, requiring confirmation if the inventory holds
+ * copies beyond this list's need (possibly used by other lists).
  */
 export function ownedToggle(row: ModelRow): OwnedChange {
   const covered = row.before + row.line.qty

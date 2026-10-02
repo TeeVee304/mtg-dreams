@@ -1,45 +1,52 @@
 import { frontTypeWords } from './cards'
 import type { CardInfo } from './types'
 
-// The numbers behind a deck's or wishlist's Stats panel: its mana curve and colors.
-// Lands are left out of both, as deck builders count them separately.
-
-/** The highest mana value with its own column; anything above joins it ("7+"). */
+/** Last curve column; it aggregates this mana value and above. */
 export const CURVE_TOP = 7
 
+/** Colors counted in stats, WUBRG order. */
 export const STAT_COLORS = ['W', 'U', 'B', 'R', 'G'] as const
+/** One of {@link STAT_COLORS}. */
 export type StatColor = (typeof STAT_COLORS)[number]
 
+/** Mana curve column. */
 export interface CurveColumn {
-  /** Mana value; CURVE_TOP means that or more. */
+  /** Mana value; {@link CURVE_TOP} means that or more. */
   manaValue: number
+  /** Creature copies. */
   creatures: number
+  /** Noncreature spell copies. */
   others: number
 }
 
+/** Stats panel data. Curve and color counts exclude lands. */
 export interface DeckStats {
-  /** One column per mana value, 0 to CURVE_TOP+. */
+  /** Columns for mana values 0..{@link CURVE_TOP}. */
   curve: CurveColumn[]
-  /** Non-land cards of each color; a multicolored card counts toward each of its colors. */
+  /** Spell copies per color; multicolored cards count toward each color. */
   colors: Record<StatColor, number>
+  /** Colorless spell copies. */
   colorless: number
+  /** Spell copies with two or more colors. */
   multicolor: number
-  /** Non-land cards counted. */
+  /** Spell (nonland) copies counted. */
   spells: number
-  /** Lands, which the curve and colors leave out. */
+  /** Land copies. */
   lands: number
-  /** Their average mana value, or null without any. */
+  /** Average mana value of spells; null if none. */
   averageManaValue: number | null
-  /** Cards whose data hasn't loaded yet, so they're not counted. */
+  /** Copies excluded because card data is still loading. */
   pending: number
 }
 
+/** Input row of {@link deckStats}. */
 export interface StatsRow {
   line: { qty: number }
-  /** Card data; undefined while loading, null for a card Scryfall doesn't know. */
+  /** Card data; undefined while loading, null if unknown to Scryfall (skipped). */
   info?: CardInfo | null
 }
 
+/** Computes curve, color and land counts; types are read from the front face. */
 export function deckStats(rows: StatsRow[]): DeckStats {
   const curve: CurveColumn[] = Array.from({ length: CURVE_TOP + 1 }, (_, manaValue) => ({ manaValue, creatures: 0, others: 0 }))
   const colors: Record<StatColor, number> = { W: 0, U: 0, B: 0, R: 0, G: 0 }

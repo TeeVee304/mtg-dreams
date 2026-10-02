@@ -3,23 +3,28 @@ import { nameKey } from '../../../shared/decklist'
 import { useSettings } from '../settings'
 import { CardThumb } from './Placeholders'
 
+/** Local search option. */
 export interface SearchChoice {
   name: string
+  /** Secondary text. */
   hint?: string
 }
 
+/** Props of {@link CardSearch}. */
 interface CardSearchProps {
   onPick: (name: string) => void
   placeholder: string
-  /** Search only these cards (e.g. the inventory) instead of all of Scryfall. Pass a memoized array. */
+  /** Restricts search to these options instead of Scryfall. Must be memoized. */
   choices?: SearchChoice[]
 }
 
+/** DOM id of the search input (Ctrl+K target). */
 export const CARD_SEARCH_ID = 'card-search'
 
 /**
- * Card name input with Scryfall autocomplete (or a local list of choices).
- * With Scryfall, Enter and no suggestion uses the raw text, fuzzy-matched later.
+ * Card name input with Scryfall autocomplete or local `choices`. In Scryfall mode, Enter without a
+ * suggestion submits the raw text (fuzzy-matched later). Suggestion thumbnails load in one batch per
+ * suggestion set, skipping known names.
  */
 export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
   const [query, setQuery] = useState('')
@@ -28,7 +33,7 @@ export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
   const [active, setActive] = useState(0)
   const [loading, setLoading] = useState(false)
   const requestSeq = useRef(0)
-  /** Pictures of the suggestions, by name key, when card images are on. */
+  /** Suggestion thumbnails by nameKey (when card images are enabled). */
   const [images, setImages] = useState<Record<string, string | null>>({})
   const { cardImages } = useSettings()
 
@@ -76,7 +81,6 @@ export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
     return () => clearTimeout(timer)
   }, [query, choices])
 
-  // One batch lookup per set of suggestions; names already pictured aren't asked again.
   const imagesKey = cardImages ? suggestions.filter((name) => !(nameKey(name) in images)).join('\n') : ''
   useEffect(() => {
     if (!imagesKey) return

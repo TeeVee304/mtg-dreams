@@ -8,26 +8,32 @@ import { Modal } from './Modal'
 import { Stepper } from './Stepper'
 import { AUTO, VersionPicker } from './VersionPicker'
 
-// Which versions (and finishes) of a card you own. Changes apply straight away.
-
+/** Printing has a foil or etched finish. */
 const hasFoil = (p: Printing) => p.finishes.includes('foil') || p.finishes.includes('etched')
+/** Printing has a non-foil finish. */
 const hasNonfoil = (p: Printing) => p.finishes.includes('nonfoil')
 
-/** "A25 #141" for a recorded version, "Any version" otherwise; "Foil" added when foil. */
+/** @returns Copy label, e.g. `A25 #141`, `Any version`, with `Foil` appended if foil. */
 export function copyLabel(copy: OwnedCopy): string {
   const where = copy.set ? `${copy.set.toUpperCase()}${copy.collector ? ` #${copy.collector}` : ''}` : 'Any version'
   return copy.foil ? `${where} · Foil` : where
 }
 
+/** Props of {@link InventoryVersionsDialog}. */
 interface InventoryVersionsProps {
   item: InventoryItem
+  /** Replaces the item's copies. */
   onChange: (copies: OwnedCopy[]) => void
   onClose: () => void
 }
 
-/** Picking: a version for a new copy ('add'), or a new version for copy number `index`. */
+/** Picker mode: version for a new copy, or replacement version for copy `index`. */
 type Picking = { mode: 'add' } | { mode: 'change'; index: number }
 
+/**
+ * Edits owned copies by printing and finish; changes apply immediately. Adding a version converts
+ * one unversioned copy if any exists.
+ */
 export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVersionsProps) {
   const entry = usePrintingsFor(item.name)
   const printings = entry?.data?.printings ?? []
@@ -37,7 +43,7 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
   const update = (index: number, patch: Partial<OwnedCopy>) =>
     onChange(item.copies.map((copy, i) => (i === index ? { ...copy, ...patch } : copy)))
 
-  /** A version's finish, given the finish wanted: some versions only exist in one. */
+  /** @returns `foil` coerced to a finish the printing has. */
   const finishFor = (printing: Printing, foil: boolean) => (!hasNonfoil(printing) ? true : !hasFoil(printing) ? false : foil)
 
   const choose = (id: string) => {
@@ -52,7 +58,6 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
           : { set: undefined, collector: undefined }
       )
     } else if (printing) {
-      // A copy you already counted under "any version" usually is the one being identified.
       const version = { set: printing.set, collector: printing.collectorNumber }
       const plainIndex = item.copies.findIndex((copy) => !copy.set)
       const foil = finishFor(printing, plainIndex >= 0 ? item.copies[plainIndex].foil : false)

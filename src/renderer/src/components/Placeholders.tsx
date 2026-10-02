@@ -1,8 +1,6 @@
 import { useSettings } from '../settings'
 
-// Small pieces for rows that are still loading, and the card thumbnail beside a name.
-
-/** A shimmering bar where text will appear once it loads. */
+/** Shimmering text placeholder. */
 export function Skeleton({ width = 64 }: { width?: number }) {
   return (
     <span className="skeleton-wrap">
@@ -12,11 +10,7 @@ export function Skeleton({ width = 64 }: { width?: number }) {
   )
 }
 
-/**
- * The card's art, cropped from its small image (already used for previews, so no
- * extra download beyond it). A shimmer while its versions load; blank without one.
- * Nothing when card images are turned off (Settings).
- */
+/** Art thumbnail cropped from the small image; shimmer while loading, blank without an image, nothing if card images are off. */
 export function CardThumb({ src, loading }: { src: string | null | undefined; loading?: boolean }) {
   const { cardImages } = useSettings()
   if (!cardImages) return null

@@ -8,8 +8,21 @@ import { flushScryfallCache, loadScryfallCache } from './scryfallCache'
 import { WINDOW_ICONS } from './icons'
 import { getAppSettings, getTheme, migrateFromOldName } from './storage'
 
+/**
+ * Electron main entry: single-instance lock, environment setup, IPC, window and price guide polling.
+ * Service URLs can be overridden in unpackaged builds via `MTG_DREAMS_SCRYFALL_API`,
+ * `MTG_DREAMS_MTGJSON_API` and `MTG_DREAMS_PRICE_GUIDE_URL` (used by e2e tests).
+ *
+ * @packageDocumentation
+ */
+
+/** Renderer crash reloads allowed per rolling minute. */
 const MAX_RELOADS_PER_MINUTE = 3
 
+/**
+ * Creates the sandboxed main window. Reloads the renderer after a crash (bounded by
+ * {@link MAX_RELOADS_PER_MINUTE}); routes new windows and navigation to {@link openExternalSafe}.
+ */
 function createWindow(): void {
   const window = new BrowserWindow({
     width: 1320,
@@ -17,7 +30,6 @@ function createWindow(): void {
     minWidth: 960,
     minHeight: 600,
     title: 'MTG Dreams',
-    // The color theme's icon (the .exe itself keeps the gold one).
     icon: WINDOW_ICONS[getAppSettings().color],
     backgroundColor: windowBackground(),
     autoHideMenuBar: true,
@@ -33,9 +45,6 @@ function createWindow(): void {
   window.once('ready-to-show', () => window.show())
   window.on('focus', () => window.webContents.send('window:focus'))
 
-  // If the page itself crashes (out of memory, GPU fault...), reload it rather than
-  // leave a blank window. Data is saved as it changes, so nothing is lost. Gives up
-  // after repeated crashes so a persistent fault can't loop forever.
   const crashes: number[] = []
   window.webContents.on('render-process-gone', (_event, details) => {
     if (details.reason === 'clean-exit') return
@@ -44,7 +53,6 @@ function createWindow(): void {
     if (crashes.filter((at) => now - at < 60_000).length <= MAX_RELOADS_PER_MINUTE) window.webContents.reload()
   })
 
-  // Links never open inside the app; allowed ones go to the system browser.
   window.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url)
     return { action: 'deny' }
@@ -64,7 +72,6 @@ function createWindow(): void {
 }
 
 if (!app.requestSingleInstanceLock()) {
-  // A second copy would fight over the same list files.
   app.quit()
 } else {
   app.on('second-instance', () => {
@@ -83,18 +90,15 @@ if (!app.requestSingleInstanceLock()) {
       appData: app.getPath('appData'),
       trash: (path) => shell.trashItem(path),
       userAgent: `MTGDreams/${app.getVersion()}`,
-      // The end-to-end tests point a development build at a local stand-in for these services.
       scryfallApi: (!app.isPackaged && process.env.MTG_DREAMS_SCRYFALL_API) || SERVICES.scryfallApi,
       mtgjsonApi: (!app.isPackaged && process.env.MTG_DREAMS_MTGJSON_API) || SERVICES.mtgjsonApi,
       priceGuideUrl: (!app.isPackaged && process.env.MTG_DREAMS_PRICE_GUIDE_URL) || SERVICES.priceGuideUrl
     })
     migrateFromOldName()
     applyTheme(getTheme())
-    // Read in the background: the window opens meanwhile, and price lookups wait for it.
     void loadScryfallCache()
     registerIpc()
     createWindow()
-    // Cardmarket prices: checked now and hourly; open windows reload prices when they change.
     startPriceGuide(() => void recordCurrentPrices().finally(notifyPricesUpdated))
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

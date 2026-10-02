@@ -1,20 +1,29 @@
 import { env } from './environment'
 
-// The one way the app talks to card-data services (Scryfall, MTGJSON, Cardmarket):
-// HTTPS with the app's User-Agent, and a timeout so a stalled connection can't
-// hold up a request queue forever.
+/**
+ * HTTP client for card-data services: sends the app User-Agent and enforces a timeout covering
+ * the body read, so stalled connections cannot block request queues.
+ *
+ * @packageDocumentation
+ */
 
+/** Default request timeout. */
 const TIMEOUT_MS = 30_000
 
+/** Parsed HTTP response. */
 export interface JsonResponse {
   status: number
-  /** The parsed body, or null when it isn't JSON (e.g. a proxy's error page). */
+  /** Parsed body; null if not JSON. */
   data: any
-  /** The server's Last-Modified header, if any. */
+  /** `Last-Modified` header. */
   lastModified: string | null
 }
 
-/** Sends one request; rejects only when the service can't be reached in time. */
+/**
+ * Sends a request and reads its body under one timeout. HTTP error statuses resolve normally.
+ * @param service - Service name for error messages.
+ * @throws Error with a user-facing message on network failure or timeout.
+ */
 async function request<T>(
   url: string,
   service: string,
@@ -29,7 +38,6 @@ async function request<T>(
       headers: { 'User-Agent': userAgent, Accept: 'application/json', ...init.headers },
       signal: AbortSignal.timeout(timeoutMs)
     })
-    // Reading the body is covered by the same timeout.
     return await read(res)
   } catch (error) {
     throw new Error(
@@ -40,7 +48,11 @@ async function request<T>(
   }
 }
 
-/** GETs (or, with a body, POSTs) JSON. */
+/**
+ * GETs JSON, or POSTs `body` as JSON when given.
+ * @param service - Service name for error messages.
+ * @throws Error on network failure or timeout.
+ */
 export function fetchJson(url: string, service: string, body?: unknown, timeoutMs = TIMEOUT_MS): Promise<JsonResponse> {
   const init: RequestInit =
     body === undefined
@@ -51,14 +63,12 @@ export function fetchJson(url: string, service: string, body?: unknown, timeoutM
     let data: any = null
     try {
       data = JSON.parse(text)
-    } catch {
-      // Not JSON: callers go by the status.
-    }
+    } catch {}
     return { status: res.status, data, lastModified: res.headers.get('last-modified') }
   })
 }
 
-/** When a file last changed, without downloading it (null when the server doesn't say). */
+/** @returns `Last-Modified` from a HEAD request; null if absent or non-2xx. */
 export function fetchLastModified(url: string, service: string): Promise<string | null> {
   return request(url, service, { method: 'HEAD' }, TIMEOUT_MS, async (res) =>
     res.ok ? res.headers.get('last-modified') : null

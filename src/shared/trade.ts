@@ -3,47 +3,59 @@ import { cardLines, countLines, nameKey, parseInventory } from './decklist'
 import { safeFileName } from './filenames'
 import type { InventoryItem, ListLine } from './types'
 
-// Trading between two players works by exchanging small trade files: each holds
-// the cards a player owns and what their wishlists still need, and nothing else
-// (no prices, decks or file paths). Matching happens locally on each side.
+/**
+ * Trade lists: snapshots of a player's haves and wants (no prices, decks or paths) exchanged as
+ * files; matching runs locally.
+ *
+ * @packageDocumentation
+ */
 
+/** `format` marker of trade files. */
 export const TRADE_FORMAT = 'mtg-dreams-trade'
-// Trade files made before the app was renamed (from MTG Dream) are still read.
+/** Legacy format markers still accepted (pre-rename "MTG Dream"). */
 const OLD_TRADE_FORMATS = ['mtg-dream-trade']
+/** Trade file extension. */
 export const TRADE_EXTENSION = 'mtgtrade'
+/** Max entries read per card array of an imported file. */
 const MAX_CARDS = 20_000
 
+/** Card name and quantity. */
 export interface TradeCard {
   name: string
   qty: number
 }
 
+/** Trade file contents (JSON). */
 export interface TradeSnapshot {
   format: typeof TRADE_FORMAT
   version: 1
-  /** The player's name, chosen when sharing (or when importing a plain list). */
+  /** Player name. */
   name: string
-  /** When the list was made (ISO date). */
+  /** ISO timestamp of creation. */
   createdAt: string
+  /** Owned cards. */
   haves: TradeCard[]
+  /** Cards needed by wishlists. */
   wants: TradeCard[]
-  /** 'list' when imported from a plain card list: the friend may not use MTG Dreams. */
+  /** `list`: imported from a plain list or CSV, not produced by MTG Dreams. */
   source: 'app' | 'list'
 }
 
+/** Own want with its source wishlists. */
 export interface Want extends TradeCard {
-  /** Your wishlists that need the card (only known for your own wants). */
+  /** Wishlists needing the card; empty for a friend's wants. */
   lists: string[]
 }
 
 const byName = (a: TradeCard, b: TradeCard) => a.name.localeCompare(b.name)
 
-// The five regular basic lands are never worth trading.
+/** Excludes the five regular basics. */
 const tradable = (name: string) => !genericBasic(name)
 
 /**
- * What your wishlists still need. One owned copy counts for every list, so the
- * need for a card is its largest shortfall on any single wishlist.
+ * @param inventory - Items by nameKey.
+ * @returns Wants sorted by name; each card's qty is its largest shortfall on any single wishlist
+ * (owned copies count toward every list).
  */
 export function computeWants(
   wishlists: Array<{ name: string; lines: ListLine[] }>,
@@ -74,7 +86,7 @@ export function computeWants(
   return [...wants.values()].sort(byName)
 }
 
-/** Your side of any trade: every card you own (basic lands aside), and what your wishlists still need. */
+/** @returns Own haves (all owned cards except regular basics) and wants, sorted by name. */
 export function myTradeSide(
   inventory: Map<string, InventoryItem>,
   wishlists: Array<{ name: string; lines: ListLine[] }>
@@ -86,7 +98,7 @@ export function myTradeSide(
   return { haves, wants: computeWants(wishlists, inventory) }
 }
 
-/** Your trade list, as shared with friends: your side of the trade, without which wishlists want what. */
+/** @returns Shareable snapshot; wants omit wishlist names. */
 export function buildSnapshot(
   name: string,
   inventory: Map<string, InventoryItem>,
@@ -105,11 +117,12 @@ export function buildSnapshot(
   }
 }
 
+/** @returns Pretty-printed JSON, newline-terminated. */
 export function serializeSnapshot(snapshot: TradeSnapshot): string {
   return `${JSON.stringify(snapshot, null, 2)}\n`
 }
 
-/** A chat-friendly version, readable by people and by MTG Dreams. */
+/** @returns Plain-text form with `// Have` and `// Want` sections, re-importable by {@link parseTradeText}. */
 export function snapshotToText(snapshot: TradeSnapshot): string {
   return [
     `// MTG Dreams trade list: ${snapshot.name} (${snapshot.createdAt.slice(0, 10)})`,
@@ -122,11 +135,12 @@ export function snapshotToText(snapshot: TradeSnapshot): string {
   ].join('\n')
 }
 
-/** A friend's name as used for their saved file. */
+/** @returns Sanitized file name for a friend's trade list, or `fallback` if empty. */
 export function tradeName(name: string, fallback = 'Friend'): string {
   return safeFileName(name) || fallback
 }
 
+/** Validates untrusted card entries: trims names (max 200 chars), drops invalid quantities, merges by nameKey, sorts. */
 function cleanCards(value: unknown): TradeCard[] {
   if (!Array.isArray(value)) return []
   const cards = new Map<string, TradeCard>()
@@ -142,7 +156,7 @@ function cleanCards(value: unknown): TradeCard[] {
   return [...cards.values()].sort(byName)
 }
 
-/** Splits one CSV line, honouring quotes ("a, b" and doubled "" inside quotes). */
+/** Splits a CSV line; supports quoted cells and `""` escapes. */
 function splitCsv(line: string): string[] {
   const cells: string[] = []
   let cell = ''
@@ -165,7 +179,7 @@ function splitCsv(line: string): string[] {
   return cells
 }
 
-/** Collection CSVs such as Moxfield's or Deckbox's (a "Count" and a "Name" column). */
+/** Parses a collection CSV (Moxfield, Deckbox) with count and name columns; null if not such a CSV. */
 function parseCsvCards(text: string): TradeCard[] | null {
   const rows = text.split(/\r?\n/).filter((row) => row.trim())
   if (rows.length < 2) return null
@@ -181,13 +195,15 @@ function parseCsvCards(text: string): TradeCard[] | null {
   )
 }
 
+/** Parses card lines into merged, sorted trade cards. */
 const listCards = (lines: string[]) =>
   [...parseInventory(lines.join('\n')).values()].map(({ name, qty }) => ({ name, qty })).sort(byName)
 
 /**
- * Reads a friend's trade list: an MTG Dreams trade file, its text version ("// Have"
- * and "// Want" sections), a collection CSV, or any plain card list, which counts
- * as cards they have. `fallbackName` names lists that don't carry a name.
+ * Parses a friend's trade list: JSON trade file, its text form, a collection CSV, or a plain card
+ * list (lines outside a `// Want` section are haves).
+ * @param fallbackName - Name used when the input carries none.
+ * @throws Error with a user-facing message if the input is invalid or has no cards.
  */
 export function parseTradeText(text: string, fallbackName: string, now = new Date()): TradeSnapshot {
   const trimmed = text.replace(/^﻿/, '').trim()
@@ -208,7 +224,6 @@ export function parseTradeText(text: string, fallbackName: string, now = new Dat
       createdAt: date,
       haves: cleanCards(data.haves),
       wants: cleanCards(data.wants),
-      // Saved imports of plain lists keep saying so.
       source: data.source === 'list' ? 'list' : 'app'
     }
   }
@@ -219,7 +234,6 @@ export function parseTradeText(text: string, fallbackName: string, now = new Dat
     return { ...base, name: tradeName(fallbackName), createdAt: now.toISOString(), haves: csv, wants: [], source: 'list' }
   }
 
-  // Plain text, optionally with "// Have" / "// Want" sections; anything else counts as haves.
   const sections = { haves: [] as string[], wants: [] as string[] }
   let section: keyof typeof sections = 'haves'
   for (const row of trimmed.split(/\r?\n/)) {
@@ -243,17 +257,20 @@ export function parseTradeText(text: string, fallbackName: string, now = new Dat
   }
 }
 
+/** Matched card between two trade sides. */
 export interface TradeMatch {
   name: string
-  /** Copies worth trading: what the giver has, up to what the receiver needs. */
+  /** Tradable copies: min of `available` and `needed`. */
   qty: number
+  /** Giver's copies. */
   available: number
+  /** Receiver's need. */
   needed: number
-  /** Your wishlists that want it (cards coming to you). */
+  /** Own wishlists wanting it; empty for cards going to the friend. */
   lists: string[]
 }
 
-/** Cards the friend has that you want, and cards you have that they want. */
+/** @returns `forMe`: friend's haves matching own wants. `forThem`: own haves matching friend's wants. */
 export function matchTrades(
   myHaves: TradeCard[],
   myWants: Want[],

@@ -3,6 +3,7 @@ import { prefersReducedMotion } from '../motion'
 import { Icon } from './Icon'
 
 const CONFETTI_COLORS = ['#e3a94f', '#5cc28a', '#7fb0ff', '#f0a58a', '#c4b5fd', '#f8f3d9']
+/** Confetti piece geometry, color and delay. */
 const PIECES = Array.from({ length: 18 }, (_, i) => ({
   angle: (360 / 18) * i + (i % 2 ? 8 : -8),
   distance: 56 + (i % 3) * 24,
@@ -10,15 +11,18 @@ const PIECES = Array.from({ length: 18 }, (_, i) => ({
   delay: (i % 4) * 25
 }))
 
-// Long enough for the confetti to land before the view switches to the deck.
+/** Delay before moving the list, letting the confetti land. */
 const CELEBRATION_MS = 750
 
+/** Props of {@link CompleteBanner}. */
 interface CompleteBannerProps {
+  /** Total copies in the list. */
   cards: number
+  /** Moves the wishlist to decks. */
   onMove: () => Promise<void>
 }
 
-/** Shown on a wishlist once every card is owned. */
+/** Banner on a fully owned wishlist offering to move it to decks, with confetti. */
 export function CompleteBanner({ cards, onMove }: CompleteBannerProps) {
   const [moving, setMoving] = useState(false)
 

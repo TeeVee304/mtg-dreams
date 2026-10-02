@@ -1,13 +1,11 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
+/** {@link ErrorBoundary} state. */
 interface ErrorBoundaryState {
   error: Error | null
 }
 
-/**
- * Catches errors while drawing the app, so one bad card or file shows a way out
- * instead of a blank window. Your data is on disk, so reloading loses nothing.
- */
+/** Catches render errors and offers a reload instead of a blank window; data is already persisted. */
 export class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryState> {
   state: ErrorBoundaryState = { error: null }
 

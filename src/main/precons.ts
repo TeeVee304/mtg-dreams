@@ -4,17 +4,23 @@ import { readCacheFile, writeCacheFile } from './cacheFiles'
 import { env } from './environment'
 import { fetchJson } from './http'
 
-// Official decklists come from MTGJSON (Scryfall has no decklist endpoint).
-// Both the deck index and individual decks are cached in userData.
+/**
+ * Official precon decklists from MTGJSON, cached under `userData/precons/`. Stale cache is served
+ * when offline.
+ *
+ * @packageDocumentation
+ */
 
+/** Deck index cache TTL. */
 const INDEX_TTL_MS = 24 * 60 * 60 * 1000
-// Upcoming decks can still be corrected, so decklists are re-checked weekly.
+/** Decklist cache TTL; weekly, since upcoming decklists may be corrected. */
 const DECK_TTL_MS = 7 * 24 * 60 * 60 * 1000
+/** Allowed MTGJSON deck file names (also guards URL and path construction). */
 const FILE_NAME_RE = /^[A-Za-z0-9_-]+$/
-// Bump when the cached deck format changes so old entries are ignored.
+/** Deck cache schema version; bump to invalidate cached decks. */
 const DECK_CACHE_VERSION = 3
 
-/** Products that only exist on MTG Arena, MTGO or old PC games. */
+/** MTGJSON deck types of digital-only products (excluded). */
 const DIGITAL_TYPES = new Set([
   'Arena Starter Deck',
   'Arena Starter Kit',
@@ -28,6 +34,7 @@ const DIGITAL_TYPES = new Set([
   'Duel Of The Planeswalkers Deck'
 ])
 
+/** MTGJSON board keys mapped to {@link PreconCard} boards. */
 const BOARDS: Array<[string, PreconCard['board']]> = [
   ['commander', 'commander'],
   ['mainBoard', 'main'],
@@ -36,24 +43,28 @@ const BOARDS: Array<[string, PreconCard['board']]> = [
   ['schemes', 'other']
 ]
 
-// Cached in userData/precons/.
+/** Reads a file under `precons/` in the cache. */
 const readCache = <T>(file: string) => readCacheFile<T>(`precons/${file}`)
+/** Writes a file under `precons/` in the cache. */
 const writeCache = (file: string, data: unknown) => writeCacheFile(`precons/${file}`, data)
 
+/** @throws Error on HTTP error status or non-JSON body. */
 async function getJson(url: string): Promise<any> {
   const res = await fetchJson(url, 'MTGJSON')
   if (res.status >= 400 || res.data === null) throw new Error(`MTGJSON responded with HTTP ${res.status}.`)
   return res.data
 }
 
+/** Cache envelope. */
 interface Cached<T> {
   fetchedAt: number
   data: T
 }
 
+/** In-memory deck index cache. */
 let index: Cached<PreconSummary[]> | null = null
 
-/** Paper precons, newest first. */
+/** @returns Paper precons, newest first. Cached for {@link INDEX_TTL_MS}. */
 export async function getPreconIndex(): Promise<PreconSummary[]> {
   index ??= await readCache<Cached<PreconSummary[]>>('index.json')
   if (index && Date.now() - index.fetchedAt < INDEX_TTL_MS) return index.data
@@ -73,13 +84,13 @@ export async function getPreconIndex(): Promise<PreconSummary[]> {
     void writeCache('index.json', index)
     return decks
   } catch (error) {
-    if (index) return index.data // stale, but fine offline
+    if (index) return index.data
     throw error
   }
 }
 
+/** Maps an MTGJSON card; null for non-front faces of multi-faced cards. */
 function toCard(card: any, board: PreconCard['board']): PreconCard | null {
-  // Multi-faced cards may be listed once per face; keep the front.
   if (card.side && card.side !== 'a') return null
   return {
     qty: card.count ?? 1,
@@ -94,6 +105,10 @@ function toCard(card: any, board: PreconCard['board']): PreconCard | null {
   }
 }
 
+/**
+ * @param fileName - MTGJSON deck file name.
+ * @throws Error if `fileName` is invalid, or the fetch fails without a cached copy.
+ */
 export async function getPrecon(fileName: string): Promise<PreconDeck> {
   if (!FILE_NAME_RE.test(fileName)) throw new Error('Invalid deck name.')
   const cacheFile = `deck-v${DECK_CACHE_VERSION}-${fileName}.json`

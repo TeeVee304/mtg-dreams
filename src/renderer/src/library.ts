@@ -14,99 +14,111 @@ import { addCopies, itemFromCopies, withTotal, type Version } from '../../shared
 import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '../../shared/types'
 import { cardCount, cleanError } from './format'
 
-/** A deck or a wishlist, backed by one text file. */
+/** Deck or wishlist backed by one text file. */
 export interface CardList {
   kind: ListKind
   name: string
   lines: ListLine[]
-  /** Normalised file contents, used to detect external edits. */
+  /** Normalized file text, compared to detect changes. */
   text: string
 }
 
-/** Identifies a list; a deck and a wishlist may share a name. */
+/** List identity; names are unique per kind only. */
 export interface ListRef {
   kind: ListKind
   name: string
 }
 
+/** List identity equality. */
 export const sameList = (a: ListRef, b: ListRef) => a.kind === b.kind && a.name === b.name
 
+/** Library state. */
 export interface LibraryState {
   status: 'loading' | 'ready' | 'error'
+  /** Initial load error. */
   error?: string
   dataDir: string
   lists: CardList[]
+  /** Inventory by nameKey. */
   inventory: Map<string, InventoryItem>
-  /** Friends' trade lists, named after the friend (and their file). */
+  /** Friends' trade lists; `name` equals the file name. */
   trades: TradeSnapshot[]
 }
 
+/** Card line fields for additions. */
 export type NewCard = Omit<CardLine, 'id' | 'kind'>
 
-/** What one edit changed: a deck or wishlist, or the inventory. */
+/** Edit target: a list or the inventory. */
 export type ChangeTarget = { type: 'list'; list: ListRef } | { type: 'inventory' }
 
+/** Target equality. */
 const sameTarget = (a: ChangeTarget, b: ChangeTarget) =>
   a.type === 'inventory' ? b.type === 'inventory' : b.type === 'list' && sameList(a.list, b.list)
 
-/** A save refused because the file changed outside the app (e.g. synced from another PC). */
+/** Save rejected with `CONFLICT_ERROR` (file changed externally). */
 export interface Conflict {
   target: ChangeTarget
-  /** The list's name in quotes, or "Your inventory". */
+  /** Display name: quoted list name or `Your inventory`. */
   name: string
 }
 
-/** Describes an edit for the undo history. `announce`: offer Undo in a toast (removals, bulk edits). */
+/** Undo history metadata for an edit. */
 interface Change {
+  /** Undo label. */
   label: string
+  /** Offer Undo in a toast; never merged with adjacent edits. */
   announce?: boolean
 }
 
-/** One step of the undo history. */
+/** Undo history step. */
 interface HistoryEntry {
   id: number
   label: string
   target: ChangeTarget
-  /** What the target held before the edit. */
+  /** Target state before the edit. */
   before: ListLine[] | Map<string, InventoryItem>
-  /** Its saved text right after. Undo only applies while it still holds that. */
+  /** Target text after the edit; undo applies only while the current text matches. */
   after: string
+  /** Epoch ms of the last merged edit. */
   at: number
   announced: boolean
 }
 
+/** Max undo steps. */
 const MAX_HISTORY = 50
-// Edits to the same list this close together (e.g. clicking + four times) undo as one.
+/** Unannounced edits to the same target within this window merge into one undo step. */
 const MERGE_WITHIN_MS = 1000
 
+/** Undo outcome message. */
 export interface UndoResult {
   message: string
   kind: 'info' | 'error'
 }
 
+/** {@link useLibrary} callbacks. */
 export interface LibraryCallbacks {
+  /** Reports a user-facing error. */
   onError: (message: string) => void
-  /** An edit worth announcing was made; `undo` reverts it. */
+  /** Announced edit made; `undo` reverts it if still latest. */
   onUndoable: (label: string, undo: () => UndoResult) => void
 }
 
+/** Case-insensitive name comparator. */
 const byName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
 
-/** Reads the saved trade lists, skipping any that can't be read. The file name names the friend. */
+/** Parses trade files (name taken from the file), skipping invalid ones; sorted by name. */
 function toTrades(files: ListFile[]): TradeSnapshot[] {
   const trades: TradeSnapshot[] = []
   for (const file of files) {
     try {
       trades.push({ ...parseTradeText(file.text, file.name), name: file.name })
-    } catch {
-      // Not a trade list (e.g. a stray file in the folder).
-    }
+    } catch {}
   }
   return trades.sort(byName)
 }
 
-/** Adds a card to lines, merging into an identical line (same name, version and finish). */
+/** @returns Lines with `card` appended, or summed into a line with the same name, printing and finish. */
 function mergeCard(lines: ListLine[], card: NewCard): ListLine[] {
   const key = nameKey(card.name)
   const index = lines.findIndex(
@@ -121,15 +133,16 @@ function mergeCard(lines: ListLine[], card: NewCard): ListLine[] {
   return lines.map((line, i) => (i === index && line.kind === 'card' ? { ...line, qty: line.qty + card.qty } : line))
 }
 
+/** Parses a list file; `text` is normalized via re-serialization. */
 function toCardList(kind: ListKind, { name, text }: ListFile): CardList {
   const lines = parseList(text)
   return { kind, name, lines, text: serializeList(lines) }
 }
 
 /**
- * All deck, wishlist and inventory state plus the mutations on it. Every
- * change is applied optimistically and written straight to disk. Edits to
- * lists and the inventory can be undone, most recent first.
+ * Library state hook. Mutations apply optimistically and write immediately; list and inventory edits
+ * are undoable (LIFO). Save conflicts surface as `conflict`.
+ * @returns `state`, `actions` and the pending `conflict`.
  */
 export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
   const [state, setState] = useState<LibraryState>({
@@ -139,28 +152,34 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     inventory: new Map(),
     trades: []
   })
-  // Mutations read from the ref so rapid successive edits never see stale state.
+  /** Latest state; mutations read it to avoid stale closures across rapid edits. */
   const ref = useRef(state)
+  /** In-flight writes; reloads are skipped while nonzero. */
   const pendingWrites = useRef(0)
-  /** Files reported as unreadable, so the same ones aren't reported on every reload. */
+  /** Last reported unreadable set, to avoid repeat reports. */
   const reportedUnreadable = useRef('')
+  /** Undo stack. */
   const history = useRef<HistoryEntry[]>([])
   const nextHistoryId = useRef(0)
   const [conflict, setConflict] = useState<Conflict | null>(null)
+  /** Synchronous mirror of `conflict`. */
   const conflictRef = useRef<Conflict | null>(null)
-  // Set below; lets toasts announced while saving call the latest undo.
+  /** Latest `undo`, for toast callbacks created earlier. */
   const undoRef = useRef<(id?: number) => UndoResult>(() => ({ message: 'Nothing to undo', kind: 'info' }))
 
+  /** Sets state and {@link ref}. */
   const commit = useCallback((next: LibraryState) => {
     ref.current = next
     setState(next)
   }, [])
 
+  /** Sets the conflict state and ref. */
   const showConflict = useCallback((next: Conflict | null) => {
     conflictRef.current = next
     setConflict(next)
   }, [])
 
+  /** Counts a pending write; reports errors, raising only the first conflict. */
   const track = useCallback(
     (write: Promise<unknown>, target: ChangeTarget) => {
       pendingWrites.current += 1
@@ -170,7 +189,6 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
           if (!message.startsWith(CONFLICT_ERROR)) {
             onError(`Could not save: ${message}`)
           } else if (!conflictRef.current) {
-            // Later saves of the same edits are refused too; one question is enough.
             showConflict({ target, name: target.type === 'list' ? `“${target.list.name}”` : 'Your inventory' })
           }
         })
@@ -181,13 +199,13 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     [onError, showConflict]
   )
 
-  /** The saved text of a list or the inventory, as the app holds it now; null if it's gone. */
+  /** @returns Current serialized text of the target; null if the list no longer exists. */
   const currentText = useCallback((target: ChangeTarget): string | null => {
     if (target.type === 'inventory') return serializeInventory(ref.current.inventory)
     return ref.current.lists.find((list) => sameList(list, target.list))?.text ?? null
   }, [])
 
-  /** Adds an edit to the undo history, merging quick repeats on the same list. */
+  /** Pushes an undo step, merging into the top step per {@link MERGE_WITHIN_MS}; announces if requested. */
   const record = useCallback(
     (target: ChangeTarget, before: HistoryEntry['before'], after: string, change: Change) => {
       const now = Date.now()
@@ -206,10 +224,12 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     [onUndoable]
   )
 
-  /** Re-reads the data folder, keeping unchanged lists as-is. Skipped while writes are pending. */
+  /**
+   * Reloads the data directory, preserving unchanged objects. Skipped while writes are pending or a
+   * conflict is open, unless `force`. Reports newly unreadable files.
+   */
   const reload = useCallback(
     async (force = false) => {
-      // While a conflict is being decided, the app's version must not be replaced unasked.
       if (!force && (pendingWrites.current > 0 || conflictRef.current)) return
       try {
         const data = await window.api.loadData()
@@ -252,7 +272,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     [commit, onError]
   )
 
-  /** Saves a list's new lines; `change` adds the edit to the undo history (undoing passes none). */
+  /** Commits and writes a list's lines if its text changed; records undo if `change` is given. */
   const saveLines = useCallback(
     (target: ListRef, lines: ListLine[], change?: Change) => {
       const list = ref.current.lists.find((l) => sameList(l, target))
@@ -270,6 +290,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     [commit, record, track]
   )
 
+  /** Applies `update` to a list's lines and saves. */
   const updateLines = useCallback(
     (target: ListRef, update: (lines: ListLine[]) => ListLine[], change: Change) => {
       const list = ref.current.lists.find((l) => sameList(l, target))
@@ -278,6 +299,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     [saveLines]
   )
 
+  /** Commits and writes the inventory if its text changed; records undo if `change` is given. */
   const saveInventory = useCallback(
     (inventory: Map<string, InventoryItem>, change?: Change) => {
       const before = ref.current.inventory
@@ -291,8 +313,8 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
   )
 
   /**
-   * Reverts the latest edit, or with `id` that edit only while it's still the latest
-   * (an Undo button on its toast). Edits whose list changed since are skipped.
+   * Reverts the latest applicable edit, skipping steps whose target changed since.
+   * @param id - Revert only this step, and only if it is the latest (toast Undo).
    */
   const undo = useCallback(
     (id?: number): UndoResult => {
@@ -305,7 +327,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
       for (let entry = entries.pop(); entry; entry = entries.pop()) {
         if (currentText(entry.target) !== entry.after) {
           if (id !== undefined) return { message: 'That change can no longer be undone.', kind: 'error' }
-          continue // changed since, e.g. edited outside the app
+          continue
         }
         if (entry.target.type === 'list') saveLines(entry.target.list, entry.before as ListLine[])
         else saveInventory(entry.before as Map<string, InventoryItem>)
@@ -317,7 +339,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
   )
   undoRef.current = undo
 
-  /** Points history entries for a list at its new name or section, or drops them (deleted). */
+  /** Re-targets a list's undo steps after rename/move; drops them if `to` is null (deleted). */
   const retarget = useCallback((from: ListRef, to: ListRef | null) => {
     history.current = history.current.flatMap((entry) => {
       if (entry.target.type !== 'list' || !sameList(entry.target.list, from)) return [entry]
@@ -325,7 +347,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     })
   }, [])
 
-  /** Answers a conflict: keep the app's version (overwriting the other), or load the other one. */
+  /** Resolves the conflict: force-write the app's text if `keepMine`, else force-reload from disk. */
   const resolveConflict = useCallback(
     async (keepMine: boolean) => {
       const current = conflictRef.current
@@ -360,6 +382,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         updateLines(target, (lines) => cards.reduce(mergeCard, lines), { label })
       },
 
+      /** Patches a card line. */
       updateCard(target: ListRef, id: string, patch: Partial<NewCard>) {
         updateLines(
           target,
@@ -368,6 +391,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         )
       },
 
+      /** Removes a line (and the commander if it was the last copy); announced. */
       removeCard(target: ListRef, id: string) {
         updateLines(target, (lines) => withoutMissingCommander(lines.filter((line) => line.id !== id)), {
           label: `Removed ${cardName(target, id)}`,
@@ -375,6 +399,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         })
       },
 
+      /** Removes lines (and the commander if no copy remains); announced. */
       removeCards(target: ListRef, ids: string[]) {
         updateLines(target, (lines) => withoutMissingCommander(lines.filter((line) => !ids.includes(line.id))), {
           label: `Removed ${cardName(target, ids[0])}`,
@@ -382,10 +407,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         })
       },
 
-      /**
-       * New total for a bundled basic land: its lines (any versions) become one
-       * plain line with that quantity, where the first of them was.
-       */
+      /** Collapses a bundled basic's lines into one unversioned non-foil line of `qty`, at the first line's position. */
       setBundledQty(target: ListRef, ids: string[], qty: number) {
         const [keep] = ids
         updateLines(target, (lines) =>
@@ -400,22 +422,24 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         )
       },
 
-      /** Sets the deck format (stored as a "// Format: ..." line); null for no format. */
+      /** Sets or clears (`null`) the format header. */
       setListFormat(target: ListRef, formatId: string | null) {
         updateLines(target, (lines) => withFormat(lines, formatId), { label: 'Changed the format' })
       },
 
-      /** Sets the commander (stored as a "// Commander: ..." line); null for none. */
+      /** Sets or clears (`null`) the commander header. */
       setListCommander(target: ListRef, name: string | null) {
         updateLines(target, (lines) => withCommander(lines, name), {
           label: name ? `Made ${name} the commander` : 'Removed the commander'
         })
       },
 
+      /** Replaces a list's content from raw text; announced. */
       replaceListText(target: ListRef, text: string) {
         saveLines(target, parseList(text), { label: `Edited the text of ${target.name}`, announce: true })
       },
 
+      /** Creates a list file. @throws If the name is invalid or taken. */
       async createList(kind: ListKind, rawName: string, text: string): Promise<ListRef> {
         const list = toCardList(kind, { name: rawName.trim(), text })
         await window.api.createList(kind, list.name, list.text)
@@ -423,6 +447,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         return { kind, name: list.name }
       },
 
+      /** Renames a list and re-targets its undo steps. @throws If the name is invalid or taken. */
       async renameList(target: ListRef, rawTo: string): Promise<ListRef> {
         const to = rawTo.trim()
         await window.api.renameList(target.kind, target.name, to)
@@ -434,6 +459,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         return { kind: target.kind, name: to }
       },
 
+      /** Moves a list to another kind. @returns New ref; name may be suffixed. */
       async moveList(target: ListRef, to: ListKind): Promise<ListRef> {
         const name = await window.api.moveList(target.kind, to, target.name)
         retarget(target, { kind: to, name })
@@ -446,16 +472,14 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         return { kind: to, name }
       },
 
+      /** Moves a list to the Recycle Bin and drops its undo steps. */
       async deleteList(target: ListRef): Promise<void> {
         await window.api.deleteList(target.kind, target.name)
         retarget(target, null)
         commit({ ...ref.current, lists: ref.current.lists.filter((list) => !sameList(list, target)) })
       },
 
-      /**
-       * Sets how many copies of a card you own in all; 0 removes it. Added copies are
-       * of `version` (e.g. the version a ticked wishlist line asks for), else any version.
-       */
+      /** Sets total owned copies (see {@link withTotal}); 0 removes the item (announced). */
       setOwned(name: string, qty: number, version?: Version) {
         const inventory = new Map(ref.current.inventory)
         const key = nameKey(name)
@@ -473,9 +497,8 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
       },
 
       /**
-       * Adds owned copies in bulk, in the versions given (a precon's exact printings),
-       * else as any version. `onlyMissing` tops each card up to the given quantity
-       * instead of adding it (importing a deck you already own part of).
+       * Adds owned copies in bulk with optional versions.
+       * @param onlyMissing - Raise each card's total to the summed `qty` instead of adding (unversioned).
        */
       addOwned(items: Array<{ name: string; qty: number } & Partial<Version>>, onlyMissing = false) {
         const inventory = new Map(ref.current.inventory)
@@ -503,7 +526,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         saveInventory(inventory, { label: `Added ${cardCount(cards)} to your inventory` })
       },
 
-      /** Replaces a card's copies by version (the inventory's versions dialog). */
+      /** Replaces a card's copies; empty removes the item. */
       setCopies(name: string, copies: OwnedCopy[]) {
         const inventory = new Map(ref.current.inventory)
         const key = nameKey(name)
@@ -514,7 +537,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         saveInventory(inventory, { label: `Changed the versions of ${existing?.name ?? name} you own` })
       },
 
-      /** Saves a friend's trade list, replacing theirs if one with that name exists. */
+      /** Saves a trade list, replacing one with the same name (case-insensitive). @returns Saved name. */
       async saveTrade(snapshot: TradeSnapshot): Promise<string> {
         const existing = ref.current.trades.find((t) => t.name.toLowerCase() === snapshot.name.toLowerCase())
         const saved = { ...snapshot, name: existing?.name ?? snapshot.name }
@@ -526,9 +549,13 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         return saved.name
       },
 
+      /**
+       * Renames a trade list; the name is sanitized for file use.
+       * @returns New name.
+       * @throws Error if empty after sanitization or taken.
+       */
       async renameTrade(from: string, rawTo: string): Promise<string> {
         const trade = ref.current.trades.find((t) => t.name === from)
-        // Friends' names double as file names, so characters Windows won't allow are dropped.
         const to = tradeName(rawTo, '')
         if (!to) throw new Error('Please enter a name.')
         if (!trade || to === from) return from
@@ -542,15 +569,18 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         return to
       },
 
+      /** Moves a trade list to the Recycle Bin. */
       async deleteTrade(name: string): Promise<void> {
         await window.api.deleteTrade(name)
         commit({ ...ref.current, trades: ref.current.trades.filter((t) => t.name !== name) })
       },
 
+      /** Replaces the inventory from raw text; announced. */
       replaceInventoryText(text: string) {
         saveInventory(parseInventory(text), { label: 'Edited the inventory text', announce: true })
       },
 
+      /** Prompts for a data directory; on change, clears undo and reloads. @returns Whether it changed. */
       async chooseDataDir(): Promise<boolean> {
         const dir = await window.api.chooseDataDir()
         if (!dir) return false
@@ -562,7 +592,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     [commit, reload, resolveConflict, retarget, saveInventory, saveLines, undo, updateLines]
   )
 
-  /** A card's name in a list, for undo labels. */
+  /** @returns Card name of a line for undo labels; `a card` if not found. */
   function cardName(target: ListRef, id: string): string {
     const list = ref.current.lists.find((l) => sameList(l, target))
     const line = list?.lines.find((l) => l.id === id)
@@ -572,4 +602,5 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
   return { state, actions, conflict }
 }
 
+/** Mutations returned by {@link useLibrary}. */
 export type LibraryActions = ReturnType<typeof useLibrary>['actions']

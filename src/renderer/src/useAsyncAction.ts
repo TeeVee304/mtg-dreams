@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { cleanError } from './format'
 
 /**
- * For buttons that start something slow (saving, importing, creating): `busy`
- * while it runs, and its error kept for display so the dialog can stay open.
+ * Runs an async action with busy state and captured error, ignoring calls while busy.
+ * @returns `error` (cleaned message or null), `busy`, and `run`.
  */
 export function useAsyncAction() {
   const [error, setError] = useState<string | null>(null)

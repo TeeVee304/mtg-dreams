@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
 
+/** Props of {@link Stepper}. */
 interface StepperProps {
   value: number
   onChange: (value: number) => void
+  /** Accessible label. */
   label: string
   min?: number
   max?: number
-  /** Tooltip on "+" once the maximum is reached, e.g. "Commander allows 1 copy of Sol Ring". */
+  /** Tooltip on `+` at the maximum. */
   maxTitle?: string
 }
 
+/** Numeric input with −/+ buttons bounded by `min`/`max`; a value already above `max` may be kept but not raised. */
 export function Stepper({ value, onChange, label, min = 0, max = 9999, maxTitle }: StepperProps) {
   const [draft, setDraft] = useState(String(value))
   useEffect(() => setDraft(String(value)), [value])

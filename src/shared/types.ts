@@ -1,29 +1,32 @@
-/** Decks are built from cards you own; wishlists are cards you want. */
+/** List category: decks draw from the inventory; wishlists track cards to acquire. */
 export type ListKind = 'deck' | 'wishlist'
 
-/** A card line in a list file, e.g. `4 Lightning Bolt <141> [A25] (F)`. */
+/** Parsed card line of a list file, e.g. `4 Lightning Bolt <141> [A25] (F)`. */
 export interface CardLine {
   kind: 'card'
+  /** Line identifier, unique within its list. */
   id: string
   qty: number
   name: string
-  /** Lower-case Scryfall set code. Absent means "any version, priced at the cheapest". */
+  /** Lower-case Scryfall set code. Absent: any printing, priced at the cheapest. */
   set?: string
   /** Goldfish-style `<...>` tag; normally a collector number within `set`. */
   collector?: string
   foil: boolean
 }
 
-/** Any other line (blank, comment, section header...). Kept verbatim so files round-trip. */
+/** Non-card line (blank, comment, section header). Stored verbatim for lossless round-trips. */
 export interface TextLine {
   kind: 'text'
+  /** Line identifier, unique within its list. */
   id: string
   text: string
 }
 
+/** Any line of a list file. */
 export type ListLine = CardLine | TextLine
 
-/** Owned copies of a card in one version and finish; without a set, "any version". */
+/** Owned copies of one printing and finish. No `set`: unspecified printing. */
 export interface OwnedCopy {
   qty: number
   set?: string
@@ -31,115 +34,128 @@ export interface OwnedCopy {
   foil: boolean
 }
 
+/** Inventory entry for one card name. */
 export interface InventoryItem {
   name: string
-  /** Copies owned in all. */
+  /** Total copies owned. */
   qty: number
-  /** The same copies by version and finish; their quantities add up to `qty`. */
+  /** Copies split by printing and finish; quantities sum to `qty`. */
   copies: OwnedCopy[]
 }
 
 /**
- * Which Cardmarket price a card is valued at: the price trend (what copies typically
- * sell for), the lowest current listing, or the 30-day average sale price.
+ * Cardmarket price used for valuation: `trend` (price trend), `low` (lowest listing)
+ * or `avg30` (30-day average sale).
  */
 export type PriceBasis = 'trend' | 'low' | 'avg30'
 
-/** One finish's prices in EUR. Any may be missing; the trend is the one always tried last. */
+/** EUR prices of one finish by basis. Any may be missing; `trend` is the final fallback. */
 export type Prices = Partial<Record<PriceBasis, number>>
 
 /** Compact subset of a Scryfall card object for one printing. */
 export interface Printing {
+  /** Scryfall card id. */
   id: string
   name: string
+  /** Lower-case set code. */
   set: string
   setName: string
   collectorNumber: string
   rarity: string
+  /** ISO release date (`YYYY-MM-DD`). */
   releasedAt: string
+  /** Scryfall language code. */
   lang: string
+  /** Scryfall finishes: `nonfoil`, `foil`, `etched`. */
   finishes: string[]
-  /** Cardmarket's product number for this printing (null when Cardmarket doesn't list it). */
+  /** Cardmarket product id; null if unlisted on Cardmarket. */
   cardmarketId: number | null
-  /** Cardmarket prices in EUR, non-foil and foil. */
+  /** Non-foil EUR prices. */
   price: Prices
+  /** Foil EUR prices. */
   priceFoil: Prices
   imageSmall: string | null
   imageNormal: string | null
   cardmarketUrl: string | null
-  /** Human-readable variant tags: "Borderless", "Showcase", "JA", ... */
+  /** Display variant tags, e.g. "Borderless", "Showcase", "JA". */
   labels: string[]
-  /**
-   * Name printed on this version when it differs from the card's official name, e.g.
-   * "Franklin's Finality" on the Marvel reprint of Annie Joins Up.
-   */
+  /** Printed name when it differs from the oracle name (e.g. Universes Within / Marvel reprints). */
   flavorName?: string
-  /** False for gold-bordered / memorabilia printings, which are never picked as "cheapest". */
+  /** False for gold-bordered and memorabilia printings; never selected as cheapest. */
   autoEligible: boolean
 }
 
-/** An official preconstructed product (Commander deck, Challenger deck, Secret Lair...). */
+/** Index entry of an official preconstructed product (Commander, Challenger, Secret Lair...). */
 export interface PreconSummary {
   /** MTGJSON deck file name, e.g. "CallingAllAngels_FDC". */
   fileName: string
   name: string
-  /** Set code, upper-case. */
+  /** Upper-case set code. */
   code: string
+  /** MTGJSON deck type, e.g. "Commander Deck". */
   type: string
+  /** ISO release date. */
   releaseDate: string
 }
 
+/** One card entry of a precon decklist. */
 export interface PreconCard {
   qty: number
   name: string
-  /** Lower-case set code of the printing in the deck. */
+  /** Lower-case set code of the included printing. */
   set: string
   collector: string
   foil: boolean
+  /** Basic land. */
   basic: boolean
-  /** Name printed on this version when it differs from the official name. */
+  /** Printed name when it differs from the oracle name. */
   flavorName?: string
   board: 'commander' | 'main' | 'side' | 'other'
   scryfallId: string | null
 }
 
+/** Full precon decklist. */
 export interface PreconDeck extends PreconSummary {
   cards: PreconCard[]
 }
 
-/** Card-level (oracle) data: the same for every printing of a card. */
+/** Oracle-level card data, shared by all printings. */
 export interface CardInfo {
   name: string
+  /** Color letters (`W`, `U`, `B`, `R`, `G`). */
   colors: string[]
   colorIdentity: string[]
   typeLine: string
   manaValue: number
-  /** Rarity of Scryfall's default printing, for places without a specific printing (the inventory). */
+  /** Rarity of Scryfall's default printing; used where no printing is specified. */
   rarity: string
-  /** Scryfall legality per format id: "legal", "not_legal", "banned" or "restricted". */
+  /** Legality by format id: `legal`, `not_legal`, `banned` or `restricted`. */
   legalities: Record<string, string>
-  /** Deck-building exception from rules text: "any" (Relentless Rats) or a number (Seven Dwarves). */
+  /** Copy-limit override from rules text: `any` (Relentless Rats) or a number (Seven Dwarves). */
   deckLimit?: 'any' | number
-  /** Rules text lets this noncreature card be a commander ("can be your commander", Grist). */
+  /** Rules text allows this noncreature card as commander. */
   canBeCommander?: true
 }
 
+/** Response of a printings lookup. */
 export interface PrintingsResult {
-  /** Canonical Scryfall name (may differ from the requested name after a fuzzy match). */
+  /** Canonical Scryfall name; may differ from the query after fuzzy matching. */
   name: string
   card?: CardInfo
   printings: Printing[]
+  /** Epoch ms of the Scryfall fetch. */
   fetchedAt: number
-  /** When the prices were published (Cardmarket's price guide); absent when only Scryfall's are known. */
+  /** Epoch ms the Cardmarket price guide was published; absent if only Scryfall prices are known. */
   pricedAt?: number
+  /** Scryfall has no card by this name. */
   notFound?: boolean
-  /** Set when a refresh failed and cached data is being served instead. */
+  /** Refresh error; cached data is served instead. */
   staleError?: string
   /**
-   * Only the newest printings were fetched (basic lands have hundreds). false
-   * means every printing was fetched on request and future refreshes keep it that way.
+   * `true`: only the newest page of printings was fetched (basic lands).
+   * `false`: all printings were requested; later refreshes fetch all too.
    */
   partial?: boolean
-  /** How many paper printings Scryfall has in total (when `partial`). */
+  /** Total paper printings on Scryfall, when `partial`. */
   totalPrintings?: number
 }

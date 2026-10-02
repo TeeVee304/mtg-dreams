@@ -7,13 +7,14 @@ import { useSettings } from '../settings'
 import { Stepper } from './Stepper'
 import { AUTO, VersionPicker } from './VersionPicker'
 
+/** Requests a card's printings at high priority and re-renders on store changes. @returns Store entry. */
 export function usePrintingsFor(name: string) {
   useEffect(() => requestPrintings(name, { priority: 'high' }), [name])
   usePrintingsVersion()
   return getPrintingsEntry(name)
 }
 
-/** Loading / error / not-found states around the picker. */
+/** Renders loading, error and not-found states, else `children` with the printings. */
 export function PickerBody({ name, children }: { name: string; children: (printings: Printing[]) => ReactNode }) {
   const entry = getPrintingsEntry(name)
   const data = entry?.data
@@ -46,17 +47,25 @@ export function PickerBody({ name, children }: { name: string; children: (printi
   )
 }
 
+/** Props of {@link AddCardPanel}. */
 interface AddCardPanelProps {
   name: string
   onAdd: (card: NewCard) => void
   onCancel: () => void
+  /** Submit button label. */
   actionLabel?: string
-  /** Most copies that can be added: the format's limit, and for decks the copies you own. */
+  /** Max addable copies (format and, for decks, ownership). */
   maxQty?: number
+  /** Tooltip when `maxQty` is reached. */
   maxTitle?: string
+  /** Extra note shown in the panel. */
   note?: string
 }
 
+/**
+ * Version, finish and quantity picker for adding a card. Preselects the cheapest printing matching a
+ * typed flavor name; quantity is clamped to `maxQty` as it may shrink once card data loads.
+ */
 export function AddCardPanel(props: AddCardPanelProps) {
   const { name, onAdd, onCancel, actionLabel = 'Add to list', maxQty, maxTitle, note } = props
   const entry = usePrintingsFor(name)
@@ -66,14 +75,12 @@ export function AddCardPanel(props: AddCardPanelProps) {
   const [choice, setChoice] = useState<string | null>(null)
   const panelRef = useRef<HTMLElement>(null)
   const data = entry?.data
-  // Typed the name printed on particular versions (e.g. "Franklin's Finality")? Start with the cheapest of them.
   const printedAs = sortPrintings(
     data?.printings.filter((p) => p.flavorName?.toLowerCase() === name.trim().toLowerCase()) ?? [],
     foil,
     priceBasis
   )[0]
   const selected = choice ?? printedAs?.id ?? AUTO
-  // The cap can shrink once card data loads (e.g. a restricted card), so clamp here.
   const full = maxQty !== undefined && maxQty < 1
   const count = maxQty !== undefined ? Math.max(1, Math.min(qty, maxQty)) : qty
   const ready = !!data && !data.notFound && data.printings.length > 0 && !full

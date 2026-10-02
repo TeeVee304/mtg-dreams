@@ -1,13 +1,19 @@
-// Deck, wishlist and friend names double as Windows file names, so they follow
-// Windows' rules. Kept in one place: the main process validates names with them,
-// and the app uses them to turn any text (a precon's name, a friend's) into a valid name.
+/**
+ * Windows file-name rules for list and trade names, shared by main-process validation
+ * and renderer sanitization.
+ *
+ * @packageDocumentation
+ */
 
+/** Max name length, in characters. */
 export const MAX_NAME_LENGTH = 100
 
+/** Characters invalid in Windows file names. */
 const FORBIDDEN = /[<>:"/\\|?*\u0000-\u001f]/
+/** Reserved Windows device names. */
 const RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/i
 
-/** Why a name can't be used as a file name, or null if it can. */
+/** @returns User-facing reason `name` is an invalid file name; null if valid. */
 export function fileNameProblem(name: string): string | null {
   if (!name) return 'Name cannot be empty.'
   if (name.length > MAX_NAME_LENGTH) return `Name is too long (max ${MAX_NAME_LENGTH} characters).`
@@ -18,8 +24,9 @@ export function fileNameProblem(name: string): string | null {
 }
 
 /**
- * Makes text safe to use as a file name ("A: B" becomes "A - B"); '' if nothing is
- * left. Leaves room for a " (2)" suffix when the name is already taken.
+ * Sanitizes text into a valid file name (`A: B` → `A - B`), truncated to leave room for a
+ * ` (n)` suffix; reserved names get a `_` suffix.
+ * @returns Sanitized name; `''` if nothing remains.
  */
 export function safeFileName(text: string): string {
   const name = text

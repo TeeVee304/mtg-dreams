@@ -24,22 +24,29 @@ import { sameList, useLibrary, type ListRef, type UndoResult } from './library'
 import { refreshStalePrintings, reloadPrices, requestPrintings } from './printings'
 import { useSettings } from './settings'
 
+/** Total copies across entries. */
 const countCards = (entries: PreconEntry[]) => entries.reduce((sum, entry) => sum + entry.qty, 0)
 
+/** Input types that do not take text (and have no native undo). */
 const NOT_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'])
 
-/** Whether keys go to a text field, which has its own Ctrl+Z. */
+/** @returns Whether `target` is a text field (native Ctrl+Z applies). */
 function isTyping(target: EventTarget | null): boolean {
   if (target instanceof HTMLTextAreaElement) return true
   if (target instanceof HTMLInputElement) return !NOT_TEXT_INPUTS.has(target.type)
   return target instanceof HTMLElement && target.isContentEditable
 }
 
+/**
+ * Root component: library state, navigation, dialogs and global effects. Background effects: price
+ * prefetch for all lists (active first; bundled basics skipped), hourly stale-printings refresh,
+ * price reload on `prices:updated`. Shortcuts: Ctrl+K focuses card search; Ctrl+Z undoes the
+ * latest edit outside text fields. Removals and bulk edits toast with Undo.
+ */
 export default function App() {
   const toast = useToast()
   const onError = useCallback((message: string) => toast(message, 'error'), [toast])
   const showUndone = useCallback((result: UndoResult) => toast(result.message, result.kind), [toast])
-  // Removals and bulk edits say what they did, with an Undo button; Ctrl+Z undoes any edit.
   const onUndoable = useCallback(
     (label: string, undo: () => UndoResult) => toast(label, 'info', { label: 'Undo', run: () => showUndone(undo()) }),
     [toast, showUndone]
@@ -51,7 +58,6 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [valueOpen, setValueOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
-  // Importing a trade list; `replaceName` when updating a friend's list.
   const [importing, setImporting] = useState<{ replaceName?: string } | null>(null)
 
   useEffect(() => {
@@ -61,7 +67,6 @@ export default function App() {
 
   const openList = (list: ListRef) => setView({ page: 'list', list })
 
-  // Keep the view pointing at something that exists.
   useEffect(() => {
     if (state.status !== 'ready') return
     if (view?.page === 'inventory') return
@@ -71,8 +76,6 @@ export default function App() {
     setView(first ? { page: 'list', list: { kind: first.kind, name: first.name } } : null)
   }, [state.status, state.lists, state.trades, view])
 
-  // Warm prices for every deck and wishlist in the background, the open one first.
-  // Bundled basic lands need no lookups at all.
   const { bundleBasics } = useSettings()
   const active = view?.page === 'list' ? view.list : null
   const namesKey = useMemo(
@@ -88,23 +91,18 @@ export default function App() {
     for (const name of namesKey.split('\n')) if (name) requestPrintings(name)
   }, [namesKey])
 
-  // Your side of every trade, shown in the sidebar and on each friend's page.
   const myTrade = useMemo(
     () => myTradeSide(state.inventory, state.lists.filter((list) => list.kind === 'wishlist')),
     [state.inventory, state.lists]
   )
 
-  // Card versions (Scryfall) are refreshed weekly; checked hourly.
   useEffect(() => {
     const timer = setInterval(refreshStalePrintings, 60 * 60 * 1000)
     return () => clearInterval(timer)
   }, [])
 
-  // New Cardmarket prices are announced by the main process.
   useEffect(() => window.api.onPricesUpdated(() => void reloadPrices()), [])
 
-  // Ctrl+K focuses the card search; Ctrl+Z undoes the latest edit, except while typing in a
-  // text field, where it undoes the typing as usual.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (!event.ctrlKey || event.altKey) return
@@ -121,10 +119,12 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey)
   }, [actions, showUndone])
 
-  /** New deck or wishlist from a precon. A deck is something you own, so its cards join the inventory. */
+  /**
+   * Creates a list from a precon. Decks also add their cards to the inventory. Commander decks get
+   * the Commander format and their first commander.
+   */
   const createFromPrecon = async (kind: ListKind, deck: PreconDeck, entries: PreconEntry[]) => {
     const name = preconListName(deck.name, state.lists.filter((list) => list.kind === kind).map((list) => list.name))
-    // Commander precons start out in the Commander format, led by their (first) commander.
     const lines = parseList(entries.map(serializeCard).join('\n'))
     const format = deck.type === 'Commander Deck' ? 'commander' : null
     const leader = format ? deck.cards.find((card) => card.board === 'commander')?.name : undefined

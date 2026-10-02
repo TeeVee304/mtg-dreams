@@ -6,7 +6,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
-// A local stand-in for Scryfall, serving a few cards and counting requests.
+/**
+ * Tests against a local Scryfall stand-in that serves fixture cards and counts requests.
+ *
+ * @packageDocumentation
+ */
 
 const card = (name: string, set: string, collector: string, extra: Record<string, unknown> = {}) => ({
   id: `${set}-${collector}`,
@@ -125,7 +129,6 @@ describe('RateLimitedQueue', () => {
     const urgent = queue.run(job('urgent'), 'high')
     queue.promote(background[2].job)
     await Promise.all([...background.map((b) => b.promise), urgent.promise])
-    // "a" was already running; then the interactive job, then the promoted one.
     expect(order).toEqual(['a', 'urgent', 'c', 'b'])
     for (let i = 1; i < started.length; i++) expect(started[i] - started[i - 1]).toBeGreaterThanOrEqual(35)
   })
@@ -135,9 +138,8 @@ describe('getPrintings', () => {
   it('fetches paper printings once, then answers from the cache', async () => {
     const { scryfall } = await setup()
     const [first, again] = await Promise.all([scryfall.getPrintings('Sol Ring'), scryfall.getPrintings('sol ring')])
-    expect(first).toBe(again) // one request for both
-    expect(first.printings.map((p) => p.set)).toEqual(['cmm', 'c21']) // the digital printing is left out
-    // Scryfall's EUR price is kept as the trend, the fallback for Cardmarket's price guide.
+    expect(first).toBe(again)
+    expect(first.printings.map((p) => p.set)).toEqual(['cmm', 'c21'])
     expect(first.printings[1]).toMatchObject({ cardmarketId: 2, price: { trend: 0.8 }, priceFoil: {} })
     expect(first.card?.typeLine).toBe('Artifact')
     expect(await scryfall.getPrintings('Sol Ring')).toBe(first)
@@ -200,7 +202,7 @@ describe('startup', () => {
     const restarted = await setup(first.dir)
     const { loadScryfallCache } = await import('./scryfallCache')
     hits.length = 0
-    const lookup = restarted.scryfall.getPrintings('Sol Ring') // asked before the cache is read
+    const lookup = restarted.scryfall.getPrintings('Sol Ring')
     void loadScryfallCache()
     expect((await lookup).printings).toHaveLength(2)
     expect(hits).toEqual([])

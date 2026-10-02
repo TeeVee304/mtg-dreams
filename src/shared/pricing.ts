@@ -1,40 +1,39 @@
 import type { CardLine, PriceBasis, Prices, Printing } from './types'
 
-/**
- * A card's printings (its versions) only change when new sets come out, so the
- * cached list is refreshed weekly. Prices come separately, from Cardmarket's daily price guide.
- */
+/** Max age of cached printings (1 week). Prices are refreshed separately from Cardmarket's daily price guide. */
 export const PRINTINGS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
-/** The price a card is valued at (Settings → Prices). One choice for the whole app. */
+/** Selectable price bases with UI label and hint. */
 export const PRICE_BASES: Array<{ id: PriceBasis; label: string; hint: string }> = [
   { id: 'trend', label: 'Typical', hint: 'What copies usually sell for: Cardmarket’s price trend.' },
   { id: 'low', label: 'Lowest listing', hint: 'The cheapest copy on offer, in any condition or language.' },
   { id: 'avg30', label: '30-day average', hint: 'What copies sold for over the last month: steadier.' }
 ]
 
+/** Default price basis. */
 export const DEFAULT_PRICE_BASIS: PriceBasis = 'trend'
 
-/** A wishlist card is flagged once its price falls this many percent below its price when added. */
+/** Default wishlist price-drop alert threshold, in percent. */
 export const DEFAULT_DROP_ALERT_PERCENT = 15
 
+/** Type guard for {@link PriceBasis}. */
 export function isPriceBasis(value: unknown): value is PriceBasis {
   return PRICE_BASES.some((basis) => basis.id === value)
 }
 
-/** "Typical", "Lowest listing" or "30-day average", for notes about how cards are priced. */
+/** @returns UI label of `basis`. */
 export function priceBasisLabel(basis: PriceBasis): string {
   return PRICE_BASES.find((option) => option.id === basis)?.label ?? basis
 }
 
-/** A price on the chosen basis, or the trend when that one isn't known. */
+/** @returns Price on `basis`, falling back to `trend`; null if neither is known. */
 export function pick(prices: Prices, basis: PriceBasis): number | null {
   return prices[basis] ?? prices.trend ?? null
 }
 
 /**
- * EUR price of buying this printing. A non-foil request on a foil-only
- * printing uses the foil price, since that is the only way to buy it.
+ * @param foil - Requested finish. Non-foil requests on foil-only printings use the foil price.
+ * @returns EUR price; null if unknown.
  */
 export function priceOf(printing: Printing, foil: boolean, basis: PriceBasis): number | null {
   if (foil) return pick(printing.priceFoil, basis)
@@ -42,6 +41,7 @@ export function priceOf(printing: Printing, foil: boolean, basis: PriceBasis): n
   return pick(printing.priceFoil, basis)
 }
 
+/** @returns Cheapest priced printing and its price; null if none is priced. */
 export function cheapestPrinting(
   printings: Printing[],
   foil: boolean,
@@ -56,19 +56,27 @@ export function cheapestPrinting(
   return best
 }
 
+/** Printing and price a list line resolves to. */
 export interface Resolution {
-  /** The printing this line is priced and previewed with. */
+  /** Printing used for price and preview. */
   printing: Printing | null
   unitPrice: number | null
+  /** Line specifies a set. */
   pinned: boolean
-  /** The line names a set/collector number that Scryfall doesn't list for this card. */
+  /** Specified set has no printing of this card. */
   pinMissing: boolean
-  /** The set exists but the `<...>` collector number doesn't, so the cheapest in the set is used. */
+  /** Numeric collector tag not found in the set; cheapest printing in the set is used. */
   collectorMissing: boolean
-  /** The line names no version, so it shows (and is priced at) the version you own. */
+  /** Unpinned line resolved to the owned printing. */
   fromInventory?: boolean
 }
 
+/**
+ * Resolves a line to a printing. Pinned: cheapest matching set and collector tag; non-numeric
+ * tags (e.g. `<borderless>`) are ignored. Unpinned: cheapest `autoEligible` printing.
+ * Without any price, falls back to the first candidate for preview.
+ * @param printings - Card printings, newest first.
+ */
 export function resolveLine(
   line: Pick<CardLine, 'set' | 'collector' | 'foil'>,
   printings: Printing[],
@@ -81,7 +89,6 @@ export function resolveLine(
       const tag = line.collector.toLowerCase()
       const exact = candidates.filter((p) => p.collectorNumber.toLowerCase() === tag)
       if (exact.length > 0) candidates = exact
-      // Goldfish tags can also be words like <borderless>; only digits imply a collector number.
       else collectorMissing = /\d/.test(tag)
     }
     if (candidates.length === 0) {
@@ -101,11 +108,10 @@ export function resolveLine(
   if (best) {
     return { printing: best.printing, unitPrice: best.price, pinned: false, pinMissing: false, collectorMissing: false }
   }
-  // Nothing priced: still show the newest printing's image.
   return { printing: printings[0] ?? null, unitPrice: null, pinned: false, pinMissing: false, collectorMissing: false }
 }
 
-/** Order for the version picker: cheapest first, unpriced last, newest first on ties. */
+/** @returns Copy sorted cheapest first, unpriced last, newest first on ties. */
 export function sortPrintings(printings: Printing[], foil: boolean, basis: PriceBasis): Printing[] {
   return [...printings].sort((a, b) => {
     const pa = priceOf(a, foil, basis)

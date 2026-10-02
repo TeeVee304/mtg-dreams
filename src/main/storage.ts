@@ -10,17 +10,25 @@ import { TRADE_EXTENSION } from '../shared/trade'
 import type { ListKind } from '../shared/types'
 import { env } from './environment'
 
-// Decks and wishlists live as plain Goldfish-format .txt files in a
-// user-visible folder (default: Documents/MTG Dreams) so they can be edited by
-// hand, synced or backed up. App settings live in userData.
+/**
+ * File storage. Lists, inventory and trades are plain text files in a user-visible data directory
+ * (default `Documents/MTG Dreams`): `decks/*.txt`, `lists/*.txt`, `inventory.txt`, `trades/*.mtgtrade`.
+ * Settings are in `userData/settings.json`. Writes are atomic, serialized per file, and guarded
+ * against external modification.
+ *
+ * @packageDocumentation
+ */
 
+/** Default data directory name under Documents. */
 const APP_FOLDER = 'MTG Dreams'
-/** The app's earlier names, newest first: their settings and data folders are carried over. */
+/** Legacy app folder names, newest first, migrated by {@link migrateFromOldName}. */
 const OLD_APP_FOLDERS = ['MTG Dream', 'MTG Wishlist Tracker']
-/** What's worth bringing from an old settings folder: the settings, and caches that save re-downloading. */
+/** userData entries copied from a legacy settings folder. */
 const CARRIED_OVER = ['settings.json', 'scryfall-cache.json', 'precons']
 
+/** Raw settings file; values are validated by {@link getAppSettings}. */
 interface Settings {
+  /** Custom data directory. */
   dataDir?: string
   theme?: Theme
   color?: string
@@ -33,35 +41,36 @@ interface Settings {
   dropAlertPercent?: number
 }
 
+/** Settings file path. */
 const settingsPath = () => join(env().userData, 'settings.json')
 
-// Settings are read once and kept in memory: only the app writes them.
+/** In-memory settings, keyed by path; only the app writes the file. */
 let settingsCache: { path: string; settings: Settings } | null = null
 
+/** @returns Cached settings; `{}` if the file is missing or invalid. */
 function readSettings(): Settings {
   const path = settingsPath()
   if (settingsCache?.path === path) return settingsCache.settings
   let settings: Settings = {}
   try {
     if (existsSync(path)) settings = JSON.parse(readFileSync(path, 'utf8')) as Settings
-  } catch {
-    // Unreadable: use the defaults.
-  }
+  } catch {}
   settingsCache = { path, settings }
   return settings
 }
 
+/**
+ * Merges `patch` into the settings and writes atomically (temp + rename; a truncated file would
+ * lose a custom data directory). Falls back to a direct write if the target is locked.
+ */
 function writeSettings(patch: Partial<Settings>): void {
   const settings = { ...readSettings(), ...patch }
   const path = settingsPath()
-  // Written to a temporary file first: a crash mid-write must not leave a truncated
-  // file, which would read as defaults and lose a custom data folder.
   const tmp = `${path}.tmp`
   writeFileSync(tmp, JSON.stringify(settings, null, 2))
   try {
     renameSync(tmp, path)
   } catch {
-    // Something (antivirus, a sync client) briefly locks the target.
     writeFileSync(path, JSON.stringify(settings, null, 2))
     rmSync(tmp, { force: true })
   }
@@ -69,10 +78,9 @@ function writeSettings(patch: Partial<Settings>): void {
 }
 
 /**
- * The app used to be called "MTG Dream", and before that "MTG Wishlist Tracker".
- * On the first launch under the new name, copies the newest old settings and caches
- * over, and renames the default data folder; if the folder can't be moved (e.g.
- * it's open elsewhere), keeps using it where it is.
+ * One-time migration from legacy app names. Without current settings, copies {@link CARRIED_OVER}
+ * from the newest legacy userData folder. Without a custom data directory, renames the legacy
+ * default data directory, or points settings at it if the rename fails. Errors are ignored.
  */
 export function migrateFromOldName(): void {
   try {
@@ -97,24 +105,26 @@ export function migrateFromOldName(): void {
     } catch {
       writeSettings({ dataDir: oldDir })
     }
-  } catch {
-    // Nothing to migrate.
-  }
+  } catch {}
 }
 
+/** @returns Configured data directory, or the default. */
 export function dataDir(): string {
   return readSettings().dataDir ?? join(env().documents, APP_FOLDER)
 }
 
+/** Persists a custom data directory. */
 export async function setDataDir(dir: string): Promise<void> {
   writeSettings({ dataDir: dir })
 }
 
+/** @returns Stored theme; `system` if unset or invalid. */
 export function getTheme(): Theme {
   const theme = readSettings().theme
   return theme === 'light' || theme === 'dark' ? theme : 'system'
 }
 
+/** @returns Validated settings with defaults applied. */
 export function getAppSettings(): AppSettings {
   const settings = readSettings()
   return {
@@ -133,16 +143,25 @@ export function getAppSettings(): AppSettings {
   }
 }
 
+/** Persists a validated settings patch. */
 export function updateAppSettings(patch: Partial<AppSettings>): void {
   writeSettings(patch)
 }
 
+/** Directory of a list kind: `decks` or `lists`. */
 const listsDir = (kind: ListKind) => join(dataDir(), kind === 'deck' ? 'decks' : 'lists')
+/** Inventory file path. */
 const inventoryPath = () => join(dataDir(), 'inventory.txt')
+/** Trades directory. */
 const tradesDir = () => join(dataDir(), 'trades')
+/** Trade file path; validates the name. */
 const tradePath = (name: string) => join(tradesDir(), `${validateListName(name)}.${TRADE_EXTENSION}`)
 
-/** Validates a list name, which doubles as its file name. Returns the trimmed name. */
+/**
+ * Validates a list or trade name (used as file name).
+ * @returns Trimmed name.
+ * @throws Error with a user-facing message if invalid.
+ */
 export function validateListName(raw: unknown): string {
   if (typeof raw !== 'string') throw new Error('Name must be text.')
   const name = raw.trim()
@@ -151,23 +170,25 @@ export function validateListName(raw: unknown): string {
   return name
 }
 
+/** @throws Error if `raw` is not a {@link ListKind}. */
 export function validateKind(raw: unknown): ListKind {
   if (raw !== 'deck' && raw !== 'wishlist') throw new Error('Invalid list kind.')
   return raw
 }
 
+/** List file path; validates the name. */
 const listPath = (kind: ListKind, name: string) => join(listsDir(kind), `${validateListName(name)}.txt`)
 
-// Serialise writes per file so a slow write can't land after a newer one. A write joins
-// its file's queue straight away (before any await), so writes land in the order made.
+/** Per-path write chains; writes enqueue synchronously, so they complete in call order. */
 const writeChains = new Map<string, Promise<void>>()
 
-// What each file held when the app last read or wrote it, by path. A save first checks
-// the file still holds that: if another program changed it meanwhile (e.g. OneDrive
-// syncing an edit made on another PC), the save is refused rather than overwrite it.
+/** Last text read or written per path, for external-change detection. */
 const known = new Map<string, string>()
 
-/** The file's text, or null if there is no such file. */
+/**
+ * @returns File text; null if it does not exist.
+ * @throws Other read errors.
+ */
 async function readIfExists(path: string): Promise<string | null> {
   try {
     return await readFile(path, 'utf8')
@@ -177,7 +198,7 @@ async function readIfExists(path: string): Promise<string | null> {
   }
 }
 
-/** Carries what's known about a file over to its new path (rename, move). */
+/** Re-keys {@link known} after a rename or move. */
 function moveKnown(from: string, to: string): void {
   const text = known.get(from)
   known.delete(from)
@@ -185,8 +206,9 @@ function moveKnown(from: string, to: string): void {
 }
 
 /**
- * Replaces a file's text. With `guard`, refuses (CONFLICT_ERROR) if the file changed
- * since the app last read or wrote it; a file deleted meanwhile is simply written again.
+ * Writes atomically (temp + rename, direct-write fallback if locked), serialized per path.
+ * @param guard - `check`: reject if the file differs from {@link known} (a deleted file is rewritten).
+ * @throws Error prefixed with `CONFLICT_ERROR` on external modification.
  */
 function writeText(path: string, text: string, guard: 'check' | 'force' | 'none' = 'none'): Promise<void> {
   const previous = writeChains.get(path) ?? Promise.resolve()
@@ -206,7 +228,6 @@ function writeText(path: string, text: string, guard: 'check' | 'force' | 'none'
       try {
         await rename(tmp, path)
       } catch {
-        // Sync clients (OneDrive, Dropbox) sometimes lock the target briefly.
         await writeFile(path, text, 'utf8')
         await rm(tmp, { force: true })
       }
@@ -217,9 +238,8 @@ function writeText(path: string, text: string, guard: 'check' | 'force' | 'none'
 }
 
 /**
- * Reads every file with this extension in a folder, by name. A file that can't be read
- * (locked by another program, or an offline OneDrive placeholder) is skipped and added
- * to `unreadable`, so one bad file can't stop the rest from loading.
+ * Reads all files with `extension` in `dir`, sorted case-insensitively. Unreadable files (locked,
+ * offline placeholders) are skipped and appended to `unreadable` as `folder/file`.
  */
 async function readFolder(dir: string, extension: string, unreadable: string[]): Promise<ListFile[]> {
   if (!existsSync(dir)) return []
@@ -241,6 +261,10 @@ async function readFolder(dir: string, extension: string, unreadable: string[]):
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 }
 
+/**
+ * Reads all lists, trades and the inventory, creating list directories if needed.
+ * @throws If the inventory exists but is unreadable (never skipped, so a save cannot blank it).
+ */
 export async function loadData(): Promise<LoadedData> {
   const unreadable: string[] = []
   await Promise.all([mkdir(listsDir('deck'), { recursive: true }), mkdir(listsDir('wishlist'), { recursive: true })])
@@ -249,17 +273,17 @@ export async function loadData(): Promise<LoadedData> {
     readFolder(listsDir('wishlist'), '.txt', unreadable),
     readFolder(tradesDir(), `.${TRADE_EXTENSION}`, unreadable)
   ])
-  // The inventory is never skipped: the next save would replace it with an empty one.
   const inventory = existsSync(inventoryPath()) ? await readFile(inventoryPath(), 'utf8') : ''
   known.set(inventoryPath(), inventory)
   return { dataDir: dataDir(), decks, wishlists, inventory, trades, unreadable }
 }
 
+/** Writes a friend's trade list, unguarded. */
 export async function writeTrade(name: string, text: string): Promise<void> {
   await writeText(tradePath(name), text)
 }
 
-/** Moves a friend's trade list to the Recycle Bin. */
+/** Moves a trade list to the Recycle Bin after pending writes. */
 export async function deleteTrade(name: string): Promise<void> {
   const path = tradePath(name)
   await writeChains.get(path)?.catch(() => undefined)
@@ -267,6 +291,7 @@ export async function deleteTrade(name: string): Promise<void> {
   known.delete(path)
 }
 
+/** @throws Error if a list of that kind and name exists. */
 export async function createList(kind: ListKind, name: string, text: string): Promise<void> {
   await mkdir(listsDir(kind), { recursive: true })
   const path = listPath(kind, name)
@@ -274,11 +299,12 @@ export async function createList(kind: ListKind, name: string, text: string): Pr
   await writeText(path, text)
 }
 
-/** Saves a list's text; with `force`, even if it changed outside the app since. */
+/** Writes a list, guarded unless `force`. @throws `CONFLICT_ERROR` on external modification. */
 export async function writeList(kind: ListKind, name: string, text: string, force = false): Promise<void> {
   await writeText(listPath(kind, name), text, force ? 'force' : 'check')
 }
 
+/** Renames a list after pending writes; case-only renames allowed. @throws Error if the target exists. */
 export async function renameList(kind: ListKind, from: string, to: string): Promise<void> {
   const source = listPath(kind, from)
   const target = listPath(kind, to)
@@ -289,7 +315,7 @@ export async function renameList(kind: ListKind, from: string, to: string): Prom
   moveKnown(source, target)
 }
 
-/** Moves a list to the other section (e.g. a completed wishlist becomes a deck). Returns its final name. */
+/** Moves a list to another kind after pending writes. @returns Final name, suffixed ` (n)` if taken. */
 export async function moveList(from: ListKind, to: ListKind, name: string): Promise<string> {
   const source = listPath(from, name)
   await mkdir(listsDir(to), { recursive: true })
@@ -302,7 +328,7 @@ export async function moveList(from: ListKind, to: ListKind, name: string): Prom
   return target
 }
 
-/** Moves the file to the Recycle Bin rather than deleting it permanently. */
+/** Moves a list to the Recycle Bin after pending writes. */
 export async function deleteList(kind: ListKind, name: string): Promise<void> {
   const path = listPath(kind, name)
   await writeChains.get(path)?.catch(() => undefined)
@@ -310,7 +336,7 @@ export async function deleteList(kind: ListKind, name: string): Promise<void> {
   known.delete(path)
 }
 
-/** Saves the inventory; with `force`, even if it changed outside the app since. */
+/** Writes the inventory, guarded unless `force`. @throws `CONFLICT_ERROR` on external modification. */
 export async function writeInventory(text: string, force = false): Promise<void> {
   await writeText(inventoryPath(), text, force ? 'force' : 'check')
 }

@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-// Each test gets its own temporary profile and a fresh copy of the storage module.
+/** Temp roots created per test (isolated profile and fresh storage module), removed afterwards. */
 const roots: string[] = []
 
 async function setup(root?: string) {
@@ -63,7 +63,7 @@ describe('lists on disk', () => {
   it('skips a file it cannot read and reports it, loading the rest', async () => {
     const { data, storage } = await setup()
     await storage.writeList('deck', 'Good', '1 Sol Ring\n')
-    mkdirSync(join(data, 'decks', 'Broken.txt')) // a folder can't be read as a file
+    mkdirSync(join(data, 'decks', 'Broken.txt'))
     const loaded = await storage.loadData()
     expect(loaded.decks.map((d) => d.name)).toEqual(['Good'])
     expect(loaded.unreadable).toEqual(['decks/Broken.txt'])
@@ -105,12 +105,12 @@ describe('lists on disk', () => {
     const { data, storage } = await setup()
     const file = join(data, 'decks', 'Burn.txt')
     await storage.writeList('deck', 'Burn', '4 Lightning Bolt\n')
-    writeFileSync(file, '4 Lava Spike\n') // e.g. OneDrive syncing an edit from another PC
+    writeFileSync(file, '4 Lava Spike\n')
     await expect(storage.writeList('deck', 'Burn', '3 Lightning Bolt\n')).rejects.toThrow(/^Changed outside MTG Dreams:/)
     expect(readFileSync(file, 'utf8')).toBe('4 Lava Spike\n')
     await storage.writeList('deck', 'Burn', '3 Lightning Bolt\n', true)
     expect(readFileSync(file, 'utf8')).toBe('3 Lightning Bolt\n')
-    await storage.writeList('deck', 'Burn', '2 Lightning Bolt\n') // the forced text is the known one now
+    await storage.writeList('deck', 'Burn', '2 Lightning Bolt\n')
     expect(readFileSync(file, 'utf8')).toBe('2 Lightning Bolt\n')
   })
 
@@ -125,7 +125,7 @@ describe('lists on disk', () => {
 
   it('treats an inventory that appeared outside the app as a change', async () => {
     const { data, storage } = await setup()
-    await storage.loadData() // no inventory yet
+    await storage.loadData()
     writeFileSync(join(data, 'inventory.txt'), '1 Sol Ring\n')
     await expect(storage.writeInventory('4 Island\n')).rejects.toThrow(/^Changed outside MTG Dreams:/)
   })
@@ -197,7 +197,6 @@ describe('settings', () => {
     writeFileSync(join(oldProfile, 'settings.json'), JSON.stringify({ color: 'G', sort: 'mana' }))
     writeFileSync(join(oldProfile, 'scryfall-cache.json'), '{"version":6}')
     writeFileSync(join(oldProfile, 'precons', 'index.json'), '{}')
-    // Also an even older folder, which must not win over the newer one.
     mkdirSync(join(base, 'AppData', 'MTG Wishlist Tracker'), { recursive: true })
     writeFileSync(join(base, 'AppData', 'MTG Wishlist Tracker', 'settings.json'), JSON.stringify({ color: 'R' }))
     mkdirSync(join(base, 'Documents', 'MTG Dream', 'decks'), { recursive: true })
@@ -211,7 +210,7 @@ describe('settings', () => {
     expect(data).toBe(join(base, 'Documents', 'MTG Dreams'))
     expect((await storage.loadData()).decks).toEqual([{ name: 'Burn', text: '4 Lightning Bolt\n' }])
     expect(existsSync(join(base, 'Documents', 'MTG Dream'))).toBe(false)
-    expect(existsSync(join(oldProfile, 'settings.json'))).toBe(true) // the old settings stay, as a backup
+    expect(existsSync(join(oldProfile, 'settings.json'))).toBe(true)
   })
 
   it('carries settings and data over from the oldest name', async () => {

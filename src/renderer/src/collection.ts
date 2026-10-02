@@ -3,36 +3,43 @@ import { resolveLine } from '../../shared/pricing'
 import type { InventoryItem, OwnedCopy, PriceBasis, Printing } from '../../shared/types'
 import { getPrintingsEntry } from './printings'
 
-// What the inventory is worth: each copy at the version it was recorded with, and
-// "any version" copies at the card's cheapest version (in their finish).
+/**
+ * Inventory valuation: versioned copies at their printing's price, unversioned copies at the
+ * cheapest printing of their finish.
+ *
+ * @packageDocumentation
+ */
 
-/** What a collection is worth is a selling question: always Cardmarket's typical price. */
+/** Fixed valuation basis (sale value): Cardmarket trend. */
 export const VALUATION_BASIS: PriceBasis = 'trend'
 
-/** Copies of one card in one version, with their price. */
+/** Priced copy group of one card. */
 export interface ValuedCopy {
   name: string
   copy: OwnedCopy
   qty: number
+  /** EUR unit price. */
   unit: number
-  /** The printing it's priced at: the recorded version, or the cheapest one. */
+  /** Pricing printing: the recorded one, or the cheapest. */
   printing: Printing | null
 }
 
-/** One card's worth, all its copies together. */
+/** Valuation of one inventory item. */
 export interface ItemValue {
-  /** 'free': a bundled basic land. 'unpriced': no price for some or all of its copies. */
+  /** `free`: bundled basic. `unpriced`: no copy priced. `loading`: printings pending. */
   status: 'priced' | 'loading' | 'unpriced' | 'free'
+  /** EUR total of priced copies. */
   total: number
-  /** The price of one copy, when every copy costs the same. */
+  /** Shared unit price if all copies are priced equally; else null. */
   unit: number | null
   valued: ValuedCopy[]
-  /** Versions (or the whole card) without a price, left out of the total. */
+  /** Unpriced copy groups (or 1 for the whole card), excluded from `total`. */
   unpriced: number
-  /** The printing to picture it by: a recorded version first, else the cheapest. */
+  /** Display printing: first versioned copy's, else the cheapest. */
   printing: Printing | null
 }
 
+/** Values one item from loaded printings. */
 export function valueItem(item: InventoryItem, basis: PriceBasis, bundleBasics: boolean): ItemValue {
   const value: ItemValue = { status: 'priced', total: 0, unit: null, valued: [], unpriced: 0, printing: null }
   const generic = bundledBasic(item.name, bundleBasics)
@@ -57,17 +64,20 @@ export function valueItem(item: InventoryItem, basis: PriceBasis, bundleBasics: 
   return value
 }
 
+/** Aggregate inventory valuation. */
 export interface CollectionValuation {
+  /** EUR total. */
   total: number
-  /** Copies owned, bundled basic lands included. */
+  /** Copies owned, including bundled basics. */
   copies: number
-  /** Cards whose prices are still loading. */
+  /** Items with printings still loading. */
   pending: number
-  /** Cards (or versions of them) without a price, left out of the total. */
+  /** Unpriced copy groups, excluded from `total`. */
   unpriced: number
   valued: ValuedCopy[]
 }
 
+/** Values the whole inventory. */
 export function valueCollection(
   inventory: Map<string, InventoryItem>,
   basis: PriceBasis,

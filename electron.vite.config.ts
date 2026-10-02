@@ -2,10 +2,7 @@ import { defineConfig } from 'electron-vite'
 import type { Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
-/**
- * The page's Content-Security-Policy (index.html) allows no WebSocket connections.
- * Only the dev server needs one, for hot reload, so it is added there alone.
- */
+/** Dev-server-only plugin adding `ws:` to the CSP `connect-src` (index.html) for hot reload. */
 function devServerSocket(): Plugin {
   return {
     name: 'mtg-dreams:dev-server-socket',
@@ -19,7 +16,7 @@ export default defineConfig({
   preload: {},
   renderer: {
     plugins: [react(), devServerSocket()],
-    // electron-vite leaves builds unminified; the UI is the one big bundle worth shrinking.
+    /** Minify the renderer; electron-vite builds are unminified by default. */
     build: { minify: true }
   }
 })

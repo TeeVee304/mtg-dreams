@@ -34,7 +34,7 @@ describe('inventory copies', () => {
     const one = withTotal(before, 'Lightning Bolt', 1)!
     expect(one.copies.map((c) => [c.qty, c.set ?? 'any'])).toEqual([[1, 'a25']])
     expect(withTotal(before, 'Lightning Bolt', 0)).toBeNull()
-    expect(before.qty).toBe(4) // the original is never changed (the undo history keeps it)
+    expect(before.qty).toBe(4)
   })
 
   it('adds to the total in the given version', () => {

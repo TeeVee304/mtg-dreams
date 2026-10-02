@@ -1,20 +1,23 @@
 import type { InventoryItem, OwnedCopy } from './types'
 
-// The inventory records each card by name, with its copies split by version and
-// finish ("any version" when no set is given). Whether a deck or wishlist line is
-// owned only looks at the total; the versions decide value and which version a
-// line without one shows. Every function here returns new objects: the undo
-// history keeps the old ones.
+/**
+ * Inventory item operations. Ownership checks use totals; copy versions drive valuation and
+ * display. All functions are non-mutating (undo history retains prior objects).
+ *
+ * @packageDocumentation
+ */
 
-/** A version and finish of a card, as recorded for owned copies. */
+/** Printing and finish of owned copies; no `set` means unspecified. */
 export type Version = Pick<OwnedCopy, 'set' | 'collector' | 'foil'>
 
+/** Unversioned, non-foil. */
 const ANY_VERSION: Version = { foil: false }
 
+/** Version equality; missing fields compare as empty. */
 export const sameVersion = (a: Version, b: Version) =>
   (a.set ?? '') === (b.set ?? '') && (a.collector ?? '') === (b.collector ?? '') && a.foil === b.foil
 
-/** "Any version" copies first (non-foil, then foil), then by set and collector number. */
+/** Copy order: unversioned first, then by set, collector number (numeric), non-foil before foil. */
 function compareCopies(a: OwnedCopy, b: OwnedCopy): number {
   if (!a.set !== !b.set) return a.set ? 1 : -1
   return (
@@ -24,7 +27,7 @@ function compareCopies(a: OwnedCopy, b: OwnedCopy): number {
   )
 }
 
-/** Merges copies of the same version, drops empty ones and sorts them. */
+/** @returns Copies merged by version, non-positive quantities dropped, sorted; `collector` cleared without `set`. */
 export function normalizeCopies(copies: OwnedCopy[]): OwnedCopy[] {
   const merged: OwnedCopy[] = []
   for (const copy of copies) {
@@ -37,27 +40,27 @@ export function normalizeCopies(copies: OwnedCopy[]): OwnedCopy[] {
   return merged.sort(compareCopies)
 }
 
-/** An inventory item from its copies; null when none are left. */
+/** @returns Item from normalized copies; null if total is 0. */
 export function itemFromCopies(name: string, copies: OwnedCopy[]): InventoryItem | null {
   const normalized = normalizeCopies(copies)
   const qty = normalized.reduce((sum, copy) => sum + copy.qty, 0)
   return qty > 0 ? { name, qty, copies: normalized } : null
 }
 
-/** Adds copies of a version (any version by default). */
+/** @returns Item with `qty` copies of `version` added. */
 export function addCopies(item: InventoryItem | undefined, name: string, qty: number, version: Version = ANY_VERSION) {
   return itemFromCopies(item?.name ?? name, [...(item?.copies ?? []), { qty, ...version }])
 }
 
 /**
- * Sets how many copies you own in all. New copies are of `version` (any version by
- * default); removing takes "any version" copies first, then the latest versions.
+ * Sets the total owned. Increases add copies of `version`; decreases remove unversioned copies
+ * first, then versioned copies from the end of the sorted list.
+ * @returns Updated item; null if total becomes 0.
  */
 export function withTotal(item: InventoryItem | undefined, name: string, qty: number, version: Version = ANY_VERSION) {
   const owned = item?.qty ?? 0
   if (qty >= owned) return addCopies(item, name, qty - owned, version)
   let toRemove = owned - qty
-  // Plain copies are the first to go, then versioned ones from the end of the list.
   const copies = item?.copies ?? []
   const plain = copies.filter((copy) => !copy.set)
   const versioned = copies.filter((copy) => copy.set).reverse()
@@ -70,10 +73,7 @@ export function withTotal(item: InventoryItem | undefined, name: string, qty: nu
   return itemFromCopies(item?.name ?? name, (item?.copies ?? []).map((copy) => ({ ...copy, qty: kept.get(copy) ?? copy.qty })))
 }
 
-/**
- * The version a line without one shows: the owned version of that finish with the
- * most copies. Null when you only own "any version" copies of it.
- */
+/** @returns Versioned copy of the given finish with the most copies (used for unpinned lines); null if none. */
 export function ownedVersion(item: InventoryItem | undefined, foil: boolean): OwnedCopy | null {
   let best: OwnedCopy | null = null
   for (const copy of item?.copies ?? []) {
@@ -82,5 +82,5 @@ export function ownedVersion(item: InventoryItem | undefined, foil: boolean): Ow
   return best
 }
 
-/** Whether any copy of the card has a recorded version or is foil. */
+/** @returns Whether any copy has a set or is foil. */
 export const hasVersions = (item: InventoryItem) => item.copies.some((copy) => copy.set || copy.foil)

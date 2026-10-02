@@ -7,41 +7,43 @@ import { summarize, type Row, type Summary } from '../summary'
 import { FilterBar } from './FilterBar'
 import { Icon } from './Icon'
 
-// A list's cards: the filter bar, then one section per card type (the commander on
-// top), as table rows or as a grid of card images (Settings remember which). Rows and
-// tiles are drawn by the caller, which owns what they do. Sections fold away; which are
-// folded is remembered per list while the app is open.
-
+/** Session-only folded section ids per list key. */
 const folded = new Map<string, Set<string>>()
 
+/** Props of {@link ListTable}. */
 interface ListTableProps {
-  /** Identifies the list, to remember its folded sections. */
+  /** List identity for remembering folded sections. */
   listKey: string
   isDeck: boolean
   sections: Section<Row>[]
+  /** Renders a table row. */
   renderRow: (row: Row) => ReactNode
+  /** Renders a grid tile. */
   renderTile: (row: Row) => ReactNode
-  /** Rows left after filtering. */
+  /** Row count after filtering. */
   visibleRows: number
+  /** Summary of filtered rows. */
   visibleSummary: Summary
-  /** All cards in the list, filtered or not. */
+  /** Total copies, unfiltered. */
   totalCards: number
-  /** Which list the app-wide sort is shown for. */
+  /** View whose sort options are shown. */
   sortView: 'deck' | 'wishlist'
   sort: SortKey
   filters: CardFilters
   onFilters: (filters: CardFilters) => void
+  /** Wishlists: hide fully owned lines. */
   hideOwned: boolean
   onHideOwned: (hide: boolean) => void
-  /** Any filter is narrowing the list. */
+  /** Any filter active. */
   filtering: boolean
-  /** Card data still loading, so filters may hide cards they shouldn't. */
+  /** Card data loading; data filters may be incomplete. */
   dataLoading: boolean
-  /** Choosing a commander. */
+  /** Commander picking mode; forces all sections open. */
   picking: boolean
   onUnsetCommander: () => void
 }
 
+/** Filter bar plus foldable type sections (commander first) rendered as table or grid per settings. */
 export function ListTable(props: ListTableProps) {
   const { isDeck, sections, renderRow, visibleSummary, filtering } = props
   const { cardView } = useSettings()
@@ -165,7 +167,6 @@ export function ListTable(props: ListTableProps) {
           {sections.map((section) => {
             const sectionSummary = summarize(section.rows)
             const leaders = section.id === 'Commander'
-            // While choosing a commander every card must be clickable, so nothing stays folded.
             const open = props.picking || !closed.has(section.id)
             return (
               <tbody key={section.id} className={leaders ? 'commander-section' : undefined}>

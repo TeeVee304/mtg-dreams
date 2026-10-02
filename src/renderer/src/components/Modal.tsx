@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
+/** Props of {@link Modal}. */
 interface ModalProps {
   title: string
   onClose: () => void
@@ -9,6 +10,7 @@ interface ModalProps {
   size?: 'normal' | 'medium' | 'wide'
 }
 
+/** Modal dialog with title, body and optional footer; closes on Escape or backdrop click. */
 export function Modal({ title, onClose, children, footer, size = 'normal' }: ModalProps) {
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose

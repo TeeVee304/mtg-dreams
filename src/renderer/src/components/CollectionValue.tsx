@@ -11,9 +11,10 @@ import { previewHandlers } from './HoverPreview'
 import { Modal } from './Modal'
 import { ValueChange } from './ValueChange'
 
+/** Top-card list page size and stagger cycle. */
 const STEP = 5
 
-/** Animates a number towards `target`, continuing from wherever it currently is. */
+/** Animates toward `target` from the current value; jumps if reduced motion is requested. @returns Current animated value. */
 function useCountUp(target: number): number {
   const [value, setValue] = useState(0)
   const current = useRef(0)
@@ -38,22 +39,18 @@ function useCountUp(target: number): number {
   return value
 }
 
+/** Props of {@link CollectionValueDialog}. */
 interface CollectionValueDialogProps {
   inventory: Map<string, InventoryItem>
   onClose: () => void
 }
 
-/**
- * The inventory's estimated value and its most valuable cards, worked out each
- * time it opens: copies with a recorded version at that version, the others at
- * the card's cheapest version.
- */
+/** Inventory valuation dialog (see {@link valueCollection}) with top cards; requests missing prices on open. */
 export function CollectionValueDialog({ inventory, onClose }: CollectionValueDialogProps) {
   usePrintingsVersion()
   const { bundleBasics } = useSettings()
   const [shown, setShown] = useState(STEP)
 
-  // Cached prices answer instantly; anything missing is looked up now.
   useEffect(() => {
     for (const item of inventory.values()) {
       if (!bundledBasic(item.name, bundleBasics)) requestPrintings(item.name, { priority: 'high' })

@@ -7,7 +7,7 @@ import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { Printing, PrintingsResult } from '../shared/types'
 
-// A local stand-in for Cardmarket's price guide file.
+/** Local Cardmarket price guide payload. */
 const published = {
   lastModified: 'Wed, 30 Sep 2026 07:55:13 GMT',
   createdAt: '2026-09-30T09:54:57+0200',
@@ -15,7 +15,7 @@ const published = {
   downloadStatus: 200,
   priceGuides: [
     { idProduct: 101, avg: 1, low: 0.2, trend: 1.1, avg1: 1, avg7: 1, avg30: 1.25, 'low-foil': 2, 'trend-foil': 3, 'avg30-foil': 3.5 },
-    { idProduct: 102, avg: 5, low: 4, trend: 0, avg30: 6 } // no trend: Scryfall's stays
+    { idProduct: 102, avg: 5, low: 4, trend: 0, avg30: 6 }
   ]
 }
 const requests: string[] = []
@@ -83,12 +83,12 @@ describe('the price guide', () => {
     expect(priced.printings.map((p) => [p.price, p.priceFoil])).toEqual([
       [{ trend: 1.1, low: 0.2, avg30: 1.25 }, { trend: 3, low: 2, avg30: 3.5 }],
       [{ trend: 7, low: 4, avg30: 6 }, {}],
-      [{ trend: 2 }, {}], // not in the guide
-      [{}, {}] // not on Cardmarket
+      [{ trend: 2 }, {}],
+      [{}, {}]
     ])
     expect(priced.pricedAt).toBe(Date.parse(published.createdAt))
     expect(guide.priceGuideDate()).toBe(Date.parse(published.createdAt))
-    expect(scryfall.printings[0].price).toEqual({ trend: 0.9 }) // cached data is left alone
+    expect(scryfall.printings[0].price).toEqual({ trend: 0.9 })
   })
 
   it('checks only the date when nothing new is published', async () => {

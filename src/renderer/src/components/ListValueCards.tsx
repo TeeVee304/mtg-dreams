@@ -3,18 +3,18 @@ import type { PriceBasis } from '../../../shared/types'
 import { formatEur } from '../format'
 import type { Summary } from '../summary'
 
-// The value cards at the top of a list: what a deck is worth, or what a wishlist
-// still costs and how much of it you own.
-
+/** Props of {@link ListValueCards}. */
 interface ListValueCardsProps {
   isDeck: boolean
   summary: Summary
-  /** Card lines in the list (not copies). */
+  /** Card line count (not copies). */
   lines: number
+  /** Land copies. */
   lands: number
   basis: PriceBasis
 }
 
+/** Value stats: deck value, or wishlist remaining cost and owned share. */
 export function ListValueCards({ isDeck, summary, lines, lands, basis }: ListValueCardsProps) {
   if (isDeck) {
     return (
@@ -44,7 +44,7 @@ export function ListValueCards({ isDeck, summary, lines, lands, basis }: ListVal
   )
 }
 
-/** Which price the value uses (Settings → Prices), and what's still missing from it. */
+/** @returns Note naming the price basis and any loading or unpriced cards. */
 function priceNote(summary: Summary, basis: PriceBasis): string {
   const parts = [`${priceBasisLabel(basis)} prices`]
   if (summary.loading) parts.push(`${summary.loading} loading`)
@@ -52,6 +52,7 @@ function priceNote(summary: Summary, basis: PriceBasis): string {
   return parts.join(' · ')
 }
 
+/** Single labeled stat card. */
 function Stat({ label, value, accent, note }: { label: string; value: string; accent?: boolean; note?: string }) {
   return (
     <div className={`stat${accent ? ' accent' : ''}`}>

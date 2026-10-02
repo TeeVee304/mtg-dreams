@@ -9,9 +9,9 @@ const baselines = { [lineKey(line(1))]: { at: 1000, prices: { trend: 80, low: 60
 describe('wishlist price drops', () => {
   it('flags a card still needed once it is cheaper than the threshold, on the chosen basis', () => {
     expect(priceDrop(line(1), 64, 0, 'trend', 15, baselines)).toEqual({ percent: 20, was: 80, since: 1000 })
-    expect(priceDrop(line(1), 72, 0, 'trend', 15, baselines)).toBeNull() // only 10% cheaper
+    expect(priceDrop(line(1), 72, 0, 'trend', 15, baselines)).toBeNull()
     expect(priceDrop(line(1), 50, 0, 'low', 15, baselines)?.was).toBe(60)
-    expect(priceDrop(line(1), 50, 0, 'avg30', 15, baselines)).toBeNull() // no baseline on that basis
+    expect(priceDrop(line(1), 50, 0, 'avg30', 15, baselines)).toBeNull()
   })
 
   it('ignores owned lines, unknown prices and other versions of the card', () => {
@@ -36,7 +36,6 @@ describe('inventory value change', () => {
 
   it('adds up price moves of the copies owned, in their finish', () => {
     const result = valueChange([valued(1, 2), valued(1, 1, true), valued(2, 3), valued(3, 1)], then, latest)!
-    // +2×2 non-foil, −5 foil, −1×3; card 3 has no earlier price and is left out.
     expect(result.change).toBeCloseTo(4 - 5 - 3)
     expect(result.moves).toHaveLength(3)
     expect(result.from).toBe(1)

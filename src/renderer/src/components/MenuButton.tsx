@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from './Icon'
 
-// A "⋯" button that opens a short menu of less common actions. Closes on a choice,
-// a click elsewhere or Escape; arrow keys move between the items.
-
+/** Menu entry. */
 export interface MenuItem {
   label: string
   onSelect: () => void
-  /** Destructive (Delete): set apart at the bottom, in red. */
+  /** Destructive: separated at the bottom, in red. */
   danger?: boolean
 }
 
+/** Overflow (⋯) menu. Closes on selection, outside click or Escape (without closing an enclosing dialog); arrow keys navigate. */
 export function MenuButton({ label, items }: { label: string; items: MenuItem[] }) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
@@ -28,7 +27,6 @@ export function MenuButton({ label, items }: { label: string; items: MenuItem[] 
 
   const onKey = (event: React.KeyboardEvent) => {
     if (event.key === 'Escape') {
-      // Only the menu closes, not a dialog around it.
       event.stopPropagation()
       setOpen(false)
       root.current?.querySelector<HTMLButtonElement>('.menu-trigger')?.focus()

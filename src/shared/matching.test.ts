@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { hasNamedCard, printingsOfNamedCard } from './matching'
 
-// Newest first, like Scryfall's search results.
+/** Scryfall-like search results, newest first. */
 const results = [
   { name: 'Grave Researcher // Reanimate', oracle_id: 'grave', set: 'soc' },
   { name: 'Reanimate', oracle_id: 'reanimate', set: 'dmr' },

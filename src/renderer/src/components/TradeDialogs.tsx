@@ -17,20 +17,24 @@ import { useAsyncAction } from '../useAsyncAction'
 import { Modal } from './Modal'
 import { useToast } from './Toasts'
 
+/** Pluralized count. */
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+/** Total copies label. */
 const copies = (cards: TradeCard[]) => {
   const n = cards.reduce((sum, card) => sum + card.qty, 0)
   return `${n} ${n === 1 ? 'copy' : 'copies'}`
 }
+/** Plain `N Name` lines. */
 const cardsToText = (cards: TradeCard[]) => countLines(cards).join('\n')
 
+/** Props of {@link ShareTradeDialog}. */
 interface ShareTradeDialogProps {
   inventory: Map<string, InventoryItem>
   wishlists: CardList[]
   onClose: () => void
 }
 
-/** Exports your trade list as a file or as text for a chat. */
+/** Exports the own trade list as a file or as copyable text. */
 export function ShareTradeDialog({ inventory, wishlists, onClose }: ShareTradeDialogProps) {
   const toast = useToast()
   const settings = useSettings()
@@ -97,15 +101,17 @@ export function ShareTradeDialog({ inventory, wishlists, onClose }: ShareTradeDi
   )
 }
 
+/** Props of {@link ImportTradeDialog}. */
 interface ImportTradeDialogProps {
+  /** Existing trade names; a matching import is flagged as a replacement. */
   existingNames: string[]
-  /** Updating a known friend: the imported list keeps this name. */
+  /** Name kept when updating an existing friend's list. */
   replaceName?: string
   onImport: (snapshot: TradeSnapshot) => Promise<void>
   onClose: () => void
 }
 
-/** Imports a friend's trade list from a file, or from pasted plain lists. */
+/** Imports a friend's trade list from a file or pasted lists (a pasted wishlist counts as wants). Plain lists are shown for review first. */
 export function ImportTradeDialog({ existingNames, replaceName, onImport, onClose }: ImportTradeDialogProps) {
   const [name, setName] = useState(replaceName ?? '')
   const [haves, setHaves] = useState('')
@@ -118,7 +124,6 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
     try {
       const main = haves.trim() ? parseTradeText(haves, name || 'Friend') : null
       const extra = wants.trim() ? parseTradeText(wants, name || 'Friend') : null
-      // A pasted wishlist is a plain list, which parses as "haves".
       const wanted = [...(main?.wants ?? []), ...(extra ? [...extra.haves, ...extra.wants] : [])]
       const snapshot: TradeSnapshot = {
         ...(main ?? extra!),
@@ -144,7 +149,6 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
         await onImport(replaceName ? { ...snapshot, name: replaceName } : snapshot)
         return
       }
-      // A plain list or collection export: show it for a check before importing.
       setName(replaceName ?? snapshot.name)
       setHaves(cardsToText(snapshot.haves))
       setWants(cardsToText(snapshot.wants))

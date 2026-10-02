@@ -139,7 +139,6 @@ describe('sortRows', () => {
   })
 
   it('sorts by the cost still needed (copies not owned)', () => {
-    // Atraxa: 10 × 1 missing; Sol Ring 2 × 1; Elves 0.2 × 4.
     expect(names(sortRows(rows, 'needed'))).toEqual(['Atraxa', 'Sol Ring', 'Llanowar Elves', 'Command Tower'])
   })
 
@@ -185,8 +184,8 @@ describe('copy limits', () => {
   it('lets a line grow into the room the other lines leave, and never forces it down', () => {
     const [line] = parseList('2 Lightning Bolt') as CardLine[]
     const caps = { formatCap: 4, ownedCap: Infinity, cap: 4 }
-    expect(lineMax(line, caps, 3)).toBe(3) // another line holds 1
-    expect(lineMax(line, { ...caps, cap: 1 }, 2)).toBe(2) // already over: keeps its 2
+    expect(lineMax(line, caps, 3)).toBe(3)
+    expect(lineMax(line, { ...caps, cap: 1 }, 2)).toBe(2)
     expect(lineMax(line, { formatCap: Infinity, ownedCap: Infinity, cap: Infinity }, 2)).toBeUndefined()
   })
 })

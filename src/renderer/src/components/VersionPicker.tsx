@@ -5,17 +5,22 @@ import { formatEur } from '../format'
 import { useSettings } from '../settings'
 import { previewHandlers } from './HoverPreview'
 
+/** Selection value for the cheapest printing. */
 export const AUTO = 'auto'
 
+/** Props of {@link VersionPicker}. */
 interface VersionPickerProps {
   printings: Printing[]
+  /** Finish used for prices. */
   foil: boolean
-  /** A printing id, or AUTO for "cheapest version". */
+  /** Printing id, or {@link AUTO}. */
   selected: string
   onSelect: (id: string) => void
+  /** Double-click confirm. */
   onConfirm?: () => void
 }
 
+/** Printing grid with a leading cheapest ({@link AUTO}) tile, sorted by {@link sortPrintings}. */
 export function VersionPicker({ printings, foil, selected, onSelect, onConfirm }: VersionPickerProps) {
   const [filter, setFilter] = useState('')
   const { priceBasis } = useSettings()
@@ -71,6 +76,7 @@ export function VersionPicker({ printings, foil, selected, onSelect, onConfirm }
   )
 }
 
+/** Props of {@link Tile}. */
 interface TileProps {
   printing: Printing | null
   price: number | null
@@ -79,9 +85,11 @@ interface TileProps {
   selected: boolean
   onClick: () => void
   onDoubleClick?: () => void
+  /** Cheapest-printing tile. */
   auto?: boolean
 }
 
+/** Printing tile with image, price and labels. */
 function Tile({ printing, price, title, subtitle, selected, onClick, onDoubleClick, auto }: TileProps) {
   const image = printing?.imageNormal ?? printing?.imageSmall
   return (

@@ -1,30 +1,35 @@
 import { itemFromCopies } from './inventory'
 import type { CardLine, InventoryItem, ListLine, OwnedCopy } from './types'
 
+/** Source of {@link newLineId}. */
 let idCounter = 0
 
+/** @returns Session-unique line id. */
 export function newLineId(): string {
   idCounter += 1
   return `l${idCounter}`
 }
 
-/**
- * Key used to match cards by name across lists and the inventory:
- * case-insensitive, whitespace-collapsed, front face only
- * ("Delver of Secrets // Insectile Aberration" matches "Delver of Secrets").
- */
+/** Card identity key: front face only, whitespace-collapsed, lower-case. */
 export function nameKey(name: string): string {
   return name.split('//')[0].replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
+/** `N[x] rest` card line. */
 const LINE_RE = /^(\d+)\s*[xX]?\s+(.+)$/
+/** Foil suffix: `(F)` or `*F*`. */
 const FOIL_RE = /\s*(?:\(F\)|\*F\*)$/i
+/** Goldfish set suffix: `[SET]`. */
 const GOLDFISH_SET_RE = /\s*\[([A-Za-z0-9]{2,8})\]$/
+/** Goldfish tag suffix: `<tag>`. */
 const GOLDFISH_TAG_RE = /\s*<([^<>]+)>$/
-// Arena / Moxfield export style: "Lightning Bolt (2XM) 141"
+/** Arena/Moxfield suffix: `Lightning Bolt (2XM) 141`. */
 const ARENA_SET_RE = /\s+\(([A-Za-z0-9]{2,8})\)(?:\s+(\S+))?$/
 
-/** Parses one "N Card Name" line. Returns null if the line isn't a card line. */
+/**
+ * Parses `N[x] Name` with optional suffixes in any order: `<tag>`, `[SET]`, `(F)`/`*F*`, `(SET) num`.
+ * @returns Card fields; null if not a card line.
+ */
 export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | null {
   const match = LINE_RE.exec(line.trim())
   if (!match) return null
@@ -36,7 +41,6 @@ export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | nul
   let set: string | undefined
   let collector: string | undefined
 
-  // Suffix tokens may come in any order, so peel them off until none match.
   for (;;) {
     let m: RegExpExecArray | null
     if ((m = FOIL_RE.exec(rest))) {
@@ -59,6 +63,7 @@ export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | nul
   return { qty, name, set, collector: collector || undefined, foil }
 }
 
+/** Parses a list file (BOM-tolerant, trailing blank lines dropped); non-card lines become {@link TextLine}s. */
 export function parseList(text: string): ListLine[] {
   const rows = text.replace(/^﻿/, '').split(/\r?\n/)
   while (rows.length > 0 && rows[rows.length - 1].trim() === '') rows.pop()
@@ -69,6 +74,7 @@ export function parseList(text: string): ListLine[] {
   })
 }
 
+/** @returns Canonical line: `N Name <collector> [SET] (F)`. */
 export function serializeCard(card: Omit<CardLine, 'id' | 'kind'>): string {
   let line = `${card.qty} ${card.name}`
   if (card.collector) line += ` <${card.collector}>`
@@ -77,20 +83,23 @@ export function serializeCard(card: Omit<CardLine, 'id' | 'kind'>): string {
   return line
 }
 
+/** @returns File text, newline-terminated; `''` for no lines. */
 export function serializeList(lines: ListLine[]): string {
   const out = lines.map((line) => (line.kind === 'card' ? serializeCard(line) : line.text))
   return out.length ? `${out.join('\n')}\n` : ''
 }
 
+/** @returns Card lines only. */
 export function cardLines(lines: ListLine[]): CardLine[] {
   return lines.filter((line): line is CardLine => line.kind === 'card')
 }
 
+/** Known section header words (Arena, Moxfield, Goldfish), lower-case, without trailing colon. */
 const SECTION_HEADERS = new Set([
   'deck', 'main', 'mainboard', 'maindeck', 'sideboard', 'side', 'commander', 'companion', 'maybeboard', 'about'
 ])
 
-/** Non-blank text lines that aren't comments or known section headers — likely typos. */
+/** @returns Trimmed text lines that are not blank, `//`/`#` comments or section headers (likely typos). */
 export function unrecognizedLines(lines: ListLine[]): string[] {
   return lines
     .filter((line): line is Extract<ListLine, { kind: 'text' }> => line.kind === 'text')
@@ -101,17 +110,18 @@ export function unrecognizedLines(lines: ListLine[]): string[] {
     })
 }
 
+/** Inventory coverage of one list line. */
 export interface Allocation {
   /** Copies of this line covered by the inventory. */
   owned: number
-  /** Copies of the same card wanted by earlier lines of the list (they get inventory first). */
+  /** Copies of the same card claimed by earlier lines, which take precedence. */
   before: number
 }
 
 /**
- * Splits owned copies across the lines of one list. The same card can appear
- * on several lines (different versions); each owned copy is only counted once.
- * Different lists all share the full inventory.
+ * Allocates owned copies to the lines of one list in order, counting each copy once per list.
+ * Each list is allocated against the full inventory independently.
+ * @param inventory - Items by nameKey.
  */
 export function allocateOwned(lines: CardLine[], inventory: Map<string, InventoryItem>): Allocation[] {
   const wantedSoFar = new Map<string, number>()
@@ -124,10 +134,7 @@ export function allocateOwned(lines: CardLine[], inventory: Map<string, Inventor
   })
 }
 
-/**
- * The inventory, by card name: lines of the same card (any versions and finishes)
- * make one item, which keeps its copies by version.
- */
+/** @returns Inventory items by nameKey; lines of the same card merge into one item's copies. */
 export function parseInventory(text: string): Map<string, InventoryItem> {
   const cards = new Map<string, { name: string; copies: OwnedCopy[] }>()
   for (const card of cardLines(parseList(text))) {
@@ -145,7 +152,7 @@ export function parseInventory(text: string): Map<string, InventoryItem> {
   return items
 }
 
-/** One line per version of each card, cards by name. */
+/** @returns Inventory file text: one line per copy group, sorted by name; empty items omitted. */
 export function serializeInventory(items: Map<string, InventoryItem>): string {
   const sorted = [...items.values()]
     .filter((item) => item.qty > 0)
@@ -155,7 +162,7 @@ export function serializeInventory(items: Map<string, InventoryItem>): string {
     .join('')
 }
 
-/** Plain "N Card Name" lines, as the inventory and trade lists write cards. */
+/** @returns Plain `N Name` lines. */
 export function countLines(cards: Array<{ qty: number; name: string }>): string[] {
   return cards.map((card) => `${card.qty} ${card.name}`)
 }

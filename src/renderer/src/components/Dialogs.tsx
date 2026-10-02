@@ -6,6 +6,7 @@ import { cardCount } from '../format'
 import { useAsyncAction } from '../useAsyncAction'
 import { Modal } from './Modal'
 
+/** Props of {@link PromptDialog}. */
 interface PromptDialogProps {
   title: string
   label: string
@@ -15,6 +16,7 @@ interface PromptDialogProps {
   onClose: () => void
 }
 
+/** Single text input dialog; `onSubmit` errors are shown inline. */
 export function PromptDialog({ title, label, initial = '', confirmLabel, onSubmit, onClose }: PromptDialogProps) {
   const [value, setValue] = useState(initial)
   const { error, busy, run } = useAsyncAction()
@@ -51,15 +53,18 @@ export function PromptDialog({ title, label, initial = '', confirmLabel, onSubmi
   )
 }
 
+/** Props of {@link ConfirmDialog}. */
 interface ConfirmDialogProps {
   title: string
   message: string
   confirmLabel: string
+  /** Styles the confirm button as destructive. */
   danger?: boolean
   onConfirm: () => Promise<void> | void
   onClose: () => void
 }
 
+/** Confirmation dialog; `onConfirm` errors are shown inline. */
 export function ConfirmDialog({ title, message, confirmLabel, danger, onConfirm, onClose }: ConfirmDialogProps) {
   const { error, busy, run } = useAsyncAction()
   const submit = () => run(onConfirm)
@@ -85,15 +90,17 @@ export function ConfirmDialog({ title, message, confirmLabel, danger, onConfirm,
   )
 }
 
+/** Props of {@link ConflictDialog}. */
 interface ConflictDialogProps {
-  /** The list's name in quotes, or "Your inventory". */
+  /** Display name: quoted list name or `Your inventory`. */
   name: string
+  /** Overwrites the external version. */
   onKeepMine: () => void
-  /** Also what closing the dialog does: the other version is never overwritten unasked. */
+  /** Reloads the external version; also invoked on close, so nothing is overwritten implicitly. */
   onLoadOther: () => void
 }
 
-/** A save was refused because the file changed outside the app, e.g. synced from another PC. */
+/** Resolves a save conflict (file changed externally). */
 export function ConflictDialog({ name, onKeepMine, onLoadOther }: ConflictDialogProps) {
   return (
     <Modal
@@ -127,6 +134,7 @@ export function ConflictDialog({ name, onKeepMine, onLoadOther }: ConflictDialog
   )
 }
 
+/** Live parse summary of editor text: card count and unrecognized lines. */
 function ParseStats({ text, mode }: { text: string; mode: 'list' | 'inventory' }) {
   const stats = useMemo(() => {
     const lines = parseList(text)
@@ -154,16 +162,20 @@ function ParseStats({ text, mode }: { text: string; mode: 'list' | 'inventory' }
   )
 }
 
+/** List syntax help text. */
 const FORMAT_HINT = 'One card per line: “4 Lightning Bolt”. Optional version: “4 Lightning Bolt <141> [A25]”, foil: “(F)”.'
 
+/** Props of {@link TextEditorDialog}. */
 interface TextEditorDialogProps {
   title: string
   initial: string
+  /** Parse mode for the live summary. */
   mode: 'list' | 'inventory'
   onSave: (text: string) => void
   onClose: () => void
 }
 
+/** Raw text editor for a list or the inventory. */
 export function TextEditorDialog({ title, initial, mode, onSave, onClose }: TextEditorDialogProps) {
   const [text, setText] = useState(initial)
   const save = () => {
@@ -206,14 +218,17 @@ export function TextEditorDialog({ title, initial, mode, onSave, onClose }: Text
   )
 }
 
+/** Props of {@link NewListDialog}. */
 interface NewListDialogProps {
   kind: ListKind
-  /** `addToInventory`: decks only, top the inventory up so it covers the imported cards. */
+  /** Creates the list. `addToInventory` (decks): raise inventory totals to cover the imported cards. */
   onCreate: (name: string, text: string, formatId: string | null, addToInventory: boolean) => Promise<void>
+  /** Switches to precon import. */
   onFromPrecon: () => void
   onClose: () => void
 }
 
+/** New deck or wishlist dialog: name, optional format and pasted list. */
 export function NewListDialog({ kind, onCreate, onFromPrecon, onClose }: NewListDialogProps) {
   const isDeck = kind === 'deck'
   const [name, setName] = useState('')

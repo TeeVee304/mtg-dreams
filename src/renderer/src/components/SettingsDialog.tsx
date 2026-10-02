@@ -13,6 +13,7 @@ const THEMES: Array<{ id: Theme; label: string; hint: string }> = [
   { id: 'dark', label: 'Dark', hint: 'Always dark' }
 ]
 
+/** Settings dialog; changes apply immediately. */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const settings = useSettings()
   const [error, setError] = useState<string | null>(null)

@@ -4,29 +4,38 @@ import { nameKey } from '../../shared/decklist'
 import type { CardInfo } from '../../shared/types'
 import { getPrintingsEntry } from './printings'
 
-// Card data (colors, type, legality...) for cards whose prices aren't being
-// looked up, i.e. the inventory. Requests made in the same tick are batched.
+/**
+ * Card data store for cards without a printings lookup (inventory). Requests in the same tick are
+ * batched into one IPC call.
+ *
+ * @packageDocumentation
+ */
 
+/** Card data by nameKey; null = unknown to Scryfall. */
 const infos = new Map<string, CardInfo | null>()
+/** nameKeys being fetched. */
 const inFlight = new Set<string>()
+/** Names awaiting the next flush, by nameKey. */
 const queued = new Map<string, string>()
 const listeners = new Set<() => void>()
 let version = 0
 let flushScheduled = false
 
+/** Bumps the version and notifies subscribers. */
 function emit(): void {
   version += 1
   for (const listener of listeners) listener()
 }
 
+/** `useSyncExternalStore` subscribe. */
 function subscribe(listener: () => void): () => void {
   listeners.add(listener)
   return () => listeners.delete(listener)
 }
 
 /**
- * Card data if known: undefined while unknown/loading, null if Scryfall has no such card.
- * With `bundleBasics`, regular basic lands use their built-in generic data.
+ * Looks up card data from generic basics (if `bundleBasics`), printings entries, then this store.
+ * @returns Card data; undefined if not loaded; null if unknown to Scryfall.
  */
 export function getCardInfo(name: string, bundleBasics = false): CardInfo | null | undefined {
   const generic = bundledBasic(name, bundleBasics)
@@ -37,6 +46,7 @@ export function getCardInfo(name: string, bundleBasics = false): CardInfo | null
   return infos.get(nameKey(name))
 }
 
+/** Queues names lacking data for a batched fetch on the next tick. */
 export function requestCardInfos(names: string[], bundleBasics = false): void {
   for (const name of names) {
     const key = nameKey(name)
@@ -50,6 +60,7 @@ export function requestCardInfos(names: string[], bundleBasics = false): void {
   }
 }
 
+/** Fetches queued names; failures leave them unknown so later requests retry. */
 async function flush(): Promise<void> {
   flushScheduled = false
   const batch = [...queued]
@@ -59,13 +70,13 @@ async function flush(): Promise<void> {
     const result = await window.api.getCardInfos(batch.map(([, name]) => name))
     for (const [key, info] of Object.entries(result)) infos.set(key, info)
   } catch {
-    // Offline: leave these unknown so a later request retries them.
   } finally {
     for (const [key] of batch) inFlight.delete(key)
     emit()
   }
 }
 
+/** Hook re-rendering on card data changes. @returns Store version. */
 export function useCardInfoVersion(): number {
   return useSyncExternalStore(subscribe, () => version)
 }

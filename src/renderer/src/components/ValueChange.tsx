@@ -5,25 +5,29 @@ import { formatDay, formatEur } from '../format'
 import { valueChange, type ValueMove } from '../history'
 import { copyLabel } from './InventoryVersions'
 
-// How the inventory's value moved over the last week or month, from the app's own
-// price history, with the cards that moved it most. Only price changes count:
-// cards added or removed meanwhile don't.
-
 const DAY = 24 * 60 * 60 * 1000
+/** Selectable comparison ranges. */
 const RANGES = [
   { id: 'week', label: 'This week', days: 7 },
   { id: 'month', label: 'This month', days: 30 }
 ] as const
 type Range = (typeof RANGES)[number]['id']
+/** Top risers and fallers shown. */
 const MOVERS = 3
 
+/** Latest snapshot and those in force a week and a month ago. */
 interface Snapshots {
   latest: PriceSnapshot
   week: PriceSnapshot
   month: PriceSnapshot
 }
 
-/** `valued`: the inventory's copies with prices; `ready`: every card's price has loaded. */
+/**
+ * Inventory value change over a week or month from local price history, with top movers. Counts
+ * price changes only, not additions or removals; notes when history is shorter than the range.
+ * @param valued - Priced inventory copies.
+ * @param ready - All prices loaded.
+ */
 export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: boolean }) {
   const [range, setRange] = useState<Range>('week')
   const [snapshots, setSnapshots] = useState<Snapshots | 'none' | null>(null)
@@ -50,7 +54,6 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
   const change = snapshots === 'none' ? null : valueChange(valued, snapshots[range], snapshots.latest)
   const risers = change?.moves.filter((m) => m.change > 0).sort((a, b) => b.change - a.change).slice(0, MOVERS) ?? []
   const fallers = change?.moves.filter((m) => m.change < 0).sort((a, b) => a.change - b.change).slice(0, MOVERS) ?? []
-  // While the history is younger than the range, say how far back it goes.
   const partial = change && change.from > change.to - days * DAY + DAY
 
   return (
@@ -94,6 +97,7 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
   )
 }
 
+/** Signed EUR change. */
 function Delta({ value }: { value: number }) {
   const direction = value > 0.005 ? 'up' : value < -0.005 ? 'down' : 'flat'
   const sign = direction === 'up' ? '+' : direction === 'down' ? '−' : '±'
@@ -106,6 +110,7 @@ function Delta({ value }: { value: number }) {
   )
 }
 
+/** List of top value movers. */
 function Movers({ title, moves }: { title: string; moves: ValueMove[] }) {
   return (
     <div>

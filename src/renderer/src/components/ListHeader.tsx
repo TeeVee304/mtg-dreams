@@ -4,32 +4,33 @@ import type { Summary } from '../summary'
 import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
 
-// A deck's or wishlist's title bar: its format, commander choice, problem badges,
-// price status and the actions on the whole list.
-
+/** Props of {@link ListHeader}. */
 interface ListHeaderProps {
   name: string
+  /** Noun used in labels. */
   noun: 'deck' | 'list'
   format: DeckFormat | null
-  /** Card lines in the list (not copies). */
+  /** Card line count (not copies). */
   lines: number
   summary: Summary
-  /** Choosing a commander: the next card clicked becomes it. */
+  /** Commander picking mode active. */
   picking: boolean
   legalityErrors: number
   ownershipErrors: number
-  /** Showing only the cards with problems. */
+  /** Problem-only filter active. */
   onlyProblems: boolean
   onToggleProblems: () => void
   onTogglePicking: () => void
   onFormat: (formatId: string | null) => void
   onRefreshPrices: () => void
   onEditText: () => void
+  /** Copies the list text to the clipboard. */
   onCopy: () => void
   onRename: () => void
   onDelete: () => void
 }
 
+/** List title bar: format select, commander picking, problem badges, price status and list actions. */
 export function ListHeader(props: ListHeaderProps) {
   const { name, noun, format, lines, summary, picking, legalityErrors, ownershipErrors, onlyProblems } = props
   const problemsTitle = onlyProblems ? 'Show all cards' : 'Show only cards with problems'

@@ -3,16 +3,15 @@ import { formatEur } from '../format'
 import type { Row } from '../summary'
 import { Icon } from './Icon'
 
-// One card of a deck or wishlist in the Cards view: its picture, with how many copies,
-// whether you own them (wishlists) and any problem on top, and its name and price below.
-// A click opens the card (or, while choosing a commander, picks it).
-
+/** Props of {@link CardTile}. */
 interface CardTileProps {
   row: Row
   isDeck: boolean
-  /** While choosing a commander: whether this card can be picked. */
+  /** Commander picking mode: whether this card is eligible. */
   pick?: 'ok' | 'no'
+  /** Card is the commander. */
   leader: boolean
+  /** Just chosen as commander (animation). */
   crowned: boolean
   issue: LegalityIssue | null
   /** Deck copies not covered by the inventory. */
@@ -21,6 +20,7 @@ interface CardTileProps {
   onPick: () => void
 }
 
+/** Grid view card: image with quantity, owned state and issue badges; name and price below. Click opens or picks. */
 export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall, onOpen, onPick }: CardTileProps) {
   const { line, resolution, entry, owned, unit } = row
   const printing = resolution?.printing ?? null

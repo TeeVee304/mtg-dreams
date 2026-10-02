@@ -7,36 +7,45 @@ import { env } from './environment'
 import { fetchJson } from './http'
 import { scryfallCache, scryfallCacheChanged, scryfallCacheReady } from './scryfallCache'
 
-// Card data (types, legality) only changes with bans and errata.
+/** Card data TTL; changes only with bans and errata. */
 const CARD_INFO_TTL_MS = 7 * 24 * 60 * 60 * 1000
-// Scryfall's /cards/collection accepts up to 75 cards per request.
+/** Max identifiers per `/cards/collection` request. */
 const COLLECTION_BATCH = 75
+/** Max search result pages (175 cards each) per lookup. */
 const MAX_SEARCH_PAGES = 10
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-// ---------------------------------------------------------------------------
-// Rate limiting. Scryfall's hard limits: 2 req/s for /cards/search and
-// /cards/named, 10 req/s for everything else. A 429 locks the client out for
-// 30 seconds, so after one we pause every queue.
-// ---------------------------------------------------------------------------
-
+/**
+ * Global lockout end (epoch ms) after a 429; Scryfall locks clients out for 30 s, so all queues
+ * pause until then.
+ */
 let blockedUntil = 0
 
+/** Queued request with its promise settlers. */
 interface Job {
   task: () => Promise<unknown>
   resolve: (value: unknown) => void
   reject: (reason: unknown) => void
 }
 
+/**
+ * Serial request queue with a minimum interval between starts and two priority lanes.
+ * Honors the global 429 lockout.
+ */
 export class RateLimitedQueue {
   private readonly high: Job[] = []
   private readonly low: Job[] = []
   private running = false
   private nextSlot = 0
 
+  /** @param intervalMs - Minimum delay between request starts. */
   constructor(private readonly intervalMs: number) {}
 
+  /**
+   * Enqueues a task.
+   * @returns Task result promise and the job handle (for {@link RateLimitedQueue.promote}).
+   */
   run<T>(task: () => Promise<T>, priority: 'high' | 'low'): { promise: Promise<T>; job: Job } {
     let job!: Job
     const promise = new Promise<T>((resolve, reject) => {
@@ -47,7 +56,7 @@ export class RateLimitedQueue {
     return { promise, job }
   }
 
-  /** Moves a queued background job to the front, e.g. when the user opens that card. */
+  /** Moves a queued low-priority job to the high-priority lane; no-op if not queued. */
   promote(job: Job): void {
     const index = this.low.indexOf(job)
     if (index >= 0) {
@@ -56,6 +65,7 @@ export class RateLimitedQueue {
     }
   }
 
+  /** Drains the queue, high lane first; single runner. */
   private async pump(): Promise<void> {
     if (this.running) return
     this.running = true
@@ -78,10 +88,16 @@ export class RateLimitedQueue {
   }
 }
 
+/** Queue for `/cards/search`, `/cards/named` and `/cards/collection` (Scryfall limit: 2 req/s). */
 const searchQueue = new RateLimitedQueue(550)
+/** Queue for other endpoints (Scryfall limit: 10 req/s). */
 const generalQueue = new RateLimitedQueue(120)
 
-/** GETs (or, with a body, POSTs) JSON. Returns null on 404; waits out one rate-limit lockout. */
+/**
+ * GETs JSON, or POSTs `body`. Retries once after a 429 lockout.
+ * @returns Parsed body; null on 404.
+ * @throws Error on a repeated 429, other HTTP errors, or non-JSON bodies.
+ */
 async function getJson(url: string, body?: unknown): Promise<any | null> {
   for (let attempt = 0; ; attempt++) {
     const wait = blockedUntil - Date.now()
@@ -98,21 +114,20 @@ async function getJson(url: string, body?: unknown): Promise<any | null> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Card data mapping
-// ---------------------------------------------------------------------------
-
+/** Parses a Scryfall price string; null if absent or invalid. */
 function parsePrice(value: unknown): number | null {
   if (typeof value !== 'string') return null
   const n = Number.parseFloat(value)
   return Number.isFinite(n) ? n : null
 }
 
+/** Wraps a Scryfall EUR price as a `trend`-only {@link Prices}. */
 function trendOnly(value: unknown): Prices {
   const price = parsePrice(value)
   return price === null ? {} : { trend: price }
 }
 
+/** Derives display labels (frame, finish, promo, border, language, flavor name) from a Scryfall card. */
 function labelsFor(card: any): string[] {
   const labels: string[] = []
   const effects: string[] = card.frame_effects ?? []
@@ -134,10 +149,15 @@ function labelsFor(card: any): string[] {
   return labels
 }
 
+/** Flavor name of the card or its first face. */
 function flavorNameOf(card: any): string | undefined {
   return card.flavor_name ?? card.card_faces?.[0]?.flavor_name ?? undefined
 }
 
+/**
+ * Maps a Scryfall card to a {@link Printing}. Scryfall EUR prices (Cardmarket trend) become the
+ * fallback for guide prices; image URLs drop the `?version` query.
+ */
 function toPrinting(card: any): Printing {
   const images = card.image_uris ?? card.card_faces?.[0]?.image_uris ?? {}
   return {
@@ -151,10 +171,8 @@ function toPrinting(card: any): Printing {
     lang: card.lang ?? 'en',
     finishes: card.finishes ?? [],
     cardmarketId: Number.isSafeInteger(card.cardmarket_id) ? card.cardmarket_id : null,
-    // Scryfall's EUR prices are Cardmarket's trend: kept as the fallback for the price guide (priceGuide.ts).
     price: trendOnly(card.prices?.eur),
     priceFoil: trendOnly(card.prices?.eur_foil),
-    // Without Scryfall's ?version suffix, so cached addresses stay short (see scryfallCache.ts).
     imageSmall: images.small?.split('?')[0] ?? null,
     imageNormal: images.normal?.split('?')[0] ?? null,
     cardmarketUrl: card.purchase_uris?.cardmarket ?? null,
@@ -164,15 +182,16 @@ function toPrinting(card: any): Printing {
   }
 }
 
+/** Rules text overriding the copy limit ("any number of" / "up to N"). */
 const DECK_LIMIT_RE = /A deck can have (?:any number of|up to (\w+)) cards named/i
+/** Number words used in {@link DECK_LIMIT_RE}. */
 const NUMBER_WORDS: Record<string, number> = { two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 }
-// Noncreature cards that may lead a Commander deck: "can be your commander" (some
-// planeswalkers), or a creature everywhere but the battlefield (Grist, the Hunger Tide).
+/** Rules text letting a noncreature card be commander: "can be your commander", or creature off the battlefield (Grist). */
 const LEADS_RE = /can be your commander|isn't on the battlefield, it's an? [^.]*\bcreature\b/i
 
+/** Maps a Scryfall card to {@link CardInfo}; colors fall back to the union of face colors, sorted WUBRG. */
 function toCardInfo(card: any): CardInfo {
   const faces: any[] = card.card_faces ?? []
-  // Double-faced cards keep their colors on the faces.
   const colors: string[] = card.colors ?? [...new Set(faces.flatMap((face) => face.colors ?? []))]
   const text: string = card.oracle_text ?? faces.map((face) => face.oracle_text ?? '').join('\n')
   const limit = DECK_LIMIT_RE.exec(text)
@@ -194,25 +213,30 @@ function toCardInfo(card: any): CardInfo {
   }
 }
 
-/** Tracks one card lookup so it can be promoted while its requests are queued. */
+/** Lookup state; `queued` is the currently queued job, for promotion. */
 interface Lookup {
   priority: 'high' | 'low'
   queued?: Job
 }
 
+/** Enqueues a search-queue GET at the lookup's priority and records the job. */
 function searchCall(url: string, lookup: Lookup): Promise<any | null> {
   const { promise, job } = searchQueue.run(() => getJson(url), lookup.priority)
   lookup.queued = job
   return promise
 }
 
+/** Accumulated search pages. */
 interface SearchResult {
+  /** Raw Scryfall cards. */
   cards: any[]
+  /** Scryfall's `total_cards`. */
   total: number
+  /** Stopped at `maxPages`. */
   truncated: boolean
 }
 
-/** Newest printings first. Stops after `maxPages` pages of 175; null if nothing matched. */
+/** Searches printings, newest first, up to `maxPages` pages. @returns null if the first page is 404 (no match). */
 async function searchPrints(query: string, lookup: Lookup, maxPages: number): Promise<SearchResult | null> {
   let url: string | null =
     `${env().scryfallApi}/cards/search?unique=prints&order=released&dir=desc&q=${encodeURIComponent(query)}`
@@ -232,8 +256,9 @@ async function searchPrints(query: string, lookup: Lookup, maxPages: number): Pr
 }
 
 /**
- * Basic lands have hundreds of printings (Swamp: ~800, five requests) that all
- * cost cents, so unless `full` is asked for only the newest page is fetched.
+ * Fetches all paper, non-oversized printings of a card. Tries an exact-name search, falling back
+ * to fuzzy `/cards/named` + oracle id search (typos, accents, flavor names). Basic lands fetch only
+ * the newest page unless `full`.
  */
 async function fetchPrintings(name: string, lookup: Lookup, full: boolean): Promise<PrintingsResult> {
   const basic = isBasicLand(name)
@@ -241,15 +266,12 @@ async function fetchPrintings(name: string, lookup: Lookup, full: boolean): Prom
   let search: SearchResult | null = null
   if (!name.includes('"')) {
     const found = await searchPrints(`!"${name}" game:paper`, lookup, maxPages)
-    // A printed (flavor) name like "Franklin's Finality" only finds the printings that
-    // carry it; those go through the fuzzy route below to get every printing of the card.
     if (found && hasNamedCard(found.cards, name)) {
       found.cards = printingsOfNamedCard(found.cards, name)
       search = found
     }
   }
   if (!search) {
-    // Not an exact card name (typo, missing accent, quotes, printed name...): let Scryfall match it.
     const named = await searchCall(`${env().scryfallApi}/cards/named?fuzzy=${encodeURIComponent(name)}`, lookup)
     if (!named) return { name, printings: [], fetchedAt: Date.now(), notFound: true }
     search = await searchPrints(`oracleid:${named.oracle_id} game:paper`, lookup, maxPages)
@@ -269,15 +291,15 @@ async function fetchPrintings(name: string, lookup: Lookup, full: boolean): Prom
   return result
 }
 
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
-
+/** Pending lookups by nameKey (suffixed `#full` for full fetches); deduplicates requests. */
 const inFlight = new Map<string, { promise: Promise<PrintingsResult>; lookup: Lookup }>()
 
 /**
- * Printings and prices for a card. Cached results are returned straight away,
- * however old; the renderer refreshes old prices in the background with `force`.
+ * Returns a card's printings. Cached results are returned regardless of age unless `force`, or
+ * `full` on a partial entry. Concurrent lookups share one request; a high-priority caller promotes
+ * a queued low one. Once fully fetched, a basic land stays full on refresh.
+ * @returns Fresh result; on failure, the cached one with `staleError`.
+ * @throws Error if the fetch fails and nothing is cached.
  */
 export async function getPrintings(name: string, options: PrintingsOptions = {}): Promise<PrintingsResult> {
   await scryfallCacheReady()
@@ -287,7 +309,6 @@ export async function getPrintings(name: string, options: PrintingsOptions = {})
   const upgrade = options.full === true && cached?.partial === true
   if (cached && !options.force && !upgrade) return Promise.resolve(cached)
 
-  // Once every printing of a basic land was asked for, refreshes keep fetching them all.
   const full = options.full === true || cached?.partial === false
   const flightKey = full ? `${key}#full` : key
   const pending = inFlight.get(flightKey)
@@ -318,9 +339,9 @@ export async function getPrintings(name: string, options: PrintingsOptions = {})
 }
 
 /**
- * Card data (colors, type, legality...) for many names at once, keyed by nameKey.
- * Uses the price cache when possible and Scryfall's batch endpoint for the rest;
- * names it doesn't recognise exactly (typos) fall back to the fuzzy lookup.
+ * Batch card data lookup: cache within {@link CARD_INFO_TTL_MS}, then `/cards/collection` (front-face
+ * names), then {@link getPrintings} for unmatched names.
+ * @returns Card data by nameKey; null if unknown or failed.
  */
 export async function getCardInfos(names: string[]): Promise<Record<string, CardInfo | null>> {
   await scryfallCacheReady()
@@ -342,7 +363,6 @@ export async function getCardInfos(names: string[]): Promise<Record<string, Card
 
   const pending = [...missing.values()]
   for (let i = 0; i < pending.length; i += COLLECTION_BATCH) {
-    // The batch endpoint only knows front-face names for double-faced cards.
     const identifiers = pending.slice(i, i + COLLECTION_BATCH).map((name) => ({ name: name.split(' // ')[0] }))
     const body = await searchQueue.run(() => getJson(`${env().scryfallApi}/cards/collection`, { identifiers }), 'high').promise
     for (const card of body?.data ?? []) {
@@ -366,17 +386,22 @@ export async function getCardInfos(names: string[]): Promise<Record<string, Card
   return result
 }
 
-// Pictures for search suggestions, by name key: from cached printings when there are
-// some, else one batch request for all the names that lack one. Kept for the session.
+/** Session cache of small image URLs by nameKey; null = none. Cleared past {@link MAX_IMAGE_CACHE}. */
 const imageCache = new Map<string, string | null>()
+/** Max {@link imageCache} entries. */
 const MAX_IMAGE_CACHE = 2000
 
+/** Small image URL of the card or its first face, without query. */
 function smallImageOf(card: any): string | null {
   const images = card.image_uris ?? card.card_faces?.[0]?.image_uris ?? {}
   return images.small?.split('?')[0] ?? null
 }
 
-/** A small picture of each card, keyed by nameKey (null when Scryfall has none). */
+/**
+ * Small image URLs from cached printings or the session cache, else one `/cards/collection`
+ * request (first {@link COLLECTION_BATCH} misses). Unknown names are cached as null.
+ * @returns URLs by nameKey; null if none. Names beyond the batch are omitted.
+ */
 export async function getCardImages(names: string[]): Promise<Record<string, string | null>> {
   await scryfallCacheReady()
   const result: Record<string, string | null> = {}
@@ -400,7 +425,6 @@ export async function getCardImages(names: string[]): Promise<Record<string, str
       result[key] = smallImageOf(card)
       imageCache.set(key, result[key])
     }
-    // Names Scryfall doesn't know aren't asked about again either.
     for (const key of pending.map(nameKey)) {
       if (key in result) continue
       result[key] = null
@@ -410,8 +434,10 @@ export async function getCardImages(names: string[]): Promise<Record<string, str
   return result
 }
 
+/** Session autocomplete cache by lower-case query; cleared past 500 entries. */
 const autocompleteCache = new Map<string, string[]>()
 
+/** @returns Scryfall name suggestions; empty for queries under 2 characters. */
 export async function autocomplete(query: string): Promise<string[]> {
   const q = query.trim()
   if (q.length < 2) return []

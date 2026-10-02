@@ -24,20 +24,23 @@ const COLOR_MODES: Array<{ id: ColorMode; label: string }> = [
   { id: 'within', label: 'Only these' }
 ]
 
+/** @returns `list` with `item` toggled. */
 function toggle<T>(list: T[], item: T): T[] {
   return list.includes(item) ? list.filter((x) => x !== item) : [...list, item]
 }
 
+/** Props of {@link FilterBar}. */
 interface FilterBarProps {
   filters: CardFilters
   onChange: (filters: CardFilters) => void
   namePlaceholder: string
-  /** Shown while some cards' data is still loading and data filters are on. */
+  /** Note shown while card data loads and data filters are active. */
   loadingNote?: string
-  /** Extra controls on the second row (owned toggles, sort, counts). */
+  /** Extra second-row controls (owned toggles, sort, counts). */
   children?: ReactNode
 }
 
+/** Name, color, type, rarity and legendary filters. */
 export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, children }: FilterBarProps) {
   const set = (patch: Partial<CardFilters>) => onChange({ ...filters, ...patch })
 

@@ -60,7 +60,6 @@ describe('commander', () => {
     const arena = parseList('Commander\n1 Mister Fantastic (MSC) 5\n\nDeck\n1 Sol Ring')
     expect(listCommander(arena)).toBe('Mister Fantastic')
     expect(listCommander(parseList('Commander\n\nDeck\n1 Sol Ring'))).toBeNull()
-    // Choosing another one replaces the heading, so the old card can't come back.
     const chosen = withCommander(arena, 'Sol Ring')
     expect(serializeList(chosen)).toBe('// Commander: Sol Ring\n1 Mister Fantastic <5> [MSC]\n\nDeck\n1 Sol Ring\n')
   })
@@ -92,7 +91,6 @@ describe('commander', () => {
     expect(canLead(commander, card({}, { typeLine: 'Artifact — Vehicle' }))).toBe(false)
     expect(canLead(oathbreaker, walker)).toBe(true)
     expect(canLead(oathbreaker, legend)).toBe(false)
-    // Pauper Commander: any creature printed at uncommon.
     expect(canLead(pauperCommander, elf)).toBe(false)
     expect(canLead(pauperCommander, elf, [{ rarity: 'uncommon' } as Printing])).toBe(true)
   })

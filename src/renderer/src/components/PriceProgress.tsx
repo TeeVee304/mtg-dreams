@@ -1,6 +1,6 @@
 import { getRefreshProgress, usePrintingsVersion } from '../printings'
 
-/** A thin bar across the top while card versions are refreshed from Scryfall in the background. */
+/** Top progress bar for background printings refreshes ({@link getRefreshProgress}). */
 export function PriceProgress() {
   usePrintingsVersion()
   const progress = getRefreshProgress()

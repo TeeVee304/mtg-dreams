@@ -2,117 +2,150 @@ import type { SortKey } from './cards'
 import type { ThemeColor } from './themes'
 import type { CardInfo, ListKind, PreconDeck, PreconSummary, PriceBasis, PrintingsResult } from './types'
 
+/** UI theme mode; `system` follows the OS. */
 export type Theme = 'system' | 'light' | 'dark'
 
+/** Persisted user settings. */
 export interface AppSettings {
-  /** Light, dark, or following Windows. */
   theme: Theme
-  /** The color theme (and app icon), one per mana color. */
+  /** Accent color theme and app icon. */
   color: ThemeColor
-  /** Count every version of Plains, Island, Swamp, Mountain and Forest as one generic, free card. */
+  /** Treat all printings of the five basic lands as one generic, zero-cost card. */
   bundleBasics: boolean
-  /** Small card pictures beside names in lists and in card search. */
+  /** Show card thumbnails in lists and search. */
   cardImages: boolean
-  /** Decks and wishlists as a table, or as a grid of card images. */
+  /** List layout for decks and wishlists. */
   cardView: 'table' | 'grid'
-  /** Your name on shared trade lists. */
+  /** Owner name written into exported trade lists. */
   tradeName: string
-  /** How decks, wishlists and the inventory are sorted (one choice for all of them). */
+  /** Sort order shared by decks, wishlists and inventory. */
   sort: SortKey
-  /** Which Cardmarket price cards are valued at, everywhere. */
+  /** Global price basis for valuation. */
   priceBasis: PriceBasis
-  /** Flag a wishlist card once its price falls this many percent below its price when added. */
+  /** Wishlist price-drop alert threshold, in percent below the baseline. */
   dropAlertPercent: number
 }
 
-/** One day's typical prices (non-foil, foil; 0 = none) by Cardmarket product number. */
+/** Daily price snapshot keyed by Cardmarket product id. */
 export interface PriceSnapshot {
-  /** When Cardmarket published them. */
+  /** Epoch ms of Cardmarket publication. */
   date: number
+  /** `[nonFoil, foil]` trend prices in EUR; 0 means unknown. */
   prices: Record<string, [number, number]>
 }
 
-/** A wishlist card's price when it first appeared on a wishlist, on each price basis. */
+/** Wishlist card's prices on first being added to a wishlist. */
 export interface PriceBaseline {
+  /** Epoch ms of capture. */
   at: number
   prices: Partial<Record<PriceBasis, number>>
 }
 
+/** Raw list file: name without extension, and contents. */
 export interface ListFile {
   name: string
   text: string
 }
 
+/** Full contents of the data directory. */
 export interface LoadedData {
   dataDir: string
   decks: ListFile[]
   wishlists: ListFile[]
+  /** Inventory file contents. */
   inventory: string
-  /** Friends' trade lists (MTG Dreams trade files), named after the friend. */
+  /** Friends' trade lists, named after the friend. */
   trades: ListFile[]
-  /** Files skipped because they couldn't be read (e.g. "decks/Burn.txt"). */
+  /** Relative paths of unreadable files that were skipped, e.g. "decks/Burn.txt". */
   unreadable: string[]
 }
 
 /**
- * Starts the message of a save refused because the file changed on disk since the app
- * last read or wrote it (e.g. synced from another PC). Saving again with `force` overwrites it.
+ * Message prefix of a save rejected because the file changed on disk since last read or
+ * write (e.g. external sync). Retry with `force` to overwrite.
  */
 export const CONFLICT_ERROR = 'Changed outside MTG Dreams:'
 
+/** Options for {@link TrackerApi.getPrintings}. */
 export interface PrintingsOptions {
-  /** Ignore the cache and fetch fresh prices. */
+  /** Bypass the cache. */
   force?: boolean
-  /** Interactive lookups jump ahead of background price refreshes. */
+  /** Queue priority: `high` for interactive lookups, `low` for background refreshes. */
   priority?: 'high' | 'low'
-  /** Fetch every printing, even for basic lands (normally only the newest page). */
+  /** Fetch all printings, including every basic land printing (default: newest page only). */
   full?: boolean
 }
 
-/** The bridge exposed by the preload script as `window.api`. */
+/** IPC bridge exposed by the preload script as `window.api`. */
 export interface TrackerApi {
   loadData(): Promise<LoadedData>
   createList(kind: ListKind, name: string, text: string): Promise<void>
-  /** Rejects with CONFLICT_ERROR if the file changed outside the app, unless `force`. */
+  /** @throws `CONFLICT_ERROR` if the file changed externally and `force` is not set. */
   writeList(kind: ListKind, name: string, text: string, force?: boolean): Promise<void>
   renameList(kind: ListKind, from: string, to: string): Promise<void>
-  /** Moves a list between decks and wishlists; resolves to its final name. */
+  /**
+   * Moves a list to another kind.
+   * @returns Final name, deduplicated against the target kind.
+   */
   moveList(from: ListKind, to: ListKind, name: string): Promise<string>
   deleteList(kind: ListKind, name: string): Promise<void>
-  /** Rejects with CONFLICT_ERROR if the file changed outside the app, unless `force`. */
+  /** @throws `CONFLICT_ERROR` if the file changed externally and `force` is not set. */
   writeInventory(text: string, force?: boolean): Promise<void>
-  /** Saves a friend's trade list, replacing any with the same name. */
+  /** Saves a friend's trade list, replacing any of the same name. */
   writeTrade(name: string, text: string): Promise<void>
   deleteTrade(name: string): Promise<void>
-  /** Lets the user pick a trade list or collection export; null if cancelled. */
+  /**
+   * Shows an open dialog for a trade list or collection export.
+   * @returns File name and contents; null if cancelled.
+   */
   openTradeFile(): Promise<{ fileName: string; text: string } | null>
-  /** Lets the user save their own trade list; resolves to the path, or null if cancelled. */
+  /**
+   * Shows a save dialog for the user's trade list.
+   * @returns Saved path; null if cancelled.
+   */
   saveTradeFile(defaultName: string, text: string): Promise<string | null>
+  /** @returns Chosen directory; null if cancelled. */
   chooseDataDir(): Promise<string | null>
+  /** Opens the data directory in the OS file manager. */
   openDataDir(): Promise<void>
   getSettings(): Promise<AppSettings>
   updateSettings(patch: Partial<AppSettings>): Promise<void>
+  /** @returns Scryfall card name suggestions. */
   autocomplete(query: string): Promise<string[]>
-  /** A card's printings, with Cardmarket prices. */
+  /** @returns The card's printings with Cardmarket prices. */
   getPrintings(name: string, options?: PrintingsOptions): Promise<PrintingsResult>
-  /** Checks Cardmarket for newer prices now; `pricedAt` is when the current ones were published. */
+  /**
+   * Checks Cardmarket for a newer price guide.
+   * @returns Whether prices changed, and the current guide's publication time.
+   */
   refreshPrices(): Promise<{ updated: boolean; pricedAt: number | null }>
-  /** Called whenever new prices are in. Returns an unsubscribe function. */
+  /** @returns Unsubscribe function. */
   onPricesUpdated(callback: () => void): () => void
-  /** Keeps a daily price history of these versions (Cardmarket product numbers). */
+  /** Adds Cardmarket product ids to the daily price history. */
   trackPrices(ids: number[]): Promise<void>
-  /** The newest snapshot, and the one in force at each moment of `at`; null without history. */
+  /**
+   * @param at - Epoch ms timestamps.
+   * @returns Newest snapshot and the snapshot in force at each `at`; null without history.
+   */
   pricesAt(ids: number[], at: number[]): Promise<{ latest: PriceSnapshot; then: PriceSnapshot[] } | null>
-  /** Wishlist cards' prices when added, by line key. */
+  /** @returns Wishlist baselines keyed by line key. */
   getBaselines(): Promise<Record<string, PriceBaseline>>
+  /**
+   * @param set - Baselines to add or replace, by line key.
+   * @param remove - Line keys to delete.
+   */
   updateBaselines(set: Record<string, PriceBaseline>, remove: string[]): Promise<void>
-  /** A small picture of each card (up to 75), keyed by nameKey; null when there's none. */
+  /**
+   * @param names - At most 75 names.
+   * @returns Small image URL per nameKey; null if none.
+   */
   getCardImages(names: string[]): Promise<Record<string, string | null>>
-  /** Card data keyed by nameKey; null for names Scryfall doesn't know. */
+  /** @returns Card data per nameKey; null for names unknown to Scryfall. */
   getCardInfos(names: string[]): Promise<Record<string, CardInfo | null>>
   getPreconIndex(): Promise<PreconSummary[]>
   getPrecon(fileName: string): Promise<PreconDeck>
   openExternal(url: string): Promise<void>
   copyText(text: string): Promise<void>
+  /** @returns Unsubscribe function. */
   onWindowFocus(callback: () => void): () => void
 }

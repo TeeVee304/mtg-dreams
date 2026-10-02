@@ -71,7 +71,6 @@ describe('resolveLine', () => {
   it('can pick a different printing on another price basis', () => {
     expect(resolveLine({ foil: false }, [m11, a25], 'trend').printing?.set).toBe('a25')
     expect(resolveLine({ foil: false }, [m11, a25], 'low')).toMatchObject({ unitPrice: 0.3, printing: { set: 'm11' } })
-    // No 30-day average for m11: its trend counts.
     expect(resolveLine({ foil: false }, [m11, a25], 'avg30')).toMatchObject({ unitPrice: 1.27, printing: { set: 'm11' } })
   })
 
@@ -104,7 +103,6 @@ describe('resolveLine', () => {
 describe('sortPrintings', () => {
   it('sorts by price with unpriced printings last', () => {
     expect(sortPrintings(all, false, 'trend').map((p) => p.set)).toEqual(['wc97', 'pd2', 'a25', 'm11', 'plst'])
-    // a25 and wc97 tie at 0.50 (wc97 by its trend): the newer printing comes first.
     expect(sortPrintings(all, false, 'low').map((p) => p.set)).toEqual(['m11', 'a25', 'wc97', 'pd2', 'plst'])
   })
 })

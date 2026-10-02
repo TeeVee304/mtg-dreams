@@ -2,17 +2,18 @@ import { frontTypeWords, isBasicLand } from './cards'
 import { cardLines, nameKey, newLineId } from './decklist'
 import type { CardInfo, ListLine, Printing } from './types'
 
+/** Constructed format definition. */
 export interface DeckFormat {
   /** Scryfall legality key. */
   id: string
   label: string
-  /** Copies of a card allowed (basic lands and "any number" cards excepted). */
+  /** Per-card copy limit; basics and `deckLimit` cards are exempt. */
   maxCopies: number
-  /** Decks are led by a commander, shown in its own section. */
+  /** Commander format. */
   commander?: true
 }
 
-/** Paper formats Scryfall tracks legality for. */
+/** Supported paper formats (Scryfall legality keys). */
 export const FORMATS: DeckFormat[] = [
   { id: 'standard', label: 'Standard', maxCopies: 4 },
   { id: 'pioneer', label: 'Pioneer', maxCopies: 4 },
@@ -29,15 +30,17 @@ export const FORMATS: DeckFormat[] = [
   { id: 'predh', label: 'PreDH', maxCopies: 1, commander: true }
 ]
 
+/** @returns Format by id; null if unknown or absent. */
 export function findFormat(id: string | null | undefined): DeckFormat | null {
   return FORMATS.find((format) => format.id === id) ?? null
 }
 
-// The format is stored in the list file itself as a comment, e.g. "// Format: Commander",
-// so it survives renames, syncing and hand edits.
+/** Format header line stored in the list file: `// Format: <label or id>`. */
 const FORMAT_LINE = /^\/\/\s*format\s*:\s*(.*?)\s*$/i
+/** Lower-case, whitespace-stripped comparison form. */
 const squash = (text: string) => text.toLowerCase().replace(/\s+/g, '')
 
+/** @returns Format named by the first format header (matched by id or label); null if none or unknown. */
 export function listFormat(lines: ListLine[]): DeckFormat | null {
   for (const line of lines) {
     if (line.kind !== 'text') continue
@@ -51,8 +54,9 @@ export function listFormat(lines: ListLine[]): DeckFormat | null {
 }
 
 /**
- * Sets the format header at the top of the list; null ("no format") removes it.
- * A format without commanders also drops the commander.
+ * Replaces the format header, placing it first.
+ * @param formatId - Format id; null removes the header.
+ * @returns New lines; the commander header is removed unless the format is a commander format.
  */
 export function withFormat(lines: ListLine[], formatId: string | null): ListLine[] {
   const rest = lines.filter((line) => !(line.kind === 'text' && FORMAT_LINE.test(line.text.trim())))
@@ -61,18 +65,15 @@ export function withFormat(lines: ListLine[], formatId: string | null): ListLine
   return format ? [{ kind: 'text', id: newLineId(), text: `// Format: ${format.label}` }, ...kept] : kept
 }
 
-// ---------------------------------------------------------------------------
-// Commander
-// ---------------------------------------------------------------------------
-
-// The commander is stored as a comment too, "// Commander: Atraxa, Praetors' Voice".
-// Arena and Moxfield exports put it under a "Commander" heading instead, which is read as well.
+/** Commander header line: `// Commander: <name>`. */
 const COMMANDER_LINE = /^\/\/\s*commander\s*:\s*(.*?)\s*$/i
+/** Arena/Moxfield `Commander` section heading; the following card line is the commander. */
 const COMMANDER_HEADING = /^(?:\/\/\s*)?commander\s*:?$/i
 
+/** Text line whose trimmed text matches `re`. */
 const isText = (line: ListLine, re: RegExp) => line.kind === 'text' && re.test(line.text.trim())
 
-/** The name of the list's commander, or null. */
+/** @returns Commander name from the commander header, else the card after a `Commander` heading; null if none. */
 export function listCommander(lines: ListLine[]): string | null {
   for (const line of lines) {
     if (line.kind !== 'text') continue
@@ -85,7 +86,10 @@ export function listCommander(lines: ListLine[]): string | null {
   return next?.kind === 'card' ? next.name : null
 }
 
-/** Sets the commander (one at a time) just below the format header; null removes it. */
+/**
+ * Replaces the commander, inserting the header right after the format header (or first).
+ * @param name - Commander name; null removes it.
+ */
 export function withCommander(lines: ListLine[], name: string | null): ListLine[] {
   const rest = lines.filter((line) => !isText(line, COMMANDER_LINE) && !isText(line, COMMANDER_HEADING))
   if (!name) return rest
@@ -93,7 +97,7 @@ export function withCommander(lines: ListLine[], name: string | null): ListLine[
   return [...rest.slice(0, at), { kind: 'text', id: newLineId(), text: `// Commander: ${name}` }, ...rest.slice(at)]
 }
 
-/** Drops the commander once no line holds that card any more (e.g. after removing it). */
+/** @returns Lines without the commander header if no card line matches the commander. */
 export function withoutMissingCommander(lines: ListLine[]): ListLine[] {
   const commander = listCommander(lines)
   if (!commander) return lines
@@ -101,7 +105,7 @@ export function withoutMissingCommander(lines: ListLine[]): ListLine[] {
   return cardLines(lines).some((line) => nameKey(line.name) === key) ? lines : withCommander(lines, null)
 }
 
-/** What a commander must be in this format, for messages. */
+/** @returns Commander eligibility rule phrase for messages, e.g. `a planeswalker`. */
 export function commanderRule(format: DeckFormat): string {
   if (format.id === 'oathbreaker') return 'a planeswalker'
   if (format.id === 'paupercommander') return 'a creature printed at uncommon'
@@ -109,9 +113,10 @@ export function commanderRule(format: DeckFormat): string {
 }
 
 /**
- * Whether a card can lead a deck of this format on its own (Backgrounds only join
- * another commander). Pauper Commander needs the card's printings to know whether
- * it was ever printed at uncommon.
+ * Whether the card can be a sole commander. Oathbreaker: planeswalker. Pauper Commander: creature
+ * printed at uncommon. Others: legendary creature, Vehicle or Spacecraft, or `canBeCommander`.
+ * Backgrounds are excluded.
+ * @param printings - Required for Pauper Commander to check uncommon printings.
  */
 export function canLead(format: DeckFormat, card: CardInfo, printings: Printing[] = []): boolean {
   const words = frontTypeWords(card.typeLine)
@@ -119,13 +124,12 @@ export function canLead(format: DeckFormat, card: CardInfo, printings: Printing[
   if (format.id === 'paupercommander') {
     return words.includes('Creature') && (card.rarity === 'uncommon' || printings.some((p) => p.rarity === 'uncommon'))
   }
-  // Legendary Vehicles and Spacecraft (subtypes, after the dash) may lead too.
   const front = card.typeLine.split('//')[0].split(/[\s—]+/)
   const body = ['Creature', 'Vehicle', 'Spacecraft'].some((type) => front.includes(type))
   return (words.includes('Legendary') && body) || card.canBeCommander === true
 }
 
-/** Problems with a deck's commander: it must be able to lead, and be allowed in the format. */
+/** @returns Commander eligibility error, else the card's {@link legalityIssue} as commander; null if fine. */
 export function commanderIssue(
   format: DeckFormat,
   card: CardInfo,
@@ -138,20 +142,20 @@ export function commanderIssue(
   return legalityIssue(format, card, copies, true)
 }
 
+/** Format rule violation. `warning`: allowed but notable (single restricted copy). */
 export interface LegalityIssue {
   severity: 'error' | 'warning'
   message: string
 }
 
 /**
- * Why a card can't (or might not) be played in a deck of this format, or null if it's fine.
- * `copies` is the total number of copies of the card in the deck.
+ * @param copies - Total copies of the card in the deck.
+ * @param asCommander - In Pauper Commander, ignores `not_legal` (Scryfall's legality covers only the 99).
+ * @returns Ban, legality, restriction or copy-limit issue; null if fine.
  */
 export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number, asCommander = false): LegalityIssue | null {
   const status = card.legalities[format.id] ?? 'not_legal'
   if (status === 'banned') return { severity: 'error', message: `Banned in ${format.label}` }
-  // Scryfall's Pauper Commander legality is about the 99 (cards printed at common);
-  // an uncommon-only creature is "not legal" there but may still lead the deck.
   const commandsPauper = asCommander && format.id === 'paupercommander'
   if (status === 'not_legal' && !commandsPauper) return { severity: 'error', message: `Not legal in ${format.label}` }
   if (status === 'restricted') {
@@ -165,9 +169,8 @@ export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number
 }
 
 /**
- * Most copies of a card a deck in this format may hold: the format's limit, 1 for
- * restricted cards, or the card's own rule (basic lands and "any number" cards are
- * unlimited, Seven Dwarves 7). Without card data only basic lands are recognised.
+ * @returns Max copies: Infinity for basics and `deckLimit: 'any'`, the card's numeric `deckLimit`,
+ * 1 if restricted, else the format limit. Without `card`, only basics are recognized by name.
  */
 export function copyLimit(format: DeckFormat, card: CardInfo | null | undefined, name: string): number {
   if (isBasicLand(name) || card?.deckLimit === 'any' || (card && /\bBasic\b/.test(card.typeLine))) return Infinity
@@ -176,7 +179,12 @@ export function copyLimit(format: DeckFormat, card: CardInfo | null | undefined,
   return format.maxCopies
 }
 
-/** Drops copies beyond each card's limit, counting what the list already holds. */
+/**
+ * Trims entries to per-card limits.
+ * @param limitOf - Max copies per card name.
+ * @param existing - Copies already in the list per card name.
+ * @returns Kept entries and the number of copies dropped.
+ */
 export function capEntries<T extends { name: string; qty: number }>(
   entries: T[],
   limitOf: (name: string) => number,

@@ -6,14 +6,19 @@ import { fetchJson, fetchLastModified } from './http'
 
 setEnvironment({ userData: '', documents: '', appData: '', trash: async () => undefined, userAgent: 'MTGDreams/test', ...SERVICES })
 
-// A local server standing in for Scryfall, MTGJSON and Cardmarket.
+/**
+ * Tests against a local server standing in for Scryfall, MTGJSON and Cardmarket.
+ *
+ * @packageDocumentation
+ */
+
 const DATED = 'Wed, 30 Sep 2026 07:55:13 GMT'
 let server: Server
 let base = ''
 
 beforeAll(async () => {
   server = createServer((req, res) => {
-    if (req.url === '/hang') return // never answers
+    if (req.url === '/hang') return
     if (req.url === '/dated') {
       res.writeHead(200, { 'Content-Type': 'application/json', 'Last-Modified': DATED })
       res.end(req.method === 'HEAD' ? undefined : '{"big":true}')

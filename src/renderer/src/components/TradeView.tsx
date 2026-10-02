@@ -10,33 +10,41 @@ import { ConfirmDialog, PromptDialog } from './Dialogs'
 import { previewHandlers } from './HoverPreview'
 import { useToast } from './Toasts'
 
+/** Match with cheapest-printing price. */
 interface PricedMatch extends TradeMatch {
+  /** EUR unit price; undefined while loading, null if unpriced. */
   unit: number | null | undefined
   printing: Printing | null
 }
 
-/** Each card at its cheapest version: undefined while loading, null without a price. */
+/** @returns Match priced at its cheapest non-foil printing. */
 function price(match: TradeMatch, basis: PriceBasis): PricedMatch {
   const cheapest = cheapestVersion(match.name, basis)
   return { ...match, unit: cheapest?.unit, printing: cheapest?.printing ?? null }
 }
 
+/** Sort by total value, descending. */
 const byValue = (a: PricedMatch, b: PricedMatch) =>
   (b.unit ?? -1) * b.qty - (a.unit ?? -1) * a.qty || a.name.localeCompare(b.name)
 
+/** EUR total of priced matches. */
 const totalOf = (matches: PricedMatch[]) => matches.reduce((sum, m) => sum + (m.unit ?? 0) * m.qty, 0)
+/** Matched copy count label. */
 const matchedCards = (matches: TradeMatch[]) => cardCount(matches.reduce((sum, m) => sum + m.qty, 0))
 
+/** Props of {@link TradeView}. */
 interface TradeViewProps {
   trade: TradeSnapshot
-  /** Your side of the trade (cards you own, what your wishlists need). */
+  /** Own trade side ({@link myTradeSide}). */
   myTrade: { haves: TradeCard[]; wants: Want[] }
   actions: LibraryActions
   onOpenList: (list: ListRef) => void
+  /** Opens import to update this friend's list. */
   onUpdate: () => void
   onRenamed: (name: string) => void
 }
 
+/** Friend trade page: cards they can give and cards they want, priced; requests prices for matched cards only. */
 export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRenamed }: TradeViewProps) {
   const toast = useToast()
   usePrintingsVersion()
@@ -45,7 +53,6 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
 
   const { forMe, forThem } = useMemo(() => matchTrades(myTrade.haves, myTrade.wants, trade), [myTrade, trade])
 
-  // Prices for the matched cards only.
   const names = [...forMe, ...forThem].map((match) => match.name).join('\n')
   useEffect(() => {
     for (const name of names.split('\n')) if (name) requestPrintings(name, { priority: 'high' })
@@ -198,13 +205,18 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
   )
 }
 
+/** Props of {@link MatchTable}. */
 interface MatchTableProps {
   matches: PricedMatch[]
+  /** Detail column cell. */
   detail: (match: PricedMatch) => ReactNode
+  /** Detail column header. */
   detailLabel: string
+  /** Quantity tooltip. */
   qtyNote: (match: PricedMatch) => string | undefined
 }
 
+/** Table of priced matches. */
 function MatchTable({ matches, detail, detailLabel, qtyNote }: MatchTableProps) {
   return (
     <table className="cards-table trade-table">

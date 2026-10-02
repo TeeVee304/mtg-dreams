@@ -12,8 +12,10 @@ import { THEME_ICONS } from '../artwork'
 import { Icon } from './Icon'
 
 
+/** Main page selection. */
 export type View = { page: 'inventory' } | { page: 'list'; list: ListRef } | { page: 'trade'; friend: string }
 
+/** Props of {@link Sidebar}. */
 interface SidebarProps {
   lists: CardList[]
   inventory: Map<string, InventoryItem>
@@ -26,12 +28,13 @@ interface SidebarProps {
   onSettings: () => void
   onCollectionValue: () => void
   trades: TradeSnapshot[]
-  /** Your side of every trade (cards you own, what your wishlists need). */
+  /** Own trade side ({@link myTradeSide}). */
   myTrade: { haves: TradeCard[]; wants: Want[] }
   onShareTrade: () => void
   onImportTrade: () => void
 }
 
+/** Navigation: inventory, decks, wishlists (with price-drop counts) and trades; data folder and settings actions. */
 export function Sidebar(props: SidebarProps) {
   const { lists, inventory, view, dataDir, onSelect, onNew, onOpenDataDir, onChangeDataDir, onSettings, onCollectionValue } =
     props
@@ -43,7 +46,6 @@ export function Sidebar(props: SidebarProps) {
   const renderList = (list: CardList) => {
     const rows = buildRows(cardLines(list.lines), inventory, settings)
     const summary = summarize(rows)
-    // Wishlist cards that got cheaper since added (Settings → Prices sets how much).
     const cheaper =
       list.kind === 'wishlist'
         ? rows.filter(

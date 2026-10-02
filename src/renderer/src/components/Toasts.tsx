@@ -3,14 +3,16 @@ import { Icon } from './Icon'
 
 type ToastKind = 'info' | 'error'
 
-/** A button on the toast; for now always Undo, shown as its icon. */
+/** Toast action button (currently always Undo, shown as an icon). */
 export interface ToastAction {
   label: string
   run: () => void
 }
 
+/** Shows a toast. */
 type PushToast = (message: string, kind?: ToastKind, action?: ToastAction) => void
 
+/** Displayed toast. */
 interface Toast {
   id: number
   message: string
@@ -21,6 +23,7 @@ interface Toast {
 const ToastContext = createContext<PushToast>(() => undefined)
 let nextId = 0
 
+/** Provides {@link useToast}. Toasts auto-dismiss after 3 s, 6 s with an action, 7 s for errors. */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -30,7 +33,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (message, kind = 'info', action) => {
       const id = ++nextId
       setToasts((all) => [...all.slice(-3), { id, message, kind, action }])
-      // Longer when there's something to click.
       setTimeout(() => dismiss(id), kind === 'error' ? 7000 : action ? 6000 : 3000)
     },
     [dismiss]
@@ -65,4 +67,5 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 }
 
+/** @returns Function to push a toast. */
 export const useToast = () => useContext(ToastContext)

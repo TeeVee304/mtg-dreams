@@ -7,17 +7,20 @@ import { useAsyncAction } from '../useAsyncAction'
 import { previewHandlers } from './HoverPreview'
 import { Modal } from './Modal'
 
-/** Add to an existing wishlist, start a new wishlist, or create a deck you own (cards join the inventory). */
+/** Precon import target: existing wishlist, new wishlist, or new owned deck (cards join the inventory). */
 export type PreconTarget = { kind: 'list'; listName: string } | { kind: 'new-list' } | { kind: 'new-deck' }
 
+/** Props of {@link PreconDialog}. */
 interface PreconDialogProps {
   target: PreconTarget
   onAdd: (deck: PreconDeck, entries: PreconEntry[]) => Promise<void> | void
   onClose: () => void
 }
 
+/** Max search results shown. */
 const MAX_RESULTS = 250
 
+/** Section titles per board. */
 const BOARD_TITLES: Record<PreconCard['board'], string> = {
   commander: 'Commander',
   main: 'Main deck',
@@ -25,6 +28,7 @@ const BOARD_TITLES: Record<PreconCard['board'], string> = {
   other: 'Other cards'
 }
 
+/** Precon search, preview and import. New decks default to exact printings. */
 export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
   const [index, setIndex] = useState<PreconSummary[] | null>(null)
   const [indexError, setIndexError] = useState<string | null>(null)
@@ -33,7 +37,6 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
   const [selected, setSelected] = useState<string | null>(null)
   const [deck, setDeck] = useState<PreconDeck | null>(null)
   const [deckError, setDeckError] = useState<string | null>(null)
-  // A precon you own keeps the printings it came with.
   const [options, setOptions] = useState<PreconOptions>({ exact: target.kind === 'new-deck', skipBasics: false })
   const { busy, error: addError, run } = useAsyncAction()
 
@@ -182,6 +185,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
   )
 }
 
+/** Decklist preview grouped by board. */
 function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boolean }) {
   const total = deck.cards.reduce((sum, card) => sum + card.qty, 0)
   const boards = (Object.keys(BOARD_TITLES) as PreconCard['board'][])

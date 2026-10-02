@@ -1,48 +1,70 @@
 import { nameKey } from './decklist'
 import type { CardInfo } from './types'
 
+/** Normalized names of basic lands, including Wastes and snow-covered variants. */
 const BASIC_LANDS = new Set(
   ['plains', 'island', 'swamp', 'mountain', 'forest', 'wastes'].flatMap((name) => [name, `snow-covered ${name}`])
 )
 
+/**
+ * @param name - Card name, any case.
+ * @returns Whether the card is a basic land.
+ */
 export function isBasicLand(name: string): boolean {
   return BASIC_LANDS.has(nameKey(name))
 }
 
+/** Color filter token; `C` = colorless. */
 export type ColorFilter = 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
+/**
+ * Color match mode against color identity: `any` shares a color, `exact` equals the selection,
+ * `within` is a subset of it.
+ */
 export type ColorMode = 'any' | 'exact' | 'within'
 
+/** Card types offered by the type filter. */
 export const CARD_TYPES = [
   'Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Kindred'
 ] as const
 
+/** Card list filter state. */
 export interface CardFilters {
+  /** Case-insensitive name substring. */
   name: string
-  /** Matched against color identity, so lands count for the colors they produce. C = colorless. */
+  /** Matched against color identity. */
   colors: ColorFilter[]
   colorMode: ColorMode
-  /** One of CARD_TYPES, or '' for any. */
+  /** One of {@link CARD_TYPES}; `''` for any. */
   type: string
+  /** Accepted Scryfall rarities; empty for any. */
   rarities: string[]
+  /** Require the Legendary supertype. */
   legendary: boolean
 }
 
+/** Filter state matching every card. */
 export const NO_FILTERS: CardFilters = { name: '', colors: [], colorMode: 'any', type: '', rarities: [], legendary: false }
 
-/** Filters other than the name need Scryfall card data. */
+/** @returns Whether any filter besides name is set, i.e. matching requires {@link CardInfo}. */
 export function needsCardData(filters: CardFilters): boolean {
   return filters.colors.length > 0 || filters.type !== '' || filters.rarities.length > 0 || filters.legendary
 }
 
+/** @returns Whether any filter is set. */
 export function filtersActive(filters: CardFilters): boolean {
   return filters.name.trim() !== '' || needsCardData(filters)
 }
 
-/** Words before the "—" on each face: "Legendary Creature — Elf // Land" → Legendary, Creature, Land. */
+/** Supertype and type words of all faces: `Legendary Creature — Elf // Land` → Legendary, Creature, Land. */
 function typeWords(typeLine: string): string[] {
   return typeLine.split('//').flatMap((face) => face.split('—')[0].trim().split(/\s+/))
 }
 
+/**
+ * @param identity - Card color identity; empty for colorless.
+ * @param selected - Selected colors; `C` matches colorless cards.
+ * @param mode - See {@link ColorMode}. `within` always accepts colorless cards.
+ */
 export function matchesColors(identity: string[], selected: ColorFilter[], mode: ColorMode): boolean {
   const colors: string[] = selected.filter((c) => c !== 'C')
   const wantsColorless = selected.includes('C')
@@ -58,8 +80,9 @@ export function matchesColors(identity: string[], selected: ColorFilter[], mode:
 }
 
 /**
- * `rarity` is the rarity of the specific printing when there is one. Cards
- * without data (still loading, or unknown to Scryfall) only pass name filters.
+ * @param info - Card data; when missing, only the name filter can pass.
+ * @param rarity - Rarity of the specific printing; falls back to `info.rarity`.
+ * @returns Whether the card passes all filters. Type `Kindred` also matches legacy `Tribal`.
  */
 export function matchesFilters(
   name: string,
@@ -81,29 +104,30 @@ export function matchesFilters(
   return true
 }
 
-// ---------------------------------------------------------------------------
-// Sorting
-// ---------------------------------------------------------------------------
-
+/** Sort keys computable from card data alone. */
 export type CardSort = 'name' | 'mana' | 'color' | 'rarity' | 'type'
 
+/** Minimal card shape accepted by {@link compareCards}. */
 export interface Sortable {
   name: string
   info?: CardInfo | null
+  /** Printing rarity; overrides `info.rarity`. */
   rarity?: string
 }
 
+/** Type sort precedence. */
 const TYPE_ORDER = ['Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land']
+/** Rarity sort precedence. */
 const RARITY_ORDER = ['mythic', 'rare', 'uncommon', 'common']
 
+/** Numeric sort rank; cards without `info` sort last. Color order: W, U, B, R, G, multicolor, colorless. */
 function sortValue(sort: Exclude<CardSort, 'name'>, card: Sortable): number {
   const info = card.info
-  if (!info) return Number.MAX_SAFE_INTEGER // unknown cards go last
+  if (!info) return Number.MAX_SAFE_INTEGER
   switch (sort) {
     case 'mana':
       return info.manaValue
     case 'color': {
-      // White, blue, black, red, green, then multicolor, then colorless.
       const identity = info.colorIdentity
       if (identity.length === 0) return 100
       return identity.length === 1 ? 'WUBRG'.indexOf(identity[0]) : 10 + identity.length
@@ -120,14 +144,13 @@ function sortValue(sort: Exclude<CardSort, 'name'>, card: Sortable): number {
   }
 }
 
-// One sort, chosen anywhere and applied everywhere. Views that don't offer the
-// chosen sort use the closest one they have.
-
+/** Views sharing the global sort setting. */
 export type SortView = 'deck' | 'wishlist' | 'inventory'
 
 const LISTS: SortView[] = ['deck', 'wishlist']
 const EVERYWHERE: SortView[] = ['deck', 'wishlist', 'inventory']
 
+/** Sort options and the views offering each. `type` is inventory-only: lists are already grouped by type. */
 export const SORT_OPTIONS = [
   { id: 'file', label: 'List order', views: LISTS },
   { id: 'recent', label: 'Recently added', views: LISTS },
@@ -138,49 +161,51 @@ export const SORT_OPTIONS = [
   { id: 'needed', label: 'Cost still needed', views: ['wishlist'] },
   { id: 'mana', label: 'Mana value', views: EVERYWHERE },
   { id: 'color', label: 'Color', views: EVERYWHERE },
-  // Decks and wishlists are already split into type sections.
   { id: 'type', label: 'Type', views: ['inventory'] },
   { id: 'rarity', label: 'Rarity', views: EVERYWHERE }
 ] as const satisfies ReadonlyArray<{ id: string; label: string; views: readonly SortView[] }>
 
+/** Global sort setting. */
 export type SortKey = (typeof SORT_OPTIONS)[number]['id']
 
+/** Default sort: file order. */
 export const DEFAULT_SORT: SortKey = 'file'
 
+/** Type guard for {@link SortKey}. */
 export function isSortKey(value: unknown): value is SortKey {
   return SORT_OPTIONS.some((option) => option.id === value)
 }
 
+/** @returns Sort options offered by `view`. */
 export function sortOptionsFor(view: SortView) {
   return SORT_OPTIONS.filter((option) => (option.views as readonly SortView[]).includes(view))
 }
 
-/** Sorts that only need the card itself (see compareCards). */
+/** Type guard: `sort` is a {@link CardSort}, handled by {@link compareCards}. */
 export function isCardSort(sort: SortKey): sort is CardSort {
   return sort === 'name' || sort === 'mana' || sort === 'color' || sort === 'rarity' || sort === 'type'
 }
 
-/** The sort a view uses: the chosen one if it offers it, else the closest one it has. */
+/**
+ * Maps the global sort to one `view` offers, substituting the nearest equivalent
+ * (price sorts map to each other; otherwise `name` for inventory, `file` for lists).
+ */
 export function sortFor(view: SortView, sort: SortKey): SortKey {
   if (sortOptionsFor(view).some((option) => option.id === sort)) return sort
   if (sort === 'needed' && view === 'deck') return 'unit'
-  // The nearest thing to a price sort in the other kind of view.
   if ((sort === 'unit' || sort === 'needed') && view === 'inventory') return 'value'
   if (sort === 'value' && view !== 'inventory') return 'unit'
   return view === 'inventory' ? 'name' : 'file'
 }
 
-/** Compares by the given key, then by name. */
+/** Comparator by `sort`, then name. */
 export function compareCards(sort: CardSort, a: Sortable, b: Sortable): number {
   const byName = a.name.localeCompare(b.name)
   if (sort === 'name') return byName
   return sortValue(sort, a) - sortValue(sort, b) || byName
 }
 
-// ---------------------------------------------------------------------------
-// Type sections (decks and wishlists)
-// ---------------------------------------------------------------------------
-
+/** Type sections of decks and wishlists, in display order. */
 export const TYPE_GROUPS = [
   { id: 'Creature', label: 'Creatures' },
   { id: 'Planeswalker', label: 'Planeswalkers' },
@@ -193,17 +218,18 @@ export const TYPE_GROUPS = [
   { id: 'Other', label: 'Other' }
 ] as const
 
+/** Type section id. */
 export type TypeGroup = (typeof TYPE_GROUPS)[number]['id']
 
-// Creature wins (artifact creatures, Dryad Arbor), then Land (artifact lands).
+/** Group precedence for multi-type cards: Creature first, then Land before Artifact. */
 const GROUP_PRIORITY: TypeGroup[] = ['Creature', 'Planeswalker', 'Battle', 'Land', 'Instant', 'Sorcery', 'Artifact', 'Enchantment']
 
-/** Type words of the front face only: "Legendary Creature — Elf // Land" → Legendary, Creature. */
+/** Supertype and type words of the front face: `Legendary Creature — Elf // Land` → Legendary, Creature. */
 export function frontTypeWords(typeLine: string): string[] {
   return typeLine.split('//')[0].split('—')[0].trim().split(/\s+/)
 }
 
-/** The section a card is listed under, from its front face. Unknown cards go under "Other". */
+/** @returns Section from the front face's types; `Other` when `info` is missing or matches none. */
 export function typeGroup(info: CardInfo | null | undefined): TypeGroup {
   if (!info) return 'Other'
   const words = frontTypeWords(info.typeLine)

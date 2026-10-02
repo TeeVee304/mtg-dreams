@@ -17,7 +17,7 @@ describe('cache files', () => {
   it('write whole files, creating folders, and read them back', async () => {
     await writeCacheFile('precons/index.json', { decks: 3 })
     expect(await readCacheFile('precons/index.json')).toEqual({ decks: 3 })
-    expect(readdirSync(join(dir, 'precons'))).toEqual(['index.json']) // no temporary file left
+    expect(readdirSync(join(dir, 'precons'))).toEqual(['index.json'])
     writeCacheFileNow('quit.json', [1, 2])
     expect(await readCacheFile('quit.json')).toEqual([1, 2])
   })
@@ -29,7 +29,7 @@ describe('cache files', () => {
   })
 
   it('never fail the app when a write is impossible', async () => {
-    writeFileSync(join(dir, 'blocker'), '') // a file where a folder would have to be
+    writeFileSync(join(dir, 'blocker'), '')
     await expect(writeCacheFile('blocker/inside.json', {})).resolves.toBeUndefined()
     expect(() => writeCacheFileNow('blocker/inside.json', {})).not.toThrow()
     expect(existsSync(join(dir, 'blocker', 'inside.json'))).toBe(false)
