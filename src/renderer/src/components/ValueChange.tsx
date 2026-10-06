@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { PriceSnapshot } from '@shared/api'
 import type { ValuedCopy } from '../lib/collection'
-import { formatDay, formatEur } from '../lib/format'
+import { formatDate, formatEur } from '../lib/format'
 import { valueChange, type ValueMove } from '../stores/history'
 import { copyLabel } from './InventoryVersions'
 
@@ -75,7 +75,7 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
           <p className="value-change-total">
             <Delta value={change.change} />
             <span className="muted small">
-              since {formatDay(change.from)}
+              since {formatDate(change.from)}
             </span>
           </p>
           {(risers.length > 0 || fallers.length > 0) && (

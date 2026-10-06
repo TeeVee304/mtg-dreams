@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { priceBasisLabel } from '@shared/pricing'
 import { matchTrades, type TradeCard, type TradeMatch, type TradeSnapshot, type Want } from '@shared/trade'
 import type { PriceBasis, Printing } from '@shared/types'
-import { cardCount, formatEur, timeAgo } from '../lib/format'
+import { cardCount, formatDate, formatEur, timeAgo } from '../lib/format'
 import type { LibraryActions, ListRef } from '../stores/library'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
@@ -72,8 +72,8 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
         <div>
           <h1>Trading with {trade.name}</h1>
           <p className="muted">
-            {trade.name}'s list from {date.toLocaleDateString()} ({timeAgo(date.getTime())}) · {cardCount(trade.haves.length)}
-            they have · {trade.wants.length} they want
+            {trade.name}'s list from {formatDate(date.getTime())} ({timeAgo(date.getTime())}) ·{' '}
+            {cardCount(trade.haves.length)} they have · {trade.wants.length} they want
           </p>
         </div>
         <div className="header-actions">
@@ -101,12 +101,12 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
         <div className="stat accent">
           <span className="stat-label">{trade.name} can give you</span>
           <span className="stat-value">{formatEur(receiveTotal)}</span>
-          <span className="stat-note">{matchedCards(receive)} your wishlists need</span>
+          <span className="stat-note">{matchedCards(receive)} your lists need</span>
         </div>
         <div className="stat">
           <span className="stat-label">You can give {trade.name}</span>
           <span className="stat-value">{formatEur(giveTotal)}</span>
-          <span className="stat-note">{matchedCards(give)} on their wishlist</span>
+          <span className="stat-note">{matchedCards(give)} on their lists</span>
         </div>
         <div className="stat">
           <span className="stat-label">Balance</span>
@@ -127,7 +127,7 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
 
       <div className="trade-columns">
         <section>
-          <h3 className="trade-heading">{trade.name} has, your wishlists need</h3>
+          <h3 className="trade-heading">{trade.name} has, your lists need</h3>
           {receive.length > 0 ? (
             <MatchTable
               matches={receive}
@@ -150,11 +150,11 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
               qtyNote={(m) => (m.available < m.needed ? `they have ${m.available}, you need ${m.needed}` : undefined)}
             />
           ) : (
-            <p className="empty-note muted">None of {trade.name}'s cards are on your wishlists.</p>
+            <p className="empty-note muted">None of {trade.name}'s cards are on your lists.</p>
           )}
         </section>
         <section>
-          <h3 className="trade-heading">You have, {trade.name}'s wishlist needs</h3>
+          <h3 className="trade-heading">You have, {trade.name}'s lists need</h3>
           {give.length > 0 ? (
             <MatchTable
               matches={give}
@@ -165,8 +165,8 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
           ) : (
             <p className="empty-note muted">
               {trade.wants.length === 0
-                ? `${trade.name} didn't share a wishlist.`
-                : `None of your cards are on ${trade.name}'s wishlist.`}
+                ? `${trade.name} didn't share their lists.`
+                : `None of your cards are on ${trade.name}'s lists.`}
             </p>
           )}
         </section>

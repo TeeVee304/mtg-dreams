@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { nameKey } from '@shared/decklist'
 import type { LegalityIssue } from '@shared/formats'
 import { shortfallNote } from '@shared/listModel'
-import { formatDay, formatEur } from '../lib/format'
+import { formatDate, formatEur } from '../lib/format'
 import type { PriceDrop } from '../stores/history'
 import type { Row } from '../lib/summary'
 import { previewHandlers } from './HoverPreview'
@@ -155,7 +155,7 @@ export function CardRow(props: CardRowProps) {
             {drop && (
               <span
                 className="chip cheaper"
-                title={`${formatEur(drop.was)} when added on ${formatDay(drop.since)}, now ${formatEur(row.unit)}`}
+                title={`${formatEur(drop.was)} when added on ${formatDate(drop.since)}, now ${formatEur(row.unit)}`}
               >
                 ↓ {drop.percent}% cheaper
               </span>

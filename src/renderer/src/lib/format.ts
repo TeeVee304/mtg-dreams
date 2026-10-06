@@ -1,5 +1,5 @@
-/** Locale EUR currency formatter. */
-const eur = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' })
+/** Locale EUR currency formatter; always groups thousands, so 1 234 and 12 345 read alike. */
+const eur = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR', useGrouping: 'always' })
 
 /** @returns Locale EUR string; `—` for null/undefined. */
 export function formatEur(value: number | null | undefined): string {
@@ -11,16 +11,17 @@ export function cardCount(n: number): string {
   return `${n} ${n === 1 ? 'card' : 'cards'}`
 }
 
-/** @returns Short locale day and month, e.g. `30 Sep`. */
-export function formatDay(timestamp: number): string {
-  return new Date(timestamp).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
-}
-
-/** @returns Local date as `dd/mm/yyyy`. */
+/** @returns Local date as `dd-mm-yyyy`, the app's date format. */
 export function formatDate(timestamp: number): string {
   const date = new Date(timestamp)
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`
+  return `${pad(date.getDate())}-${pad(date.getMonth() + 1)}-${date.getFullYear()}`
+}
+
+/** @returns An ISO `yyyy-mm-dd` date as `dd-mm-yyyy`; other text unchanged. */
+export function formatIsoDate(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso)
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : iso
 }
 
 /** @returns Relative time: `just now`, minutes, hours (< 48), or days. */

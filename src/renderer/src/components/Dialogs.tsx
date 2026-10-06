@@ -202,7 +202,6 @@ export function TextEditorDialog({ title, initial, mode, onSave, onClose }: Text
     >
       <p className="muted small">
         {FORMAT_HINT}
-        {mode === 'inventory' && ' The inventory tracks names only, so versions and foiling are merged.'}
       </p>
       <textarea
         className="text-editor"
@@ -270,7 +269,7 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onClose }: NewList
       <label className="field">
         <span>Format</span>
         <select value={format} onChange={(event) => setFormat(event.target.value)}>
-          <option value="">No format (just a list of cards)</option>
+          <option value="">No format</option>
           {FORMATS.map((f) => (
             <option key={f.id} value={f.id}>
               {f.label}

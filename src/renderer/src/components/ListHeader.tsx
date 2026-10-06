@@ -55,7 +55,7 @@ export function ListHeader(props: ListHeaderProps) {
               onChange={(event) => props.onFormat(event.target.value || null)}
               aria-label="Deck format"
             >
-              <option value="">No format (just a list)</option>
+              <option value="">No format</option>
               {FORMATS.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.label}
@@ -117,7 +117,7 @@ export function ListHeader(props: ListHeaderProps) {
             {summary.loading > 0
               ? `loading prices ${lines - summary.loading}/${lines}…`
               : summary.pricedAt
-                ? formatDate(summary.pricedAt)
+                ? `prices from ${formatDate(summary.pricedAt)}`
                 : 'no prices yet'}
           </span>
         </div>

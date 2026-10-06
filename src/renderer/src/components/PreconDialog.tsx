@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { cardImageUrl } from '@shared/images'
 import { preconEntries, type PreconEntry, type PreconOptions } from '@shared/precons'
 import type { PreconCard, PreconDeck, PreconSummary } from '@shared/types'
-import { cardCount as cards, cleanError } from '../lib/format'
+import { cardCount as cards, cleanError, formatIsoDate } from '../lib/format'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { previewHandlers } from './HoverPreview'
 import { Modal } from './Modal'
@@ -133,7 +133,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
             <input
               type="search"
               autoFocus
-              placeholder="Search by name, set code or year…"
+              placeholder="Name, set code or year…"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -196,7 +196,7 @@ function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boole
     <div className="precon-deck">
       <h3>{deck.name}</h3>
       <p className="muted small">
-        {deck.type} · {deck.code} · released {deck.releaseDate || 'unknown'} · {cards(total)}
+        {deck.type} · {deck.code} · released {deck.releaseDate ? formatIsoDate(deck.releaseDate) : 'unknown'} · {cards(total)}
       </p>
       {boards.map(({ board, cards }) => (
         <section key={board} className="precon-board">

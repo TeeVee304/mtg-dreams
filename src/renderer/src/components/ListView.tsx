@@ -22,7 +22,7 @@ import type { CopyPool } from '@shared/copies'
 import type { CardLine, InventoryItem } from '@shared/types'
 import { bundledBasic } from '@shared/basics'
 import { getCardInfo } from '../stores/cardinfo'
-import { cleanError, formatDay } from '../lib/format'
+import { cleanError, formatDate } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
@@ -167,8 +167,8 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
       ({ updated, pricedAt }) =>
         toast(
           updated
-            ? `New Cardmarket prices loaded (${formatDay(pricedAt!)})`
-            : `Prices are up to date: Cardmarket, ${pricedAt ? formatDay(pricedAt) : 'not loaded yet'}`
+            ? `New Cardmarket prices loaded (${formatDate(pricedAt!)})`
+            : `Prices are up to date: Cardmarket, ${pricedAt ? formatDate(pricedAt) : 'not loaded yet'}`
         ),
       (error) => toast(cleanError(error), 'error')
     )

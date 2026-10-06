@@ -94,7 +94,7 @@ export function ShareTradeDialog({ inventory, lists, onClose }: ShareTradeDialog
         </div>
       </div>
       <p className="muted small">
-        Your friend imports it in MTG Dreams to see which of their cards your wishlists need, and the other way round.
+        Your friend imports it in MTG Dreams to see which of their cards your lists need, and the other way round.
         Prices, decks and where your files live are never included, and basic lands are left out.
       </p>
       {error && <p className="warn">{error}</p>}
