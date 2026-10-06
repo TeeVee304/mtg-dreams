@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { InventoryItem } from '@shared/types'
+import { useCopyPool } from '../hooks/useCopyPool'
 import { loadBaselines, syncBaselines, syncTracked } from '../stores/history'
 import type { CardList } from '../stores/library'
 import { usePrintingsVersion } from '../stores/printings'
@@ -12,6 +13,7 @@ const SETTLE_MS = 2000
 export function HistorySync({ ready, lists, inventory }: { ready: boolean; lists: CardList[]; inventory: Map<string, InventoryItem> }) {
   const printingsVersion = usePrintingsVersion()
   const { bundleBasics } = useSettings()
+  const pool = useCopyPool(lists)
 
   useEffect(() => {
     void loadBaselines()
@@ -20,11 +22,11 @@ export function HistorySync({ ready, lists, inventory }: { ready: boolean; lists
   useEffect(() => {
     if (!ready) return
     const timer = setTimeout(() => {
-      syncBaselines(lists.filter((list) => list.kind === 'wishlist'), inventory, bundleBasics)
+      syncBaselines(lists.filter((list) => list.kind === 'wishlist'), inventory, bundleBasics, pool)
       syncTracked(inventory, bundleBasics)
     }, SETTLE_MS)
     return () => clearTimeout(timer)
-  }, [ready, lists, inventory, bundleBasics, printingsVersion])
+  }, [ready, lists, inventory, bundleBasics, pool, printingsVersion])
 
   return null
 }

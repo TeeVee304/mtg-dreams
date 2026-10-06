@@ -39,8 +39,10 @@ export interface ModelRow {
   inventoryQty: number
   /** Copies of this line covered by the inventory. */
   owned: number
-  /** Copies of the same card claimed by earlier lines. */
+  /** Copies of the same card claimed ahead of this line: by lists ahead, then earlier lines. */
   before: number
+  /** Copies of the same card claimed by lists ahead of this one (separate copies). */
+  held: number
   /** Unit price in EUR; null if unknown. */
   unit: number | null
   /** Rarity of the resolved printing. */
@@ -68,7 +70,7 @@ export interface ListAnalysis<R extends ModelRow> {
   hasCommander: boolean
   /** Format issue; null if none, no format, or no card data. */
   issueOf(row: R): LegalityIssue | null
-  /** Decks: list copies exceeding inventory copies. Wishlists: 0. */
+  /** Decks: list copies exceeding the inventory copies left by lists ahead. Wishlists: 0. */
   shortfallOf(row: R): number
   /** Rows with an error-severity issue. */
   legalityErrors: number
@@ -110,7 +112,7 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
   }
   const issueOf = (row: R) => issues.get(row) ?? null
   const sideboardCards = rows.filter((row) => row.side).reduce((sum, row) => sum + row.line.qty, 0)
-  const shortfallOf = (row: R) => (kind === 'deck' ? Math.max(0, copiesOf(row.line.name) - row.inventoryQty) : 0)
+  const shortfallOf = (row: R) => (kind === 'deck' ? Math.max(0, copiesOf(row.line.name) - freeCopies(row)) : 0)
 
   return {
     format,
@@ -178,6 +180,22 @@ export function sortRows<R extends ModelRow>(rows: R[], sort: SortKey): R[] {
   }
 }
 
+/** @returns Inventory copies of the row's card left for its list by the lists ahead. */
+export function freeCopies(row: ModelRow): number {
+  return Math.max(0, row.inventoryQty - row.held)
+}
+
+/** @returns Short label and explanation of a deck row's shortfall. */
+export function shortfallNote(row: ModelRow): { label: string; title: string } {
+  if (row.inventoryQty === 0) return { label: 'Not in inventory', title: 'Decks can only use cards from your inventory' }
+  if (row.held === 0) return { label: `Only ${row.inventoryQty} owned`, title: 'Decks can only use cards from your inventory' }
+  const free = freeCopies(row)
+  return {
+    label: free === 0 ? 'Used by other decks' : `Only ${free} free`,
+    title: `You own ${row.inventoryQty}; decks ahead of this one use ${Math.min(row.held, row.inventoryQty)}. Each copy belongs to one deck.`
+  }
+}
+
 /** Rendered list section. */
 export interface Section<R> {
   id: string
@@ -214,14 +232,19 @@ export function landCount(rows: ModelRow[]): number {
 export interface CopyCaps {
   /** Format limit; Infinity without a format or for unlimited cards. */
   formatCap: number
-  /** Decks: owned copies. Wishlists: Infinity. */
+  /** Decks: owned copies not in other decks. Wishlists: Infinity. */
   ownedCap: number
   /** Effective limit: min of both. */
   cap: number
+  /** Inventory copies. */
+  ownedQty: number
+  /** Copies in other decks (separate copies). */
+  inOtherDecks: number
 }
 
 /**
  * @param ownedQty - Inventory copies of the card.
+ * @param inOtherDecks - Copies in other decks (`CopyPool.inOtherDecks`); 0 with shared copies.
  * @returns Format, ownership and effective copy limits.
  */
 export function copyCaps(
@@ -229,27 +252,29 @@ export function copyCaps(
   format: DeckFormat | null,
   name: string,
   info: CardInfo | null | undefined,
-  ownedQty: number
+  ownedQty: number,
+  inOtherDecks = 0
 ): CopyCaps {
   const formatCap = format ? copyLimit(format, info, name) : Infinity
-  const ownedCap = kind === 'deck' ? ownedQty : Infinity
-  return { formatCap, ownedCap, cap: Math.min(formatCap, ownedCap) }
+  const ownedCap = kind === 'deck' ? Math.max(0, ownedQty - inOtherDecks) : Infinity
+  return { formatCap, ownedCap, cap: Math.min(formatCap, ownedCap), ownedQty, inOtherDecks }
 }
 
 const copyWord = (n: number) => (n === 1 ? 'copy' : 'copies')
 
 /** @returns User-facing reason for the binding cap (format if it is the lower one, else ownership). */
-export function limitReason(format: DeckFormat | null, name: string, { formatCap, ownedCap }: CopyCaps): string {
-  return format && formatCap <= ownedCap
-    ? `${format.label} allows ${formatCap} ${copyWord(formatCap)} of ${name}`
-    : `You own ${ownedCap}× ${name}`
+export function limitReason(format: DeckFormat | null, name: string, caps: CopyCaps): string {
+  if (format && caps.formatCap <= caps.ownedCap) return `${format.label} allows ${caps.formatCap} ${copyWord(caps.formatCap)} of ${name}`
+  return caps.inOtherDecks > 0
+    ? `You own ${caps.ownedQty}× ${name}, ${Math.min(caps.inOtherDecks, caps.ownedQty)} in other decks`
+    : `You own ${caps.ownedQty}× ${name}`
 }
 
 /**
  * @param copiesInList - Total copies of the card across the list, including this line.
  * @returns Max quantity for this line, never below its current qty; undefined if unlimited.
  */
-export function lineMax(line: CardLine, caps: CopyCaps, copiesInList: number): number | undefined {
+export function lineMax(line: CardLine, caps: Pick<CopyCaps, 'cap'>, copiesInList: number): number | undefined {
   const room = caps.cap - (copiesInList - line.qty)
   return Number.isFinite(room) ? Math.max(line.qty, room) : undefined
 }
@@ -258,9 +283,9 @@ export function lineMax(line: CardLine, caps: CopyCaps, copiesInList: number): n
 export type OwnedChange = { kind: 'set'; qty: number } | { kind: 'confirm'; target: number }
 
 /**
- * Toggles a wishlist line's owned state. Owning sets the inventory total to cover earlier lines
- * plus this one. Unowning reduces it to `before`, requiring confirmation if the inventory holds
- * copies beyond this list's need (possibly used by other lists).
+ * Toggles a wishlist line's owned state. Owning sets the inventory total to cover the claims ahead
+ * (lists ahead, earlier lines) plus this line. Unowning reduces it to `before`, requiring
+ * confirmation if the inventory holds copies beyond this line (possibly used by other lists).
  */
 export function ownedToggle(row: ModelRow): OwnedChange {
   const covered = row.before + row.line.qty

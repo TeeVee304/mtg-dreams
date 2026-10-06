@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { nameKey } from '@shared/decklist'
 import type { LegalityIssue } from '@shared/formats'
+import { shortfallNote } from '@shared/listModel'
 import { formatDay, formatEur } from '../lib/format'
 import type { PriceDrop } from '../stores/history'
 import type { Row } from '../lib/summary'
@@ -21,7 +22,7 @@ interface CardRowProps {
   crowned: boolean
   isDeck: boolean
   issue: LegalityIssue | null
-  /** Deck copies not covered by the inventory. */
+  /** Deck copies not covered by the inventory copies left by lists ahead. */
   shortfall: number
   /** Wishlist price drop past the alert threshold. */
   drop?: PriceDrop | null
@@ -96,7 +97,7 @@ export function CardRow(props: CardRowProps) {
               checked={complete}
               onChange={onToggleOwned}
               aria-label={`Own ${line.name}`}
-              title={`${row.inventoryQty} in inventory`}
+              title={`${row.inventoryQty} in inventory${row.held > 0 ? `; decks and lists ahead of this one claim ${row.held} first` : ''}`}
             />
             <span className="owned-count">
               {owned}/{line.qty}
@@ -135,7 +136,7 @@ export function CardRow(props: CardRowProps) {
                 type="button"
                 className="name-btn card-name"
                 onClick={onOpen}
-                title={`${row.flavorName ?? line.name}: card details and version`}
+                title={row.flavorName ?? line.name}
               >
                 {row.flavorName ?? line.name}
               </button>
@@ -160,8 +161,8 @@ export function CardRow(props: CardRowProps) {
               </span>
             )}
             {shortfall > 0 && (
-              <span className="chip illegal" title="Decks can only use cards from your inventory">
-                {row.inventoryQty === 0 ? 'Not in inventory' : `Only ${row.inventoryQty} owned`}
+              <span className="chip illegal" title={shortfallNote(row).title}>
+                {shortfallNote(row).label}
               </span>
             )}
             {matchedName && (

@@ -69,10 +69,21 @@ describe('allocateOwned', () => {
     const lines = cardLines(parseList('4 Lightning Bolt\n1 Opt\n1 Lightning Bolt [M11]\n2 lightning bolt (F)'))
     const inventory = parseInventory('5 Lightning Bolt\n3 Opt')
     expect(allocateOwned(lines, inventory)).toEqual([
-      { owned: 4, before: 0 },
-      { owned: 1, before: 0 },
-      { owned: 1, before: 4 },
-      { owned: 0, before: 5 }
+      { owned: 4, before: 0, held: 0 },
+      { owned: 1, before: 0, held: 0 },
+      { owned: 1, before: 4, held: 0 },
+      { owned: 0, before: 5, held: 0 }
+    ])
+  })
+
+  it('starts after the copies lists ahead hold', () => {
+    const lines = cardLines(parseList('2 Lightning Bolt\n1 Opt\n1 Lightning Bolt'))
+    const inventory = parseInventory('4 Lightning Bolt\n1 Opt')
+    const held = (key: string) => (key === 'lightning bolt' ? 1 : 0)
+    expect(allocateOwned(lines, inventory, held)).toEqual([
+      { owned: 2, before: 1, held: 1 },
+      { owned: 1, before: 0, held: 0 },
+      { owned: 1, before: 3, held: 1 }
     ])
   })
 })

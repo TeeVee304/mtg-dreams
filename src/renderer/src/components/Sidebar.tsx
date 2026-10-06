@@ -1,5 +1,8 @@
-import { cardLines } from '@shared/decklist'
-import { listFormat } from '@shared/formats'
+import type { CSSProperties } from 'react'
+import type { ColorFilter } from '@shared/cards'
+import { STAT_COLORS } from '@shared/deckStats'
+import { cardLines, nameKey } from '@shared/decklist'
+import { listCommander, listFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
@@ -9,12 +12,14 @@ import { priceDrop, useBaselines } from '../stores/history'
 import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { buildRows, summarize } from '../lib/summary'
-import { THEME_ICONS } from '../lib/artwork'
+import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
+import { wantedOverview } from '../lib/wanted'
+import { useCopyPool } from '../hooks/useCopyPool'
+import { useStoredToggle } from '../hooks/useStoredToggle'
 import { Icon } from './Icon'
 
-
 /** Main page selection. */
-export type View = { page: 'inventory' } | { page: 'list'; list: ListRef } | { page: 'trade'; friend: string }
+export type View = { page: 'inventory' } | { page: 'wanted' } | { page: 'list'; list: ListRef } | { page: 'trade'; friend: string }
 
 /** Props of {@link Sidebar}. */
 interface SidebarProps {
@@ -35,7 +40,10 @@ interface SidebarProps {
   onImportTrade: () => void
 }
 
-/** Navigation: inventory, decks, wishlists (with price-drop counts) and trades; data folder and settings actions. */
+/**
+ * Navigation: inventory, Most Wanted, decks and wishlists (collapsible sections with price-drop counts
+ * and color symbols on hover) and trades; data folder and settings actions.
+ */
 export function Sidebar(props: SidebarProps) {
   const { lists, inventory, view, dataDir, onSelect, onNew, onOpenDataDir, onChangeDataDir, onSettings, onCollectionValue } =
     props
@@ -43,9 +51,13 @@ export function Sidebar(props: SidebarProps) {
   usePrintingsVersion()
   const settings = useSettings()
   const baselines = useBaselines()
+  const [decksOpen, toggleDecks] = useStoredToggle('mtg-dreams.decksOpen', true)
+  const [wishlistsOpen, toggleWishlists] = useStoredToggle('mtg-dreams.wishlistsOpen', true)
+  const wanted = wantedOverview(lists, inventory, settings)
+  const pool = useCopyPool(lists)
 
   const renderList = (list: CardList) => {
-    const rows = buildRows(cardLines(list.lines), inventory, settings)
+    const rows = buildRows(cardLines(list.lines), inventory, settings, undefined, (key) => pool.held(list, key))
     const summary = summarize(rows)
     const cheaper =
       list.kind === 'wishlist'
@@ -57,6 +69,7 @@ export function Sidebar(props: SidebarProps) {
         : 0
     const format = listFormat(list.lines)
     const active = view?.page === 'list' && sameList(view.list, list)
+    const colors = listColors(rows, format?.commander ? listCommander(list.lines) : null)
     const priced = summary.loading === 0 && summary.cards > 0
     const complete = list.kind === 'wishlist' && summary.cards > 0 && summary.ownedCards >= summary.cards
     return (
@@ -65,9 +78,17 @@ export function Sidebar(props: SidebarProps) {
         type="button"
         className={`nav-item${active ? ' active' : ''}`}
         data-color={listColor(list.lines) ?? undefined}
+        style={colors.length > 0 ? ({ '--colors': colors.length } as CSSProperties) : undefined}
         onClick={() => onSelect({ page: 'list', list: { kind: list.kind, name: list.name } })}
       >
         <span className="nav-name">{list.name}</span>
+        {colors.length > 0 && (
+          <span className="nav-colors" aria-label={`Colors: ${colors.join(', ')}`}>
+            {colors.map((color) => (
+              <img key={color} src={MANA_SYMBOLS[color]} alt="" draggable={false} />
+            ))}
+          </span>
+        )}
         <span className="nav-meta">
           {format && `${format.label} · `}
           {list.kind === 'deck' ? (
@@ -93,16 +114,32 @@ export function Sidebar(props: SidebarProps) {
   const section = (kind: ListKind, title: string, empty: string) => {
     const items = lists.filter((list) => list.kind === kind)
     const label = kind === 'deck' ? 'New deck' : 'New wishlist'
+    const [open, toggle] = kind === 'deck' ? [decksOpen, toggleDecks] : [wishlistsOpen, toggleWishlists]
     return (
       <>
         <div className="nav-section">
-          <span>{title}</span>
-          <button type="button" className="icon-btn" onClick={() => onNew(kind)} title={label} aria-label={label}>
-            <Icon name="plus" />
-          </button>
+          <span>
+            {title}
+            {!open && items.length > 0 && <span className="nav-section-count"> · {items.length}</span>}
+          </span>
+          <span className="nav-section-actions">
+            <button type="button" className="icon-btn" onClick={() => onNew(kind)} title={label} aria-label={label}>
+              <Icon name="plus" />
+            </button>
+            <button
+              type="button"
+              className={`icon-btn nav-section-toggle${open ? ' open' : ''}`}
+              onClick={toggle}
+              aria-expanded={open}
+              title={open ? `Collapse ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
+              aria-label={open ? `Collapse ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
+            >
+              <Icon name="chevron" />
+            </button>
+          </span>
         </div>
-        {items.length === 0 && <p className="muted nav-empty">{empty}</p>}
-        {items.map(renderList)}
+        {open && items.length === 0 && <p className="muted nav-empty">{empty}</p>}
+        {open && items.map(renderList)}
       </>
     )
   }
@@ -126,6 +163,19 @@ export function Sidebar(props: SidebarProps) {
             Inventory <Icon name="backpack" />
           </span>
           <span className="nav-meta">{cardCount(inventory.size)}</span>
+        </button>
+        <button
+          type="button"
+          className={`nav-item${view?.page === 'wanted' ? ' active' : ''}`}
+          onClick={() => onSelect({ page: 'wanted' })}
+        >
+          <span className="nav-name nav-icon-name">
+            Most Wanted <Icon name="cart" />
+          </span>
+          <span className="nav-meta">
+            {cardCount(wanted.cards.length)}
+            {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
+          </span>
         </button>
         <button type="button" className="value-btn" onClick={onCollectionValue} title="What is my collection worth?">
           <Icon name="sparkle" /> Inventory Value
@@ -188,4 +238,22 @@ export function Sidebar(props: SidebarProps) {
       </footer>
     </aside>
   )
+}
+
+/**
+ * @param rows - List rows, with card data once loaded.
+ * @param commander - Commander name in commander formats; its color identity decides alone.
+ * @returns Color identity in WUBRG order: the commander's, else the union of the cards'. `C` when that
+ * identity is empty: a colorless commander, or a list whose cards are all colorless (once all have loaded).
+ */
+function listColors(rows: Array<{ line: { name: string }; info?: { colorIdentity: string[] } | null }>, commander: string | null): ColorFilter[] {
+  if (commander) {
+    const info = rows.find((row) => nameKey(row.line.name) === nameKey(commander))?.info
+    if (!info) return []
+    return info.colorIdentity.length === 0 ? ['C'] : STAT_COLORS.filter((color) => info.colorIdentity.includes(color))
+  }
+  const identity = new Set(rows.flatMap((row) => row.info?.colorIdentity ?? []))
+  if (identity.size > 0) return STAT_COLORS.filter((color) => identity.has(color))
+  const loaded = rows.length > 0 && rows.every((row) => row.info !== undefined) && rows.some((row) => row.info)
+  return loaded ? ['C'] : []
 }

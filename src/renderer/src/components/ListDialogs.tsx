@@ -1,5 +1,6 @@
 import { capEntries, type DeckFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
+import { listPriority, PRIORITIES } from '@shared/listPriority'
 import type { ListAnalysis } from '@shared/listModel'
 import { THEME_COLORS, type ThemeColor } from '@shared/themes'
 import type { CardLine } from '@shared/types'
@@ -22,6 +23,7 @@ export type ListDialog =
   | { kind: 'card'; lineId: string }
   | { kind: 'precon' }
   | { kind: 'color' }
+  | { kind: 'priority' }
   | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
 
 /** Props of {@link ListDialogs}. */
@@ -141,7 +143,7 @@ export function ListDialogs(props: ListDialogsProps) {
           message={
             `You have ${dialog.inventoryQty}× ${dialog.line.name} in your inventory. ` +
             (dialog.target === 0 ? 'Remove all of them?' : `Reduce it to ${dialog.target}?`) +
-            ' This applies to every list.'
+            (settings.copies === 'separate' ? ' Lists after this one lose their copies too.' : ' This applies to every list.')
           }
           confirmLabel={dialog.target === 0 ? 'Remove all' : `Reduce to ${dialog.target}`}
           danger
@@ -187,6 +189,35 @@ export function ListDialogs(props: ListDialogsProps) {
                   <img className="color-mana" src={MANA_SYMBOLS[option.id]} alt="" draggable={false} />
                   {option.label}
                 </span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      )
+    }
+    case 'priority': {
+      const current = listPriority(list.lines)
+      return (
+        <Modal title="List priority" onClose={onClose}>
+          <p className="muted small">
+            How much this list's missing cards count in Most Wanted
+            {settings.copies === 'separate' ? ', and its turn for your copies: decks first, then wishlists from high to low.' : '.'}
+          </p>
+          <div className="theme-options" role="radiogroup" aria-label="Priority">
+            {PRIORITIES.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                role="radio"
+                aria-checked={current === option.id}
+                className={`theme-option${current === option.id ? ' selected' : ''}`}
+                onClick={() => {
+                  actions.setListPriority(list, option.id)
+                  onClose()
+                }}
+              >
+                <span className="theme-label">{option.id === 'high' ? `★ ${option.label}` : option.label}</span>
+                <span className="muted tiny">{option.hint}</span>
               </button>
             ))}
           </div>

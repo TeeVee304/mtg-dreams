@@ -20,6 +20,7 @@ import type { InventoryItem, ListKind } from '@shared/types'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../stores/cardinfo'
 import { VALUATION_BASIS, valueItem, type ItemValue } from '../lib/collection'
 import { formatEur } from '../lib/format'
+import { useCopyPool } from '../hooks/useCopyPool'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { updateSettings, useSettings } from '../stores/settings'
@@ -37,6 +38,8 @@ import { useToast } from './Toasts'
 interface Usage {
   list: string
   qty: number
+  /** Copies lists ahead of this one claim first (separate copies). */
+  held: number
   /** List color; null = app accent. */
   color: ThemeColor | null
 }
@@ -68,6 +71,7 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
   const [versionsOf, setVersionsOf] = useState<string | null>(null)
   const versionsItem = versionsOf ? inventory.get(versionsOf) : undefined
 
+  const pool = useCopyPool(lists)
   /** Per nameKey: decks using and wishlists wanting the card. */
   const usage = useMemo(() => {
     const byKind: Record<ListKind, Map<string, Usage[]>> = { deck: new Map(), wishlist: new Map() }
@@ -79,12 +83,12 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
         const entries = map.get(key) ?? []
         const existing = entries.find((e) => e.list === list.name)
         if (existing) existing.qty += line.qty
-        else entries.push({ list: list.name, qty: line.qty, color })
+        else entries.push({ list: list.name, qty: line.qty, held: pool.held(list, key), color })
         map.set(key, entries)
       }
     }
     return byKind
-  }, [lists])
+  }, [lists, pool])
 
   const namesKey = [...inventory.values()].map((item) => item.name).join('\n')
   useEffect(() => {
@@ -119,18 +123,23 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
   const usageChips = (item: InventoryItem, kind: ListKind) => {
     const entries = usage[kind].get(nameKey(item.name)) ?? []
     if (entries.length === 0) return <span className="muted">—</span>
-    return entries.map((entry) => (
-      <button
-        key={entry.list}
-        type="button"
-        className="chip link list-chip"
-        data-color={entry.color ?? undefined}
-        onClick={() => onOpenList({ kind, name: entry.list })}
-        title={kind === 'deck' ? `${entry.list} uses ${entry.qty}` : `${entry.list} wants ${entry.qty}`}
-      >
-        {entry.list} · {kind === 'deck' ? entry.qty : `${Math.min(item.qty, entry.qty)}/${entry.qty}`}
-      </button>
-    ))
+    return entries.map((entry) => {
+      const got = Math.min(entry.qty, Math.max(0, item.qty - entry.held))
+      const short = got < entry.qty
+      const ahead = entry.held > 0 ? `; ${Math.min(entry.held, item.qty)} of yours go to ${kind === 'deck' ? 'decks' : 'decks and lists'} ahead of it` : ''
+      return (
+        <button
+          key={entry.list}
+          type="button"
+          className={`chip link list-chip${kind === 'deck' && short ? ' short' : ''}`}
+          data-color={entry.color ?? undefined}
+          onClick={() => onOpenList({ kind, name: entry.list })}
+          title={`${entry.list} ${kind === 'deck' ? 'uses' : 'wants'} ${entry.qty}, ${got} covered${ahead}`}
+        >
+          {entry.list} · {kind === 'deck' && !short ? entry.qty : `${got}/${entry.qty}`}
+        </button>
+      )
+    })
   }
 
   return (

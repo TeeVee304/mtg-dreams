@@ -1,0 +1,110 @@
+/* Most Wanted page: tabs, badges, budget planner. */
+
+.wanted-tabs {
+  align-self: flex-start;
+}
+
+.wanted-table .col-actions {
+  width: 150px;
+}
+
+.chip.completes-chip {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.chip.friend-chip {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.chip.list-chip.low {
+  opacity: 0.6;
+}
+
+/* Deck marker in list chips. */
+.chip.list-chip svg {
+  width: 12px;
+  height: 12px;
+  margin-right: 3px;
+  vertical-align: -2px;
+}
+
+.bought-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  font-size: 12px;
+}
+
+.wanted-note {
+  margin: 0;
+}
+
+.wanted-note-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+/* Budget planner: collapsible like Stats. */
+
+.planner-body {
+  display: grid;
+  gap: 10px;
+  padding: 4px 16px 16px;
+}
+
+.planner-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.planner-head input {
+  width: 84px;
+}
+
+.planner-head button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.plan-list {
+  display: grid;
+  gap: 4px;
+  max-height: 260px;
+  margin: 0;
+  padding-left: 24px;
+  overflow: auto;
+  font-size: 13px;
+}
+
+.plan-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.plan-list .muted {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-cost {
+  font-variant-numeric: tabular-nums;
+}
+
+/* List header priority badge. */
+
+.chip.priority-chip.high {
+  background: var(--accent-soft);
+  color: var(--accent);
+}

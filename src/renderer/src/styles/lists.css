@@ -40,6 +40,11 @@
   color: var(--accent);
 }
 
+/* Deck short of copies: the inventory (after decks ahead) doesn't cover it. */
+.chip.link.list-chip.short {
+  box-shadow: inset 0 0 0 1px var(--bad);
+}
+
 .foot-row {
   display: flex;
   align-items: baseline;

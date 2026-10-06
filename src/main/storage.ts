@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { basename, dirname, join } from 'node:path'
 import { CONFLICT_ERROR, type AppSettings, type ListFile, type LoadedData, type Theme } from '@shared/api'
 import { DEFAULT_SORT, isSortKey } from '@shared/cards'
+import { DEFAULT_COPIES, isCopiesMode } from '@shared/copies'
 import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS, isPriceBasis } from '@shared/pricing'
 import { fileNameProblem } from '@shared/filenames'
 import { DEFAULT_THEME_COLOR, isThemeColor } from '@shared/themes'
@@ -33,6 +34,7 @@ interface Settings {
   theme?: Theme
   color?: string
   bundleBasics?: boolean
+  copies?: string
   cardImages?: boolean
   cardView?: string
   tradeName?: string
@@ -131,6 +133,7 @@ export function getAppSettings(): AppSettings {
     theme: getTheme(),
     color: isThemeColor(settings.color) ? settings.color : DEFAULT_THEME_COLOR,
     bundleBasics: settings.bundleBasics ?? true,
+    copies: isCopiesMode(settings.copies) ? settings.copies : DEFAULT_COPIES,
     cardImages: settings.cardImages ?? true,
     cardView: settings.cardView === 'grid' ? 'grid' : 'table',
     tradeName: settings.tradeName ?? '',

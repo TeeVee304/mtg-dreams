@@ -1,4 +1,5 @@
 import { commanderRule, FORMATS, type DeckFormat } from '@shared/formats'
+import type { ListPriority } from '@shared/listPriority'
 import { cardCount, formatDate } from '../lib/format'
 import type { Summary } from '../lib/summary'
 import { Icon } from './Icon'
@@ -17,6 +18,8 @@ interface ListHeaderProps {
   picking: boolean
   legalityErrors: number
   ownershipErrors: number
+  /** Copies are separate per list: shortfalls may be copies other decks use. */
+  separateCopies: boolean
   /** Problem-only filter active. */
   onlyProblems: boolean
   onToggleProblems: () => void
@@ -28,6 +31,10 @@ interface ListHeaderProps {
   onCopy: () => void
   /** Opens the color picker. */
   onColor: () => void
+  /** Wishlists: current priority. */
+  priority?: ListPriority
+  /** Wishlists: opens the priority picker. */
+  onPriority?: () => void
   onRename: () => void
   onDelete: () => void
 }
@@ -89,7 +96,20 @@ export function ListHeader(props: ListHeaderProps) {
               onClick={props.onToggleProblems}
               title={problemsTitle}
             >
-              {ownershipErrors} {ownershipErrors === 1 ? 'card is' : 'cards are'} not in your inventory
+              {ownershipErrors}{' '}
+              {props.separateCopies
+                ? `${ownershipErrors === 1 ? 'card needs' : 'cards need'} more copies`
+                : `${ownershipErrors === 1 ? 'card is' : 'cards are'} not in your inventory`}
+            </button>
+          )}
+          {props.priority && props.priority !== 'normal' && (
+            <button
+              type="button"
+              className={`chip priority-chip ${props.priority}`}
+              onClick={props.onPriority}
+              title={props.separateCopies ? 'How much this list counts in Most Wanted, and its turn for your copies' : 'How much this list counts in Most Wanted'}
+            >
+              {props.priority === 'high' ? '★ High priority' : 'Low priority'}
             </button>
           )}
           <span className="muted">
@@ -114,6 +134,7 @@ export function ListHeader(props: ListHeaderProps) {
           items={[
             { label: 'Copy as text', onSelect: props.onCopy },
             { label: 'Color…', onSelect: props.onColor },
+            ...(props.onPriority ? [{ label: 'Priority…', onSelect: props.onPriority }] : []),
             { label: 'Rename…', onSelect: props.onRename },
             { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
           ]}

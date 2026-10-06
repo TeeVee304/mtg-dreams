@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { cardLines, parseList, serializeList } from '@shared/decklist'
 import { bundledBasic } from '@shared/basics'
+import { copiesToAdd } from '@shared/copies'
 import { withCommander, withFormat } from '@shared/formats'
 import { preconListName, type PreconEntry } from '@shared/precons'
 import { entriesToLines } from '@shared/sideboard'
@@ -18,8 +19,10 @@ import { PriceProgress } from './components/PriceProgress'
 import { SettingsDialog } from './components/SettingsDialog'
 import { ImportTradeDialog, ShareTradeDialog } from './components/TradeDialogs'
 import { TradeView } from './components/TradeView'
+import { WantedView } from './components/WantedView'
 import { Sidebar, type View } from './components/Sidebar'
 import { useToast } from './components/Toasts'
+import { useCopyPool } from './hooks/useCopyPool'
 import { cardCount, cleanError } from './lib/format'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
 import { refreshStalePrintings, reloadPrices, requestPrintings } from './stores/printings'
@@ -70,14 +73,15 @@ export default function App() {
 
   useEffect(() => {
     if (state.status !== 'ready') return
-    if (view?.page === 'inventory') return
+    if (view?.page === 'inventory' || view?.page === 'wanted') return
     if (view?.page === 'list' && state.lists.some((list) => sameList(list, view.list))) return
     if (view?.page === 'trade' && state.trades.some((trade) => trade.name === view.friend)) return
     const first = state.lists[0]
     setView(first ? { page: 'list', list: { kind: first.kind, name: first.name } } : null)
   }, [state.status, state.lists, state.trades, view])
 
-  const { bundleBasics } = useSettings()
+  const { bundleBasics, copies } = useSettings()
+  const pool = useCopyPool(state.lists)
   const active = view?.page === 'list' ? view.list : null
   const namesKey = useMemo(
     () =>
@@ -92,10 +96,7 @@ export default function App() {
     for (const name of namesKey.split('\n')) if (name) requestPrintings(name)
   }, [namesKey])
 
-  const myTrade = useMemo(
-    () => myTradeSide(state.inventory, state.lists.filter((list) => list.kind === 'wishlist')),
-    [state.inventory, state.lists]
-  )
+  const myTrade = useMemo(() => myTradeSide(state.inventory, state.lists, copies), [state.inventory, state.lists, copies])
 
   useEffect(() => {
     const timer = setInterval(refreshStalePrintings, 60 * 60 * 1000)
@@ -153,7 +154,6 @@ export default function App() {
 
   const list = view?.page === 'list' ? state.lists.find((l) => sameList(l, view.list)) : undefined
   const trade = view?.page === 'trade' ? state.trades.find((t) => t.name === view.friend) : undefined
-  const wishlists = state.lists.filter((l) => l.kind === 'wishlist')
 
   return (
     <div className="app">
@@ -189,11 +189,22 @@ export default function App() {
             onAddPrecon={() => setPrecon('deck')}
           />
         )}
+        {view?.page === 'wanted' && (
+          <WantedView
+            lists={state.lists}
+            inventory={state.inventory}
+            trades={state.trades}
+            actions={actions}
+            onOpenList={openList}
+            onOpenTrade={(friend) => setView({ page: 'trade', friend })}
+          />
+        )}
         {list && (
           <ListView
             key={`${list.kind}/${list.name}`}
             list={list}
             inventory={state.inventory}
+            pool={pool}
             actions={actions}
             onOpenList={openList}
           />
@@ -239,12 +250,8 @@ export default function App() {
           onCreate={async (name, text, formatId, addToInventory) => {
             const lines = withFormat(parseList(text), formatId)
             const created = await actions.createList(creating, name, serializeList(lines))
-            if (addToInventory) {
-              actions.addOwned(
-                cardLines(lines).map((line) => ({ name: line.name, qty: line.qty })),
-                true
-              )
-            }
+            const missing = addToInventory ? copiesToAdd(cardLines(lines), state.inventory, pool) : []
+            if (missing.length > 0) actions.addOwned(missing)
             setCreating(null)
             openList(created)
           }}
@@ -267,7 +274,7 @@ export default function App() {
       )}
       {valueOpen && <CollectionValueDialog inventory={state.inventory} onClose={() => setValueOpen(false)} />}
       {shareOpen && (
-        <ShareTradeDialog inventory={state.inventory} wishlists={wishlists} onClose={() => setShareOpen(false)} />
+        <ShareTradeDialog inventory={state.inventory} lists={state.lists} onClose={() => setShareOpen(false)} />
       )}
       {importing && (
         <ImportTradeDialog

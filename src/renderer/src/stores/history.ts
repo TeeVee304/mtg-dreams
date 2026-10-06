@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { PriceBaseline, PriceSnapshot, TrackerApi } from '@shared/api'
 import { bundledBasic } from '@shared/basics'
+import type { CopyPool } from '@shared/copies'
 import { allocateOwned, cardLines, nameKey } from '@shared/decklist'
 import { PRICE_BASES, resolveLine } from '@shared/pricing'
 import type { CardLine, InventoryItem, PriceBasis } from '@shared/types'
@@ -57,15 +58,16 @@ export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foi
 /**
  * Records baselines (all price bases) for loaded, not fully owned wishlist lines lacking one, and
  * removes baselines of lines no longer on any wishlist. Persists changes; save errors are ignored.
+ * @param pool - Copy claims of all lists.
  */
-export function syncBaselines(wishlists: CardList[], inventory: Map<string, InventoryItem>, bundleBasics: boolean): void {
+export function syncBaselines(wishlists: CardList[], inventory: Map<string, InventoryItem>, bundleBasics: boolean, pool: CopyPool): void {
   if (!baselinesLoaded) return
   const onWishlists = new Set<string>()
   const set: Record<string, PriceBaseline> = {}
   const now = Date.now()
   for (const list of wishlists) {
     const lines = cardLines(list.lines)
-    const allocations = allocateOwned(lines, inventory)
+    const allocations = allocateOwned(lines, inventory, (key) => pool.held(list, key))
     lines.forEach((line, index) => {
       const key = lineKey(line)
       onWishlists.add(key)

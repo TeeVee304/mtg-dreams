@@ -9,6 +9,7 @@ import {
 } from '@shared/decklist'
 import { listFormat, withCommander, withFormat, withoutMissingCommander } from '@shared/formats'
 import { withColor } from '@shared/listColor'
+import { withPriority, type ListPriority } from '@shared/listPriority'
 import { addToBoard, moveToBoard, type BoardEntry } from '@shared/sideboard'
 import type { ThemeColor } from '@shared/themes'
 import { parseTradeText, serializeSnapshot, tradeName, type TradeSnapshot } from '@shared/trade'
@@ -435,6 +436,11 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         updateLines(target, (lines) => withColor(lines, color), { label: 'Changed the color' })
       },
 
+      /** Sets the priority header (`normal` removes it). */
+      setListPriority(target: ListRef, priority: ListPriority) {
+        updateLines(target, (lines) => withPriority(lines, priority), { label: 'Changed the priority' })
+      },
+
       /** Sets or clears (`null`) the commander header. */
       setListCommander(target: ListRef, name: string | null) {
         updateLines(target, (lines) => withCommander(lines, name), {
@@ -504,32 +510,15 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         )
       },
 
-      /**
-       * Adds owned copies in bulk with optional versions.
-       * @param onlyMissing - Raise each card's total to the summed `qty` instead of adding (unversioned).
-       */
-      addOwned(items: Array<{ name: string; qty: number } & Partial<Version>>, onlyMissing = false) {
+      /** Adds owned copies in bulk with optional versions. */
+      addOwned(items: Array<{ name: string; qty: number } & Partial<Version>>) {
         const inventory = new Map(ref.current.inventory)
         let cards = 0
-        if (onlyMissing) {
-          const wanted = new Map<string, { name: string; qty: number }>()
-          for (const { name, qty } of items) {
-            const key = nameKey(name)
-            wanted.set(key, { name, qty: (wanted.get(key)?.qty ?? 0) + qty })
-          }
-          for (const [key, { name, qty }] of wanted) {
-            const existing = inventory.get(key)
-            const item = withTotal(existing, name, Math.max(existing?.qty ?? 0, qty))
-            if (item) inventory.set(key, item)
-            cards += qty
-          }
-        } else {
-          for (const { name, qty, set, collector, foil } of items) {
-            const key = nameKey(name)
-            const item = addCopies(inventory.get(key), name, qty, { set, collector, foil: foil ?? false })
-            if (item) inventory.set(key, item)
-            cards += qty
-          }
+        for (const { name, qty, set, collector, foil } of items) {
+          const key = nameKey(name)
+          const item = addCopies(inventory.get(key), name, qty, { set, collector, foil: foil ?? false })
+          if (item) inventory.set(key, item)
+          cards += qty
         }
         saveInventory(inventory, { label: `Added ${cardCount(cards)} to your inventory` })
       },

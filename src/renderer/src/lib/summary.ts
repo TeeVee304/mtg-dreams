@@ -15,8 +15,10 @@ export interface Row {
   resolution: Resolution | null
   /** Copies of this line covered by the inventory. */
   owned: number
-  /** Copies of the same card claimed by earlier lines. */
+  /** Copies of the same card claimed ahead of this line: by lists ahead, then earlier lines. */
   before: number
+  /** Copies of the same card claimed by lists ahead of this one (separate copies). */
+  held: number
   /** Total copies in the inventory. */
   inventoryQty: number
   /** EUR unit price; null if unknown. */
@@ -44,12 +46,14 @@ const NO_IDS: ReadonlySet<string> = new Set()
  * one free row per board. Unpinned lines with owned copies resolve to the owned printing
  * ({@link ownedVersion}).
  * @param sideIds - Ids of sideboard lines ({@link sideboardIds}).
+ * @param held - Copies of a card (by nameKey) that lists ahead take first (`CopyPool.held`); none by default.
  */
 export function buildRows(
   lines: CardLine[],
   inventory: Map<string, InventoryItem>,
   { bundleBasics, priceBasis }: PricingSettings,
-  sideIds: ReadonlySet<string> = NO_IDS
+  sideIds: ReadonlySet<string> = NO_IDS,
+  held?: (key: string) => number
 ): Row[] {
   const board = (side: boolean) => {
     const own = lines.filter((line) => sideIds.has(line.id) === side)
@@ -61,7 +65,8 @@ export function buildRows(
   const items = [...board(false), ...board(true)]
   const allocations = allocateOwned(
     items.map((item) => item.line),
-    inventory
+    inventory,
+    held
   )
   return items.map(({ line, bundledIds, side }, index) => {
     const inventoryQty = inventory.get(nameKey(line.name))?.qty ?? 0

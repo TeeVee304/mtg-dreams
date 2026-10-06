@@ -1,4 +1,5 @@
 import type { SortKey } from './cards'
+import type { CopiesMode } from './copies'
 import type { DeckTokenData } from './tokens'
 import type { ThemeColor } from './themes'
 import type { CardInfo, ListKind, PreconDeck, PreconSummary, PriceBasis, PrintingsResult } from './types'
@@ -13,6 +14,8 @@ export interface AppSettings {
   color: ThemeColor
   /** Treat all printings of the five basic lands as one generic, zero-cost card. */
   bundleBasics: boolean
+  /** How owned copies count toward lists. */
+  copies: CopiesMode
   /** Show card thumbnails in lists and search. */
   cardImages: boolean
   /** List layout for decks and wishlists. */
@@ -144,8 +147,8 @@ export interface TrackerApi {
   /** @returns Card data per nameKey; null for names unknown to Scryfall. */
   getCardInfos(names: string[]): Promise<Record<string, CardInfo | null>>
   /**
-   * Tokens, emblems and helpers created by a list's cards; never rejects (see {@link DeckTokenData}).
-   * @param names - At most 250 names.
+   * Tokens, emblems and helpers created by cards; never rejects (see {@link DeckTokenData}).
+   * @param names - At most 3000 names.
    */
   getDeckTokens(names: string[]): Promise<DeckTokenData>
   getPreconIndex(): Promise<PreconSummary[]>

@@ -123,6 +123,7 @@
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -154,6 +155,52 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+}
+
+.nav-colors {
+  position: absolute;
+  top: 9px;
+  right: 10px;
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+  pointer-events: none;
+}
+
+.nav-colors img {
+  width: 14px;
+  height: 14px;
+}
+
+.nav-item:hover .nav-colors,
+.nav-item:focus-visible .nav-colors {
+  opacity: 1;
+}
+
+/* Room for the color symbols beside the name while they show. */
+.nav-item:hover .nav-name,
+.nav-item:focus-visible .nav-name {
+  max-width: calc(100% - 16px * var(--colors, 0));
+}
+
+.nav-section-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.nav-section-toggle svg {
+  transition: transform 0.15s;
+}
+
+.nav-section-toggle.open svg {
+  transform: rotate(90deg);
+}
+
+.nav-section-count {
+  font-weight: 400;
+  color: var(--faint);
 }
 
 .nav-meta {

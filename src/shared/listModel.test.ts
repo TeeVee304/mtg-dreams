@@ -11,6 +11,7 @@ import {
   limitReason,
   lineMax,
   ownedToggle,
+  shortfallNote,
   sectionRows,
   sortRows,
   type ModelRow
@@ -36,20 +37,25 @@ const CARDS: Record<string, CardInfo> = {
   Island: info('Island', 'Basic Land — Island', { commander: 'legal' }, { manaValue: 0 })
 }
 
-/** Rows as the page builds them: every card line, with prices and inventory. */
-function rowsOf(text: string, owned: Record<string, number> = {}, prices: Record<string, number | null> = {}) {
+/**
+ * Rows as the page builds them: every card line, with prices and inventory.
+ * @param held - Copies lists ahead hold, per card name.
+ */
+function rowsOf(text: string, owned: Record<string, number> = {}, prices: Record<string, number | null> = {}, held: Record<string, number> = {}) {
   const lines = parseList(text)
   const rows: ModelRow[] = lines
     .filter((line): line is CardLine => line.kind === 'card')
     .map((line) => {
       const inventoryQty = owned[line.name] ?? 0
+      const ahead = held[line.name] ?? 0
       return {
         line,
         info: CARDS[line.name],
         entry: { data: { printings: [] as Printing[] } },
         inventoryQty,
-        owned: Math.min(line.qty, inventoryQty),
-        before: 0,
+        owned: Math.min(line.qty, Math.max(0, inventoryQty - ahead)),
+        before: ahead,
+        held: ahead,
         unit: line.name in prices ? prices[line.name] : 1
       }
     })
@@ -89,6 +95,15 @@ describe('analyzeList', () => {
     expect(analysis.hasProblem(deck.rows[1])).toBe(true)
     const wish = rowsOf(text, owned)
     expect(analyzeList('wishlist', wish.lines, wish.rows).ownershipErrors).toBe(0)
+    expect(shortfallNote(deck.rows[1]).label).toBe('Only 1 owned')
+    expect(shortfallNote(rowsOf('1 Opt').rows[0]).label).toBe('Not in inventory')
+  })
+
+  it('counts deck copies other decks hold as missing, with separate copies', () => {
+    const deck = rowsOf('2 Sol Ring\n1 Atraxa', { 'Sol Ring': 3, Atraxa: 1 }, {}, { 'Sol Ring': 2, Atraxa: 1 })
+    const analysis = analyzeList('deck', deck.lines, deck.rows)
+    expect(deck.rows.map(analysis.shortfallOf)).toEqual([1, 1])
+    expect(deck.rows.map((row) => shortfallNote(row).label)).toEqual(['Only 1 free', 'Used by other decks'])
   })
 
   it('knows the commander and who could replace it', () => {
@@ -183,10 +198,11 @@ describe('copy limits', () => {
   const modern = findFormat('modern')
 
   it('takes the stricter of the format limit and, for decks, the copies owned', () => {
-    expect(copyCaps('deck', commander, 'Sol Ring', CARDS['Sol Ring'], 3)).toEqual({ formatCap: 1, ownedCap: 3, cap: 1 })
-    expect(copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 2)).toEqual({ formatCap: 4, ownedCap: 2, cap: 2 })
+    expect(copyCaps('deck', commander, 'Sol Ring', CARDS['Sol Ring'], 3)).toMatchObject({ formatCap: 1, ownedCap: 3, cap: 1 })
+    expect(copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 2)).toMatchObject({ formatCap: 4, ownedCap: 2, cap: 2 })
+    expect(copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 3, 2)).toMatchObject({ ownedCap: 1, cap: 1 })
     expect(copyCaps('wishlist', null, 'Sol Ring', undefined, 0).cap).toBe(Infinity)
-    expect(copyCaps('wishlist', commander, 'Island', CARDS.Island, 0).cap).toBe(Infinity)
+    expect(copyCaps('wishlist', commander, 'Island', CARDS.Island, 0, 4).cap).toBe(Infinity)
   })
 
   it('explains the limit that applies', () => {
@@ -194,14 +210,16 @@ describe('copy limits', () => {
       'Commander allows 1 copy of Sol Ring'
     )
     expect(limitReason(modern, 'Sol Ring', copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 2))).toBe('You own 2× Sol Ring')
+    expect(limitReason(modern, 'Sol Ring', copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 3, 2))).toBe(
+      'You own 3× Sol Ring, 2 in other decks'
+    )
   })
 
   it('lets a line grow into the room the other lines leave, and never forces it down', () => {
     const [line] = parseList('2 Lightning Bolt') as CardLine[]
-    const caps = { formatCap: 4, ownedCap: Infinity, cap: 4 }
-    expect(lineMax(line, caps, 3)).toBe(3)
-    expect(lineMax(line, { ...caps, cap: 1 }, 2)).toBe(2)
-    expect(lineMax(line, { formatCap: Infinity, ownedCap: Infinity, cap: Infinity }, 2)).toBeUndefined()
+    expect(lineMax(line, { cap: 4 }, 3)).toBe(3)
+    expect(lineMax(line, { cap: 1 }, 2)).toBe(2)
+    expect(lineMax(line, { cap: Infinity }, 2)).toBeUndefined()
   })
 })
 
@@ -217,5 +235,10 @@ describe('ownedToggle', () => {
   it('unticking asks first when other copies would go too', () => {
     expect(ownedToggle(row(1, 1, 1))).toEqual({ kind: 'set', qty: 0 })
     expect(ownedToggle(row(1, 1, 3))).toEqual({ kind: 'confirm', target: 0 })
+  })
+
+  it('covers the copies lists ahead hold, with separate copies', () => {
+    expect(ownedToggle(row(1, 0, 1, 2))).toEqual({ kind: 'set', qty: 3 })
+    expect(ownedToggle(row(1, 1, 3, 2))).toEqual({ kind: 'set', qty: 2 })
   })
 })

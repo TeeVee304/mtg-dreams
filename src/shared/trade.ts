@@ -1,7 +1,8 @@
 import { genericBasic } from './basics'
-import { cardLines, countLines, nameKey, parseInventory } from './decklist'
+import { listNeeds, type CopiesMode, type ListKey, type PoolList } from './copies'
+import { countLines, nameKey, parseInventory } from './decklist'
 import { safeFileName } from './filenames'
-import type { InventoryItem, ListLine } from './types'
+import type { InventoryItem } from './types'
 
 /**
  * Trade lists: snapshots of a player's haves and wants (no prices, decks or paths) exchanged as
@@ -35,16 +36,16 @@ export interface TradeSnapshot {
   createdAt: string
   /** Owned cards. */
   haves: TradeCard[]
-  /** Cards needed by wishlists. */
+  /** Cards the player's lists need. */
   wants: TradeCard[]
   /** `list`: imported from a plain list or CSV, not produced by MTG Dreams. */
   source: 'app' | 'list'
 }
 
-/** Own want with its source wishlists. */
+/** Own want with the lists needing it. */
 export interface Want extends TradeCard {
-  /** Wishlists needing the card; empty for a friend's wants. */
-  lists: string[]
+  /** Lists needing the card, in allocation order; empty for a friend's wants. */
+  lists: ListKey[]
 }
 
 const byName = (a: TradeCard, b: TradeCard) => a.name.localeCompare(b.name)
@@ -53,59 +54,51 @@ const byName = (a: TradeCard, b: TradeCard) => a.name.localeCompare(b.name)
 const tradable = (name: string) => !genericBasic(name)
 
 /**
+ * @param lists - Decks and wishlists; decks count with separate copies only.
  * @param inventory - Items by nameKey.
- * @returns Wants sorted by name; each card's qty is its largest shortfall on any single wishlist
- * (owned copies count toward every list).
+ * @returns Wants sorted by name. Each card's qty is its largest list shortfall with shared copies,
+ * or the sum of the list shortfalls with separate copies ({@link listNeeds}).
  */
-export function computeWants(
-  wishlists: Array<{ name: string; lines: ListLine[] }>,
-  inventory: Map<string, InventoryItem>
-): Want[] {
+export function computeWants(lists: PoolList[], inventory: Map<string, InventoryItem>, mode: CopiesMode): Want[] {
   const wants = new Map<string, Want>()
-  for (const list of wishlists) {
-    const wanted = new Map<string, TradeCard>()
-    for (const line of cardLines(list.lines)) {
-      if (!tradable(line.name)) continue
-      const key = nameKey(line.name)
-      const card = wanted.get(key)
-      if (card) card.qty += line.qty
-      else wanted.set(key, { name: line.name, qty: line.qty })
-    }
-    for (const [key, card] of wanted) {
-      const missing = card.qty - (inventory.get(key)?.qty ?? 0)
-      if (missing <= 0) continue
-      const want = wants.get(key)
+  for (const { list, needs } of listNeeds(lists, inventory, mode)) {
+    for (const need of needs) {
+      if (!tradable(need.name)) continue
+      const ref = { kind: list.kind, name: list.name }
+      const want = wants.get(need.key)
       if (want) {
-        want.qty = Math.max(want.qty, missing)
-        want.lists.push(list.name)
+        want.qty = mode === 'shared' ? Math.max(want.qty, need.missing) : want.qty + need.missing
+        want.lists.push(ref)
       } else {
-        wants.set(key, { name: card.name, qty: missing, lists: [list.name] })
+        wants.set(need.key, { name: need.name, qty: need.missing, lists: [ref] })
       }
     }
   }
   return [...wants.values()].sort(byName)
 }
 
-/** @returns Own haves (all owned cards except regular basics) and wants, sorted by name. */
+/** @returns Own haves (all owned cards except regular basics) and wants ({@link computeWants}), sorted by name. */
 export function myTradeSide(
   inventory: Map<string, InventoryItem>,
-  wishlists: Array<{ name: string; lines: ListLine[] }>
+  lists: PoolList[],
+  mode: CopiesMode
 ): { haves: TradeCard[]; wants: Want[] } {
   const haves = [...inventory.values()]
     .filter((item) => item.qty > 0 && tradable(item.name))
     .map(({ name, qty }) => ({ name, qty }))
     .sort(byName)
-  return { haves, wants: computeWants(wishlists, inventory) }
+  return { haves, wants: computeWants(lists, inventory, mode) }
 }
 
-/** @returns Shareable snapshot; wants omit wishlist names. */
+/** @returns Shareable snapshot; wants omit list names. */
 export function buildSnapshot(
   name: string,
   inventory: Map<string, InventoryItem>,
-  wishlists: Array<{ name: string; lines: ListLine[] }>,
+  lists: PoolList[],
+  mode: CopiesMode,
   now = new Date()
 ): TradeSnapshot {
-  const { haves, wants } = myTradeSide(inventory, wishlists)
+  const { haves, wants } = myTradeSide(inventory, lists, mode)
   return {
     format: TRADE_FORMAT,
     version: 1,
@@ -266,8 +259,8 @@ export interface TradeMatch {
   available: number
   /** Receiver's need. */
   needed: number
-  /** Own wishlists wanting it; empty for cards going to the friend. */
-  lists: string[]
+  /** Own lists wanting it; empty for cards going to the friend. */
+  lists: ListKey[]
 }
 
 /** @returns `forMe`: friend's haves matching own wants. `forThem`: own haves matching friend's wants. */

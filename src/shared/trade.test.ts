@@ -12,23 +12,37 @@ import {
 const now = new Date('2026-09-30T10:00:00Z')
 const inventory = parseInventory('3 Sol Ring\n1 Thoughtseize\n12 Island\n2 Counterspell')
 const wishlists = [
-  { name: 'Doom', lines: parseList('1 Sol Ring\n2 Demonic Tutor\n1 Reanimate\n20 Swamp\n1 Counterspell') },
-  { name: 'Burn', lines: parseList('4 Lightning Bolt\n1 Demonic Tutor\n1 Reanimate <3> [TMP]\n1 Reanimate') }
+  { kind: 'wishlist' as const, name: 'Doom', lines: parseList('1 Sol Ring\n2 Demonic Tutor\n1 Reanimate\n20 Swamp\n1 Counterspell') },
+  { kind: 'wishlist' as const, name: 'Burn', lines: parseList('4 Lightning Bolt\n1 Demonic Tutor\n1 Reanimate <3> [TMP]\n1 Reanimate') }
 ]
 
+const doom = { kind: 'wishlist', name: 'Doom' }
+const burn = { kind: 'wishlist', name: 'Burn' }
+const deck = { kind: 'deck' as const, name: 'Control', lines: parseList('2 Counterspell\n3 Sol Ring') }
+
 describe('computeWants', () => {
-  it('lists what each wishlist is missing, taking the largest shortfall and skipping basics', () => {
-    expect(computeWants(wishlists, inventory)).toEqual([
-      { name: 'Demonic Tutor', qty: 2, lists: ['Doom', 'Burn'] },
-      { name: 'Lightning Bolt', qty: 4, lists: ['Burn'] },
-      { name: 'Reanimate', qty: 2, lists: ['Doom', 'Burn'] }
+  it('adds up list shortfalls with separate copies, decks first', () => {
+    expect(computeWants([...wishlists, deck], inventory, 'separate')).toEqual([
+      { name: 'Counterspell', qty: 1, lists: [doom] },
+      { name: 'Demonic Tutor', qty: 3, lists: [burn, doom] },
+      { name: 'Lightning Bolt', qty: 4, lists: [burn] },
+      { name: 'Reanimate', qty: 3, lists: [burn, doom] },
+      { name: 'Sol Ring', qty: 1, lists: [doom] }
+    ])
+  })
+
+  it('takes the largest wishlist shortfall with shared copies, ignoring decks and basics', () => {
+    expect(computeWants([...wishlists, deck], inventory, 'shared')).toEqual([
+      { name: 'Demonic Tutor', qty: 2, lists: [burn, doom] },
+      { name: 'Lightning Bolt', qty: 4, lists: [burn] },
+      { name: 'Reanimate', qty: 2, lists: [burn, doom] }
     ])
   })
 })
 
 describe('buildSnapshot', () => {
   it('shares everything owned except basic lands', () => {
-    const snapshot = buildSnapshot(' Bruno ', inventory, wishlists, now)
+    const snapshot = buildSnapshot(' Bruno ', inventory, wishlists, 'shared', now)
     expect(snapshot.name).toBe('Bruno')
     expect(snapshot.haves).toEqual([
       { name: 'Counterspell', qty: 2 },
@@ -40,7 +54,7 @@ describe('buildSnapshot', () => {
 })
 
 describe('parseTradeText', () => {
-  const snapshot = buildSnapshot('Ana', inventory, wishlists, now)
+  const snapshot = buildSnapshot('Ana', inventory, wishlists, 'shared', now)
 
   it('round-trips the trade file and its text version', () => {
     expect(parseTradeText(serializeSnapshot(snapshot), 'file')).toEqual(snapshot)
@@ -90,13 +104,13 @@ describe('parseTradeText', () => {
 
 describe('matchTrades', () => {
   it('finds cards the friend has that you want, and the reverse', () => {
-    const mine = buildSnapshot('Me', inventory, wishlists, now)
-    const myWants = computeWants(wishlists, inventory)
+    const mine = buildSnapshot('Me', inventory, wishlists, 'shared', now)
+    const myWants = computeWants(wishlists, inventory, 'shared')
     const friend = parseTradeText('// Have\n1 Demonic Tutor\n9 Lightning Bolt\n5 Island\n// Want\n2 Sol Ring\n1 Thoughtseize\n3 Island', 'Ana')
     const { forMe, forThem } = matchTrades(mine.haves, myWants, friend)
     expect(forMe).toEqual([
-      { name: 'Demonic Tutor', qty: 1, available: 1, needed: 2, lists: ['Doom', 'Burn'] },
-      { name: 'Lightning Bolt', qty: 4, available: 9, needed: 4, lists: ['Burn'] }
+      { name: 'Demonic Tutor', qty: 1, available: 1, needed: 2, lists: [burn, doom] },
+      { name: 'Lightning Bolt', qty: 4, available: 9, needed: 4, lists: [burn] }
     ])
     expect(forThem).toEqual([
       { name: 'Sol Ring', qty: 2, available: 3, needed: 2, lists: [] },

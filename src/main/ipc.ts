@@ -3,6 +3,7 @@ import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import type { AppSettings, PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '@shared/api'
 import { isSortKey } from '@shared/cards'
+import { isCopiesMode } from '@shared/copies'
 import { isPriceBasis } from '@shared/pricing'
 import { isThemeColor } from '@shared/themes'
 import { TRADE_EXTENSION } from '@shared/trade'
@@ -174,6 +175,10 @@ export function registerIpc(): void {
       if (typeof input.bundleBasics !== 'boolean') throw new Error('Invalid setting.')
       patch.bundleBasics = input.bundleBasics
     }
+    if ('copies' in input) {
+      if (!isCopiesMode(input.copies)) throw new Error('Invalid setting.')
+      patch.copies = input.copies
+    }
     if ('tradeName' in input) {
       if (typeof input.tradeName !== 'string' || input.tradeName.length > 100) throw new Error('Invalid name.')
       patch.tradeName = input.tradeName.trim()
@@ -245,7 +250,7 @@ export function registerIpc(): void {
     return updateBaselines(baselines(set), remove)
   })
   ipcMain.handle('tokens:deck', (_e, names: unknown) => {
-    if (!Array.isArray(names) || names.length > 250 || !names.every((n) => typeof n === 'string' && n.length <= 200)) {
+    if (!Array.isArray(names) || names.length > 3000 || !names.every((n) => typeof n === 'string' && n.length <= 200)) {
       throw new Error('Invalid card names.')
     }
     return getDeckTokens(names)

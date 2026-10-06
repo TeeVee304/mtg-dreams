@@ -4,6 +4,7 @@ import { cardLines, nameKey } from '@shared/decklist'
 import { commanderRule } from '@shared/formats'
 import type { Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
+import { listPriority } from '@shared/listPriority'
 import { listFormat } from '@shared/formats'
 import { sideboardIds } from '@shared/sideboard'
 import {
@@ -17,6 +18,7 @@ import {
   sectionRows,
   sortRows
 } from '@shared/listModel'
+import type { CopyPool } from '@shared/copies'
 import type { CardLine, InventoryItem } from '@shared/types'
 import { bundledBasic } from '@shared/basics'
 import { getCardInfo } from '../stores/cardinfo'
@@ -43,6 +45,8 @@ import { useToast } from './Toasts'
 interface ListViewProps {
   list: CardList
   inventory: Map<string, InventoryItem>
+  /** Copy claims of all lists. */
+  pool: CopyPool
   actions: LibraryActions
   /** Called with the new ref after a rename or move. */
   onOpenList: (list: ListRef) => void
@@ -53,7 +57,7 @@ interface ListViewProps {
  * DeckStats, ListTable and ListDialogs. Rules come from {@link analyzeList}. Lines pinned to
  * printings missing from a partial (basic land) result trigger a `full` fetch.
  */
-export function ListView({ list, inventory, actions, onOpenList }: ListViewProps) {
+export function ListView({ list, inventory, pool, actions, onOpenList }: ListViewProps) {
   const toast = useToast()
   usePrintingsVersion()
   const isDeck = list.kind === 'deck'
@@ -74,7 +78,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   const sortView = isDeck ? 'deck' : 'wishlist'
   const sort = sortFor(sortView, settings.sort)
   const sideboardAllowed = !listFormat(list.lines)?.commander
-  const rows = buildRows(cards, inventory, settings, sideboardIds(list.lines, sideboardAllowed))
+  const rows = buildRows(cards, inventory, settings, sideboardIds(list.lines, sideboardAllowed), (key) => pool.held(list, key))
   const mainRows = rows.filter((row) => !row.side)
   const summary = summarize(rows)
   const baselines = useBaselines()
@@ -112,12 +116,23 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   const dataLoading = needsCardData(filters) && rows.some((row) => !row.info && !row.entry?.data?.notFound)
 
   const inventoryChoices = useMemo<SearchChoice[]>(
-    () => [...inventory.values()].map((item) => ({ name: item.name, hint: `${item.qty} owned` })),
-    [inventory]
+    () =>
+      [...inventory.values()].map((item) => {
+        const inOther = pool.inOtherDecks(list, nameKey(item.name))
+        return { name: item.name, hint: inOther > 0 ? `${item.qty} owned, ${Math.min(inOther, item.qty)} in other decks` : `${item.qty} owned` }
+      }),
+    [inventory, pool, list]
   )
 
   const capsFor = (name: string) =>
-    copyCaps(list.kind, format, name, getCardInfo(name, bundleBasics), inventory.get(nameKey(name))?.qty ?? 0)
+    copyCaps(
+      list.kind,
+      format,
+      name,
+      getCardInfo(name, bundleBasics),
+      inventory.get(nameKey(name))?.qty ?? 0,
+      pool.inOtherDecks(list, nameKey(name))
+    )
   const limitFor = (name: string) => limitReason(format, name, capsFor(name))
   const maxFor = (line: CardLine) => lineMax(line, capsFor(line.name), copiesOf(line.name))
 
@@ -140,7 +155,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   const addInList = adding ? copiesOf(adding) : 0
   const addRoom = addCaps ? addCaps.cap - addInList : Infinity
   const addNote = [
-    isDeck && addCaps && `You own ${addCaps.ownedCap}`,
+    isDeck && addCaps && (addCaps.inOtherDecks > 0 ? `${addCaps.ownedCap} of your ${addCaps.ownedQty} free` : `You own ${addCaps.ownedCap}`),
     addInList > 0 && `${addInList} already in this ${noun}`,
     format && addCaps && Number.isFinite(addCaps.formatCap) && `${format.label}: max ${addCaps.formatCap}`
   ]
@@ -267,6 +282,7 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
         picking={picking}
         legalityErrors={legalityErrors}
         ownershipErrors={ownershipErrors}
+        separateCopies={pool.mode === 'separate'}
         onlyProblems={onlyProblems}
         onToggleProblems={() => setOnlyProblems(!onlyProblems)}
         onTogglePicking={togglePicking}
@@ -275,6 +291,8 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
         onEditText={() => setDialog({ kind: 'text' })}
         onCopy={() => window.api.copyText(list.text).then(() => toast(`${isDeck ? 'Deck' : 'List'} copied to clipboard`))}
         onColor={() => setDialog({ kind: 'color' })}
+        priority={isDeck ? undefined : listPriority(list.lines)}
+        onPriority={isDeck ? undefined : () => setDialog({ kind: 'priority' })}
         onRename={() => setDialog({ kind: 'rename' })}
         onDelete={() => setDialog({ kind: 'delete' })}
       />

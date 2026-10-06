@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { AppSettings } from '@shared/api'
 import { DEFAULT_SORT } from '@shared/cards'
+import { DEFAULT_COPIES } from '@shared/copies'
 import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS } from '@shared/pricing'
 import { DEFAULT_THEME_COLOR } from '@shared/themes'
 
@@ -9,6 +10,7 @@ let current: AppSettings = {
   theme: 'system',
   color: DEFAULT_THEME_COLOR,
   bundleBasics: true,
+  copies: DEFAULT_COPIES,
   cardImages: true,
   cardView: 'table',
   tradeName: '',

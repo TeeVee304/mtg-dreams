@@ -30,19 +30,20 @@ const cardsToText = (cards: TradeCard[]) => countLines(cards).join('\n')
 /** Props of {@link ShareTradeDialog}. */
 interface ShareTradeDialogProps {
   inventory: Map<string, InventoryItem>
-  wishlists: CardList[]
+  /** Decks and wishlists; their missing cards are the wants. */
+  lists: CardList[]
   onClose: () => void
 }
 
 /** Exports the own trade list as a file or as copyable text. */
-export function ShareTradeDialog({ inventory, wishlists, onClose }: ShareTradeDialogProps) {
+export function ShareTradeDialog({ inventory, lists, onClose }: ShareTradeDialogProps) {
   const toast = useToast()
   const settings = useSettings()
   const [name, setName] = useState(settings.tradeName)
   const { busy, error, run } = useAsyncAction()
   const snapshot = useMemo(
-    () => buildSnapshot(tradeName(name, 'Me'), inventory, wishlists),
-    [name, inventory, wishlists]
+    () => buildSnapshot(tradeName(name, 'Me'), inventory, lists, settings.copies),
+    [name, inventory, lists, settings.copies]
   )
   const ready = name.trim().length > 0 && !busy
 

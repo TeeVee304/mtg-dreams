@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { AppSettings, Theme } from '@shared/api'
+import { COPIES_MODES } from '@shared/copies'
 import { PRICE_BASES } from '@shared/pricing'
 import { THEME_COLORS } from '@shared/themes'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
@@ -114,6 +115,17 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
       <section className="settings-section">
         <h3>Decks &amp; wishlists</h3>
+        <div className="radio-options" role="radiogroup" aria-label="Owned copies">
+          {COPIES_MODES.map((mode) => (
+            <label key={mode.id} className="radio-option">
+              <input type="radio" name="copies" checked={settings.copies === mode.id} onChange={() => change({ copies: mode.id })} />
+              <span className="setting-text">
+                <span className="setting-label">{mode.label}</span>
+                <span className="muted small">{mode.hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
         <label className="setting-toggle">
           <span className="setting-text">
             <span className="setting-label">Card images in lists and search</span>

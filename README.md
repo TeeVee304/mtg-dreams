@@ -29,7 +29,9 @@
 
 ### Decks and wishlists
 - **Decks** are built from your inventory: you can only add cards you own, up to the copies you have.
-- The same card can be in several decks.
+- **Owned copies** (Settings) are *separate per list* by default: each deck and wishlist needs its own copies, as when
+  decks stay built. Decks get your copies first (by name), then wishlists by priority. Choose *shared between lists*
+  if you move cards between decks: then one copy counts for every list.
 - **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
 - Wishlist cards you still need are flagged once they're 15% cheaper than when you added them, by default.
 - A **Stats** panel shows the mana curve and the colors of the cards besides lands.
@@ -38,13 +40,27 @@
 - Two-sided cards show both faces when hovered; the card's details have a button to flip to the back.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers (The Monarch, The Initiative…) the cards create, with
   which cards make each one.
+- Give a wishlist a **priority** (High, Normal, Low) from its ⋯ menu: it weights its cards in Most Wanted and, with
+  separate copies, decides which wishlists get your copies first.
+- Decks and wishlists sections in the sidebar fold away; hovering a list shows its colors (its commander's, if any).
+
+### Most Wanted
+- Every card your wishlists still miss, merged across lists. With separate copies, it buys a copy for each list
+  (decks lacking copies included); with shared copies, one copy you buy counts for every list that wants it.
+- Ranked by **best value** (cost per list served, priority-weighted) by default; also by most wanted, closest to
+  completing, cheapest, or card properties.
+- Badges show cards that complete a list, got cheaper, or are on a friend's trade list.
+- **Bought** adds a card to your inventory; **Copy as text** gives an `N Card Name` list for a Cardmarket wants list.
+- A **Budget planner** picks the cards that bring your lists furthest for a budget; with separate copies it can buy
+  some of a card's copies, for the lists first in line.
+- Basic lands and the tokens your wishlist cards create have their own tabs.
 
 ### Precons
 - Pick from about 3 000 official products: Commander decks, Challenger decks, Secret Lair drops and more.
 - A precon you own becomes a deck, with its exact printings, and its cards join your inventory.
 
 ### Trades with friends
-- **Share my trade list** saves a small `.mtgtrade` file, or copies it as text for a chat. It holds the cards you own and what your wishlists need.
+- **Share my trade list** saves a small `.mtgtrade` file, or copies it as text for a chat. It holds the cards you own and what your lists need (the cards Most Wanted lists).
 - Import a friend's list to see what each of you can give the other, and what each side is worth.
 - Friends without the app can send a plain card list or a Moxfield export instead.
 

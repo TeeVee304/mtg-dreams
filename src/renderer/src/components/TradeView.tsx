@@ -135,12 +135,13 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
                 <div className="chips">
                   {m.lists.map((list) => (
                     <button
-                      key={list}
+                      key={`${list.kind}/${list.name}`}
                       type="button"
                       className="chip link"
-                      onClick={() => onOpenList({ kind: 'wishlist', name: list })}
+                      onClick={() => onOpenList(list)}
+                      title={list.kind === 'deck' ? `Deck ${list.name}` : undefined}
                     >
-                      {list}
+                      {list.name}
                     </button>
                   ))}
                 </div>

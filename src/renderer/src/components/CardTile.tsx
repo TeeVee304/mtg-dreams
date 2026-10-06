@@ -1,4 +1,5 @@
 import type { LegalityIssue } from '@shared/formats'
+import { shortfallNote } from '@shared/listModel'
 import { formatEur } from '../lib/format'
 import type { Row } from '../lib/summary'
 import { Icon } from './Icon'
@@ -14,7 +15,7 @@ interface CardTileProps {
   /** Just chosen as commander (animation). */
   crowned: boolean
   issue: LegalityIssue | null
-  /** Deck copies not covered by the inventory. */
+  /** Deck copies not covered by the inventory copies left by lists ahead. */
   shortfall: number
   onOpen: () => void
   onPick: () => void
@@ -28,7 +29,7 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
   const name = row.flavorName ?? line.name
   const loading = !row.bundledIds && !entry?.data && !entry?.error
   const complete = owned >= line.qty
-  const problem = issue?.message ?? (shortfall > 0 ? (row.inventoryQty === 0 ? 'Not in inventory' : `Only ${row.inventoryQty} owned`) : null)
+  const problem = issue?.message ?? (shortfall > 0 ? shortfallNote(row).label : null)
   const price = row.bundledIds ? 0 : unit === null ? null : unit * line.qty
 
   const classes = [
@@ -52,7 +53,7 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
             ? "Can't be the commander in this format"
             : row.bundledIds
               ? 'Bundled basic land: any version counts, for free'
-              : `${name}: card details and version`
+              : name
       }
     >
       <span className={`card-tile-image${loading ? ' skeleton' : ''}`}>

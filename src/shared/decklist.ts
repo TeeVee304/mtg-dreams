@@ -114,23 +114,29 @@ export function unrecognizedLines(lines: ListLine[]): string[] {
 export interface Allocation {
   /** Copies of this line covered by the inventory. */
   owned: number
-  /** Copies of the same card claimed by earlier lines, which take precedence. */
+  /** Copies of the same card claimed ahead of this line: by lists ahead (`held`), then earlier lines. */
   before: number
+  /** Copies of the same card claimed by lists ahead of this one. */
+  held: number
 }
 
 /**
- * Allocates owned copies to the lines of one list in order, counting each copy once per list.
- * Each list is allocated against the full inventory independently.
+ * Allocates owned copies to the lines of one list in order, after the copies lists ahead hold.
  * @param inventory - Items by nameKey.
+ * @param held - Copies of a card (by nameKey) that lists ahead take first (`CopyPool.held`); none by default.
  */
-export function allocateOwned(lines: CardLine[], inventory: Map<string, InventoryItem>): Allocation[] {
-  const wantedSoFar = new Map<string, number>()
+export function allocateOwned(
+  lines: CardLine[],
+  inventory: Map<string, InventoryItem>,
+  held: (key: string) => number = () => 0
+): Allocation[] {
+  const claimedSoFar = new Map<string, number>()
   return lines.map((line) => {
     const key = nameKey(line.name)
-    const before = wantedSoFar.get(key) ?? 0
-    wantedSoFar.set(key, before + line.qty)
-    const available = Math.max(0, (inventory.get(key)?.qty ?? 0) - before)
-    return { owned: Math.min(line.qty, available), before }
+    const ahead = claimedSoFar.get(key) ?? held(key)
+    claimedSoFar.set(key, ahead + line.qty)
+    const available = Math.max(0, (inventory.get(key)?.qty ?? 0) - ahead)
+    return { owned: Math.min(line.qty, available), before: ahead, held: held(key) }
   })
 }
 

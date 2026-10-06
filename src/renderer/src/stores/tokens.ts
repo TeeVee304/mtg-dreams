@@ -21,7 +21,7 @@ export function useDeckTokens(names: string[] | null): DeckTokenData | undefined
 
   useEffect(() => {
     if (!key || cache.has(key)) return
-    const list = (JSON.parse(key) as string[]).slice(0, 250)
+    const list = (JSON.parse(key) as string[]).slice(0, 3000)
     let cancelled = false
     const timer = setTimeout(() => {
       window.api
