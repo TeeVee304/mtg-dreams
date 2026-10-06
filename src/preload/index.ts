@@ -32,6 +32,7 @@ const api: TrackerApi = {
   pricesAt: (ids, at) => ipcRenderer.invoke('history:pricesAt', ids, at),
   getBaselines: () => ipcRenderer.invoke('history:baselines'),
   updateBaselines: (set, remove) => ipcRenderer.invoke('history:updateBaselines', set, remove),
+  getDeckTokens: (names) => ipcRenderer.invoke('tokens:deck', names),
   getPreconIndex: () => ipcRenderer.invoke('precons:index'),
   getPrecon: (fileName) => ipcRenderer.invoke('precons:deck', fileName),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

@@ -8,6 +8,7 @@ import { isThemeColor } from '@shared/themes'
 import { TRADE_EXTENSION } from '@shared/trade'
 import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
+import { getDeckTokens } from './tokens'
 import { priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
 import { getBaselines, pricesAt, recordCurrentPrices, trackPrices, updateBaselines } from './priceHistory'
 import { autocomplete, getCardImages, getCardInfos, getPrintings } from './scryfall'
@@ -242,6 +243,12 @@ export function registerIpc(): void {
   ipcMain.handle('history:updateBaselines', (_e, set: unknown, remove: unknown) => {
     if (!Array.isArray(remove) || !remove.every((key) => typeof key === 'string')) throw new Error('Invalid baselines.')
     return updateBaselines(baselines(set), remove)
+  })
+  ipcMain.handle('tokens:deck', (_e, names: unknown) => {
+    if (!Array.isArray(names) || names.length > 250 || !names.every((n) => typeof n === 'string' && n.length <= 200)) {
+      throw new Error('Invalid card names.')
+    }
+    return getDeckTokens(names)
   })
   ipcMain.handle('precons:index', () => getPreconIndex())
   ipcMain.handle('precons:deck', (_e, fileName: unknown) => getPrecon(text(fileName, 'deck')))

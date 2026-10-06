@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { NO_FILTERS } from './cards'
 import { parseList } from './decklist'
 import { findFormat } from './formats'
+import { sideboardIds } from './sideboard'
 import {
   analyzeList,
   copyCaps,
@@ -160,6 +161,20 @@ describe('sectionRows', () => {
       ['Lands', ['Command Tower']]
     ])
     expect(landCount(rows)).toBe(1)
+  })
+
+  it('puts sideboard rows last, unsplit, and flags an oversized sideboard in constructed formats', () => {
+    const { lines, rows } = rowsOf('// Format: Modern\n1 Llanowar Elves\nSideboard\n15 Island\n1 Sol Ring')
+    const ids = sideboardIds(lines)
+    const sided = rows.map((row) => ({ ...row, side: ids.has(row.line.id) }))
+    const analysis = analyzeList('deck', lines, sided)
+    const sections = sectionRows(sided, analysis)
+    expect(sections.map((s) => [s.label, names(s.rows)])).toEqual([
+      ['Creatures', ['Llanowar Elves']],
+      ['Sideboard', ['Island', 'Sol Ring']]
+    ])
+    expect(analysis.sideboardCards).toBe(16)
+    expect(sections[1].warning).toBe('Max 15 in Modern')
   })
 })
 

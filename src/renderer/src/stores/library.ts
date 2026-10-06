@@ -2,14 +2,14 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { CONFLICT_ERROR, type ListFile } from '@shared/api'
 import {
   nameKey,
-  newLineId,
   parseInventory,
   parseList,
   serializeInventory,
   serializeList
 } from '@shared/decklist'
-import { withCommander, withFormat, withoutMissingCommander } from '@shared/formats'
+import { listFormat, withCommander, withFormat, withoutMissingCommander } from '@shared/formats'
 import { withColor } from '@shared/listColor'
+import { addToBoard, moveToBoard, type BoardEntry } from '@shared/sideboard'
 import type { ThemeColor } from '@shared/themes'
 import { parseTradeText, serializeSnapshot, tradeName, type TradeSnapshot } from '@shared/trade'
 import { addCopies, itemFromCopies, withTotal, type Version } from '@shared/inventory'
@@ -120,19 +120,13 @@ function toTrades(files: ListFile[]): TradeSnapshot[] {
   return trades.sort(byName)
 }
 
-/** @returns Lines with `card` appended, or summed into a line with the same name, printing and finish. */
-function mergeCard(lines: ListLine[], card: NewCard): ListLine[] {
-  const key = nameKey(card.name)
-  const index = lines.findIndex(
-    (line) =>
-      line.kind === 'card' &&
-      nameKey(line.name) === key &&
-      line.set === card.set &&
-      (line.collector ?? '') === (card.collector ?? '') &&
-      line.foil === card.foil
-  )
-  if (index < 0) return [...lines, { kind: 'card', id: newLineId(), ...card }]
-  return lines.map((line, i) => (i === index && line.kind === 'card' ? { ...line, qty: line.qty + card.qty } : line))
+/**
+ * @returns Lines with `card` added to its board ({@link addToBoard}); commander formats have no
+ * sideboard, so everything goes to the main deck there.
+ */
+function mergeCard(lines: ListLine[], card: BoardEntry): ListLine[] {
+  const side = card.side === true && !listFormat(lines)?.commander
+  return addToBoard(lines, card, side ? 'side' : 'main')
 }
 
 /** Parses a list file; `text` is normalized via re-serialization. */
@@ -378,10 +372,17 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
       undo,
       resolveConflict,
 
-      /** Adds cards in one write, merging into identical lines. */
-      addCards(target: ListRef, cards: NewCard[]) {
+      /** Adds cards in one write, each to its board (`side`), merging into identical lines there. */
+      addCards(target: ListRef, cards: BoardEntry[]) {
         const label = cards.length === 1 ? `Added ${cards[0].qty}× ${cards[0].name}` : `Added ${cards.length} cards`
         updateLines(target, (lines) => cards.reduce(mergeCard, lines), { label })
+      },
+
+      /** Moves lines to the sideboard (`side`) or main deck, merging into identical lines there. */
+      moveCards(target: ListRef, ids: string[], side: boolean) {
+        updateLines(target, (lines) => moveToBoard(lines, ids, side ? 'side' : 'main'), {
+          label: `Moved ${cardName(target, ids[0])} to the ${side ? 'sideboard' : 'main deck'}`
+        })
       },
 
       /** Patches a card line. */

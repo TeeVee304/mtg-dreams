@@ -18,6 +18,7 @@ function printing(overrides: Partial<Printing>): Printing {
     priceFoil: {},
     imageSmall: null,
     imageNormal: null,
+    imageBack: null,
     cardmarketUrl: null,
     labels: [],
     autoEligible: true,

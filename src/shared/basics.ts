@@ -58,6 +58,7 @@ const GENERIC = new Map<string, GenericBasic>(
         priceFoil: { trend: 0 },
         imageSmall: cardImageUrl(d.id, 'small'),
         imageNormal: cardImageUrl(d.id, 'normal'),
+        imageBack: null,
         cardmarketUrl: null,
         labels: [],
         autoEligible: true
@@ -85,9 +86,10 @@ export interface BundledLine {
 
 /**
  * Merges all lines of each regular basic (any printing or finish) into one non-foil line
- * with id `basic:<nameKey>`, at the position of its first occurrence. Other lines pass through.
+ * with id `<idPrefix><nameKey>`, at the position of its first occurrence. Other lines pass through.
+ * @param idPrefix - Distinguishes bundles of separately bundled line sets (main deck, sideboard).
  */
-export function bundleBasicLines(lines: CardLine[]): BundledLine[] {
+export function bundleBasicLines(lines: CardLine[], idPrefix = 'basic:'): BundledLine[] {
   const result: BundledLine[] = []
   const bundles = new Map<string, BundledLine & { bundledIds: string[] }>()
   for (const line of lines) {
@@ -103,7 +105,7 @@ export function bundleBasicLines(lines: CardLine[]): BundledLine[] {
       bundle.bundledIds.push(line.id)
     } else {
       const created = {
-        line: { kind: 'card' as const, id: `basic:${key}`, qty: line.qty, name: generic.info.name, foil: false },
+        line: { kind: 'card' as const, id: `${idPrefix}${key}`, qty: line.qty, name: generic.info.name, foil: false },
         bundledIds: [line.id]
       }
       bundles.set(key, created)

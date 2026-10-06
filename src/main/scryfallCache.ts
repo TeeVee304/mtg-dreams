@@ -19,7 +19,7 @@ const SAVE_DELAY_MS = 2_000
 /** Max time changes stay unsaved under continuous updates. */
 const MAX_SAVE_DELAY_MS = 60_000
 /** Cache schema version. */
-const VERSION = 7
+const VERSION = 8
 
 /** Cached card data with fetch time. */
 export interface CachedCardInfo {
@@ -30,12 +30,16 @@ export interface CachedCardInfo {
 /** Compact on-disk printing. */
 export type StoredPrinting = Omit<
   Printing,
-  'imageSmall' | 'imageNormal' | 'cardmarketUrl' | 'cardmarketId' | 'price' | 'priceFoil'
+  'imageSmall' | 'imageNormal' | 'imageBack' | 'cardmarketUrl' | 'cardmarketId' | 'price' | 'priceFoil'
 > & {
   /** Set only if not the id-derived URL; null = no image. */
   imageSmall?: string | null
   /** Set only if not the id-derived URL; null = no image. */
   imageNormal?: string | null
+  /** Two-sided card with the id-derived back image. */
+  back?: true
+  /** Back image, set only if not the id-derived URL. */
+  imageBack?: string
   /** Product id (derives URL and id), or the full URL if not a standard product link. */
   cardmarket?: number | string
   /** Product id, if not implied by `cardmarket`. */
@@ -55,10 +59,12 @@ const cardmarketProduct = (id: number) =>
 
 /** @returns Compact form; only Scryfall trend prices are kept. */
 export function packPrinting(printing: Printing): StoredPrinting {
-  const { imageSmall, imageNormal, cardmarketUrl, cardmarketId, price, priceFoil, ...rest } = printing
+  const { imageSmall, imageNormal, imageBack, cardmarketUrl, cardmarketId, price, priceFoil, ...rest } = printing
   const stored: StoredPrinting = rest
   if (imageSmall !== cardImageUrl(printing.id, 'small')) stored.imageSmall = imageSmall
   if (imageNormal !== cardImageUrl(printing.id, 'normal')) stored.imageNormal = imageNormal
+  if (imageBack === cardImageUrl(printing.id, 'normal', 'back')) stored.back = true
+  else if (imageBack) stored.imageBack = imageBack
   const product = CARDMARKET_PRODUCT.exec(cardmarketUrl ?? '')
   if (product) stored.cardmarket = Number(product[1])
   else if (cardmarketUrl) stored.cardmarket = cardmarketUrl
@@ -70,11 +76,12 @@ export function packPrinting(printing: Printing): StoredPrinting {
 
 /** @returns Printing from a v6/v7 compact form. */
 export function unpackPrinting(stored: StoredPrinting): Printing {
-  const { imageSmall, imageNormal, cardmarket, cardmarketId, eur, eurFoil, ...rest } = stored
+  const { imageSmall, imageNormal, back, imageBack, cardmarket, cardmarketId, eur, eurFoil, ...rest } = stored
   return {
     ...rest,
     imageSmall: imageSmall === undefined ? cardImageUrl(stored.id, 'small') : imageSmall,
     imageNormal: imageNormal === undefined ? cardImageUrl(stored.id, 'normal') : imageNormal,
+    imageBack: imageBack ?? (back ? cardImageUrl(stored.id, 'normal', 'back') : null),
     cardmarketUrl: typeof cardmarket === 'number' ? cardmarketProduct(cardmarket) : (cardmarket ?? null),
     cardmarketId: cardmarketId ?? (typeof cardmarket === 'number' ? cardmarket : null),
     price: typeof eur === 'number' ? { trend: eur } : {},
@@ -97,7 +104,7 @@ function fromOldFormat(stored: unknown): Printing {
 
 /** On-disk cache. */
 interface CacheFile {
-  /** 7: compact. 6: compact, null prices. 3–5: full printings (3–4 lack newer card data). */
+  /** 8: compact. 7: compact, no back images. 6: as 7, null prices. 3–5: full printings (3–4 lack newer card data). */
   version: number
   /** Printings results by nameKey. */
   entries: Record<string, Omit<PrintingsResult, 'printings'> & { printings: StoredPrinting[] }>
@@ -131,7 +138,7 @@ export function loadScryfallCache(): Promise<void> {
       upgrade = file.version < VERSION
       if (file.version < 3 || file.version > VERSION) return
       const cutoff = Date.now() - CACHE_MAX_AGE_MS
-      const stale = file.version < 5 ? Date.now() - PRINTINGS_MAX_AGE_MS - 60_000 : Infinity
+      const stale = file.version < 8 ? Date.now() - PRINTINGS_MAX_AGE_MS - 60_000 : Infinity
       for (const [key, entry] of Object.entries(file.entries)) {
         if (!(entry?.fetchedAt > cutoff)) continue
         try {

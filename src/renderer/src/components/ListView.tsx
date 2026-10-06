@@ -4,6 +4,8 @@ import { cardLines, nameKey } from '@shared/decklist'
 import { commanderRule } from '@shared/formats'
 import type { Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
+import { listFormat } from '@shared/formats'
+import { sideboardIds } from '@shared/sideboard'
 import {
   analyzeList,
   copyCaps,
@@ -29,6 +31,7 @@ import { CardTile } from './CardTile'
 import { AddCardPanel } from './CardEditors'
 import { CompleteBanner } from './CompleteBanner'
 import { DeckStats } from './DeckStats'
+import { DeckTokens } from './DeckTokens'
 import { CardSearch, type SearchChoice } from './CardSearch'
 import { ListDialogs, type ListDialog } from './ListDialogs'
 import { ListHeader } from './ListHeader'
@@ -70,7 +73,9 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
   const { bundleBasics } = settings
   const sortView = isDeck ? 'deck' : 'wishlist'
   const sort = sortFor(sortView, settings.sort)
-  const rows = buildRows(cards, inventory, settings)
+  const sideboardAllowed = !listFormat(list.lines)?.commander
+  const rows = buildRows(cards, inventory, settings, sideboardIds(list.lines, sideboardAllowed))
+  const mainRows = rows.filter((row) => !row.side)
   const summary = summarize(rows)
   const baselines = useBaselines()
   const dropOf = (row: Row) =>
@@ -276,9 +281,9 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
 
       {complete && <CompleteBanner cards={summary.cards} onMove={moveToDecks} />}
 
-      <ListValueCards isDeck={isDeck} summary={summary} lines={cards.length} lands={landCount(rows)} basis={settings.priceBasis} />
+      <ListValueCards isDeck={isDeck} summary={summary} lines={cards.length} lands={landCount(mainRows)} sideboard={analysis.sideboardCards} basis={settings.priceBasis} />
 
-      <DeckStats rows={rows} />
+      <DeckStats rows={mainRows} />
 
       <div className="search-row">
         {isDeck ? (
@@ -300,11 +305,12 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
           maxTitle={limitFor(adding)}
           note={addNote || undefined}
           actionLabel={isDeck ? 'Add to deck' : 'Add to list'}
+          sideboardChoice={sideboardAllowed}
           onCancel={() => setAdding(null)}
-          onAdd={(card) => {
-            actions.addCards(list, [card])
+          onAdd={(card, side) => {
+            actions.addCards(list, [{ ...card, side }])
             setAdding(null)
-            toast(`Added ${card.qty}× ${card.name}`)
+            toast(`Added ${card.qty}× ${card.name}${side ? ' to the sideboard' : ''}`)
           }}
         />
       )}
@@ -342,6 +348,8 @@ export function ListView({ list, inventory, actions, onOpenList }: ListViewProps
           </div>
         )
       )}
+
+      {cards.length > 0 && <DeckTokens names={mainRows.map((row) => row.line.name)} />}
 
       <ListDialogs
         dialog={dialog}

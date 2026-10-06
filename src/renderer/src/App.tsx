@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { cardLines, parseList, serializeCard, serializeList } from '@shared/decklist'
+import { cardLines, parseList, serializeList } from '@shared/decklist'
 import { bundledBasic } from '@shared/basics'
 import { withCommander, withFormat } from '@shared/formats'
 import { preconListName, type PreconEntry } from '@shared/precons'
+import { entriesToLines } from '@shared/sideboard'
 import { myTradeSide } from '@shared/trade'
 import type { ListKind, PreconDeck } from '@shared/types'
 import { CARD_SEARCH_ID } from './components/CardSearch'
@@ -125,7 +126,7 @@ export default function App() {
    */
   const createFromPrecon = async (kind: ListKind, deck: PreconDeck, entries: PreconEntry[]) => {
     const name = preconListName(deck.name, state.lists.filter((list) => list.kind === kind).map((list) => list.name))
-    const lines = parseList(entries.map(serializeCard).join('\n'))
+    const lines = entriesToLines(entries)
     const format = deck.type === 'Commander Deck' ? 'commander' : null
     const leader = format ? deck.cards.find((card) => card.board === 'commander')?.name : undefined
     const text = serializeList(withCommander(withFormat(lines, format), leader ?? null))

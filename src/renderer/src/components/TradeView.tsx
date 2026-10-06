@@ -234,7 +234,7 @@ function MatchTable({ matches, detail, detailLabel, qtyNote }: MatchTableProps) 
             <td className="col-trade-qty">
               <strong>{match.qty}</strong>
             </td>
-            <td className="col-name" {...previewHandlers({ src: match.printing?.imageNormal, name: match.name })}>
+            <td className="col-name" {...previewHandlers({ src: match.printing?.imageNormal, back: match.printing?.imageBack, name: match.name })}>
               <span className="card-name">{match.name}</span>
               {qtyNote(match) && <span className="muted tiny trade-qty-note">{qtyNote(match)}</span>}
             </td>

@@ -50,7 +50,8 @@ export function PickerBody({ name, children }: { name: string; children: (printi
 /** Props of {@link AddCardPanel}. */
 interface AddCardPanelProps {
   name: string
-  onAdd: (card: NewCard) => void
+  /** @param side - Add to the sideboard. */
+  onAdd: (card: NewCard, side: boolean) => void
   onCancel: () => void
   /** Submit button label. */
   actionLabel?: string
@@ -60,6 +61,8 @@ interface AddCardPanelProps {
   maxTitle?: string
   /** Extra note shown in the panel. */
   note?: string
+  /** Offer a sideboard checkbox (not in commander formats). */
+  sideboardChoice?: boolean
 }
 
 /**
@@ -67,11 +70,12 @@ interface AddCardPanelProps {
  * typed flavor name; quantity is clamped to `maxQty` as it may shrink once card data loads.
  */
 export function AddCardPanel(props: AddCardPanelProps) {
-  const { name, onAdd, onCancel, actionLabel = 'Add to list', maxQty, maxTitle, note } = props
+  const { name, onAdd, onCancel, actionLabel = 'Add to list', maxQty, maxTitle, note, sideboardChoice } = props
   const entry = usePrintingsFor(name)
   const { priceBasis } = useSettings()
   const [qty, setQty] = useState(1)
   const [foil, setFoil] = useState(false)
+  const [side, setSide] = useState(false)
   const [choice, setChoice] = useState<string | null>(null)
   const panelRef = useRef<HTMLElement>(null)
   const data = entry?.data
@@ -90,7 +94,7 @@ export function AddCardPanel(props: AddCardPanelProps) {
   const submit = () => {
     if (!ready) return
     const printing = selected === AUTO ? undefined : data.printings.find((p) => p.id === selected)
-    onAdd({ qty: count, name: data.name, foil, set: printing?.set, collector: printing?.collectorNumber })
+    onAdd({ qty: count, name: data.name, foil, set: printing?.set, collector: printing?.collectorNumber }, sideboardChoice === true && side)
   }
 
   return (
@@ -123,6 +127,11 @@ export function AddCardPanel(props: AddCardPanelProps) {
         <label className="check">
           <input type="checkbox" checked={foil} onChange={(event) => setFoil(event.target.checked)} /> Foil
         </label>
+        {sideboardChoice && (
+          <label className="check">
+            <input type="checkbox" checked={side} onChange={(event) => setSide(event.target.checked)} /> Sideboard
+          </label>
+        )}
         <button type="button" className="primary" onClick={submit} disabled={!ready} title={full ? maxTitle : undefined}>
           {actionLabel}
         </button>

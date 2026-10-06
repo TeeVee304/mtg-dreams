@@ -18,6 +18,7 @@ import {
   type DeckFormat,
   type LegalityIssue
 } from './formats'
+import { SIDEBOARD_MAX } from './sideboard'
 import type { CardInfo, CardLine, ListKind, ListLine, Printing } from './types'
 
 /**
@@ -48,6 +49,8 @@ export interface ModelRow {
   flavorName?: string
   /** Merged line ids; set only on bundled basic lands. */
   bundledIds?: string[]
+  /** Line is in the sideboard. */
+  side?: boolean
 }
 
 /** Derived list state from {@link analyzeList}. */
@@ -73,6 +76,10 @@ export interface ListAnalysis<R extends ModelRow> {
   ownershipErrors: number
   /** Row has an error-severity issue or a shortfall. */
   hasProblem(row: R): boolean
+  /** Sideboard copies. */
+  sideboardCards: number
+  /** Sideboard size violation of a constructed format; null if none. */
+  sideboardIssue: string | null
 }
 
 /** Computes format, commander, legality and ownership state for a list. */
@@ -102,6 +109,7 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
     }
   }
   const issueOf = (row: R) => issues.get(row) ?? null
+  const sideboardCards = rows.filter((row) => row.side).reduce((sum, row) => sum + row.line.qty, 0)
   const shortfallOf = (row: R) => (kind === 'deck' ? Math.max(0, copiesOf(row.line.name) - row.inventoryQty) : 0)
 
   return {
@@ -115,7 +123,10 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
     shortfallOf,
     legalityErrors: rows.filter((row) => issueOf(row)?.severity === 'error').length,
     ownershipErrors: rows.filter((row) => shortfallOf(row) > 0).length,
-    hasProblem: (row) => issueOf(row)?.severity === 'error' || shortfallOf(row) > 0
+    hasProblem: (row) => issueOf(row)?.severity === 'error' || shortfallOf(row) > 0,
+    sideboardCards,
+    sideboardIssue:
+      format && !format.commander && sideboardCards > SIDEBOARD_MAX ? `Max ${SIDEBOARD_MAX} in ${format.label}` : null
   }
 }
 
@@ -172,19 +183,26 @@ export interface Section<R> {
   id: string
   label: string
   rows: R[]
+  /** Section-level rule violation, shown beside the label. */
+  warning?: string | null
 }
 
-/** @returns Commander section, then one per {@link TYPE_GROUPS} entry; empty sections omitted. */
+/**
+ * @returns Commander section, one per {@link TYPE_GROUPS} entry for the main deck, then the sideboard
+ * (not split by type); empty sections omitted.
+ */
 export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysis<R>): Section<R>[] {
   const { isCommander } = analysis
-  return [
+  const sections: Section<R>[] = [
     { id: 'Commander', label: 'Commander', rows: rows.filter(isCommander) },
     ...TYPE_GROUPS.map((group) => ({
       id: group.id as string,
       label: group.label as string,
-      rows: rows.filter((row) => !isCommander(row) && typeGroup(row.info) === group.id)
-    }))
-  ].filter((section) => section.rows.length > 0)
+      rows: rows.filter((row) => !row.side && !isCommander(row) && typeGroup(row.info) === group.id)
+    })),
+    { id: 'Sideboard', label: 'Sideboard', rows: rows.filter((row) => row.side), warning: analysis.sideboardIssue }
+  ]
+  return sections.filter((section) => section.rows.length > 0)
 }
 
 /** @returns Total land copies. */

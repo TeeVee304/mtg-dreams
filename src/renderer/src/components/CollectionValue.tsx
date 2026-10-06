@@ -97,7 +97,7 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
                     key={`${card.name}|${card.copy.set ?? ''}|${card.copy.collector ?? ''}|${card.copy.foil}`}
                     className={`value-row rank-${index + 1}`}
                     style={{ '--stagger': `${(index % STEP) * 45}ms` } as CSSProperties}
-                    {...previewHandlers({ src: card.printing?.imageNormal })}
+                    {...previewHandlers({ src: card.printing?.imageNormal, back: card.printing?.imageBack })}
                   >
                     <span className="value-rank">{index + 1}</span>
                     {card.printing?.imageSmall ? (

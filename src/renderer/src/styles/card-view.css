@@ -9,6 +9,20 @@
   margin-bottom: 18px;
 }
 
+.card-view-media {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.flip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
 .card-view-image {
   aspect-ratio: 488 / 680;
   border-radius: 12px;

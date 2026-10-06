@@ -130,6 +130,7 @@ export function ListTable(props: ListTableProps) {
                       {section.label} · {sectionSummary.cards}
                     </span>
                   </button>
+                  {section.warning && <span className="section-warning">{section.warning}</span>}
                   {leaders && (
                     <button
                       type="button"
@@ -187,6 +188,7 @@ export function ListTable(props: ListTableProps) {
                         {section.label} · {sectionSummary.cards}
                       </span>
                     </button>
+                    {section.warning && <span className="section-warning">{section.warning}</span>}
                     {leaders && (
                       <button
                         type="button"

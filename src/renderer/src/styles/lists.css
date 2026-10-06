@@ -9,6 +9,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+.section-warning {
+  margin-left: 10px;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--bad);
+}
+
 .suggestions li {
   display: flex;
   align-items: center;

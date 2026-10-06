@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { FORMATS, type DeckFormat, type LegalityIssue } from '@shared/formats'
 import type { Printing } from '@shared/types'
 import { formatEur } from '../lib/format'
@@ -34,11 +35,16 @@ interface CardDialogProps {
   maxTitle?: string
   /** Applies a line patch immediately. */
   onUpdate: (patch: Partial<NewCard>) => void
+  /** Board controls; absent where there is no sideboard (commander formats). */
+  board?: { side: boolean; onMove: () => void }
   onClose: () => void
 }
 
-/** Card details dialog; version, finish and quantity changes apply immediately. A pinned single-finish printing locks the finish. */
-export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, onClose }: CardDialogProps) {
+/**
+ * Card details dialog; version, finish and quantity changes apply immediately. A pinned single-finish
+ * printing locks the finish. Two-sided cards can be flipped to show the back face.
+ */
+export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, board, onClose }: CardDialogProps) {
   const { line, resolution, unit, info } = row
   const entry = usePrintingsFor(line.name)
   const printings = entry?.data?.printings ?? []
@@ -46,6 +52,8 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, onC
   const pinned = resolution?.pinned ? printing : null
   const foilLocked = pinned ? !(hasFoil(pinned) && hasNonfoil(pinned)) : false
   const selected = line.set ? (printing?.id ?? '') : AUTO
+  const [flipped, setFlipped] = useState(false)
+  const showBack = flipped && !!printing?.imageBack
 
   const selectVersion = (id: string) => {
     if (id === AUTO) {
@@ -61,8 +69,19 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, onC
   return (
     <Modal title={row.flavorName ?? line.name} onClose={onClose} size="wide">
       <div className="card-view">
-        <div className="card-view-image">
-          {printing?.imageNormal ? <img src={printing.imageNormal} alt={line.name} /> : <span>No image</span>}
+        <div className="card-view-media">
+          <div className="card-view-image">
+            {printing?.imageNormal ? (
+              <img src={showBack ? printing.imageBack! : printing.imageNormal} alt={showBack ? `${line.name} (back)` : line.name} />
+            ) : (
+              <span>No image</span>
+            )}
+          </div>
+          {printing?.imageBack && (
+            <button type="button" className="flip-btn" onClick={() => setFlipped(!flipped)} aria-pressed={showBack}>
+              <Icon name="flip" /> {showBack ? 'Show front' : 'Show back'}
+            </button>
+          )}
         </div>
         <div className="card-view-info">
           {row.flavorName && <p className="muted small">Printed name · official name: {line.name}</p>}
@@ -136,6 +155,17 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, onC
                 label="quantity"
               />
             </dd>
+            {board && (
+              <>
+                <dt>Board</dt>
+                <dd>
+                  {board.side ? 'Sideboard' : 'Main deck'}{' '}
+                  <button type="button" className="link-btn" onClick={board.onMove}>
+                    Move to {board.side ? 'main deck' : 'sideboard'}
+                  </button>
+                </dd>
+              </>
+            )}
             <dt>Price</dt>
             <dd>
               <strong>{formatEur(unit)}</strong>

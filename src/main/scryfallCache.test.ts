@@ -21,6 +21,7 @@ const printing = (id: string, extra: Partial<Printing> = {}): Printing => ({
   priceFoil: { trend: 3 },
   imageSmall: `https://cards.scryfall.io/small/front/${id[0]}/${id[1]}/${id}.jpg`,
   imageNormal: `https://cards.scryfall.io/normal/front/${id[0]}/${id[1]}/${id}.jpg`,
+  imageBack: null,
   cardmarketUrl:
     'https://www.cardmarket.com/en/Magic/Products?idProduct=721234&referrer=scryfall&utm_campaign=card_prices&utm_medium=text&utm_source=scryfall',
   labels: [],
@@ -79,6 +80,18 @@ describe('stored printings', () => {
     expect(cache.unpackPrinting(cache.packPrinting(unlisted))).toEqual(unlisted)
   })
 
+  it('store a two-sided card\'s back image as a flag when it is at the usual address', async () => {
+    const { cache } = await setup()
+    const id = '6904ea20-e504-47da-95a0-08739fdde260'
+    const delver = printing(id, { imageBack: `https://cards.scryfall.io/normal/back/6/9/${id}.jpg` })
+    const stored = cache.packPrinting(delver)
+    expect(stored).toMatchObject({ back: true })
+    expect(stored).not.toHaveProperty('imageBack')
+    expect(cache.unpackPrinting(stored)).toEqual(delver)
+    const odd = printing('abc', { imageBack: 'https://example.com/back.jpg' })
+    expect(cache.unpackPrinting(cache.packPrinting(odd))).toEqual(odd)
+  })
+
   it('keep only Scryfall\'s trend: Cardmarket\'s other prices are never cached', async () => {
     const { cache } = await setup()
     const priced = printing('abc', { price: { trend: 1.5, low: 0.9, avg30: 1.7 }, priceFoil: { trend: 3, low: 2 } })
@@ -92,22 +105,23 @@ describe('the cache file', () => {
     first.cache.scryfallCache.entries['sol ring'] = result([printing('aaa'), printing('bbb')])
     first.cache.scryfallCacheChanged()
     first.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(7)
+    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(8)
 
     const restarted = await setup(first.userData)
     await restarted.cache.loadScryfallCache()
     expect(restarted.cache.scryfallCache.entries['sol ring']).toEqual(first.cache.scryfallCache.entries['sol ring'])
   })
 
-  it('reads older files: versions 5 and 6 as they are, versions 3–4 marked for a refresh', async () => {
+  it('reads older files and marks them for a refresh (no back images before version 8)', async () => {
     const { userData, file } = await setup()
     const entry = result([printing('aaa')])
     writeFileSync(file, JSON.stringify({ version: 5, entries: { 'sol ring': { ...entry, printings: [oldFormat('aaa')] } }, cards: {} }))
     const v5 = await setup(userData)
     await v5.cache.loadScryfallCache()
-    expect(v5.cache.scryfallCache.entries['sol ring']).toEqual(entry)
+    expect(v5.cache.scryfallCache.entries['sol ring'].printings).toEqual(entry.printings)
+    expect(Date.now() - v5.cache.scryfallCache.entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
     v5.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(7)
+    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(8)
 
     const v6Printing = { ...v5.cache.packPrinting(printing('aaa')), eurFoil: null }
     writeFileSync(file, JSON.stringify({ version: 6, entries: { 'sol ring': { ...entry, printings: [v6Printing] } }, cards: {} }))

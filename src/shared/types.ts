@@ -76,6 +76,8 @@ export interface Printing {
   priceFoil: Prices
   imageSmall: string | null
   imageNormal: string | null
+  /** Back face image (normal size) of a two-sided card; null otherwise. */
+  imageBack: string | null
   cardmarketUrl: string | null
   /** Display variant tags, e.g. "Borderless", "Showcase", "JA". */
   labels: string[]

@@ -27,6 +27,8 @@ export interface Row {
   rarity: string | undefined
   /** Bundled basics only: merged line ids. */
   bundledIds?: string[]
+  /** Line is in the sideboard. */
+  side: boolean
   /** Printed name of a pinned printing, if different from the oracle name. */
   flavorName?: string
 }
@@ -34,21 +36,34 @@ export interface Row {
 /** Settings affecting list pricing. */
 export type PricingSettings = Pick<AppSettings, 'bundleBasics' | 'priceBasis'>
 
+/** Empty id set. */
+const NO_IDS: ReadonlySet<string> = new Set()
+
 /**
- * Builds priced rows. With `bundleBasics`, regular basics merge into one free row each. Unpinned
- * lines with owned copies resolve to the owned printing ({@link ownedVersion}).
+ * Builds priced rows, main deck first, then sideboard. With `bundleBasics`, regular basics merge into
+ * one free row per board. Unpinned lines with owned copies resolve to the owned printing
+ * ({@link ownedVersion}).
+ * @param sideIds - Ids of sideboard lines ({@link sideboardIds}).
  */
 export function buildRows(
   lines: CardLine[],
   inventory: Map<string, InventoryItem>,
-  { bundleBasics, priceBasis }: PricingSettings
+  { bundleBasics, priceBasis }: PricingSettings,
+  sideIds: ReadonlySet<string> = NO_IDS
 ): Row[] {
-  const items = bundleBasics ? bundleBasicLines(lines) : lines.map((line) => ({ line, bundledIds: undefined }))
+  const board = (side: boolean) => {
+    const own = lines.filter((line) => sideIds.has(line.id) === side)
+    const bundled = bundleBasics
+      ? bundleBasicLines(own, side ? 'basic:side:' : 'basic:')
+      : own.map((line) => ({ line, bundledIds: undefined }))
+    return bundled.map((item) => ({ ...item, side }))
+  }
+  const items = [...board(false), ...board(true)]
   const allocations = allocateOwned(
     items.map((item) => item.line),
     inventory
   )
-  return items.map(({ line, bundledIds }, index) => {
+  return items.map(({ line, bundledIds, side }, index) => {
     const inventoryQty = inventory.get(nameKey(line.name))?.qty ?? 0
     const generic = bundledIds && genericBasic(line.name)
     if (generic) {
@@ -61,7 +76,8 @@ export function buildRows(
         unit: 0,
         info: generic.info,
         rarity: 'common',
-        bundledIds
+        bundledIds,
+        side
       }
     }
     const entry = getPrintingsEntry(line.name)
@@ -81,7 +97,8 @@ export function buildRows(
       unit: resolution?.unitPrice ?? null,
       info: data?.card,
       rarity: resolution?.printing?.rarity ?? data?.card?.rarity,
-      flavorName: resolution?.pinned ? resolution.printing?.flavorName : undefined
+      flavorName: resolution?.pinned ? resolution.printing?.flavorName : undefined,
+      side
     }
   })
 }

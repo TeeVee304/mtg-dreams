@@ -1,6 +1,7 @@
 import { nameKey } from './decklist'
 import { safeFileName } from './filenames'
-import type { CardLine, PreconDeck } from './types'
+import type { BoardEntry } from './sideboard'
+import type { PreconDeck } from './types'
 
 /** Precon import options. */
 export interface PreconOptions {
@@ -10,8 +11,8 @@ export interface PreconOptions {
   skipBasics: boolean
 }
 
-/** List line fields produced from a precon card. */
-export type PreconEntry = Omit<CardLine, 'id' | 'kind'>
+/** List line fields produced from a precon card; `side` marks sideboard cards. */
+export type PreconEntry = BoardEntry
 
 /** Collapses identical-face names (`X // X`, reversible cards) to `X`. */
 export function simplifyCardName(name: string): string {
@@ -19,7 +20,10 @@ export function simplifyCardName(name: string): string {
   return faces.every((face) => face === faces[0]) ? faces[0] : name
 }
 
-/** @returns List entries; duplicates across boards with the same name and printing are summed. */
+/**
+ * @returns List entries; sideboard cards get `side`. Duplicates on the same board (main, commander and
+ * other boards count as main) with the same name and printing are summed.
+ */
 export function preconEntries(deck: PreconDeck, options: PreconOptions): PreconEntry[] {
   const merged = new Map<string, PreconEntry>()
   for (const card of deck.cards) {
@@ -27,7 +31,8 @@ export function preconEntries(deck: PreconDeck, options: PreconOptions): PreconE
     const entry: PreconEntry = options.exact
       ? { qty: card.qty, name: card.name, set: card.set, collector: card.collector, foil: card.foil }
       : { qty: card.qty, name: card.name, foil: false }
-    const key = [nameKey(entry.name), entry.set ?? '', entry.collector ?? '', entry.foil].join('|')
+    if (card.board === 'side') entry.side = true
+    const key = [nameKey(entry.name), entry.set ?? '', entry.collector ?? '', entry.foil, !!entry.side].join('|')
     const existing = merged.get(key)
     if (existing) existing.qty += entry.qty
     else merged.set(key, entry)

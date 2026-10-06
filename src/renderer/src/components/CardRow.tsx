@@ -122,7 +122,7 @@ export function CardRow(props: CardRowProps) {
           label={`quantity of ${line.name}`}
         />
       </td>
-      <td className="col-name" {...previewHandlers({ src: printing?.imageNormal })}>
+      <td className="col-name" {...previewHandlers({ src: printing?.imageNormal, back: printing?.imageBack })}>
         <div className="name-cell">
           <CardThumb src={printing?.imageSmall} loading={loading} />
           <div className="name-main">

@@ -2,9 +2,10 @@ import { useEffect, useSyncExternalStore, type MouseEvent } from 'react'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 
-/** Preview source: image URL, or card name resolved to its cheapest printing. */
+/** Preview source: image URL (plus back face for two-sided cards), or card name resolved to its cheapest printing. */
 interface Target {
   src?: string | null
+  back?: string | null
   name?: string
 }
 
@@ -58,8 +59,10 @@ const WIDTH = 300
 const HEIGHT = Math.round((WIDTH * 680) / 488)
 /** Cursor offset (px). */
 const GAP = 24
+/** Space between front and back faces (px). */
+const FACE_GAP = 8
 
-/** Single app-wide floating card preview following the cursor; hidden on mousedown. */
+/** Single app-wide floating card preview following the cursor, both faces side by side for two-sided cards; hidden on mousedown. */
 export function HoverPreview() {
   const { target, x, y } = useSyncExternalStore(subscribe, () => state)
   const { priceBasis } = useSettings()
@@ -78,14 +81,21 @@ export function HoverPreview() {
 
   if (!target) return null
   let src = target.src ?? null
-  if (!src && target.name) src = cheapestVersion(target.name, priceBasis)?.printing?.imageNormal ?? null
+  let back = target.back ?? null
+  if (!src && target.name) {
+    const printing = cheapestVersion(target.name, priceBasis)?.printing
+    src = printing?.imageNormal ?? null
+    back = printing?.imageBack ?? null
+  }
   if (!src) return null
 
-  const left = x + GAP + WIDTH > window.innerWidth ? x - GAP - WIDTH : x + GAP
+  const width = back ? WIDTH * 2 + FACE_GAP : WIDTH
+  const left = Math.max(8, x + GAP + width > window.innerWidth ? x - GAP - width : x + GAP)
   const top = Math.min(Math.max(8, y - HEIGHT / 2), window.innerHeight - HEIGHT - 8)
   return (
-    <div className="hover-preview" style={{ left, top, width: WIDTH, height: HEIGHT }}>
+    <div className={`hover-preview${back ? ' two-sided' : ''}`} style={{ left, top, width, height: HEIGHT }}>
       <img src={src} alt="" />
+      {back && <img src={back} alt="" />}
     </div>
   )
 }

@@ -24,10 +24,11 @@ const deck: PreconDeck = {
 }
 
 describe('preconEntries', () => {
-  it('merges by name and drops versions when not keeping exact printings', () => {
+  it('merges by name per board and drops versions when not keeping exact printings', () => {
     expect(preconEntries(deck, { exact: false, skipBasics: true })).toEqual([
       { qty: 1, name: 'Giada, Font of Hope', foil: false },
-      { qty: 2, name: 'Sol Ring', foil: false }
+      { qty: 1, name: 'Sol Ring', foil: false },
+      { qty: 1, name: 'Sol Ring', foil: false, side: true }
     ])
   })
 

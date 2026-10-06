@@ -1,37 +1,20 @@
-import { useState } from 'react'
 import { CURVE_TOP, deckStats, STAT_COLORS, type DeckStats as Stats, type StatsRow } from '@shared/deckStats'
 import { MANA_SYMBOLS } from '../lib/artwork'
 import { cardCount } from '../lib/format'
+import { useStoredToggle } from '../hooks/useStoredToggle'
 import { Icon } from './Icon'
 
 /** localStorage key of the panel's open state. */
 const OPEN_KEY = 'mtg-dreams.statsOpen'
 const COLOR_NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' } as const
 
-/** @returns Stored open state; true by default or if storage is unavailable. */
-function readOpen(): boolean {
-  try {
-    return localStorage.getItem(OPEN_KEY) !== 'false'
-  } catch {
-    return true
-  }
-}
-
-/** Persists the open state; storage errors are ignored. */
-function saveOpen(open: boolean): void {
-  try {
-    localStorage.setItem(OPEN_KEY, String(open))
-  } catch {}
-}
-
-/** Collapsible stats panel: mana curve and color breakdown (see {@link deckStats}). */
+/**
+ * Collapsible stats panel, open by default: mana curve and color breakdown (see {@link deckStats}).
+ * @param rows - Main deck rows.
+ */
 export function DeckStats({ rows }: { rows: StatsRow[] }) {
-  const [open, setOpen] = useState(readOpen)
+  const [open, toggle] = useStoredToggle(OPEN_KEY, true)
   const stats = deckStats(rows)
-  const toggle = () => {
-    setOpen(!open)
-    saveOpen(!open)
-  }
 
   return (
     <section className={`deck-stats${open ? ' open' : ''}`}>

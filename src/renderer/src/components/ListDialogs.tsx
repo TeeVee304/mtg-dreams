@@ -100,6 +100,18 @@ export function ListDialogs(props: ListDialogsProps) {
           maxQty={maxFor(cardRow.line)}
           maxTitle={limitFor(cardRow.line.name)}
           onUpdate={(patch) => actions.updateCard(list, cardRow.line.id, patch)}
+          board={
+            format?.commander
+              ? undefined
+              : {
+                  side: cardRow.side,
+                  onMove: () => {
+                    actions.moveCards(list, cardRow.bundledIds ?? [cardRow.line.id], !cardRow.side)
+                    onClose()
+                    toast(`Moved ${cardRow.line.name} to the ${cardRow.side ? 'main deck' : 'sideboard'}`)
+                  }
+                }
+          }
           onClose={onClose}
         />
       ) : null

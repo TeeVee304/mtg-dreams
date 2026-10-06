@@ -67,6 +67,7 @@ const printing = (cardmarketId: number | null, trend?: number): Printing => ({
   priceFoil: {},
   imageSmall: null,
   imageNormal: null,
+  imageBack: null,
   cardmarketUrl: null,
   labels: [],
   autoEligible: true

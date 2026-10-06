@@ -100,7 +100,7 @@ function Tile({ printing, price, title, subtitle, selected, onClick, onDoubleCli
       className={`tile${selected ? ' selected' : ''}${auto ? ' auto' : ''}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      {...previewHandlers({ src: printing?.imageNormal })}
+      {...previewHandlers({ src: printing?.imageNormal, back: printing?.imageBack })}
     >
       <div className="tile-image">{image ? <img src={image} alt="" loading="lazy" /> : <span>No image</span>}</div>
       <div className="tile-price">{formatEur(price)}</div>

@@ -158,6 +158,11 @@ function flavorNameOf(card: any): string | undefined {
  * Maps a Scryfall card to a {@link Printing}. Scryfall EUR prices (Cardmarket trend) become the
  * fallback for guide prices; image URLs drop the `?version` query.
  */
+/** Back face image (normal size) of a card whose faces carry their own images; null otherwise. */
+export function backImageOf(card: any): string | null {
+  return card.image_uris ? null : (card.card_faces?.[1]?.image_uris?.normal?.split('?')[0] ?? null)
+}
+
 function toPrinting(card: any): Printing {
   const images = card.image_uris ?? card.card_faces?.[0]?.image_uris ?? {}
   return {
@@ -175,6 +180,7 @@ function toPrinting(card: any): Printing {
     priceFoil: trendOnly(card.prices?.eur_foil),
     imageSmall: images.small?.split('?')[0] ?? null,
     imageNormal: images.normal?.split('?')[0] ?? null,
+    imageBack: backImageOf(card),
     cardmarketUrl: card.purchase_uris?.cardmarket ?? null,
     labels: labelsFor(card),
     autoEligible: card.border_color !== 'gold' && card.set_type !== 'memorabilia',
@@ -432,6 +438,21 @@ export async function getCardImages(names: string[]): Promise<Record<string, str
     }
   }
   return result
+}
+
+/**
+ * Fetches card objects by name (front face) or id, in batches of {@link COLLECTION_BATCH}.
+ * @returns Raw Scryfall cards found; unknown identifiers are omitted.
+ * @throws Error on network failure or an HTTP error.
+ */
+export async function fetchCollection(identifiers: Array<{ name: string } | { id: string }>): Promise<any[]> {
+  const cards: any[] = []
+  for (let i = 0; i < identifiers.length; i += COLLECTION_BATCH) {
+    const batch = identifiers.slice(i, i + COLLECTION_BATCH)
+    const body = await searchQueue.run(() => getJson(`${env().scryfallApi}/cards/collection`, { identifiers: batch }), 'low').promise
+    cards.push(...(body?.data ?? []))
+  }
+  return cards
 }
 
 /** Session autocomplete cache by lower-case query; cleared past 500 entries. */

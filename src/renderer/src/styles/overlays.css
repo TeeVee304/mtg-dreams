@@ -18,6 +18,22 @@
   display: block;
 }
 
+/* Two-sided cards: front and back side by side, each a full card. */
+.hover-preview.two-sided {
+  display: flex;
+  gap: 8px;
+  overflow: visible;
+  background: none;
+  box-shadow: none;
+}
+
+.hover-preview.two-sided img {
+  width: calc(50% - 4px);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  background: var(--panel-2);
+}
+
 /* Modal -------------------------------------------------------------------------- */
 
 .modal-backdrop {

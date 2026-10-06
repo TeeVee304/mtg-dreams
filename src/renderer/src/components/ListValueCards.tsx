@@ -9,18 +9,20 @@ interface ListValueCardsProps {
   summary: Summary
   /** Card line count (not copies). */
   lines: number
-  /** Land copies. */
+  /** Main deck land copies. */
   lands: number
+  /** Sideboard copies. */
+  sideboard: number
   basis: PriceBasis
 }
 
 /** Value stats: deck value, or wishlist remaining cost and owned share. */
-export function ListValueCards({ isDeck, summary, lines, lands, basis }: ListValueCardsProps) {
+export function ListValueCards({ isDeck, summary, lines, lands, sideboard, basis }: ListValueCardsProps) {
   if (isDeck) {
     return (
       <section className="stats">
         <Stat label="Deck value" value={formatEur(summary.total)} accent note={priceNote(summary, basis)} />
-        <Stat label="Cards" value={String(summary.cards)} note={`${lands} lands · ${summary.cards - lands} nonland`} />
+        <Stat label="Cards" value={String(summary.cards)} note={`${lands} lands · ${summary.cards - sideboard - lands} nonland${sideboard ? ` · ${sideboard} sideboard` : ''}`} />
         <Stat label="Unique cards" value={String(lines)} />
       </section>
     )

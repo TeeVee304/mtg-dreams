@@ -1,4 +1,5 @@
 import type { SortKey } from './cards'
+import type { DeckTokenData } from './tokens'
 import type { ThemeColor } from './themes'
 import type { CardInfo, ListKind, PreconDeck, PreconSummary, PriceBasis, PrintingsResult } from './types'
 
@@ -142,6 +143,11 @@ export interface TrackerApi {
   getCardImages(names: string[]): Promise<Record<string, string | null>>
   /** @returns Card data per nameKey; null for names unknown to Scryfall. */
   getCardInfos(names: string[]): Promise<Record<string, CardInfo | null>>
+  /**
+   * Tokens, emblems and helpers created by a list's cards; never rejects (see {@link DeckTokenData}).
+   * @param names - At most 250 names.
+   */
+  getDeckTokens(names: string[]): Promise<DeckTokenData>
   getPreconIndex(): Promise<PreconSummary[]>
   getPrecon(fileName: string): Promise<PreconDeck>
   openExternal(url: string): Promise<void>

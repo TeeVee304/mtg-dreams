@@ -33,6 +33,11 @@
 - **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
 - Wishlist cards you still need are flagged once they're 15% cheaper than when you added them, by default.
 - A **Stats** panel shows the mana curve and the colors of the cards besides lands.
+- A **Sideboard** section (outside Commander formats) holds cards set aside: add them with the Sideboard box,
+  or move them from the card's details. Copy limits count both boards; Stats count the main deck only.
+- Two-sided cards show both faces when hovered; the card's details have a button to flip to the back.
+- A **Tokens** panel at the bottom lists the tokens, emblems and helpers (The Monarch, The Initiative…) the cards create, with
+  which cards make each one.
 
 ### Precons
 - Pick from about 3 000 official products: Commander decks, Challenger decks, Secret Lair drops and more.
