@@ -33,7 +33,9 @@ export function DeckStats({ rows, manaValue, onManaValue }: DeckStatsProps) {
         <span className="deck-stats-chevron" aria-hidden="true">
           ›
         </span>
-        Statistics
+        <span className="nav-icon-name">
+          Statistics <Icon name="chart" />
+        </span>
         <span className="muted small">
           {`${counted(stats.spells, 'card')} + ${counted(stats.lands, 'land')}`}
           {stats.pending > 0 && ` · ${cardCount(stats.pending)} loading`}
