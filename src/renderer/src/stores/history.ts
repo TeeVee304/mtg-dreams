@@ -1,11 +1,11 @@
-import { useSyncExternalStore } from 'react'
 import type { PriceBaseline, PriceSnapshot, TrackerApi } from '@shared/api'
 import { bundledBasic } from '@shared/basics'
 import type { CopyPool } from '@shared/copies'
 import { allocateOwned, cardLines, nameKey } from '@shared/decklist'
-import { PRICE_BASES, resolveLine } from '@shared/pricing'
+import { hasNonfoil, PRICE_BASES, resolveLine } from '@shared/pricing'
 import type { CardLine, InventoryItem, PriceBasis } from '@shared/types'
 import { inventoryValue, type ValuedCopy } from '../lib/collection'
+import { createSignal } from '../lib/signal'
 import type { CardList } from './library'
 import { getPrintingsEntry } from './printings'
 
@@ -20,33 +20,20 @@ import { getPrintingsEntry } from './printings'
 let baselines: Record<string, PriceBaseline> = {}
 /** Saved baselines loaded; {@link syncBaselines} is a no-op until then to avoid overwriting them. */
 let baselinesLoaded = false
-let baselinesVersion = 0
-const listeners = new Set<() => void>()
-
-/** Bumps the baselines version and notifies subscribers. */
-function emit(): void {
-  baselinesVersion += 1
-  for (const listener of listeners) listener()
-}
+const changes = createSignal()
 
 /** Loads saved baselines; on failure, baselines stay disabled. */
 export async function loadBaselines(): Promise<void> {
   try {
     baselines = await window.api.getBaselines()
     baselinesLoaded = true
-    emit()
+    changes.emit()
   } catch {}
 }
 
 /** Hook re-rendering on baseline changes. @returns Current baselines. */
 export function useBaselines(): Record<string, PriceBaseline> {
-  useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    () => baselinesVersion
-  )
+  changes.useVersion()
   return baselines
 }
 
@@ -86,7 +73,7 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
   if (Object.keys(set).length === 0 && remove.length === 0) return
   baselines = { ...baselines, ...set }
   for (const key of remove) delete baselines[key]
-  emit()
+  changes.emit()
   void window.api.updateBaselines(set, remove).catch(() => undefined)
 }
 
@@ -164,7 +151,7 @@ function snapshotPrice(valued: ValuedCopy, snapshot: PriceSnapshot): number | nu
   const id = valued.printing?.cardmarketId
   const prices = id === null || id === undefined ? undefined : snapshot.prices[id]
   if (!prices) return null
-  const foil = valued.copy.foil || !valued.printing?.finishes.includes('nonfoil')
+  const foil = valued.copy.foil || !hasNonfoil(valued.printing!)
   const price = prices[foil ? 1 : 0]
   return price > 0 ? price : null
 }

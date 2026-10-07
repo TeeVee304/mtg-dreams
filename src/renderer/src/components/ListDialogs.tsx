@@ -2,6 +2,7 @@ import { capEntries, type DeckFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
 import { listPriority, PRIORITIES } from '@shared/listPriority'
 import type { ListAnalysis } from '@shared/listModel'
+import { totalCopies } from '@shared/totals'
 import type { CardLine } from '@shared/types'
 import { cardCount } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
@@ -137,7 +138,7 @@ export function ListDialogs(props: ListDialogsProps) {
             const capped = capEntries(entries, props.formatCap, analysis.copiesOf)
             actions.addCards(list, capped.entries)
             onClose()
-            const added = capped.entries.reduce((sum, e) => sum + e.qty, 0)
+            const added = totalCopies(capped.entries)
             toast(
               `Added ${cardCount(added)} from ${deck.name}` +
                 (capped.skipped > 0

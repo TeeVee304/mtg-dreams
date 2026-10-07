@@ -8,6 +8,7 @@
 
 import { cardLines, nameKey } from './decklist'
 import { listPriority, priorityWeight } from './listPriority'
+import { sumOf } from './totals'
 import type { InventoryItem, ListKind, ListLine } from './types'
 
 /** Owned copies mode. */
@@ -127,7 +128,7 @@ export function copyPool(lists: PoolList[], mode: CopiesMode): CopyPool {
     }
   })
   const sum = (key: string, keep: (claim: Claim) => boolean) =>
-    mode === 'shared' ? 0 : (claims.get(key) ?? []).reduce((total, claim) => (keep(claim) ? total + claim.qty : total), 0)
+    mode === 'shared' ? 0 : sumOf(claims.get(key) ?? [], (claim) => (keep(claim) ? claim.qty : 0))
   /** Hands `owned` copies out to the claims before position `before`, in allocation order. */
   const handOut = (key: string, owned: number, before: number): HeldCopies[] => {
     const given: HeldCopies[] = []

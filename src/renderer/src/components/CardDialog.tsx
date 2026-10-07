@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { FORMATS, type DeckFormat, type LegalityIssue } from '@shared/formats'
-import type { Printing } from '@shared/types'
+import { finishFor, hasFoil, singleFinish } from '@shared/pricing'
 import { formatEur } from '../lib/format'
 import type { NewCard } from '../stores/library'
 import type { Row } from '../lib/summary'
@@ -10,11 +10,6 @@ import { Icon } from './Icon'
 import { Modal } from './Modal'
 import { Stepper } from './Stepper'
 import { AUTO, VersionPicker } from './VersionPicker'
-
-/** Printing has a foil or etched finish. */
-const hasFoil = (p: Printing) => p.finishes.includes('foil') || p.finishes.includes('etched')
-/** Printing has a non-foil finish. */
-const hasNonfoil = (p: Printing) => p.finishes.includes('nonfoil')
 
 /** Display labels of Scryfall legality values. */
 const STATUS_LABELS: Record<string, string> = {
@@ -54,7 +49,7 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
   const printings = entry?.data?.printings ?? []
   const printing = resolution?.printing ?? null
   const pinned = resolution?.pinned ? printing : null
-  const foilLocked = pinned ? !(hasFoil(pinned) && hasNonfoil(pinned)) : false
+  const foilLocked = pinned ? singleFinish(pinned) : false
   const selected = line.set ? (printing?.id ?? '') : AUTO
   const [flipped, setFlipped] = useState(false)
   const showBack = flipped && !!printing?.imageBack
@@ -66,8 +61,7 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
     }
     const choice = printings.find((p) => p.id === id)
     if (!choice) return
-    const foil = !hasNonfoil(choice) ? true : !hasFoil(choice) ? false : line.foil
-    onUpdate({ set: choice.set, collector: choice.collectorNumber, foil })
+    onUpdate({ set: choice.set, collector: choice.collectorNumber, foil: finishFor(choice, line.foil) })
   }
 
   return (

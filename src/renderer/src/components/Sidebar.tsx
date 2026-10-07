@@ -6,10 +6,11 @@ import { STAT_COLORS } from '@shared/deckStats'
 import { nameKey } from '@shared/decklist'
 import { deckSizeCheck, listCommander, listFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
+import { sumOf, totalCopies } from '@shared/totals'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { inventoryValue } from '../lib/collection'
-import { cardCount, formatDate, formatEur, totalCopies } from '../lib/format'
+import { cardCount, formatDate, formatEur } from '../lib/format'
 import { sameList, type CardList, type ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
 import { usePrintingsVersion } from '../stores/printings'
@@ -193,7 +194,7 @@ export function Sidebar(props: SidebarProps) {
             Most Wanted <Icon name="cart" />
           </span>
           <span className="nav-meta">
-            {cardCount(totalCopies(wanted.cards.map((card) => ({ qty: card.toBuy }))))}
+            {cardCount(sumOf(wanted.cards, (card) => card.toBuy))}
             {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
           </span>
         </button>
@@ -273,7 +274,7 @@ function listFigures(
 ) {
   const format = listFormat(list.lines)
   const rows = listRows(list, inventory, settings, pool)
-  const mainCards = totalCopies(rows.filter((row) => !row.side).map((row) => row.line))
+  const mainCards = sumOf(rows, (row) => (row.side ? 0 : row.line.qty))
   const cheaper =
     list.kind === 'wishlist'
       ? rows.filter(

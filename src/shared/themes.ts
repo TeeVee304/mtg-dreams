@@ -1,15 +1,17 @@
+import { COLOR_LETTERS, COLOR_NAMES, type ColorFilter } from './cards'
+
 /** Accent theme, one per mana color plus Colorless; each has its own app icon. */
-export type ThemeColor = 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
+export type ThemeColor = ColorFilter
+
+/** Accent hue of each theme. */
+const LOOKS: Record<ThemeColor, string> = { W: 'gold', U: 'blue', B: 'purple', R: 'red', G: 'green', C: 'gray' }
 
 /** Theme colors with UI label and accent hue name. */
-export const THEME_COLORS: Array<{ id: ThemeColor; label: string; look: string }> = [
-  { id: 'W', label: 'White', look: 'gold' },
-  { id: 'U', label: 'Blue', look: 'blue' },
-  { id: 'B', label: 'Black', look: 'purple' },
-  { id: 'R', label: 'Red', look: 'red' },
-  { id: 'G', label: 'Green', look: 'green' },
-  { id: 'C', label: 'Colorless', look: 'gray' }
-]
+export const THEME_COLORS: Array<{ id: ThemeColor; label: string; look: string }> = COLOR_LETTERS.map((id) => ({
+  id,
+  label: COLOR_NAMES[id],
+  look: LOOKS[id]
+}))
 
 /** Default theme (gold). */
 export const DEFAULT_THEME_COLOR: ThemeColor = 'W'

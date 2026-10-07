@@ -5,6 +5,7 @@ import { copiesToAdd } from '@shared/copies'
 import { withCommander, withFormat } from '@shared/formats'
 import { preconListName, type PreconEntry } from '@shared/precons'
 import { entriesToLines } from '@shared/sideboard'
+import { totalCopies } from '@shared/totals'
 import { myTradeSide } from '@shared/trade'
 import type { ListKind, PreconDeck } from '@shared/types'
 import { CARD_SEARCH_ID } from './components/CardSearch'
@@ -23,13 +24,10 @@ import { WantedView } from './components/WantedView'
 import { Sidebar, type View } from './components/Sidebar'
 import { useToast } from './components/Toasts'
 import { useCopyPool } from './hooks/useCopyPool'
-import { cardCount, cleanError, formatDate, totalCopies } from './lib/format'
+import { cardCount, cleanError, formatDate } from './lib/format'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
 import { refreshStalePrintings, reloadPrices, requestPrintings } from './stores/printings'
 import { useSettings } from './stores/settings'
-
-/** Total copies across entries. */
-const countCards = (entries: PreconEntry[]) => entries.reduce((sum, entry) => sum + entry.qty, 0)
 
 /** @returns Identity of a page, for remembering its scroll position. */
 function pageKey(view: View | null): string {
@@ -195,8 +193,8 @@ export default function App() {
     openList(created)
     toast(
       kind === 'deck'
-        ? `Created deck “${created.name}” and added its ${cardCount(countCards(entries))} to your inventory`
-        : `Created “${created.name}” with ${cardCount(countCards(entries))}`
+        ? `Created deck “${created.name}” and added its ${cardCount(totalCopies(entries))} to your inventory`
+        : `Created “${created.name}” with ${cardCount(totalCopies(entries))}`
     )
   }
 

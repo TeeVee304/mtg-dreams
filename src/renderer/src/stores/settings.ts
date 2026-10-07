@@ -1,30 +1,10 @@
-import { useSyncExternalStore } from 'react'
 import type { AppSettings } from '@shared/api'
-import { DEFAULT_SORT } from '@shared/cards'
-import { DEFAULT_COPIES } from '@shared/copies'
-import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS } from '@shared/pricing'
-import { DEFAULT_THEME_COLOR } from '@shared/themes'
+import { DEFAULT_SETTINGS } from '@shared/settings'
+import { createSignal } from '../lib/signal'
 
 /** Current settings; defaults until {@link loadSettings} resolves. */
-let current: AppSettings = {
-  theme: 'system',
-  color: DEFAULT_THEME_COLOR,
-  bundleBasics: true,
-  copies: DEFAULT_COPIES,
-  cardImages: true,
-  cardView: 'table',
-  tradeName: '',
-  sort: DEFAULT_SORT,
-  priceBasis: DEFAULT_PRICE_BASIS,
-  dropAlertPercent: DEFAULT_DROP_ALERT_PERCENT
-}
-const listeners = new Set<() => void>()
-
-/** `useSyncExternalStore` subscribe. */
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
+let current: AppSettings = DEFAULT_SETTINGS
+const changes = createSignal()
 
 /** Sets `data-color` on `<html>`, which keys the accent palette in CSS. */
 function applyColor(): void {
@@ -43,11 +23,12 @@ export async function loadSettings(): Promise<void> {
 export function updateSettings(patch: Partial<AppSettings>): Promise<void> {
   current = { ...current, ...patch }
   applyColor()
-  for (const listener of listeners) listener()
+  changes.emit()
   return window.api.updateSettings(patch)
 }
 
 /** Hook returning current settings. */
 export function useSettings(): AppSettings {
-  return useSyncExternalStore(subscribe, () => current)
+  changes.useVersion()
+  return current
 }

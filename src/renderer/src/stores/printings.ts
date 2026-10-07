@@ -1,9 +1,9 @@
-import { useSyncExternalStore } from 'react'
 import type { PrintingsOptions } from '@shared/api'
 import { nameKey } from '@shared/decklist'
 import { PRINTINGS_MAX_AGE_MS, resolveLine } from '@shared/pricing'
 import type { PriceBasis, Printing, PrintingsResult } from '@shared/types'
 import { cleanError } from '../lib/format'
+import { createSignal } from '../lib/signal'
 
 /**
  * Session store of printings by nameKey. Rate limiting, caching and prices live in the main process.
@@ -36,32 +36,15 @@ const RETRY_AFTER_MS = 10 * 60 * 1000
 
 /** Entries by nameKey. */
 const entries = new Map<string, PrintingsEntry>()
-const listeners = new Set<() => void>()
-let version = 0
 
 /** Wait after a change before notifying, gathering the changes that follow into one notification. */
 const EMIT_DELAY_MS = 50
-let emitTimer: ReturnType<typeof setTimeout> | null = null
-
-/** Bumps the version and notifies subscribers once the changes of the next {@link EMIT_DELAY_MS} are in. */
-function emit(): void {
-  emitTimer ??= setTimeout(() => {
-    emitTimer = null
-    version += 1
-    for (const listener of listeners) listener()
-  }, EMIT_DELAY_MS)
-}
-
-/** `useSyncExternalStore` subscribe. */
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
+const changes = createSignal(EMIT_DELAY_MS)
 
 /** Replaces an entry and emits. */
 function setEntry(key: string, entry: PrintingsEntry): void {
   entries.set(key, entry)
-  emit()
+  changes.emit()
 }
 
 /** Printings older than {@link PRINTINGS_MAX_AGE_MS}. */
@@ -171,13 +154,11 @@ export async function reloadPrices(): Promise<void> {
     const latest = entries.get(key)
     if (result.status === 'fulfilled' && latest?.data) entries.set(key, { ...latest, data: result.value })
   })
-  emit()
+  changes.emit()
 }
 
 /** @returns Store version; it changes whenever entries do, so it keys values derived from them. */
-export const getPrintingsVersion = () => version
+export const getPrintingsVersion = changes.version
 
 /** Hook re-rendering on any entry change. @returns Store version. */
-export function usePrintingsVersion(): number {
-  return useSyncExternalStore(subscribe, getPrintingsVersion)
-}
+export const usePrintingsVersion = changes.useVersion

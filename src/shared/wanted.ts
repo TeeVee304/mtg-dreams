@@ -10,6 +10,7 @@
 
 import { compareCards, isBasicLand, isCardSort } from './cards'
 import { listId, listNeeds, listWeight, type CopiesMode, type CopyPool, type ListKey, type PoolList } from './copies'
+import { sumOf } from './totals'
 import type { CardInfo, InventoryItem } from './types'
 
 /** A list still needing a card. */
@@ -245,7 +246,7 @@ export function planPurchases(
       if (!step) continue
       const cost = queue.unit * step.copies
       if (cost > left + 1e-9) continue
-      const benefit = step.lists.reduce((sum, list) => sum + list.weight * (1 + 1 / Math.max(1, remaining[list.id] ?? 1)), 0)
+      const benefit = sumOf(step.lists, (list) => list.weight * (1 + 1 / Math.max(1, remaining[list.id] ?? 1)))
       const score = benefit / Math.max(cost, 0.01)
       if (score > bestScore) {
         best = queue

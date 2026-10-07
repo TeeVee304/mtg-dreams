@@ -16,6 +16,10 @@ export function isBasicLand(name: string): boolean {
 
 /** Color filter token; `C` = colorless. */
 export type ColorFilter = 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
+/** Color names by letter, WUBRG order, then colorless. */
+export const COLOR_NAMES: Record<ColorFilter, string> = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', C: 'Colorless' }
+/** Color letters, WUBRG order, then colorless. */
+export const COLOR_LETTERS = Object.keys(COLOR_NAMES) as ColorFilter[]
 /**
  * Color match mode against color identity: `any` shares a color, `exact` equals the selection,
  * `within` is a subset of it.

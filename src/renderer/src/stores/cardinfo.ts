@@ -1,7 +1,7 @@
-import { useSyncExternalStore } from 'react'
 import { bundledBasic } from '@shared/basics'
 import { nameKey } from '@shared/decklist'
 import type { CardInfo } from '@shared/types'
+import { createSignal } from '../lib/signal'
 import { getPrintingsEntry } from './printings'
 
 /**
@@ -17,21 +17,8 @@ const infos = new Map<string, CardInfo | null>()
 const inFlight = new Set<string>()
 /** Names awaiting the next flush, by nameKey. */
 const queued = new Map<string, string>()
-const listeners = new Set<() => void>()
-let version = 0
+const changes = createSignal()
 let flushScheduled = false
-
-/** Bumps the version and notifies subscribers. */
-function emit(): void {
-  version += 1
-  for (const listener of listeners) listener()
-}
-
-/** `useSyncExternalStore` subscribe. */
-function subscribe(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
 
 /**
  * Looks up card data from generic basics (if `bundleBasics`), printings entries, then this store.
@@ -72,11 +59,9 @@ async function flush(): Promise<void> {
   } catch {
   } finally {
     for (const [key] of batch) inFlight.delete(key)
-    emit()
+    changes.emit()
   }
 }
 
 /** Hook re-rendering on card data changes. @returns Store version. */
-export function useCardInfoVersion(): number {
-  return useSyncExternalStore(subscribe, () => version)
-}
+export const useCardInfoVersion = changes.useVersion

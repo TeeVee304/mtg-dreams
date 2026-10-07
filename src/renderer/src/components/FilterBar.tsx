@@ -1,15 +1,15 @@
 import type { ReactNode } from 'react'
-import { CARD_TYPES, CURVE_TOP, filtersActive, NO_FILTERS, type CardFilters, type ColorFilter, type ColorMode } from '@shared/cards'
+import {
+  CARD_TYPES,
+  COLOR_LETTERS,
+  COLOR_NAMES,
+  CURVE_TOP,
+  filtersActive,
+  NO_FILTERS,
+  type CardFilters,
+  type ColorMode
+} from '@shared/cards'
 import { MANA_SYMBOLS } from '../lib/artwork'
-
-const COLOR_BUTTONS: Array<{ id: ColorFilter; label: string }> = [
-  { id: 'W', label: 'White' },
-  { id: 'U', label: 'Blue' },
-  { id: 'B', label: 'Black' },
-  { id: 'R', label: 'Red' },
-  { id: 'G', label: 'Green' },
-  { id: 'C', label: 'Colorless' }
-]
 
 const RARITY_BUTTONS = [
   { id: 'common', short: 'C', label: 'Common' },
@@ -57,19 +57,19 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
           onChange={(event) => set({ name: event.target.value })}
         />
         <div className="toggle-group" role="group" aria-label="Colors" title="Colors use color identity, so lands count too">
-          {COLOR_BUTTONS.map((color) => {
-            const on = filters.colors.includes(color.id)
+          {COLOR_LETTERS.map((color) => {
+            const on = filters.colors.includes(color)
             return (
               <button
-                key={color.id}
+                key={color}
                 type="button"
                 className={`mana${on ? ' on' : ''}`}
                 aria-pressed={on}
-                aria-label={color.label}
-                title={color.label}
-                onClick={() => set({ colors: toggle(filters.colors, color.id) })}
+                aria-label={COLOR_NAMES[color]}
+                title={COLOR_NAMES[color]}
+                onClick={() => set({ colors: toggle(filters.colors, color) })}
               >
-                <img src={MANA_SYMBOLS[color.id]} alt="" draggable={false} />
+                <img src={MANA_SYMBOLS[color]} alt="" draggable={false} />
               </button>
             )
           })}

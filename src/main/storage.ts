@@ -2,11 +2,8 @@ import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeF
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { CONFLICT_ERROR, type AppSettings, type ListFile, type LoadedData, type Theme } from '@shared/api'
-import { DEFAULT_SORT, isSortKey } from '@shared/cards'
-import { DEFAULT_COPIES, isCopiesMode } from '@shared/copies'
-import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS, isPriceBasis } from '@shared/pricing'
 import { fileNameProblem } from '@shared/filenames'
-import { DEFAULT_THEME_COLOR, isThemeColor } from '@shared/themes'
+import { validSettings } from '@shared/settings'
 import { TRADE_EXTENSION } from '@shared/trade'
 import type { ListKind } from '@shared/types'
 import { env } from './environment'
@@ -28,19 +25,9 @@ const OLD_APP_FOLDERS = ['MTG Dream', 'MTG Wishlist Tracker']
 const CARRIED_OVER = ['settings.json', 'scryfall-cache.json', 'precons']
 
 /** Raw settings file; values are validated by {@link getAppSettings}. */
-interface Settings {
+interface Settings extends Partial<Record<keyof AppSettings, unknown>> {
   /** Custom data directory. */
   dataDir?: string
-  theme?: Theme
-  color?: string
-  bundleBasics?: boolean
-  copies?: string
-  cardImages?: boolean
-  cardView?: string
-  tradeName?: string
-  sort?: string
-  priceBasis?: string
-  dropAlertPercent?: number
 }
 
 /** Settings file path. */
@@ -120,31 +107,13 @@ export async function setDataDir(dir: string): Promise<void> {
   writeSettings({ dataDir: dir })
 }
 
-/** @returns Stored theme; `system` if unset or invalid. */
-export function getTheme(): Theme {
-  const theme = readSettings().theme
-  return theme === 'light' || theme === 'dark' ? theme : 'system'
-}
-
 /** @returns Validated settings with defaults applied. */
 export function getAppSettings(): AppSettings {
-  const settings = readSettings()
-  return {
-    theme: getTheme(),
-    color: isThemeColor(settings.color) ? settings.color : DEFAULT_THEME_COLOR,
-    bundleBasics: settings.bundleBasics ?? true,
-    copies: isCopiesMode(settings.copies) ? settings.copies : DEFAULT_COPIES,
-    cardImages: settings.cardImages ?? true,
-    cardView: settings.cardView === 'grid' ? 'grid' : 'table',
-    tradeName: settings.tradeName ?? '',
-    sort: isSortKey(settings.sort) ? settings.sort : DEFAULT_SORT,
-    priceBasis: isPriceBasis(settings.priceBasis) ? settings.priceBasis : DEFAULT_PRICE_BASIS,
-    dropAlertPercent:
-      Number.isInteger(settings.dropAlertPercent) && settings.dropAlertPercent! >= 1 && settings.dropAlertPercent! <= 90
-        ? settings.dropAlertPercent!
-        : DEFAULT_DROP_ALERT_PERCENT
-  }
+  return validSettings(readSettings())
 }
+
+/** @returns Stored theme; `system` if unset or invalid. */
+export const getTheme = (): Theme => getAppSettings().theme
 
 /** Persists a validated settings patch. */
 export function updateAppSettings(patch: Partial<AppSettings>): void {

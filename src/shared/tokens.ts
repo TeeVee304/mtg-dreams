@@ -1,3 +1,5 @@
+import { COLOR_NAMES, type ColorFilter } from './cards'
+
 /**
  * Featured tokens: tokens, emblems and game helpers (The Monarch, The Initiative, dungeons) that a
  * list's cards create, from Scryfall's `all_parts` links.
@@ -56,9 +58,6 @@ export interface FeaturedToken {
 /** Display order of kinds. */
 const KIND_ORDER: TokenKind[] = ['token', 'emblem', 'helper']
 
-/** Color names by letter. */
-const COLOR_NAMES: Record<string, string> = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' }
-
 /**
  * Classifies a Scryfall `all_parts` entry. Tokens are `token` parts; emblems and helper cards come
  * as `combo_piece` parts typed `Emblem …`, `Card` or `Dungeon`.
@@ -109,7 +108,7 @@ export function featuredTokens(data: DeckTokenData, names: string[]): FeaturedTo
 export function tokenLabel({ kind, token }: Pick<FeaturedToken, 'kind' | 'token'>): string {
   if (kind === 'emblem') return `${token.name.replace(/\s*Emblem$/i, '')} emblem`
   if (kind === 'helper' || !isCreature(token)) return token.name
-  const colors = token.colors.map((c) => COLOR_NAMES[c]).filter(Boolean)
+  const colors = token.colors.map((c) => COLOR_NAMES[c as ColorFilter]?.toLowerCase()).filter(Boolean)
   const stats = token.power !== undefined && token.toughness !== undefined ? `${token.power}/${token.toughness} ` : ''
   return `${stats}${colors.length > 0 ? `${colors.join(' and ')} ` : 'colorless '}${token.name}`
 }

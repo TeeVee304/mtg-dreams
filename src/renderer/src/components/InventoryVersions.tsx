@@ -1,17 +1,12 @@
 import { useState } from 'react'
-import { resolveLine } from '@shared/pricing'
-import type { InventoryItem, OwnedCopy, Printing } from '@shared/types'
+import { finishFor, resolveLine, singleFinish } from '@shared/pricing'
+import type { InventoryItem, OwnedCopy } from '@shared/types'
 import { cardCount } from '../lib/format'
 import { PickerBody, usePrintingsFor } from './CardEditors'
 import { Icon } from './Icon'
 import { Modal } from './Modal'
 import { Stepper } from './Stepper'
 import { AUTO, VersionPicker } from './VersionPicker'
-
-/** Printing has a foil or etched finish. */
-const hasFoil = (p: Printing) => p.finishes.includes('foil') || p.finishes.includes('etched')
-/** Printing has a non-foil finish. */
-const hasNonfoil = (p: Printing) => p.finishes.includes('nonfoil')
 
 /** @returns Copy label, e.g. `A25 #141`, `Any version`, with `Foil` appended if foil. */
 export function copyLabel(copy: OwnedCopy): string {
@@ -43,8 +38,6 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
   const update = (index: number, patch: Partial<OwnedCopy>) =>
     onChange(item.copies.map((copy, i) => (i === index ? { ...copy, ...patch } : copy)))
 
-  /** @returns `foil` coerced to a finish the printing has. */
-  const finishFor = (printing: Printing, foil: boolean) => (!hasNonfoil(printing) ? true : !hasFoil(printing) ? false : foil)
 
   const choose = (id: string) => {
     if (!picking) return
@@ -112,7 +105,7 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
                     <input
                       type="checkbox"
                       checked={copy.foil}
-                      disabled={!!printing && !(hasFoil(printing) && hasNonfoil(printing))}
+                      disabled={!!printing && singleFinish(printing)}
                       onChange={(event) => update(index, { foil: event.target.checked })}
                     />
                     Foil

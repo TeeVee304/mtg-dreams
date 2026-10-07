@@ -7,6 +7,7 @@ import { listColor } from '@shared/listColor'
 import { heldWhere } from '@shared/listModel'
 import { listPriority, priorityWeight, type ListPriority } from '@shared/listPriority'
 import type { ThemeColor } from '@shared/themes'
+import { sumOf } from '@shared/totals'
 import { featuredTokens, tokenLabel } from '@shared/tokens'
 import type { TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
@@ -22,7 +23,7 @@ import {
 import { useCopyPool } from '../hooks/useCopyPool'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { useStoredValue } from '../hooks/useStoredValue'
-import { cardCount, formatEur, totalCopies } from '../lib/format'
+import { cardCount, formatEur } from '../lib/format'
 import { listRows } from '../lib/summary'
 import { wantedOverview, type WantedOverview } from '../lib/wanted'
 import { getCardInfo, useCardInfoVersion } from '../stores/cardinfo'
@@ -129,7 +130,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   const basics = [...overview.basics].sort((a, b) => b.toBuy - a.toBuy || a.name.localeCompare(b.name))
   /** Lists Most Wanted draws from: decks count with separate copies only. */
   const noLists = (separate ? lists : wishlists).length === 0
-  const toBuy = (cards: WantedCard[]) => totalCopies(cards.map((card) => ({ qty: card.toBuy })))
+  const toBuy = (cards: WantedCard[]) => sumOf(cards, (card) => card.toBuy)
   const tabs = (
     [
       { id: 'cards', label: `Cards · ${toBuy(overview.cards)}` },
@@ -408,8 +409,8 @@ function BudgetPlanner({
   const budget = Number(budgetText)
   const ordered = sortWanted(overview.cards, 'value', overview.unitOf, () => null)
   const plan = open ? planPurchases(ordered, overview.unitOf, budget, overview) : null
-  const needs = plan ? plan.items.reduce((sum, item) => sum + item.lists.length, 0) : 0
-  const copies = plan ? plan.items.reduce((sum, item) => sum + item.copies, 0) : 0
+  const needs = plan ? sumOf(plan.items, (item) => item.lists.length) : 0
+  const copies = plan ? sumOf(plan.items, (item) => item.copies) : 0
 
   return (
     <Collapsible open={open} onToggle={toggle} title="Budget planner" summary="The most list progress for your money">
@@ -503,7 +504,7 @@ function TokensTab({
   const tokens = featuredTokens(data, names)
     .map((entry) => {
       const lists = perList.filter((list) => entry.makers.some((maker) => list.keys.has(nameKey(maker)))).map((list) => ({ kind: 'wishlist' as const, name: list.name }))
-      return { entry, lists, weight: lists.reduce((sum, list) => sum + weightOf(list.name), 0) }
+      return { entry, lists, weight: sumOf(lists, (list) => weightOf(list.name)) }
     })
     .sort((a, b) => b.weight - a.weight || a.entry.token.name.localeCompare(b.entry.token.name))
   if (tokens.length === 0) {

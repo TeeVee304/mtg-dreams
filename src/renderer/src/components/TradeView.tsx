@@ -4,9 +4,10 @@ import { nameKey } from '@shared/decklist'
 import { listColor } from '@shared/listColor'
 import { heldWhere } from '@shared/listModel'
 import { priceBasisLabel } from '@shared/pricing'
+import { sumOf, totalCopies } from '@shared/totals'
 import { keptMatches, matchTrades, type MyTradeSide, type TradeMatch, type TradeSnapshot } from '@shared/trade'
 import type { PriceBasis, Printing } from '@shared/types'
-import { cardCount, formatDate, formatEur, timeAgo, totalCopies } from '../lib/format'
+import { cardCount, formatDate, formatEur, timeAgo } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
@@ -35,7 +36,7 @@ const byValue = (a: PricedMatch, b: PricedMatch) =>
   (b.unit ?? -1) * b.qty - (a.unit ?? -1) * a.qty || a.name.localeCompare(b.name)
 
 /** EUR total of priced matches. */
-const totalOf = (matches: PricedMatch[]) => matches.reduce((sum, m) => sum + (m.unit ?? 0) * m.qty, 0)
+const totalOf = (matches: PricedMatch[]) => sumOf(matches, (m) => (m.unit ?? 0) * m.qty)
 /** Matched copy count label. */
 const matchedCards = (matches: TradeMatch[]) => cardCount(totalCopies(matches))
 

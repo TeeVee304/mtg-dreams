@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { countLines } from '@shared/decklist'
+import { totalCopies } from '@shared/totals'
 import {
   buildSnapshot,
   parseTradeText,
@@ -10,7 +11,7 @@ import {
   type TradeCard,
   type TradeSnapshot
 } from '@shared/trade'
-import { cardCount, cleanError, totalCopies } from '../lib/format'
+import { cardCount, cleanError } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { Modal } from './Modal'

@@ -13,6 +13,7 @@ import { cardLines, nameKey } from '@shared/decklist'
 import { hasVersions } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import type { ThemeColor } from '@shared/themes'
+import { totalCopies } from '@shared/totals'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../stores/cardinfo'
 import { inventoryValue, type ItemValue } from '../lib/collection'
@@ -116,7 +117,7 @@ export function InventoryView(props: InventoryViewProps) {
         : b.qty - a.qty || a.name.localeCompare(b.name)
   )
 
-  const visibleCopies = visible.reduce((sum, item) => sum + item.qty, 0)
+  const visibleCopies = totalCopies(visible)
   const dataLoading = needsCardData(filters) && items.some((item) => item.info === undefined)
 
   const usageChips = (item: InventoryItem, kind: ListKind) => {

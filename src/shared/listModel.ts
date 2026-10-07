@@ -21,6 +21,7 @@ import {
   type LegalityIssue
 } from './formats'
 import { SIDEBOARD_MAX } from './sideboard'
+import { sumOf } from './totals'
 import type { CardInfo, CardLine, ListKind, ListLine, Printing } from './types'
 
 /**
@@ -116,7 +117,7 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
     }
   }
   const issueOf = (row: R) => issues.get(row) ?? null
-  const sideboardCards = rows.filter((row) => row.side).reduce((sum, row) => sum + row.line.qty, 0)
+  const sideboardCards = sumOf(rows, (row) => (row.side ? row.line.qty : 0))
   const shortfallOf = (row: R) => (kind === 'deck' ? Math.max(0, copiesOf(row.line.name) - freeCopies(row)) : 0)
 
   return {
@@ -242,7 +243,7 @@ export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysi
 
 /** @returns Total land copies. */
 export function landCount(rows: ModelRow[]): number {
-  return rows.filter((row) => typeGroup(row.info) === 'Land').reduce((sum, row) => sum + row.line.qty, 0)
+  return sumOf(rows, (row) => (typeGroup(row.info) === 'Land' ? row.line.qty : 0))
 }
 
 /** Copy limits of a card in a list. */

@@ -1,3 +1,4 @@
+import { COLOR_NAMES } from '@shared/cards'
 import { CURVE_TOP, deckStats, STAT_COLORS, type DeckStats as Stats, type StatsRow } from '@shared/deckStats'
 import { MANA_SYMBOLS } from '../lib/artwork'
 import { cardCount } from '../lib/format'
@@ -7,7 +8,6 @@ import { Icon } from './Icon'
 
 /** localStorage key of the panel's open state. */
 const OPEN_KEY = 'mtg-dreams.statsOpen'
-const COLOR_NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' } as const
 
 /** Props of {@link DeckStats}. */
 interface DeckStatsProps {
@@ -127,7 +127,7 @@ const tip = (manaValue: number, creatures: number, others: number) =>
 function ColorBreakdown({ stats }: { stats: Stats }) {
   const bars = [
     ...STAT_COLORS.map((color) => ({ key: color, name: COLOR_NAMES[color], icon: MANA_SYMBOLS[color], count: stats.colors[color] })),
-    { key: 'C', name: 'Colorless', icon: MANA_SYMBOLS.C, count: stats.colorless },
+    { key: 'C', name: COLOR_NAMES.C, icon: MANA_SYMBOLS.C, count: stats.colorless },
     { key: 'M', name: 'Multicolor', icon: null, count: stats.multicolor }
   ].filter((bar) => bar.count > 0)
   return (

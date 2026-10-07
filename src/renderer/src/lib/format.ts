@@ -11,13 +11,6 @@ export function cardCount(n: number): string {
   return `${n} ${n === 1 ? 'card' : 'cards'}`
 }
 
-/** @returns Total copies of `cards`. */
-export function totalCopies(cards: Iterable<{ qty: number }>): number {
-  let total = 0
-  for (const card of cards) total += card.qty
-  return total
-}
-
 /** @returns Local date as `dd-mm-yyyy`, the app's date format. */
 export function formatDate(timestamp: number): string {
   const date = new Date(timestamp)

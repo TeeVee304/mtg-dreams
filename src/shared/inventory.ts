@@ -1,3 +1,4 @@
+import { totalCopies } from './totals'
 import type { InventoryItem, OwnedCopy } from './types'
 
 /**
@@ -43,7 +44,7 @@ export function normalizeCopies(copies: OwnedCopy[]): OwnedCopy[] {
 /** @returns Item from normalized copies; null if total is 0. */
 export function itemFromCopies(name: string, copies: OwnedCopy[]): InventoryItem | null {
   const normalized = normalizeCopies(copies)
-  const qty = normalized.reduce((sum, copy) => sum + copy.qty, 0)
+  const qty = totalCopies(normalized)
   return qty > 0 ? { name, qty, copies: normalized } : null
 }
 

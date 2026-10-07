@@ -1,4 +1,4 @@
-import { newLineId } from './decklist'
+import { listHeader } from './decklist'
 import type { ListLine } from './types'
 
 /** Wishlist priority; weights how much its cards count in Most Wanted. */
@@ -12,21 +12,12 @@ export const PRIORITIES: Array<{ id: ListPriority; label: string; hint: string; 
 ]
 
 /** Priority header line stored in the list file: `// Priority: High` or `// Priority: Low`. */
-const PRIORITY_LINE = /^\/\/\s*priority\s*:\s*(.*?)\s*$/i
-
-/** Text line holding a priority header. */
-const isPriorityLine = (line: ListLine) => line.kind === 'text' && PRIORITY_LINE.test(line.text.trim())
+const PRIORITY = listHeader('Priority')
 
 /** @returns Priority named by the first priority header (case-insensitive); `normal` if none or unknown. */
 export function listPriority(lines: ListLine[]): ListPriority {
-  for (const line of lines) {
-    if (line.kind !== 'text') continue
-    const match = PRIORITY_LINE.exec(line.text.trim())
-    if (!match) continue
-    const value = match[1].toLowerCase()
-    return PRIORITIES.find((option) => option.id === value)?.id ?? 'normal'
-  }
-  return 'normal'
+  const value = PRIORITY.read(lines)?.toLowerCase()
+  return PRIORITIES.find((option) => option.id === value)?.id ?? 'normal'
 }
 
 /** @returns Most Wanted weight of a priority. */
@@ -39,7 +30,6 @@ export function priorityWeight(priority: ListPriority): number {
  * @param priority - `normal` removes the header.
  */
 export function withPriority(lines: ListLine[], priority: ListPriority): ListLine[] {
-  const rest = lines.filter((line) => !isPriorityLine(line))
-  const label = PRIORITIES.find((option) => option.id === priority)?.label
-  return priority !== 'normal' && label ? [{ kind: 'text', id: newLineId(), text: `// Priority: ${label}` }, ...rest] : rest
+  const label = priority === 'normal' ? null : PRIORITIES.find((option) => option.id === priority)?.label
+  return PRIORITY.write(lines, label ?? null)
 }

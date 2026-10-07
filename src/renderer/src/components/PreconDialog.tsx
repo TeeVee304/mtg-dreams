@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { cardImageUrl } from '@shared/images'
 import { preconEntries, type PreconEntry, type PreconOptions } from '@shared/precons'
+import { totalCopies } from '@shared/totals'
 import type { PreconCard, PreconDeck, PreconSummary } from '@shared/types'
 import { cardCount as cards, cleanError, formatIsoDate } from '../lib/format'
 import { useAsyncAction } from '../hooks/useAsyncAction'
@@ -74,7 +75,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
   }, [index, query, type])
 
   const entries = deck ? preconEntries(deck, options) : []
-  const cardCount = entries.reduce((sum, entry) => sum + entry.qty, 0)
+  const cardCount = totalCopies(entries)
 
   const add = () =>
     run(async () => {
@@ -187,7 +188,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
 
 /** Decklist preview grouped by board. */
 function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boolean }) {
-  const total = deck.cards.reduce((sum, card) => sum + card.qty, 0)
+  const total = totalCopies(deck.cards)
   const boards = (Object.keys(BOARD_TITLES) as PreconCard['board'][])
     .map((board) => ({ board, cards: deck.cards.filter((card) => card.board === board) }))
     .filter((group) => group.cards.length > 0)
@@ -201,7 +202,7 @@ function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boole
       {boards.map(({ board, cards }) => (
         <section key={board} className="precon-board">
           <h4>
-            {BOARD_TITLES[board]} ({cards.reduce((sum, card) => sum + card.qty, 0)})
+            {BOARD_TITLES[board]} ({totalCopies(cards)})
           </h4>
           {cards.map((card, i) => (
             <div

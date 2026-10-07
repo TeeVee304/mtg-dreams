@@ -31,14 +31,21 @@ export function pick(prices: Prices, basis: PriceBasis): number | null {
   return prices[basis] ?? prices.trend ?? null
 }
 
+/** Printing has a foil or etched finish. */
+export const hasFoil = (printing: Printing) => printing.finishes.includes('foil') || printing.finishes.includes('etched')
+/** Printing has a non-foil finish. */
+export const hasNonfoil = (printing: Printing) => printing.finishes.includes('nonfoil')
+/** Printing exists in one finish only, which fixes the foil choice. */
+export const singleFinish = (printing: Printing) => !(hasFoil(printing) && hasNonfoil(printing))
+/** @returns `foil` coerced to a finish the printing has. */
+export const finishFor = (printing: Printing, foil: boolean) => (!hasNonfoil(printing) ? true : !hasFoil(printing) ? false : foil)
+
 /**
  * @param foil - Requested finish. Non-foil requests on foil-only printings use the foil price.
  * @returns EUR price; null if unknown.
  */
 export function priceOf(printing: Printing, foil: boolean, basis: PriceBasis): number | null {
-  if (foil) return pick(printing.priceFoil, basis)
-  if (printing.finishes.includes('nonfoil')) return pick(printing.price, basis)
-  return pick(printing.priceFoil, basis)
+  return !foil && hasNonfoil(printing) ? pick(printing.price, basis) : pick(printing.priceFoil, basis)
 }
 
 /** @returns Cheapest priced printing and its price; null if none is priced. */

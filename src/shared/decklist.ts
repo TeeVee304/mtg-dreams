@@ -105,6 +105,45 @@ export function cardLines(lines: ListLine[]): CardLine[] {
   return lines.filter((line): line is CardLine => line.kind === 'card')
 }
 
+/** List setting stored in the list file as a `// Label: value` comment line, from {@link listHeader}. */
+export interface ListHeader {
+  /** Whether the line is this header. */
+  is(line: ListLine): boolean
+  /** @returns Value of the first such header with one; null if none. */
+  read(lines: ListLine[]): string | null
+  /**
+   * Replaces the header.
+   * @param value - Null removes it.
+   * @param at - Index among the other lines to insert it at; first by default.
+   */
+  write(lines: ListLine[], value: string | null, at?: (rest: ListLine[]) => number): ListLine[]
+}
+
+/**
+ * @param label - Name written into the file, e.g. `Format`.
+ * @param pattern - Regex source matching the names read back (case-insensitive); `label` by default.
+ */
+export function listHeader(label: string, pattern = label): ListHeader {
+  const re = new RegExp(`^//\\s*${pattern}\\s*:\\s*(.*?)\\s*$`, 'i')
+  const is = (line: ListLine) => line.kind === 'text' && re.test(line.text.trim())
+  return {
+    is,
+    read(lines) {
+      for (const line of lines) {
+        const value = line.kind === 'text' ? re.exec(line.text.trim())?.[1] : undefined
+        if (value) return value
+      }
+      return null
+    },
+    write(lines, value, at = () => 0) {
+      const rest = lines.filter((line) => !is(line))
+      if (!value) return rest
+      const index = at(rest)
+      return [...rest.slice(0, index), { kind: 'text', id: newLineId(), text: `// ${label}: ${value}` }, ...rest.slice(index)]
+    }
+  }
+}
+
 /** Known section header words (Arena, Moxfield, Goldfish), lower-case, without trailing colon. */
 const SECTION_HEADERS = new Set([
   'deck', 'main', 'mainboard', 'maindeck', 'sideboard', 'side', 'commander', 'companion', 'maybeboard', 'about'

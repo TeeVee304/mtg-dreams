@@ -43,11 +43,6 @@ const BOARDS: Array<[string, PreconCard['board']]> = [
   ['schemes', 'other']
 ]
 
-/** Reads a file under `precons/` in the cache. */
-const readCache = <T>(file: string) => readCacheFile<T>(`precons/${file}`)
-/** Writes a file under `precons/` in the cache. */
-const writeCache = (file: string, data: unknown) => writeCacheFile(`precons/${file}`, data)
-
 /** @throws Error on HTTP error status or non-JSON body. */
 async function getJson(url: string): Promise<any> {
   const res = await fetchJson(url, 'MTGJSON')
@@ -61,32 +56,47 @@ interface Cached<T> {
   data: T
 }
 
-/** In-memory deck index cache. */
-let index: Cached<PreconSummary[]> | null = null
+/** Cache files read or written this session, by name. */
+const memory = new Map<string, Cached<unknown>>()
 
-/** @returns Paper precons, newest first. Cached for {@link INDEX_TTL_MS}. */
-export async function getPreconIndex(): Promise<PreconSummary[]> {
-  index ??= await readCache<Cached<PreconSummary[]>>('index.json')
-  if (index && Date.now() - index.fetchedAt < INDEX_TTL_MS) return index.data
+/**
+ * Serves a file under `precons/` in the cache while younger than `ttl`; otherwise fetches and caches
+ * the data, serving the stale copy if the fetch fails.
+ * @throws The fetch error when nothing is cached.
+ */
+async function cached<T>(file: string, ttl: number, fetch: () => Promise<T>): Promise<T> {
+  const path = `precons/${file}`
+  const copy = (memory.get(path) as Cached<T> | undefined) ?? (await readCacheFile<Cached<T>>(path))
+  if (copy) memory.set(path, copy)
+  if (copy && Date.now() - copy.fetchedAt < ttl) return copy.data
   try {
-    const body = await getJson(`${env().mtgjsonApi}/DeckList.json`)
-    const decks: PreconSummary[] = (body.data as any[])
-      .filter((deck) => !DIGITAL_TYPES.has(deck.type) && FILE_NAME_RE.test(deck.fileName))
-      .map((deck) => ({
-        fileName: deck.fileName,
-        name: deck.name,
-        code: deck.code,
-        type: deck.type,
-        releaseDate: deck.releaseDate ?? ''
-      }))
-      .sort((a, b) => b.releaseDate.localeCompare(a.releaseDate) || a.name.localeCompare(b.name))
-    index = { fetchedAt: Date.now(), data: decks }
-    void writeCache('index.json', index)
-    return decks
+    const fresh: Cached<T> = { fetchedAt: Date.now(), data: await fetch() }
+    memory.set(path, fresh)
+    void writeCacheFile(path, fresh)
+    return fresh.data
   } catch (error) {
-    if (index) return index.data
+    if (copy) return copy.data
     throw error
   }
+}
+
+/** @returns Paper precons, newest first. Cached for {@link INDEX_TTL_MS}. */
+export function getPreconIndex(): Promise<PreconSummary[]> {
+  return cached('index.json', INDEX_TTL_MS, async () => {
+    const body = await getJson(`${env().mtgjsonApi}/DeckList.json`)
+    return (body.data as any[])
+      .filter((deck) => !DIGITAL_TYPES.has(deck.type) && FILE_NAME_RE.test(deck.fileName))
+      .map(
+        (deck): PreconSummary => ({
+          fileName: deck.fileName,
+          name: deck.name,
+          code: deck.code,
+          type: deck.type,
+          releaseDate: deck.releaseDate ?? ''
+        })
+      )
+      .sort((a, b) => b.releaseDate.localeCompare(a.releaseDate) || a.name.localeCompare(b.name))
+  })
 }
 
 /** Maps an MTGJSON card; null for non-front faces of multi-faced cards. */
@@ -111,26 +121,17 @@ function toCard(card: any, board: PreconCard['board']): PreconCard | null {
  */
 export async function getPrecon(fileName: string): Promise<PreconDeck> {
   if (!FILE_NAME_RE.test(fileName)) throw new Error('Invalid deck name.')
-  const cacheFile = `deck-v${DECK_CACHE_VERSION}-${fileName}.json`
-  const cached = await readCache<Cached<PreconDeck>>(cacheFile)
-  if (cached && Date.now() - cached.fetchedAt < DECK_TTL_MS) return cached.data
-  try {
+  return cached(`deck-v${DECK_CACHE_VERSION}-${fileName}.json`, DECK_TTL_MS, async (): Promise<PreconDeck> => {
     const { data } = await getJson(`${env().mtgjsonApi}/decks/${fileName}.json`)
-    const cards = BOARDS.flatMap(([key, board]) =>
-      ((data[key] ?? []) as any[]).map((card) => toCard(card, board)).filter((card): card is PreconCard => card !== null)
-    )
-    const deck: PreconDeck = {
+    return {
       fileName,
       name: data.name,
       code: data.code,
       type: data.type,
       releaseDate: data.releaseDate ?? '',
-      cards
+      cards: BOARDS.flatMap(([key, board]) =>
+        ((data[key] ?? []) as any[]).map((card) => toCard(card, board)).filter((card): card is PreconCard => card !== null)
+      )
     }
-    void writeCache(cacheFile, { fetchedAt: Date.now(), data: deck } satisfies Cached<PreconDeck>)
-    return deck
-  } catch (error) {
-    if (cached) return cached.data
-    throw error
-  }
+  })
 }

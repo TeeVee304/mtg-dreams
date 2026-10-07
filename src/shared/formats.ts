@@ -1,5 +1,5 @@
 import { frontTypeWords, isBasicLand } from './cards'
-import { cardLines, nameKey, newLineId } from './decklist'
+import { cardLines, listHeader, nameKey } from './decklist'
 import type { CardInfo, ListLine, Printing } from './types'
 
 /** Constructed format definition. */
@@ -59,21 +59,16 @@ export function findFormat(id: string | null | undefined): DeckFormat | null {
 }
 
 /** Format header line stored in the list file: `// Format: <label or id>`. */
-const FORMAT_LINE = /^\/\/\s*format\s*:\s*(.*?)\s*$/i
+const FORMAT = listHeader('Format')
 /** Lower-case, whitespace-stripped comparison form. */
 const squash = (text: string) => text.toLowerCase().replace(/\s+/g, '')
 
 /** @returns Format named by the first format header (matched by id or label); null if none or unknown. */
 export function listFormat(lines: ListLine[]): DeckFormat | null {
-  for (const line of lines) {
-    if (line.kind !== 'text') continue
-    const match = FORMAT_LINE.exec(line.text.trim())
-    if (match) {
-      const value = squash(match[1])
-      return FORMATS.find((format) => format.id === value || squash(format.label) === value) ?? null
-    }
-  }
-  return null
+  const value = FORMAT.read(lines)
+  if (value === null) return null
+  const key = squash(value)
+  return FORMATS.find((format) => format.id === key || squash(format.label) === key) ?? null
 }
 
 /**
@@ -82,28 +77,23 @@ export function listFormat(lines: ListLine[]): DeckFormat | null {
  * @returns New lines; the commander header is removed unless the format is a commander format.
  */
 export function withFormat(lines: ListLine[], formatId: string | null): ListLine[] {
-  const rest = lines.filter((line) => !(line.kind === 'text' && FORMAT_LINE.test(line.text.trim())))
   const format = findFormat(formatId)
-  const kept = format?.commander ? rest : withCommander(rest, null)
-  return format ? [{ kind: 'text', id: newLineId(), text: `// Format: ${format.label}` }, ...kept] : kept
+  return FORMAT.write(format?.commander ? lines : withCommander(lines, null), format?.label ?? null)
 }
 
 /** Commander header line: `// Commander: <name>`. */
-const COMMANDER_LINE = /^\/\/\s*commander\s*:\s*(.*?)\s*$/i
+const COMMANDER = listHeader('Commander')
 /** Arena/Moxfield `Commander` section heading; the following card line is the commander. */
 const COMMANDER_HEADING = /^(?:\/\/\s*)?commander\s*:?$/i
 
-/** Text line whose trimmed text matches `re`. */
-const isText = (line: ListLine, re: RegExp) => line.kind === 'text' && re.test(line.text.trim())
+/** Text line whose trimmed text is a `Commander` heading. */
+const isHeading = (line: ListLine) => line.kind === 'text' && COMMANDER_HEADING.test(line.text.trim())
 
 /** @returns Commander name from the commander header, else the card after a `Commander` heading; null if none. */
 export function listCommander(lines: ListLine[]): string | null {
-  for (const line of lines) {
-    if (line.kind !== 'text') continue
-    const match = COMMANDER_LINE.exec(line.text.trim())
-    if (match?.[1]) return match[1]
-  }
-  const heading = lines.findIndex((line) => isText(line, COMMANDER_HEADING))
+  const named = COMMANDER.read(lines)
+  if (named) return named
+  const heading = lines.findIndex(isHeading)
   if (heading < 0) return null
   const next = lines.slice(heading + 1).find((line) => line.kind === 'card' || line.text.trim() !== '')
   return next?.kind === 'card' ? next.name : null
@@ -114,10 +104,8 @@ export function listCommander(lines: ListLine[]): string | null {
  * @param name - Commander name; null removes it.
  */
 export function withCommander(lines: ListLine[], name: string | null): ListLine[] {
-  const rest = lines.filter((line) => !isText(line, COMMANDER_LINE) && !isText(line, COMMANDER_HEADING))
-  if (!name) return rest
-  const at = rest.findIndex((line) => isText(line, FORMAT_LINE)) + 1
-  return [...rest.slice(0, at), { kind: 'text', id: newLineId(), text: `// Commander: ${name}` }, ...rest.slice(at)]
+  const afterFormat = (rest: ListLine[]) => rest.findIndex(FORMAT.is) + 1
+  return COMMANDER.write(lines.filter((line) => !isHeading(line)), name, afterFormat)
 }
 
 /** @returns Lines without the commander header if no card line matches the commander. */

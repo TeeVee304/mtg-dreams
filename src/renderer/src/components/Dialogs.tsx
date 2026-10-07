@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { cardLines, parseInventory, parseList, unrecognizedLines } from '@shared/decklist'
+import { totalCopies } from '@shared/totals'
 import type { ListKind } from '@shared/types'
 import { cardCount } from '../lib/format'
 import { useAsyncAction } from '../hooks/useAsyncAction'
@@ -140,7 +141,7 @@ function ParseStats({ text, mode }: { text: string; mode: 'list' | 'inventory' }
     const lines = parseList(text)
     const cards = cardLines(lines)
     return {
-      cards: cards.reduce((sum, card) => sum + card.qty, 0),
+      cards: totalCopies(cards),
       unique: mode === 'inventory' ? parseInventory(text).size : cards.length,
       unrecognized: unrecognizedLines(lines)
     }

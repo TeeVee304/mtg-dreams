@@ -1,11 +1,9 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell, type IpcMainInvokeEvent } from 'electron'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
-import type { AppSettings, PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '@shared/api'
-import { isSortKey } from '@shared/cards'
-import { isCopiesMode } from '@shared/copies'
+import type { PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '@shared/api'
 import { isPriceBasis } from '@shared/pricing'
-import { isThemeColor } from '@shared/themes'
+import { settingsPatch } from '@shared/settings'
 import { TRADE_EXTENSION } from '@shared/trade'
 import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
@@ -43,15 +41,20 @@ export function openExternalSafe(raw: string): void {
 }
 
 /**
- * Validates an array of safe integers from the renderer.
- * @throws Error if invalid or longer than `max`.
+ * Validates an array from the renderer.
+ * @throws Error if not an array, longer than `max`, or with an item failing `valid`.
  */
-function numbers(value: unknown, what: string, max = 50_000): number[] {
-  if (!Array.isArray(value) || value.length > max || !value.every((n) => Number.isSafeInteger(n))) {
-    throw new Error(`Invalid ${what}.`)
-  }
-  return value as number[]
+function arrayOf<T>(value: unknown, valid: (item: unknown) => boolean, what: string, max: number): T[] {
+  if (!Array.isArray(value) || value.length > max || !value.every((item) => valid(item))) throw new Error(`Invalid ${what}.`)
+  return value as T[]
 }
+
+/** Validates an array of safe integers from the renderer. @throws Error if invalid or longer than `max`. */
+const numbers = (value: unknown, what: string, max = 50_000) => arrayOf<number>(value, Number.isSafeInteger, what, max)
+
+/** Validates card names from the renderer. @throws Error if invalid, more than `max`, or one is longer than `maxLength`. */
+const cardNames = (value: unknown, max: number, maxLength = Infinity) =>
+  arrayOf<string>(value, (name) => typeof name === 'string' && name.length <= maxLength, 'card names', max)
 
 /**
  * Validates baselines from the renderer; drops malformed entries and non-positive prices.
@@ -76,6 +79,18 @@ function baselines(value: unknown): Record<string, PriceBaseline> {
 function text(value: unknown, what: string): string {
   if (typeof value !== 'string') throw new Error(`Invalid ${what}.`)
   return value
+}
+
+/** Shows an open dialog over the window that asked. */
+function showOpenDialog(event: IpcMainInvokeEvent, options: Electron.OpenDialogOptions) {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  return window ? dialog.showOpenDialog(window, options) : dialog.showOpenDialog(options)
+}
+
+/** Shows a save dialog over the window that asked. */
+function showSaveDialog(event: IpcMainInvokeEvent, options: Electron.SaveDialogOptions) {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  return window ? dialog.showSaveDialog(window, options) : dialog.showSaveDialog(options)
 }
 
 /** Sends `prices:updated` to all windows. */
@@ -110,8 +125,7 @@ export function registerIpc(): void {
   )
   ipcMain.handle('trade:delete', (_e, name: unknown) => storage.deleteTrade(storage.validateListName(name)))
   ipcMain.handle('trade:open', async (event) => {
-    const window = BrowserWindow.fromWebContents(event.sender)
-    const options: Electron.OpenDialogOptions = {
+    const result = await showOpenDialog(event, {
       title: 'Import a trade list',
       defaultPath: app.getPath('downloads'),
       properties: ['openFile'],
@@ -119,83 +133,36 @@ export function registerIpc(): void {
         { name: 'Trade lists and collection exports', extensions: [TRADE_EXTENSION, 'txt', 'csv'] },
         { name: 'All files', extensions: ['*'] }
       ]
-    }
-    const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+    })
     if (result.canceled || result.filePaths.length === 0) return null
     const path = result.filePaths[0]
     if ((await stat(path)).size > MAX_TRADE_FILE_BYTES) throw new Error('That file is too big to be a trade list.')
     return { fileName: basename(path, extname(path)), text: await readFile(path, 'utf8') }
   })
   ipcMain.handle('trade:saveAs', async (event, name: unknown, body: unknown) => {
-    const window = BrowserWindow.fromWebContents(event.sender)
-    const options: Electron.SaveDialogOptions = {
+    const result = await showSaveDialog(event, {
       title: 'Save my trade list',
       defaultPath: join(app.getPath('documents'), `${storage.validateListName(name)}.${TRADE_EXTENSION}`),
       filters: [{ name: 'MTG Dreams trade list', extensions: [TRADE_EXTENSION] }]
-    }
-    const result = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
+    })
     if (result.canceled || !result.filePath) return null
     await writeFile(result.filePath, text(body, 'trade list'), 'utf8')
     return result.filePath
   })
 
   ipcMain.handle('data:chooseDir', async (event) => {
-    const window = BrowserWindow.fromWebContents(event.sender)
-    const options: Electron.OpenDialogOptions = {
+    const result = await showOpenDialog(event, {
       title: 'Choose data folder',
       defaultPath: storage.dataDir(),
       properties: ['openDirectory', 'createDirectory']
-    }
-    const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+    })
     if (result.canceled || result.filePaths.length === 0) return null
     await storage.setDataDir(result.filePaths[0])
     return result.filePaths[0]
   })
   ipcMain.handle('settings:get', () => storage.getAppSettings())
   ipcMain.handle('settings:update', (event, raw: unknown) => {
-    const patch: Partial<AppSettings> = {}
-    const input = (raw ?? {}) as Record<string, unknown>
-    if ('theme' in input) {
-      if (input.theme !== 'system' && input.theme !== 'light' && input.theme !== 'dark') throw new Error('Invalid theme.')
-      patch.theme = input.theme as Theme
-    }
-    if ('color' in input) {
-      if (!isThemeColor(input.color)) throw new Error('Invalid color.')
-      patch.color = input.color
-    }
-    if ('cardImages' in input) {
-      if (typeof input.cardImages !== 'boolean') throw new Error('Invalid setting.')
-      patch.cardImages = input.cardImages
-    }
-    if ('cardView' in input) {
-      if (input.cardView !== 'table' && input.cardView !== 'grid') throw new Error('Invalid view.')
-      patch.cardView = input.cardView
-    }
-    if ('bundleBasics' in input) {
-      if (typeof input.bundleBasics !== 'boolean') throw new Error('Invalid setting.')
-      patch.bundleBasics = input.bundleBasics
-    }
-    if ('copies' in input) {
-      if (!isCopiesMode(input.copies)) throw new Error('Invalid setting.')
-      patch.copies = input.copies
-    }
-    if ('tradeName' in input) {
-      if (typeof input.tradeName !== 'string' || input.tradeName.length > 100) throw new Error('Invalid name.')
-      patch.tradeName = input.tradeName.trim()
-    }
-    if ('priceBasis' in input) {
-      if (!isPriceBasis(input.priceBasis)) throw new Error('Invalid price basis.')
-      patch.priceBasis = input.priceBasis
-    }
-    if ('dropAlertPercent' in input) {
-      const percent = input.dropAlertPercent
-      if (typeof percent !== 'number' || !Number.isInteger(percent) || percent < 1 || percent > 90) throw new Error('Invalid alert threshold.')
-      patch.dropAlertPercent = percent
-    }
-    if ('sort' in input) {
-      if (!isSortKey(input.sort)) throw new Error('Invalid sort.')
-      patch.sort = input.sort
-    }
+    const patch = settingsPatch(raw)
     storage.updateAppSettings(patch)
     if (patch.theme) {
       applyTheme(patch.theme)
@@ -231,34 +198,18 @@ export function registerIpc(): void {
     return priceGuideDate()
   })
 
-  ipcMain.handle('scryfall:images', (_e, names: unknown) => {
-    if (!Array.isArray(names) || names.length > 75 || !names.every((n) => typeof n === 'string')) {
-      throw new Error('Invalid card names.')
-    }
-    return getCardImages(names)
-  })
-  ipcMain.handle('scryfall:cardInfos', (_e, names: unknown) => {
-    if (!Array.isArray(names) || names.length > 20_000 || !names.every((n) => typeof n === 'string')) {
-      throw new Error('Invalid card names.')
-    }
-    return getCardInfos(names)
-  })
+  ipcMain.handle('scryfall:images', (_e, names: unknown) => getCardImages(cardNames(names, 75)))
+  ipcMain.handle('scryfall:cardInfos', (_e, names: unknown) => getCardInfos(cardNames(names, 20_000)))
 
   ipcMain.handle('history:track', (_e, ids: unknown) => trackPrices(numbers(ids, 'product numbers')))
   ipcMain.handle('history:pricesAt', (_e, ids: unknown, at: unknown) =>
     pricesAt(numbers(ids, 'product numbers'), numbers(at, 'dates', 10))
   )
   ipcMain.handle('history:baselines', () => getBaselines())
-  ipcMain.handle('history:updateBaselines', (_e, set: unknown, remove: unknown) => {
-    if (!Array.isArray(remove) || !remove.every((key) => typeof key === 'string')) throw new Error('Invalid baselines.')
-    return updateBaselines(baselines(set), remove)
-  })
-  ipcMain.handle('tokens:deck', (_e, names: unknown) => {
-    if (!Array.isArray(names) || names.length > 3000 || !names.every((n) => typeof n === 'string' && n.length <= 200)) {
-      throw new Error('Invalid card names.')
-    }
-    return getDeckTokens(names)
-  })
+  ipcMain.handle('history:updateBaselines', (_e, set: unknown, remove: unknown) =>
+    updateBaselines(baselines(set), arrayOf<string>(remove, (key) => typeof key === 'string', 'baselines', Infinity))
+  )
+  ipcMain.handle('tokens:deck', (_e, names: unknown) => getDeckTokens(cardNames(names, 3000, 200)))
   ipcMain.handle('precons:index', () => getPreconIndex())
   ipcMain.handle('precons:deck', (_e, fileName: unknown) => getPrecon(text(fileName, 'deck')))
 
