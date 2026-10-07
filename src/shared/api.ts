@@ -169,10 +169,10 @@ export interface TrackerApi {
   /** Adds Cardmarket product ids to the daily price history. */
   trackPrices(ids: number[]): Promise<void>
   /**
-   * @param at - Epoch ms timestamps.
-   * @returns Newest snapshot and the snapshot in force at each `at`; null without history.
+   * @param ago - Ms before the newest snapshot.
+   * @returns Newest snapshot and the snapshot in force `ago` before it; null without history.
    */
-  pricesAt(ids: number[], at: number[]): Promise<{ latest: PriceSnapshot; then: PriceSnapshot[] } | null>
+  pricesAt(ids: number[], ago: number[]): Promise<{ latest: PriceSnapshot; then: PriceSnapshot[] } | null>
   /** @returns Wishlist baselines keyed by line key. */
   getBaselines(): Promise<Record<string, PriceBaseline>>
   /**

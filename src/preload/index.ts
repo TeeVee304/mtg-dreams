@@ -30,7 +30,7 @@ const api: TrackerApi = {
     return () => ipcRenderer.removeListener('prices:updated', listener)
   },
   trackPrices: (ids) => ipcRenderer.invoke('history:track', ids),
-  pricesAt: (ids, at) => ipcRenderer.invoke('history:pricesAt', ids, at),
+  pricesAt: (ids, ago) => ipcRenderer.invoke('history:pricesAt', ids, ago),
   getBaselines: () => ipcRenderer.invoke('history:baselines'),
   updateBaselines: (set, remove) => ipcRenderer.invoke('history:updateBaselines', set, remove),
   getDeckTokens: (names) => ipcRenderer.invoke('tokens:deck', names),

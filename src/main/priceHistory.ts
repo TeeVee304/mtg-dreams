@@ -99,12 +99,14 @@ export async function trackPrices(ids: number[]): Promise<void> {
 }
 
 /**
+ * Periods are measured back from the newest snapshot, not the clock, so a stale guide still
+ * compares across full periods.
  * @param ids - Product ids to include.
- * @param at - Epoch ms timestamps.
- * @returns Newest snapshot and, per `at`, the newest snapshot not after it (oldest if none),
- * filtered to `ids`; null without history.
+ * @param ago - Ms before the newest snapshot.
+ * @returns Newest snapshot and, per `ago`, the newest snapshot not after that moment (oldest if
+ * none), filtered to `ids`; null without history.
  */
-export async function pricesAt(ids: number[], at: number[]): Promise<{ latest: PriceSnapshot; then: PriceSnapshot[] } | null> {
+export async function pricesAt(ids: number[], ago: number[]): Promise<{ latest: PriceSnapshot; then: PriceSnapshot[] } | null> {
   const { days } = await load()
   if (days.length === 0) return null
   const pick = (day: PriceSnapshot): PriceSnapshot => {
@@ -112,8 +114,9 @@ export async function pricesAt(ids: number[], at: number[]): Promise<{ latest: P
     for (const id of ids) if (day.prices[id]) prices[id] = day.prices[id]
     return { date: day.date, prices }
   }
-  const then = at.map((moment) => pick([...days].reverse().find((day) => day.date <= moment) ?? days[0]))
-  return { latest: pick(days[days.length - 1]), then }
+  const latest = days[days.length - 1]
+  const then = ago.map((span) => pick([...days].reverse().find((day) => day.date <= latest.date - span) ?? days[0]))
+  return { latest: pick(latest), then }
 }
 
 /** @returns Copy of all wishlist baselines. */

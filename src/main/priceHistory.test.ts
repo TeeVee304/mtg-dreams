@@ -33,11 +33,11 @@ describe('price history', () => {
     expect(result?.latest).toEqual({ date: DAY, prices: { 1: [10, 20], 2: [1, 0] } })
   })
 
-  it('finds the snapshot in force at a moment, or the oldest when the history is shorter', async () => {
+  it('finds the snapshot in force a period before the newest, or the oldest when the history is shorter', async () => {
     const { history } = await setup()
     await history.trackPrices([1])
     for (const [day, price] of [[1, 10], [2, 11], [5, 15]]) await history.recordPrices(day * DAY, () => [price, 0])
-    const result = await history.pricesAt([1], [4 * DAY, 2 * DAY, 0])
+    const result = await history.pricesAt([1], [DAY, 3 * DAY, 5 * DAY])
     expect(result?.latest.prices[1]).toEqual([15, 0])
     expect(result?.then.map((snapshot) => snapshot.date)).toEqual([2 * DAY, 2 * DAY, DAY])
   })

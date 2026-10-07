@@ -16,7 +16,7 @@ type Range = (typeof RANGES)[number]['id']
 /** Top risers and fallers shown. */
 const MOVERS = 3
 
-/** Latest snapshot and those in force a week and a month ago. */
+/** Latest snapshot and those in force a week and a month before it. */
 interface Snapshots {
   latest: PriceSnapshot
   week: PriceSnapshot
@@ -38,9 +38,8 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
   useEffect(() => {
     if (!ready || !idsKey) return
     let live = true
-    const now = Date.now()
     window.api
-      .pricesAt(idsKey.split(',').map(Number), [now - 7 * DAY, now - 30 * DAY])
+      .pricesAt(idsKey.split(',').map(Number), [7 * DAY, 30 * DAY])
       .then((result) => {
         if (live) setSnapshots(result ? { latest: result.latest, week: result.then[0], month: result.then[1] } : 'none')
       })

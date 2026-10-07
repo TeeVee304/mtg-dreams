@@ -206,8 +206,8 @@ export function registerIpc(): void {
   ipcMain.handle('scryfall:cardInfos', (_e, names: unknown) => getCardInfos(cardNames(names, 20_000)))
 
   ipcMain.handle('history:track', (_e, ids: unknown) => trackPrices(numbers(ids, 'product numbers')))
-  ipcMain.handle('history:pricesAt', (_e, ids: unknown, at: unknown) =>
-    pricesAt(numbers(ids, 'product numbers'), numbers(at, 'dates', 10))
+  ipcMain.handle('history:pricesAt', (_e, ids: unknown, ago: unknown) =>
+    pricesAt(numbers(ids, 'product numbers'), numbers(ago, 'periods', 10))
   )
   ipcMain.handle('history:baselines', () => getBaselines())
   ipcMain.handle('history:updateBaselines', (_e, set: unknown, remove: unknown) =>
