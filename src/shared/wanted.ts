@@ -9,7 +9,7 @@
  */
 
 import { compareCards, isBasicLand, isCardSort } from './cards'
-import { listId, listNeeds, listWeight, type CopiesMode, type ListKey, type PoolList } from './copies'
+import { listId, listNeeds, listWeight, type CopiesMode, type CopyPool, type ListKey, type PoolList } from './copies'
 import type { CardInfo, InventoryItem } from './types'
 
 /** A list still needing a card. */
@@ -61,9 +61,15 @@ export type UnitPrice = number | null | undefined
 /**
  * Collects the cards lists still miss ({@link listNeeds}): wishlists, and with separate copies decks
  * too (allocated first, so their gaps absorb purchases before wishlists).
+ * @param pool - Copy claims of `lists` in `mode`, if already built.
  */
-export function mostWanted(lists: PoolList[], inventory: Map<string, InventoryItem>, mode: CopiesMode): MostWanted {
-  const needs = listNeeds(lists, inventory, mode)
+export function mostWanted(
+  lists: PoolList[],
+  inventory: Map<string, InventoryItem>,
+  mode: CopiesMode,
+  pool?: CopyPool
+): MostWanted {
+  const needs = listNeeds(lists, inventory, mode, pool)
   const missing: Record<string, number> = {}
   for (const { list, needs: cards } of needs) missing[listId(list)] = cards.filter((need) => !isBasicLand(need.name)).length
 

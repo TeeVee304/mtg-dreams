@@ -2,6 +2,7 @@ import { CURVE_TOP, deckStats, STAT_COLORS, type DeckStats as Stats, type StatsR
 import { MANA_SYMBOLS } from '../lib/artwork'
 import { cardCount } from '../lib/format'
 import { useStoredToggle } from '../hooks/useStoredToggle'
+import { Collapsible } from './Collapsible'
 import { Icon } from './Icon'
 
 /** localStorage key of the panel's open state. */
@@ -28,26 +29,28 @@ export function DeckStats({ rows, manaValue, onManaValue }: DeckStatsProps) {
   const stats = deckStats(rows)
 
   return (
-    <section className={`deck-stats${open ? ' open' : ''}`}>
-      <button type="button" className="deck-stats-toggle" aria-expanded={open} onClick={toggle}>
-        <span className="deck-stats-chevron" aria-hidden="true">
-          ›
-        </span>
+    <Collapsible
+      open={open}
+      onToggle={toggle}
+      title={
         <span className="nav-icon-name">
           Statistics <Icon name="chart" />
         </span>
-        <span className="muted small">
+      }
+      summary={
+        <>
           {`${counted(stats.spells, 'card')} + ${counted(stats.lands, 'land')}`}
           {stats.pending > 0 && ` · ${cardCount(stats.pending)} loading`}
-        </span>
-      </button>
-      {open && stats.spells > 0 && (
+        </>
+      }
+    >
+      {stats.spells > 0 && (
         <div className="deck-stats-body">
           <ManaCurve stats={stats} selected={manaValue} onSelect={onManaValue} />
           <ColorBreakdown stats={stats} />
         </div>
       )}
-    </section>
+    </Collapsible>
   )
 }
 
@@ -85,7 +88,7 @@ function ManaCurve({ stats, selected, onSelect }: { stats: Stats; selected: numb
                 {column.others > 0 && <span className="curve-part others" style={{ flexGrow: column.others }} />}
                 {column.creatures > 0 && <span className="curve-part creatures" style={{ flexGrow: column.creatures }} />}
               </span>
-              <span className="chart-tip" role="tooltip">
+              <span className="tip" role="tooltip">
                 Mana Value <ManaCost manaValue={column.manaValue} />
                 <br />
                 <span className="muted">{on ? 'Click to show every card' : 'Click to show'}</span>
@@ -133,7 +136,7 @@ function ColorBreakdown({ stats }: { stats: Stats }) {
         Color distribution
         <span className="info-tip" tabIndex={0} aria-label="Multicolored cards count toward each of their colors">
           <Icon name="info" />
-          <span className="chart-tip" role="tooltip">
+          <span className="tip" role="tooltip">
             Multicolored cards count toward each of their colors
           </span>
         </span>

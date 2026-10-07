@@ -4,6 +4,7 @@ import type { Printing } from '@shared/types'
 import { formatEur } from '../lib/format'
 import type { NewCard } from '../stores/library'
 import type { Row } from '../lib/summary'
+import { CardmarketButton } from './CardCells'
 import { PickerBody, usePrintingsFor } from './CardEditors'
 import { Icon } from './Icon'
 import { Modal } from './Modal'
@@ -192,11 +193,7 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
                 <Icon name="crown" /> Make commander
               </button>
             )}
-            {printing?.cardmarketUrl && (
-              <button type="button" onClick={() => window.api.openExternal(printing.cardmarketUrl!)}>
-                Open on Cardmarket <Icon name="external" />
-              </button>
-            )}
+            {printing?.cardmarketUrl && <CardmarketButton url={printing.cardmarketUrl} labeled />}
           </div>
           {info && (
             <details className="legality-more">

@@ -106,6 +106,19 @@ export interface LibraryCallbacks {
   onUndoable: (label: string, undo: () => UndoResult) => void
 }
 
+/** Serialized text per inventory map; a committed map is replaced on change, never modified. */
+const inventoryTexts = new WeakMap<Map<string, InventoryItem>, string>()
+
+/** @returns {@link serializeInventory} of `inventory`, computed once per map. */
+export function inventoryText(inventory: Map<string, InventoryItem>): string {
+  let text = inventoryTexts.get(inventory)
+  if (text === undefined) {
+    text = serializeInventory(inventory)
+    inventoryTexts.set(inventory, text)
+  }
+  return text
+}
+
 /** Case-insensitive name comparator. */
 const byName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
@@ -198,7 +211,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
 
   /** @returns Current serialized text of the target; null if the list no longer exists. */
   const currentText = useCallback((target: ChangeTarget): string | null => {
-    if (target.type === 'inventory') return serializeInventory(ref.current.inventory)
+    if (target.type === 'inventory') return inventoryText(ref.current.inventory)
     return ref.current.lists.find((list) => sameList(list, target.list))?.text ?? null
   }, [])
 
@@ -255,7 +268,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         })
         if (lists.length !== previous.lists.length) changed = true
         let inventory = parseInventory(data.inventory)
-        if (serializeInventory(inventory) === serializeInventory(previous.inventory)) inventory = previous.inventory
+        if (inventoryText(inventory) === inventoryText(previous.inventory)) inventory = previous.inventory
         else changed = true
         let trades = toTrades(data.trades)
         if (JSON.stringify(trades) === JSON.stringify(previous.trades)) trades = previous.trades
@@ -300,8 +313,8 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
   const saveInventory = useCallback(
     (inventory: Map<string, InventoryItem>, change?: Change) => {
       const before = ref.current.inventory
-      const text = serializeInventory(inventory)
-      if (text === serializeInventory(before)) return
+      const text = inventoryText(inventory)
+      if (text === inventoryText(before)) return
       commit({ ...ref.current, inventory })
       if (change) record({ type: 'inventory' }, before, text, change)
       track(window.api.writeInventory(text), { type: 'inventory' })

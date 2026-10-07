@@ -1,11 +1,15 @@
 import { bundleBasicLines, genericBasic } from '@shared/basics'
-import { allocateOwned, nameKey } from '@shared/decklist'
+import { allocateOwned, cardLines, nameKey } from '@shared/decklist'
+import { listFormat } from '@shared/formats'
 import { ownedVersion } from '@shared/inventory'
 import { resolveLine, type Resolution } from '@shared/pricing'
+import { sideboardIds } from '@shared/sideboard'
 import type { AppSettings } from '@shared/api'
-import type { HeldCopies } from '@shared/copies'
-import type { CardInfo, CardLine, InventoryItem } from '@shared/types'
-import { getPrintingsEntry, type PrintingsEntry } from '../stores/printings'
+import type { CopyPool, HeldCopies } from '@shared/copies'
+import type { CardInfo, CardLine, InventoryItem, PriceBasis } from '@shared/types'
+import type { CardList } from '../stores/library'
+import { getPrintingsEntry, getPrintingsVersion, type PrintingsEntry } from '../stores/printings'
+import { memoLast } from './memo'
 
 /** Priced list row. */
 export interface Row {
@@ -109,6 +113,30 @@ export function buildRows(
       side
     }
   })
+}
+
+/** Per list: its rows, kept until the inventory, settings, copy claims or prices change. */
+const listRowsCache = new WeakMap<CardList, (...args: [Map<string, InventoryItem>, boolean, PriceBasis, CopyPool, number]) => Row[]>()
+
+/**
+ * {@link buildRows} of a whole list, with its sideboard (none in commander formats) and the copies the
+ * lists ahead hold. Shared by every caller, so the sidebar and the open page compute it once.
+ */
+export function listRows(list: CardList, inventory: Map<string, InventoryItem>, settings: PricingSettings, pool: CopyPool): Row[] {
+  let rows = listRowsCache.get(list)
+  if (!rows) {
+    rows = memoLast((items, bundleBasics, priceBasis, claims, _version) =>
+      buildRows(
+        cardLines(list.lines),
+        items,
+        { bundleBasics, priceBasis },
+        sideboardIds(list.lines, !listFormat(list.lines)?.commander),
+        (key) => claims.held(list, key)
+      )
+    )
+    listRowsCache.set(list, rows)
+  }
+  return rows(inventory, settings.bundleBasics, settings.priceBasis, pool, getPrintingsVersion())
 }
 
 /** List totals. Values are EUR over priced rows. */

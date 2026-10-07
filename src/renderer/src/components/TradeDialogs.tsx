@@ -6,12 +6,11 @@ import {
   serializeSnapshot,
   snapshotToText,
   tradeName,
+  type MyTradeSide,
   type TradeCard,
   type TradeSnapshot
 } from '@shared/trade'
-import type { InventoryItem } from '@shared/types'
 import { cardCount, cleanError, totalCopies } from '../lib/format'
-import type { CardList } from '../stores/library'
 import { updateSettings, useSettings } from '../stores/settings'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { Modal } from './Modal'
@@ -24,22 +23,18 @@ const cardsToText = (cards: TradeCard[]) => countLines(cards).join('\n')
 
 /** Props of {@link ShareTradeDialog}. */
 interface ShareTradeDialogProps {
-  inventory: Map<string, InventoryItem>
-  /** Decks and wishlists; their missing cards are the wants. */
-  lists: CardList[]
+  /** Own trade side ({@link myTradeSide}): spare copies and what the lists still need. */
+  myTrade: MyTradeSide
   onClose: () => void
 }
 
 /** Exports the own trade list as a file or as copyable text. */
-export function ShareTradeDialog({ inventory, lists, onClose }: ShareTradeDialogProps) {
+export function ShareTradeDialog({ myTrade, onClose }: ShareTradeDialogProps) {
   const toast = useToast()
   const settings = useSettings()
   const [name, setName] = useState(settings.tradeName)
   const { busy, error, run } = useAsyncAction()
-  const snapshot = useMemo(
-    () => buildSnapshot(tradeName(name, 'Me'), inventory, lists, settings.copies),
-    [name, inventory, lists, settings.copies]
-  )
+  const snapshot = useMemo(() => buildSnapshot(tradeName(name, 'Me'), myTrade), [name, myTrade])
   const ready = name.trim().length > 0 && !busy
 
   const share = (how: 'file' | 'text') =>

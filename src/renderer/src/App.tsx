@@ -122,7 +122,10 @@ export default function App() {
     for (const name of namesKey.split('\n')) if (name) requestPrintings(name)
   }, [namesKey])
 
-  const myTrade = useMemo(() => myTradeSide(state.inventory, state.lists, copies), [state.inventory, state.lists, copies])
+  const myTrade = useMemo(
+    () => myTradeSide(state.inventory, state.lists, copies, pool),
+    [state.inventory, state.lists, copies, pool]
+  )
 
   useEffect(() => {
     const timer = setInterval(refreshStalePrintings, 60 * 60 * 1000)
@@ -270,6 +273,7 @@ export default function App() {
             trade={trade}
             myTrade={myTrade}
             pool={pool}
+            lists={state.lists}
             actions={actions}
             onOpenList={openList}
             onUpdate={() => setImporting({ replaceName: trade.name })}
@@ -364,7 +368,7 @@ export default function App() {
       )}
       {valueOpen && <CollectionValueDialog inventory={state.inventory} onClose={() => setValueOpen(false)} />}
       {shareOpen && (
-        <ShareTradeDialog inventory={state.inventory} lists={state.lists} onClose={() => setShareOpen(false)} />
+        <ShareTradeDialog myTrade={myTrade} onClose={() => setShareOpen(false)} />
       )}
       {importing && (
         <ImportTradeDialog

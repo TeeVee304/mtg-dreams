@@ -197,14 +197,15 @@ export interface CardNeed {
  * Copies each list still lacks, in allocation order. Shared: wishlists only, each against the whole
  * inventory. Separate: decks and wishlists, each against the copies the lists ahead leave.
  * @param inventory - Items by nameKey.
+ * @param pool - Copy claims of `lists` in `mode`, if already built.
  * @returns Every considered list with its needs (possibly none).
  */
 export function listNeeds<L extends PoolList>(
   lists: L[],
   inventory: Map<string, InventoryItem>,
-  mode: CopiesMode
+  mode: CopiesMode,
+  pool: CopyPool = copyPool(lists, mode)
 ): Array<{ list: L; needs: CardNeed[] }> {
-  const pool = copyPool(lists, mode)
   const considered = mode === 'shared' ? lists.filter((list) => list.kind === 'wishlist') : lists
   return allocationOrder(considered).map((list) => {
     const needs: CardNeed[] = []

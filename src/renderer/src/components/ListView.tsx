@@ -5,7 +5,6 @@ import type { Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import { listPriority } from '@shared/listPriority'
 import { deckSizeCheck, listFormat } from '@shared/formats'
-import { sideboardIds } from '@shared/sideboard'
 import {
   analyzeList,
   copyCaps,
@@ -26,7 +25,7 @@ import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
-import { buildRows, summarize, type Row } from '../lib/summary'
+import { listRows, summarize, type Row } from '../lib/summary'
 import { CardRow } from './CardRow'
 import { CardTile } from './CardTile'
 import { AddCardPanel } from './CardEditors'
@@ -77,8 +76,8 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
   const sortView = isDeck ? 'deck' : 'wishlist'
   const sort = sortFor(sortView, settings.sort)
   const sideboardAllowed = !listFormat(list.lines)?.commander
-  const rows = buildRows(cards, inventory, settings, sideboardIds(list.lines, sideboardAllowed), (key) => pool.held(list, key)).map(
-    (row) => (row.held > 0 ? { ...row, holders: pool.holders(list, nameKey(row.line.name), row.inventoryQty) } : row)
+  const rows = listRows(list, inventory, settings, pool).map((row) =>
+    row.held > 0 ? { ...row, holders: pool.holders(list, nameKey(row.line.name), row.inventoryQty) } : row
   )
   const mainRows = rows.filter((row) => !row.side)
   const summary = summarize(rows)

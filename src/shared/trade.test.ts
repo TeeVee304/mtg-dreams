@@ -55,7 +55,7 @@ describe('myTradeSide', () => {
 
 describe('buildSnapshot', () => {
   it('shares spare copies except basic lands', () => {
-    const snapshot = buildSnapshot(' Bruno ', inventory, wishlists, 'shared', now)
+    const snapshot = buildSnapshot(' Bruno ', myTradeSide(inventory, wishlists, 'shared'), now)
     expect(snapshot.name).toBe('Bruno')
     expect(snapshot.haves).toEqual([
       { name: 'Counterspell', qty: 1 },
@@ -67,7 +67,7 @@ describe('buildSnapshot', () => {
 })
 
 describe('parseTradeText', () => {
-  const snapshot = buildSnapshot('Ana', inventory, wishlists, 'shared', now)
+  const snapshot = buildSnapshot('Ana', myTradeSide(inventory, wishlists, 'shared'), now)
 
   it('round-trips the trade file and its text version', () => {
     expect(parseTradeText(serializeSnapshot(snapshot), 'file')).toEqual(snapshot)
@@ -117,7 +117,7 @@ describe('parseTradeText', () => {
 
 describe('matchTrades', () => {
   it('finds cards the friend has that you want, and the reverse', () => {
-    const mine = buildSnapshot('Me', inventory, wishlists, 'shared', now)
+    const mine = buildSnapshot('Me', myTradeSide(inventory, wishlists, 'shared'), now)
     const myWants = computeWants(wishlists, inventory, 'shared')
     const friend = parseTradeText('// Have\n1 Demonic Tutor\n9 Lightning Bolt\n5 Island\n// Want\n2 Sol Ring\n1 Thoughtseize\n3 Island', 'Ana')
     const { forMe, forThem } = matchTrades(mine.haves, myWants, friend)

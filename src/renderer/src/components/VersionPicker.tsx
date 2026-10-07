@@ -4,6 +4,7 @@ import type { Printing } from '@shared/types'
 import { useStoredValue } from '../hooks/useStoredValue'
 import { formatEur } from '../lib/format'
 import { useSettings } from '../stores/settings'
+import { Segmented } from './Controls'
 import { previewHandlers } from './HoverPreview'
 import { CardThumb } from './Placeholders'
 
@@ -15,6 +16,12 @@ type VersionView = 'list' | 'images'
 
 /** Type guard for {@link VersionView}. */
 const isVersionView = (value: string): value is VersionView => value === 'list' || value === 'images'
+
+/** Version view options. */
+const VERSION_VIEWS = [
+  { id: 'list', label: 'List' },
+  { id: 'images', label: 'Images' }
+] as const
 
 /** Props of {@link VersionPicker}. */
 interface VersionPickerProps {
@@ -60,20 +67,7 @@ export function VersionPicker({ printings, foil, selected, onSelect, onConfirm }
           />
         )}
         <span className="spacer" />
-        <div className="segmented" role="radiogroup" aria-label="Show versions as">
-          {(['list', 'images'] as const).map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="radio"
-              aria-checked={view === id}
-              className={view === id ? 'selected' : undefined}
-              onClick={() => setView(id)}
-            >
-              {id === 'list' ? 'List' : 'Images'}
-            </button>
-          ))}
-        </div>
+        <Segmented label="Show versions as" options={VERSION_VIEWS} value={view} onChange={setView} />
       </div>
       <div className={`picker-options ${view === 'list' ? 'picker-list' : 'picker-grid'}`} role="listbox" aria-label="Card versions">
         {!needle && (

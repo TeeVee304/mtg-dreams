@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { bundledBasic } from '@shared/basics'
 import { priceBasisLabel } from '@shared/pricing'
 import type { InventoryItem } from '@shared/types'
-import { VALUATION_BASIS, valueCollection } from '../lib/collection'
+import { inventoryValue, VALUATION_BASIS } from '../lib/collection'
 import { formatEur } from '../lib/format'
 import { prefersReducedMotion } from '../lib/motion'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
@@ -45,7 +45,7 @@ interface CollectionValueDialogProps {
   onClose: () => void
 }
 
-/** Inventory valuation dialog (see {@link valueCollection}) with top cards; requests missing prices on open. */
+/** Inventory valuation dialog (see {@link inventoryValue}) with top cards; requests missing prices on open. */
 export function CollectionValueDialog({ inventory, onClose }: CollectionValueDialogProps) {
   usePrintingsVersion()
   const { bundleBasics } = useSettings()
@@ -58,8 +58,8 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
   }, [inventory, bundleBasics])
 
   const items = [...inventory.values()]
-  const { total, copies, pending, unpriced, valued } = valueCollection(inventory, VALUATION_BASIS, bundleBasics)
-  valued.sort((a, b) => b.unit - a.unit || b.unit * b.qty - a.unit * a.qty)
+  const { total, copies, pending, unpriced, valued: copiesValued } = inventoryValue(inventory, bundleBasics)
+  const valued = [...copiesValued].sort((a, b) => b.unit - a.unit || b.unit * b.qty - a.unit * a.qty)
   const displayed = useCountUp(total)
   const priced = items.length - pending
 

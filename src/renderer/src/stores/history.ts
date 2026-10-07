@@ -5,8 +5,7 @@ import type { CopyPool } from '@shared/copies'
 import { allocateOwned, cardLines, nameKey } from '@shared/decklist'
 import { PRICE_BASES, resolveLine } from '@shared/pricing'
 import type { CardLine, InventoryItem, PriceBasis } from '@shared/types'
-import type { ValuedCopy } from '../lib/collection'
-import { valueCollection } from '../lib/collection'
+import { inventoryValue, type ValuedCopy } from '../lib/collection'
 import type { CardList } from './library'
 import { getPrintingsEntry } from './printings'
 
@@ -128,7 +127,7 @@ let trackedKey = ''
 /** Sends the inventory's valued product ids to {@link TrackerApi.trackPrices} when the set changes. */
 export function syncTracked(inventory: Map<string, InventoryItem>, bundleBasics: boolean): void {
   const ids = new Set<number>()
-  for (const valued of valueCollection(inventory, 'trend', bundleBasics).valued) {
+  for (const valued of inventoryValue(inventory, bundleBasics).valued) {
     const id = valued.printing?.cardmarketId
     if (id !== null && id !== undefined) ids.add(id)
   }

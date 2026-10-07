@@ -1,17 +1,20 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import type { CopyPool } from '@shared/copies'
+import { listId, type CopyPool } from '@shared/copies'
 import { nameKey } from '@shared/decklist'
+import { listColor } from '@shared/listColor'
 import { heldWhere } from '@shared/listModel'
 import { priceBasisLabel } from '@shared/pricing'
 import { keptMatches, matchTrades, type MyTradeSide, type TradeMatch, type TradeSnapshot } from '@shared/trade'
 import type { PriceBasis, Printing } from '@shared/types'
 import { cardCount, formatDate, formatEur, timeAgo, totalCopies } from '../lib/format'
-import type { LibraryActions, ListRef } from '../stores/library'
+import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
+import { ListChip, Price } from './CardCells'
 import { ConfirmDialog, PromptDialog } from './Dialogs'
 import { previewHandlers } from './HoverPreview'
 import { MenuButton } from './MenuButton'
+import { SummaryItem } from './SummaryItem'
 import { useToast } from './Toasts'
 
 /** Match with cheapest-printing price. */
@@ -43,6 +46,8 @@ interface TradeViewProps {
   myTrade: MyTradeSide
   /** Copy claims of all lists: which lists keep your copies. */
   pool: CopyPool
+  /** Decks and wishlists, for their colors. */
+  lists: CardList[]
   actions: LibraryActions
   onOpenList: (list: ListRef) => void
   /** Opens import to update this friend's list. */
@@ -55,7 +60,7 @@ interface TradeViewProps {
  * cards only. Only spare copies are offered; wants that only copies your lists keep could cover are
  * shown apart, outside the balance.
  */
-export function TradeView({ trade, myTrade, pool, actions, onOpenList, onUpdate, onRenamed }: TradeViewProps) {
+export function TradeView({ trade, myTrade, pool, lists, actions, onOpenList, onUpdate, onRenamed }: TradeViewProps) {
   const toast = useToast()
   usePrintingsVersion()
   const { priceBasis } = useSettings()
@@ -66,6 +71,7 @@ export function TradeView({ trade, myTrade, pool, actions, onOpenList, onUpdate,
   const spareOf = useMemo(() => new Map(myTrade.haves.map((card) => [nameKey(card.name), card.qty])), [myTrade])
   const keptOf = useMemo(() => new Map(myTrade.kept.map((card) => [nameKey(card.name), card.qty])), [myTrade])
   const ownedOf = (name: string) => (spareOf.get(nameKey(name)) ?? 0) + (keptOf.get(nameKey(name)) ?? 0)
+  const colors = useMemo(() => new Map(lists.map((list) => [listId(list), listColor(list.lines)])), [lists])
 
   const names = [...forMe, ...forThem, ...keptOnly].map((match) => match.name).join('\n')
   useEffect(() => {
@@ -79,6 +85,7 @@ export function TradeView({ trade, myTrade, pool, actions, onOpenList, onUpdate,
   const giveTotal = totalOf(give)
   const loading = [...receive, ...give].some((match) => match.unit === undefined)
   const balance = receiveTotal - giveTotal
+  const even = Math.abs(balance) < 0.005
   const date = new Date(trade.createdAt)
 
   return (
@@ -113,32 +120,21 @@ export function TradeView({ trade, myTrade, pool, actions, onOpenList, onUpdate,
         </p>
       )}
 
-      <section className="stats">
-        <div className="stat accent">
-          <span className="stat-label">{trade.name} can give you</span>
-          <span className="stat-value">{formatEur(receiveTotal)}</span>
-          <span className="stat-note">{matchedCards(receive)} your lists need</span>
-        </div>
-        <div className="stat">
-          <span className="stat-label">You can give {trade.name}</span>
-          <span className="stat-value">{formatEur(giveTotal)}</span>
-          <span className="stat-note">{matchedCards(give)} on their lists</span>
-        </div>
-        <div className="stat">
-          <span className="stat-label">Balance</span>
-          <span className="stat-value">
-            {Math.abs(balance) < 0.005 ? 'Even' : `${balance > 0 ? '+' : '−'}${formatEur(Math.abs(balance))}`}
-          </span>
-          <span className="stat-note">
-            {loading
-              ? 'Pricing cards…'
-              : Math.abs(balance) < 0.005
-                ? 'Both sides are worth the same'
-                : balance > 0
-                  ? 'in your favour'
-                  : `in ${trade.name}'s favour`}
-          </span>
-        </div>
+      <section className="summary-strip">
+        <SummaryItem
+          label={`${trade.name} can give you`}
+          value={formatEur(receiveTotal)}
+          accent
+          note={`${matchedCards(receive)} your lists need`}
+        />
+        <SummaryItem label={`You can give ${trade.name}`} value={formatEur(giveTotal)} note={`${matchedCards(give)} on their lists`} />
+        <SummaryItem
+          label="Balance"
+          value={even ? 'Even' : `${balance > 0 ? '+' : '−'}${formatEur(Math.abs(balance))}`}
+          note={
+            loading ? 'Pricing cards…' : even ? 'Both sides are worth the same' : balance > 0 ? 'in your favour' : `in ${trade.name}'s favour`
+          }
+        />
       </section>
 
       <div className="trade-columns">
@@ -150,15 +146,14 @@ export function TradeView({ trade, myTrade, pool, actions, onOpenList, onUpdate,
               detail={(m) => (
                 <div className="chips">
                   {m.lists.map((list) => (
-                    <button
-                      key={`${list.kind}/${list.name}`}
-                      type="button"
-                      className="chip link"
+                    <ListChip
+                      key={listId(list)}
+                      color={colors.get(listId(list)) ?? null}
                       onClick={() => onOpenList(list)}
                       title={list.kind === 'deck' ? `Deck ${list.name}` : undefined}
                     >
                       {list.name}
-                    </button>
+                    </ListChip>
                   ))}
                 </div>
               )}
@@ -276,14 +271,8 @@ function MatchTable({ matches, detail, detailLabel, qtyNote }: MatchTableProps) 
               {qtyNote(match) && <span className="muted tiny trade-qty-note">{qtyNote(match)}</span>}
             </td>
             <td>{detail(match)}</td>
-            <td className="col-num strong">
-              {match.unit === undefined ? (
-                <span className="muted">…</span>
-              ) : match.unit === null ? (
-                '—'
-              ) : (
-                formatEur(match.unit * match.qty)
-              )}
+            <td className="col-num">
+              <Price unit={match.unit} qty={match.qty} />
             </td>
           </tr>
         ))}

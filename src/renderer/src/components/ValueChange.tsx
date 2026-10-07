@@ -3,6 +3,7 @@ import type { PriceSnapshot } from '@shared/api'
 import type { ValuedCopy } from '../lib/collection'
 import { formatDate, formatEur } from '../lib/format'
 import { valueChange, type ValueMove } from '../stores/history'
+import { Segmented } from './Controls'
 import { copyLabel } from './InventoryVersions'
 
 const DAY = 24 * 60 * 60 * 1000
@@ -56,20 +57,7 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
 
   return (
     <section className="value-change">
-      <div className="segmented" role="tablist" aria-label="Period">
-        {RANGES.map((option) => (
-          <button
-            key={option.id}
-            type="button"
-            role="tab"
-            aria-selected={range === option.id}
-            className={range === option.id ? 'selected' : undefined}
-            onClick={() => setRange(option.id)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <Segmented label="Period" tabs options={RANGES} value={range} onChange={setRange} />
       {change ? (
         <>
           <p className="value-change-total">

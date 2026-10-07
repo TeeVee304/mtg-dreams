@@ -1,7 +1,8 @@
-import { commanderRule, FORMATS, type DeckFormat, type DeckSizeCheck } from '@shared/formats'
+import { commanderRule, type DeckFormat, type DeckSizeCheck } from '@shared/formats'
 import type { ListPriority } from '@shared/listPriority'
 import { cardCount, formatDate } from '../lib/format'
 import type { Summary } from '../lib/summary'
+import { FormatSelect } from './Controls'
 import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
 
@@ -60,18 +61,7 @@ export function ListHeader(props: ListHeaderProps) {
         <div className="header-meta">
           <label className="field-inline format-field">
             Format
-            <select
-              value={format?.id ?? ''}
-              onChange={(event) => props.onFormat(event.target.value || null)}
-              aria-label="Deck format"
-            >
-              <option value="">No format</option>
-              {FORMATS.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.label}
-                </option>
-              ))}
-            </select>
+            <FormatSelect value={format?.id ?? ''} onChange={(id) => props.onFormat(id || null)} label="Deck format" />
           </label>
           {format?.commander && (picking || canPickCommander) && (
             <button

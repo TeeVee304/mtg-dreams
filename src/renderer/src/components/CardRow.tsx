@@ -5,9 +5,9 @@ import { heldWhere, shortfallNote } from '@shared/listModel'
 import { formatDate, formatEur } from '../lib/format'
 import type { PriceDrop } from '../stores/history'
 import type { Row } from '../lib/summary'
-import { previewHandlers } from './HoverPreview'
+import { CardmarketButton, NameCell, Price } from './CardCells'
 import { Icon } from './Icon'
-import { CardThumb, Skeleton } from './Placeholders'
+import { Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
 
 /** Props of {@link CardRow}. */
@@ -123,86 +123,75 @@ export function CardRow(props: CardRowProps) {
           label={`quantity of ${line.name}`}
         />
       </td>
-      <td className="col-name" {...previewHandlers({ src: printing?.imageNormal, back: printing?.imageBack })}>
-        <div className="name-cell">
-          <CardThumb src={printing?.imageSmall} loading={loading} />
-          <div className="name-main">
-            {row.bundledIds ? (
-              <span className="card-name" title="Basic lands are bundled: any version counts, for free. Change this in Settings.">
-                {line.name}
-              </span>
-            ) : (
-              <button
-                type="button"
-                className="name-btn card-name"
-                onClick={onOpen}
-                title={row.flavorName ?? line.name}
-              >
-                {row.flavorName ?? line.name}
-              </button>
-            )}
-            {row.flavorName && (
-              <span className="muted small official-name" title="The card's official name">
-                {line.name}
-              </span>
-            )}
-            {line.foil && <span className="chip foil">Foil</span>}
-            {issue && (
-              <span className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`} title={issue.message}>
-                {issue.message}
-              </span>
-            )}
-            {drop && (
-              <span
-                className="chip cheaper"
-                title={`${formatEur(drop.was)} when added on ${formatDate(drop.since)}, now ${formatEur(row.unit)}`}
-              >
-                ↓ {drop.percent}% cheaper
-              </span>
-            )}
-            {shortfall > 0 && (
-              <span className="chip illegal" title={shortfallNote(row).title}>
-                {shortfallNote(row).label}
-              </span>
-            )}
-            {matchedName && (
-              <button
-                type="button"
-                className="chip link fix-name"
-                onClick={() => onRename(matchedName)}
-                title={
-                  printedAs
-                    ? `“${line.name}” is a printed name of “${matchedName}”. Use the official name so your inventory and other versions match.`
-                    : `Scryfall matched this to “${matchedName}”. Click to use that name.`
-                }
-              >
-                Use “{matchedName}”
-              </button>
-            )}
-            {!isDeck && row.holders && row.holders.length > 0 && !complete && (
-              <span className="muted small owned-note">
-                {row.inventoryQty} owned · {heldWhere(row.holders, row.inventoryQty)}
-              </span>
-            )}
-          </div>
-        </div>
-      </td>
+      <NameCell images={printing} loading={loading}>
+        {row.bundledIds ? (
+          <span className="card-name" title="Basic lands are bundled: any version counts, for free. Change this in Settings.">
+            {line.name}
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="name-btn card-name"
+            onClick={onOpen}
+            title={row.flavorName ?? line.name}
+          >
+            {row.flavorName ?? line.name}
+          </button>
+        )}
+        {row.flavorName && (
+          <span className="muted small official-name" title="The card's official name">
+            {line.name}
+          </span>
+        )}
+        {line.foil && <span className="chip foil">Foil</span>}
+        {issue && (
+          <span className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`} title={issue.message}>
+            {issue.message}
+          </span>
+        )}
+        {drop && (
+          <span
+            className="chip cheaper"
+            title={`${formatEur(drop.was)} when added on ${formatDate(drop.since)}, now ${formatEur(row.unit)}`}
+          >
+            ↓ {drop.percent}% cheaper
+          </span>
+        )}
+        {shortfall > 0 && (
+          <span className="chip illegal" title={shortfallNote(row).title}>
+            {shortfallNote(row).label}
+          </span>
+        )}
+        {matchedName && (
+          <button
+            type="button"
+            className="chip link fix-name"
+            onClick={() => onRename(matchedName)}
+            title={
+              printedAs
+                ? `“${line.name}” is a printed name of “${matchedName}”. Use the official name so your inventory and other versions match.`
+                : `Scryfall matched this to “${matchedName}”. Click to use that name.`
+            }
+          >
+            Use “{matchedName}”
+          </button>
+        )}
+        {!isDeck && row.holders && row.holders.length > 0 && !complete && (
+          <span className="muted small owned-note">
+            {row.inventoryQty} owned · {heldWhere(row.holders, row.inventoryQty)}
+          </span>
+        )}
+      </NameCell>
       <td className="col-version">
         <VersionCell row={row} />
       </td>
-      <td className="col-num" title={entry?.data && unit === null ? 'No Cardmarket price for this version and finish' : undefined}>
-        {row.bundledIds ? (
-          <span className="muted" title="Bundled basic lands count as free">Free</span>
-        ) : loading ? (
-          <Skeleton width={52} />
-        ) : unit === null ? (
-          '—'
-        ) : (
-          <span className="value-cell">
-            <strong>{formatEur(unit * line.qty)}</strong>
-            {line.qty > 1 && <span className="muted small">{formatEur(unit)} each</span>}
-          </span>
-        )}
+      <td className="col-num">
+        <Price
+          unit={loading ? undefined : unit}
+          qty={line.qty}
+          free={!!row.bundledIds}
+          title={entry?.data && unit === null ? 'No Cardmarket price for this version and finish' : undefined}
+        />
         {entry?.data?.staleError && (
           <span className="stale" title={`Showing cached price: ${entry.data.staleError}`}>
             {' '}
@@ -211,16 +200,7 @@ export function CardRow(props: CardRowProps) {
         )}
       </td>
       <td className="col-actions">
-        <button
-          type="button"
-          className="icon-btn"
-          disabled={!printing?.cardmarketUrl}
-          onClick={() => printing?.cardmarketUrl && window.api.openExternal(printing.cardmarketUrl)}
-          title="Open on Cardmarket"
-          aria-label="Open on Cardmarket"
-        >
-          <Icon name="external" />
-        </button>
+        <CardmarketButton url={printing?.cardmarketUrl} />
         <button
           type="button"
           className="icon-btn danger-ghost"

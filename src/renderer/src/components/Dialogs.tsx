@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { cardLines, parseInventory, parseList, unrecognizedLines } from '@shared/decklist'
-import { FORMATS } from '@shared/formats'
 import type { ListKind } from '@shared/types'
 import { cardCount } from '../lib/format'
 import { useAsyncAction } from '../hooks/useAsyncAction'
+import { FormatSelect } from './Controls'
 import { Modal } from './Modal'
 
 /** Props of {@link PromptDialog}. */
@@ -272,14 +272,7 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onClose }: NewList
       </label>
       <label className="field">
         <span>Format</span>
-        <select value={format} onChange={(event) => setFormat(event.target.value)}>
-          <option value="">No format</option>
-          {FORMATS.map((f) => (
-            <option key={f.id} value={f.id}>
-              {f.label}
-            </option>
-          ))}
-        </select>
+        <FormatSelect value={format} onChange={setFormat} />
       </label>
       <label className="field">
         <span>{isDeck ? 'Import a decklist (optional)' : 'Import cards (optional)'}</span>

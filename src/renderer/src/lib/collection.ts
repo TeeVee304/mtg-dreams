@@ -1,7 +1,8 @@
 import { bundledBasic } from '@shared/basics'
 import { resolveLine } from '@shared/pricing'
 import type { InventoryItem, OwnedCopy, PriceBasis, Printing } from '@shared/types'
-import { getPrintingsEntry } from '../stores/printings'
+import { getPrintingsEntry, getPrintingsVersion } from '../stores/printings'
+import { memoLast } from './memo'
 
 /**
  * Inventory valuation: versioned copies at their printing's price, unversioned copies at the
@@ -75,6 +76,8 @@ export interface CollectionValuation {
   /** Unpriced copy groups, excluded from `total`. */
   unpriced: number
   valued: ValuedCopy[]
+  /** Each item's value, by its inventory key. */
+  items: Map<string, ItemValue>
 }
 
 /** Values the whole inventory. */
@@ -83,14 +86,28 @@ export function valueCollection(
   basis: PriceBasis,
   bundleBasics: boolean
 ): CollectionValuation {
-  const result: CollectionValuation = { total: 0, copies: 0, pending: 0, unpriced: 0, valued: [] }
-  for (const item of inventory.values()) {
+  const result: CollectionValuation = { total: 0, copies: 0, pending: 0, unpriced: 0, valued: [], items: new Map() }
+  for (const [key, item] of inventory) {
     result.copies += item.qty
     const value = valueItem(item, basis, bundleBasics)
+    result.items.set(key, value)
     if (value.status === 'loading') result.pending += 1
     result.unpriced += value.unpriced
     result.total += value.total
     result.valued.push(...value.valued)
   }
   return result
+}
+
+/** {@link valueCollection} at {@link VALUATION_BASIS}; recomputed when the inventory, setting or prices change. */
+const sharedValue = memoLast((inventory: Map<string, InventoryItem>, bundleBasics: boolean, _version: number) =>
+  valueCollection(inventory, VALUATION_BASIS, bundleBasics)
+)
+
+/**
+ * Inventory value at {@link VALUATION_BASIS}, shared by the sidebar, the Inventory page, its value
+ * dialog and price tracking. Treat the result as read-only.
+ */
+export function inventoryValue(inventory: Map<string, InventoryItem>, bundleBasics: boolean): CollectionValuation {
+  return sharedValue(inventory, bundleBasics, getPrintingsVersion())
 }

@@ -63,10 +63,6 @@
   white-space: nowrap;
 }
 
-.col-num.strong {
-  font-weight: 600;
-}
-
 .col-actions {
   width: 104px;
   text-align: right;

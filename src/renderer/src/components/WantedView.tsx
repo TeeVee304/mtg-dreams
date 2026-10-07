@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { filtersActive, matchesFilters, needsCardData, NO_FILTERS, type CardFilters } from '@shared/cards'
+import { bundledBasic } from '@shared/basics'
 import { listId, type ListKey } from '@shared/copies'
 import { cardLines, countLines, nameKey } from '@shared/decklist'
 import { listColor } from '@shared/listColor'
@@ -10,7 +11,6 @@ import { featuredTokens, tokenLabel } from '@shared/tokens'
 import type { TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
 import {
-  costOf,
   DEFAULT_WANTED_SORT,
   isWantedSort,
   planPurchases,
@@ -23,7 +23,7 @@ import { useCopyPool } from '../hooks/useCopyPool'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { useStoredValue } from '../hooks/useStoredValue'
 import { cardCount, formatEur, totalCopies } from '../lib/format'
-import { buildRows } from '../lib/summary'
+import { listRows } from '../lib/summary'
 import { wantedOverview, type WantedOverview } from '../lib/wanted'
 import { getCardInfo, useCardInfoVersion } from '../stores/cardinfo'
 import { priceDrop, useBaselines } from '../stores/history'
@@ -31,10 +31,12 @@ import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { useDeckTokens } from '../stores/tokens'
+import { CardmarketButton, ListChip, NameCell, Price } from './CardCells'
+import { Collapsible } from './Collapsible'
+import { Segmented, SortSelect } from './Controls'
 import { FilterBar } from './FilterBar'
-import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
-import { CardThumb, Skeleton } from './Placeholders'
+import { Skeleton } from './Placeholders'
 import { useToast } from './Toasts'
 
 /** Page tab. */
@@ -93,7 +95,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
 
   const pool = useCopyPool(lists)
   const wishlists = lists.filter((list) => list.kind === 'wishlist')
-  const overview = wantedOverview(lists, inventory, settings)
+  const overview = wantedOverview(lists, inventory, settings, pool)
   const separate = overview.mode === 'separate'
   const meta = new Map<string, ListMeta>(
     lists.map((list) => [listId(list), { color: listColor(list.lines), priority: list.kind === 'wishlist' ? listPriority(list.lines) : null }])
@@ -103,7 +105,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
 
   const drops = new Map<string, number>()
   for (const list of wishlists) {
-    for (const row of buildRows(cardLines(list.lines), inventory, settings, undefined, (key) => pool.held(list, key))) {
+    for (const row of listRows(list, inventory, settings, pool)) {
       if (row.bundledIds) continue
       const drop = priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
       if (drop) drops.set(nameKey(row.line.name), Math.max(drops.get(nameKey(row.line.name)) ?? 0, drop.percent))
@@ -130,12 +132,12 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   const toBuy = (cards: WantedCard[]) => totalCopies(cards.map((card) => ({ qty: card.toBuy })))
   const tabs = (
     [
-      ['cards', `Cards · ${toBuy(overview.cards)}`],
-      ['basics', `Basic lands · ${toBuy(overview.basics)}`],
-      ['tokens', 'Tokens']
+      { id: 'cards', label: `Cards · ${toBuy(overview.cards)}` },
+      { id: 'basics', label: `Basic lands · ${toBuy(overview.basics)}` },
+      { id: 'tokens', label: 'Tokens' }
     ] as const
-  ).filter(([id]) => id === 'cards' || (id === 'basics' ? basics.length > 0 : wishlists.length > 0))
-  const tab = tabs.some(([id]) => id === storedTab) ? storedTab : 'cards'
+  ).filter(({ id }) => id === 'cards' || (id === 'basics' ? basics.length > 0 : wishlists.length > 0))
+  const tab = tabs.some(({ id }) => id === storedTab) ? storedTab : 'cards'
   const copyable = tab === 'cards' ? visible.length > 0 : tab === 'basics'
   const completers = overview.cards.filter((card) => card.completes.length > 0).length
 
@@ -151,11 +153,10 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
       const kind = list.kind === 'deck' ? 'Deck ' : ''
       const priority = info?.priority && info.priority !== 'normal' ? ` · ${info.priority} priority` : ''
       return (
-        <button
+        <ListChip
           key={listId(list)}
-          type="button"
-          className={`chip link list-chip${info?.priority === 'low' ? ' low' : ''}`}
-          data-color={info?.color ?? undefined}
+          color={info?.color ?? null}
+          className={info?.priority === 'low' ? 'low' : undefined}
           onClick={() => onOpenList(list)}
           title={`${kind}${list.name}${wants}${priority}`}
         >
@@ -163,7 +164,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
           {list.kind === 'deck' && <Icon name="deck" />}
           {list.name}
           {list.missing !== undefined && list.missing > 1 && ` · ${list.missing}`}
-        </button>
+        </ListChip>
       )
     })
 
@@ -200,13 +201,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
       {overview.cards.length > 0 && <BudgetPlanner overview={overview} actions={actions} onCopy={copy} />}
 
       {tabs.length > 1 && (
-        <div className="segmented wanted-tabs" role="tablist" aria-label="Most Wanted">
-          {tabs.map(([id, label]) => (
-            <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'selected' : undefined} onClick={() => setTab(id)}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segmented label="Most Wanted" tabs className="wanted-tabs" options={tabs} value={tab} onChange={setTab} />
       )}
 
       {tab === 'cards' && noLists && (
@@ -240,22 +235,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
               onChange={setFilters}
               namePlaceholder="Filter by name…"
               loadingNote={needsCardData(filters) && overview.cards.some((card) => infoOf(card) === undefined) ? 'Loading card data…' : undefined}
-              end={
-                <label className="field-inline">
-                  Sort
-                  <select
-                    value={sort}
-                    onChange={(event) => setSort(event.target.value as WantedSort)}
-                    title={WANTED_SORTS.find((option) => option.id === sort)?.hint || undefined}
-                  >
-                    {WANTED_SORTS.map((option) => (
-                      <option key={option.id} value={option.id} title={option.hint || undefined}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              }
+              end={<SortSelect value={sort} options={WANTED_SORTS} onChange={setSort} />}
             >
               {trades.length > 0 && (
                 <label className="check" title="Cards on a friend's trade list: ask before buying">
@@ -297,74 +277,46 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                   const usedBy = card.owned > 0 ? pool.usedBy(card.key, card.owned) : []
                   return (
                     <tr key={card.key}>
-                      <td className="col-name" {...previewHandlers({ src: printing?.imageNormal, back: printing?.imageBack, name: card.name })}>
-                        <div className="name-cell">
-                          <CardThumb src={printing?.imageSmall} loading={unit === undefined} />
-                          <div className="name-main">
-                            <span className="card-name" title={card.name}>
-                              {card.name}
-                            </span>
-                            {card.completes.length > 0 && (
-                              <span className="chip completes-chip" title="The last card these lists miss (basic lands aside)">
-                                ✓ Completes {card.completes.map((list) => list.name).join(', ')}
-                              </span>
-                            )}
-                            {drop !== undefined && (
-                              <span className="chip cheaper" title="Cheaper than when it was added to a wishlist">
-                                ↓ {drop}% cheaper
-                              </span>
-                            )}
-                            {haves && (
-                              <button
-                                type="button"
-                                className="chip link friend-chip"
-                                onClick={() => onOpenTrade(haves[0].friend)}
-                                title={haves.map((have) => `${have.friend} has ${have.qty}`).join('\n')}
-                              >
-                                {haves.length === 1 ? `${haves[0].friend} has it` : `${haves.length} friends have it`}
-                              </button>
-                            )}
-                            {card.owned > 0 && (
-                              <span className="muted small owned-note">
-                                {card.owned} owned{separate && usedBy.length > 0 && ` · ${heldWhere(usedBy, card.owned)}`}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
+                      <NameCell images={printing} name={card.name} loading={unit === undefined}>
+                        <span className="card-name" title={card.name}>
+                          {card.name}
+                        </span>
+                        {card.completes.length > 0 && (
+                          <span className="chip completes-chip" title="The last card these lists miss (basic lands aside)">
+                            ✓ Completes {card.completes.map((list) => list.name).join(', ')}
+                          </span>
+                        )}
+                        {drop !== undefined && (
+                          <span className="chip cheaper" title="Cheaper than when it was added to a wishlist">
+                            ↓ {drop}% cheaper
+                          </span>
+                        )}
+                        {haves && (
+                          <button
+                            type="button"
+                            className="chip link friend-chip"
+                            onClick={() => onOpenTrade(haves[0].friend)}
+                            title={haves.map((have) => `${have.friend} has ${have.qty}`).join('\n')}
+                          >
+                            {haves.length === 1 ? `${haves[0].friend} has it` : `${haves.length} friends have it`}
+                          </button>
+                        )}
+                        {card.owned > 0 && (
+                          <span className="muted small owned-note">
+                            {card.owned} owned{separate && usedBy.length > 0 && ` · ${heldWhere(usedBy, card.owned)}`}
+                          </span>
+                        )}
+                      </NameCell>
                       <td>
                         <div className="chips">{listChips(card)}</div>
                       </td>
                       <td className="col-num">{card.toBuy}</td>
                       <td className="col-num">
-                        <span className="value-cell">
-                          <strong>
-                            <Price value={costOf(card, unit)} />
-                          </strong>
-                          {card.toBuy > 1 && typeof unit === 'number' && <span className="muted small">{formatEur(unit)} each</span>}
-                        </span>
+                        <Price unit={unit} qty={card.toBuy} />
                       </td>
                       <td className="col-actions">
-                        {printing?.cardmarketUrl && (
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            onClick={() => window.api.openExternal(printing.cardmarketUrl!)}
-                            title="Open on Cardmarket"
-                            aria-label="Open on Cardmarket"
-                          >
-                            <Icon name="external" />
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="bought-btn"
-                          onClick={() => markBought(card)}
-                          title={`Add ${card.toBuy} to your inventory`}
-                          aria-label="Bought"
-                        >
-                          <Icon name="check" /> <span className="bought-label">Bought</span>
-                        </button>
+                        {printing?.cardmarketUrl && <CardmarketButton url={printing.cardmarketUrl} />}
+                        <BoughtButton card={card} onBought={markBought} />
                       </td>
                     </tr>
                   )
@@ -401,29 +353,18 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                   const printing = overview.printingOf(card)
                   return (
                     <tr key={card.key}>
-                      <td className="col-name" {...previewHandlers({ src: printing?.imageNormal, name: card.name })}>
-                        <div className="name-cell">
-                          <CardThumb src={printing?.imageSmall} />
-                          <span className="card-name">{card.name}</span>
-                        </div>
-                      </td>
+                      <NameCell images={printing} name={card.name}>
+                        <span className="card-name">{card.name}</span>
+                      </NameCell>
                       <td>
                         <div className="chips">{listChips(card)}</div>
                       </td>
                       <td className="col-num">{card.toBuy}</td>
                       <td className="col-num">
-                        <Price value={costOf(card, overview.unitOf(card))} />
+                        <Price unit={overview.unitOf(card)} qty={card.toBuy} free={!!bundledBasic(card.name, settings.bundleBasics)} />
                       </td>
                       <td className="col-actions">
-                        <button
-                          type="button"
-                          className="bought-btn"
-                          onClick={() => markBought(card)}
-                          title={`Add ${card.toBuy} to your inventory`}
-                          aria-label="Bought"
-                        >
-                          <Icon name="check" /> <span className="bought-label">Bought</span>
-                        </button>
+                        <BoughtButton card={card} onBought={markBought} />
                       </td>
                     </tr>
                   )
@@ -438,11 +379,13 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   )
 }
 
-/** EUR cell: skeleton while loading, dash if unpriced. */
-function Price({ value }: { value: number | null | undefined }) {
-  if (value === undefined) return <Skeleton width={44} />
-  if (value === null) return <span className="muted" title="No Cardmarket price">—</span>
-  return <>{formatEur(value)}</>
+/** Marks a card's copies to buy as bought. */
+function BoughtButton({ card, onBought }: { card: WantedCard; onBought: (card: WantedCard) => void }) {
+  return (
+    <button type="button" className="bought-btn" onClick={() => onBought(card)} title={`Add ${card.toBuy} to your inventory`} aria-label="Bought">
+      <Icon name="check" /> <span className="bought-label">Bought</span>
+    </button>
+  )
 }
 
 /**
@@ -469,14 +412,7 @@ function BudgetPlanner({
   const copies = plan ? plan.items.reduce((sum, item) => sum + item.copies, 0) : 0
 
   return (
-    <section className={`deck-stats planner${open ? ' open' : ''}`}>
-      <button type="button" className="deck-stats-toggle" aria-expanded={open} onClick={toggle}>
-        <span className="deck-stats-chevron" aria-hidden="true">
-          ›
-        </span>
-        Budget planner
-        <span className="muted small">The most list progress for your money</span>
-      </button>
+    <Collapsible open={open} onToggle={toggle} title="Budget planner" summary="The most list progress for your money">
       {plan && (
         <div className="planner-body">
           <div className="planner-head">
@@ -543,7 +479,7 @@ function BudgetPlanner({
           )}
         </div>
       )}
-    </section>
+    </Collapsible>
   )
 }
 
@@ -596,12 +532,9 @@ function TokensTab({
         <tbody>
           {tokens.map(({ entry, lists }) => (
             <tr key={entry.key}>
-              <td className="col-name" {...previewHandlers({ src: entry.token.imageNormal, back: entry.token.imageBack })}>
-                <div className="name-cell">
-                  <CardThumb src={entry.token.imageSmall} />
-                  <span className="card-name">{tokenLabel(entry)}</span>
-                </div>
-              </td>
+              <NameCell images={entry.token}>
+                <span className="card-name">{tokenLabel(entry)}</span>
+              </NameCell>
               <td className="muted small">{entry.makers.join(', ')}</td>
               <td>
                 <div className="chips">{listChips({ lists })}</div>

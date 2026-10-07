@@ -1,19 +1,20 @@
-import { useState, type CSSProperties } from 'react'
+import { useMemo, useState, type CSSProperties } from 'react'
+import type { AppSettings, PriceBaseline } from '@shared/api'
 import type { ColorFilter } from '@shared/cards'
+import type { CopyPool } from '@shared/copies'
 import { STAT_COLORS } from '@shared/deckStats'
-import { cardLines, nameKey } from '@shared/decklist'
+import { nameKey } from '@shared/decklist'
 import { deckSizeCheck, listCommander, listFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
-import { sideboardIds } from '@shared/sideboard'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
-import { VALUATION_BASIS, valueCollection } from '../lib/collection'
+import { inventoryValue } from '../lib/collection'
 import { cardCount, formatDate, formatEur, totalCopies } from '../lib/format'
 import { sameList, type CardList, type ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
 import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
-import { buildRows, summarize } from '../lib/summary'
+import { listRows, summarize } from '../lib/summary'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
 import { wantedOverview } from '../lib/wanted'
 import { useCopyPool } from '../hooks/useCopyPool'
@@ -55,32 +56,28 @@ export function Sidebar(props: SidebarProps) {
   const { lists, inventory, view, onSelect, onNew, onSettings, pricedAt, onRefreshPrices } = props
   const { trades, myTrade, onShareTrade, onImportTrade } = props
   const [refreshing, setRefreshing] = useState(false)
-  usePrintingsVersion()
+  const version = usePrintingsVersion()
   const settings = useSettings()
   const baselines = useBaselines()
   const [decksOpen, toggleDecks] = useStoredToggle('mtg-dreams.decksOpen', true)
   const [wishlistsOpen, toggleWishlists] = useStoredToggle('mtg-dreams.wishlistsOpen', true)
-  const wanted = wantedOverview(lists, inventory, settings)
   const pool = useCopyPool(lists)
-  const worth = valueCollection(inventory, VALUATION_BASIS, settings.bundleBasics)
+  const wanted = wantedOverview(lists, inventory, settings, pool)
+  const worth = inventoryValue(inventory, settings.bundleBasics)
+  /** Each list's figures; recomputed when the data or prices change, not when navigating. */
+  const figures = useMemo(
+    () => new Map(lists.map((list) => [list, listFigures(list, inventory, settings, baselines, pool)])),
+    // `version` stands for the prices the figures are read from.
+    [lists, inventory, settings, baselines, pool, version]
+  )
+  const tradeCounts = useMemo(
+    () => trades.map((trade) => matchTrades(myTrade.haves, myTrade.wants, trade)),
+    [trades, myTrade]
+  )
 
   const renderList = (list: CardList) => {
-    const format = listFormat(list.lines)
-    const sideIds = sideboardIds(list.lines, !format?.commander)
-    const rows = buildRows(cardLines(list.lines), inventory, settings, sideIds, (key) => pool.held(list, key))
-    const summary = summarize(rows)
-    const mainCards = totalCopies(rows.filter((row) => !row.side).map((row) => row.line))
-    const size = list.kind === 'deck' && format ? deckSizeCheck(format, mainCards) : null
-    const cheaper =
-      list.kind === 'wishlist'
-        ? rows.filter(
-            (row) =>
-              !row.bundledIds &&
-              priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
-          ).length
-        : 0
+    const { format, summary, mainCards, size, cheaper, colors } = figures.get(list)!
     const active = view?.page === 'list' && sameList(view.list, list)
-    const colors = listColors(rows, format?.commander ? listCommander(list.lines) : null)
     const priced = summary.loading === 0 && summary.cards > 0
     const complete = list.kind === 'wishlist' && summary.cards > 0 && summary.ownedCards >= summary.cards
     return (
@@ -223,8 +220,8 @@ export function Sidebar(props: SidebarProps) {
             <Icon name="share" /> Share my trade list
           </span>
         </button>
-        {trades.map((trade) => {
-          const { forMe, forThem } = matchTrades(myTrade.haves, myTrade.wants, trade)
+        {trades.map((trade, index) => {
+          const { forMe, forThem } = tradeCounts[index]
           const active = view?.page === 'trade' && view.friend === trade.name
           return (
             <button
@@ -264,6 +261,35 @@ export function Sidebar(props: SidebarProps) {
       </footer>
     </aside>
   )
+}
+
+/** @returns Sidebar figures of a list: totals, deck size, price drops and color identity. */
+function listFigures(
+  list: CardList,
+  inventory: Map<string, InventoryItem>,
+  settings: AppSettings,
+  baselines: Record<string, PriceBaseline>,
+  pool: CopyPool
+) {
+  const format = listFormat(list.lines)
+  const rows = listRows(list, inventory, settings, pool)
+  const mainCards = totalCopies(rows.filter((row) => !row.side).map((row) => row.line))
+  const cheaper =
+    list.kind === 'wishlist'
+      ? rows.filter(
+          (row) =>
+            !row.bundledIds &&
+            priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
+        ).length
+      : 0
+  return {
+    format,
+    summary: summarize(rows),
+    mainCards,
+    size: list.kind === 'deck' && format ? deckSizeCheck(format, mainCards) : null,
+    cheaper,
+    colors: listColors(rows, format?.commander ? listCommander(list.lines) : null)
+  }
 }
 
 /**

@@ -2,6 +2,7 @@ import { featuredTokens, tokenLabel } from '@shared/tokens'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { useSettings } from '../stores/settings'
 import { useDeckTokens } from '../stores/tokens'
+import { Collapsible } from './Collapsible'
 import { previewHandlers } from './HoverPreview'
 import { Skeleton } from './Placeholders'
 
@@ -20,51 +21,42 @@ export function DeckTokens({ names }: { names: string[] }) {
   const tokens = data ? featuredTokens(data, names) : null
 
   return (
-    <section className={`deck-stats deck-tokens${open ? ' open' : ''}`}>
-      <button type="button" className="deck-stats-toggle" aria-expanded={open} onClick={toggle}>
-        <span className="deck-stats-chevron" aria-hidden="true">
-          ›
-        </span>
-        Tokens
-        {tokens && <span className="muted small">{tokens.length}</span>}
-      </button>
-      {open && (
-        <div className="deck-tokens-body">
-          {!data || !tokens ? (
-            <Skeleton width={160} />
-          ) : tokens.length === 0 ? (
-            <p className="muted small">
-              {data.available ? 'No cards here create tokens, emblems or helpers.' : 'Token data unavailable (Scryfall).'}
-            </p>
-          ) : (
-            <ul className="token-strip">
-              {tokens.map((entry) => {
-                const label = tokenLabel(entry)
-                const makers = entry.makers
-                return (
-                  <li
-                    key={entry.key}
-                    className={`token-tile ${entry.kind}`}
-                    title={`${label}\nMade by: ${makers.join(', ')}`}
-                    {...previewHandlers({ src: entry.token.imageNormal, back: entry.token.imageBack })}
-                  >
-                    {cardImages && (
-                      <span className="token-art">
-                        {entry.token.imageSmall && <img src={entry.token.imageSmall} alt="" loading="lazy" draggable={false} />}
-                      </span>
-                    )}
-                    <span className="token-name">{label}</span>
-                    <span className="token-makers">
-                      {makers[0]}
-                      {makers.length > 1 && ` +${makers.length - 1}`}
+    <Collapsible open={open} onToggle={toggle} title="Tokens" summary={tokens?.length} className="deck-tokens">
+      <div className="deck-tokens-body">
+        {!data || !tokens ? (
+          <Skeleton width={160} />
+        ) : tokens.length === 0 ? (
+          <p className="muted small">
+            {data.available ? 'No cards here create tokens, emblems or helpers.' : 'Token data unavailable (Scryfall).'}
+          </p>
+        ) : (
+          <ul className="token-strip">
+            {tokens.map((entry) => {
+              const label = tokenLabel(entry)
+              const makers = entry.makers
+              return (
+                <li
+                  key={entry.key}
+                  className={`token-tile ${entry.kind}`}
+                  title={`${label}\nMade by: ${makers.join(', ')}`}
+                  {...previewHandlers({ src: entry.token.imageNormal, back: entry.token.imageBack })}
+                >
+                  {cardImages && (
+                    <span className="token-art">
+                      {entry.token.imageSmall && <img src={entry.token.imageSmall} alt="" loading="lazy" draggable={false} />}
                     </span>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-      )}
-    </section>
+                  )}
+                  <span className="token-name">{label}</span>
+                  <span className="token-makers">
+                    {makers[0]}
+                    {makers.length > 1 && ` +${makers.length - 1}`}
+                  </span>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
+    </Collapsible>
   )
 }

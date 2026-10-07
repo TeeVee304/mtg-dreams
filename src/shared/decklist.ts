@@ -10,9 +10,20 @@ export function newLineId(): string {
   return `l${idCounter}`
 }
 
+/** {@link nameKey} results by name: the same names are keyed over and over by lists, rows and lookups. */
+const nameKeys = new Map<string, string>()
+/** Cache size at which {@link nameKeys} starts over. */
+const MAX_NAME_KEYS = 20_000
+
 /** Card identity key: front face only, whitespace-collapsed, lower-case. */
 export function nameKey(name: string): string {
-  return name.split('//')[0].replace(/\s+/g, ' ').trim().toLowerCase()
+  let key = nameKeys.get(name)
+  if (key === undefined) {
+    key = name.split('//')[0].replace(/\s+/g, ' ').trim().toLowerCase()
+    if (nameKeys.size >= MAX_NAME_KEYS) nameKeys.clear()
+    nameKeys.set(name, key)
+  }
+  return key
 }
 
 /** `N[x] rest` card line. */

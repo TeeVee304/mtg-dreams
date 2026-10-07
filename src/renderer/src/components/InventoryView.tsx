@@ -7,30 +7,27 @@ import {
   needsCardData,
   NO_FILTERS,
   sortFor,
-  sortOptionsFor,
-  type CardFilters,
-  type SortKey
+  type CardFilters
 } from '@shared/cards'
-import { bundledBasic } from '@shared/basics'
-import { cardLines, nameKey, serializeInventory } from '@shared/decklist'
+import { cardLines, nameKey } from '@shared/decklist'
 import { hasVersions } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import type { ThemeColor } from '@shared/themes'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../stores/cardinfo'
-import { VALUATION_BASIS, valueItem, type ItemValue } from '../lib/collection'
+import { inventoryValue, type ItemValue } from '../lib/collection'
 import { formatEur } from '../lib/format'
 import { useCopyPool } from '../hooks/useCopyPool'
-import type { CardList, LibraryActions, ListRef } from '../stores/library'
-import { requestPrintings, usePrintingsVersion } from '../stores/printings'
-import { updateSettings, useSettings } from '../stores/settings'
+import { inventoryText, type CardList, type LibraryActions, type ListRef } from '../stores/library'
+import { usePrintingsVersion } from '../stores/printings'
+import { useSettings } from '../stores/settings'
+import { ListChip, NameCell, Price } from './CardCells'
 import { CardSearch } from './CardSearch'
+import { CardSortSelect } from './Controls'
 import { TextEditorDialog } from './Dialogs'
 import { copyLabel, InventoryVersionsDialog } from './InventoryVersions'
 import { FilterBar } from './FilterBar'
-import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
-import { CardThumb, Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
 import { SummaryItem } from './SummaryItem'
 import { useToast } from './Toasts'
@@ -61,8 +58,8 @@ interface InventoryViewProps {
 
 /**
  * Inventory page: value summary, then a filterable, sortable table with value, version editing and
- * list usage. Uses the nearest inventory equivalent of the global sort. Requests card data and
- * printings for all items.
+ * list usage. Uses the nearest inventory equivalent of the global sort. Requests card data for all
+ * items (the app already requests their printings).
  */
 export function InventoryView(props: InventoryViewProps) {
   const { inventory, lists, actions, onOpenList, onAddPrecon, onValueDetails, startPasting } = props
@@ -97,22 +94,19 @@ export function InventoryView(props: InventoryViewProps) {
     return byKind
   }, [lists, pool])
 
-  const namesKey = [...inventory.values()].map((item) => item.name).join('\n')
   useEffect(() => {
-    const names = namesKey.split('\n').filter(Boolean)
-    requestCardInfos(names, bundleBasics)
-    for (const name of names) if (!bundledBasic(name, bundleBasics)) requestPrintings(name)
-  }, [namesKey, bundleBasics])
+    requestCardInfos(
+      [...inventory.values()].map((item) => item.name),
+      bundleBasics
+    )
+  }, [inventory, bundleBasics])
 
-  const items = [...inventory.values()].map((item) => ({
+  const worth = inventoryValue(inventory, bundleBasics)
+  const items = [...inventory].map(([key, item]) => ({
     ...item,
     info: getCardInfo(item.name, bundleBasics),
-    value: valueItem(item, VALUATION_BASIS, bundleBasics)
+    value: worth.items.get(key)!
   }))
-  const previewFor = (name: string) => {
-    const generic = bundledBasic(name, bundleBasics)
-    return previewHandlers(generic ? { src: generic.printing.imageNormal } : { name })
-  }
   const visible = items.filter((item) => matchesFilters(item.name, item.info, undefined, filters))
   visible.sort((a, b) =>
     isCardSort(sort)
@@ -122,12 +116,8 @@ export function InventoryView(props: InventoryViewProps) {
         : b.qty - a.qty || a.name.localeCompare(b.name)
   )
 
-  const totalCopies = items.reduce((sum, item) => sum + item.qty, 0)
-  const worth = items.reduce((sum, item) => sum + item.value.total, 0)
-  const pricing = items.filter((item) => item.value.status === 'loading').length
   const visibleCopies = visible.reduce((sum, item) => sum + item.qty, 0)
   const dataLoading = needsCardData(filters) && items.some((item) => item.info === undefined)
-  const text = serializeInventory(inventory)
 
   const usageChips = (item: InventoryItem, kind: ListKind) => {
     const entries = usage[kind].get(nameKey(item.name)) ?? []
@@ -137,16 +127,15 @@ export function InventoryView(props: InventoryViewProps) {
       const short = got < entry.qty
       const ahead = entry.held > 0 ? `; ${Math.min(entry.held, item.qty)} of yours go to ${kind === 'deck' ? 'decks' : 'decks and lists'} ahead of it` : ''
       return (
-        <button
+        <ListChip
           key={entry.list}
-          type="button"
-          className={`chip link list-chip${kind === 'deck' && short ? ' short' : ''}`}
-          data-color={entry.color ?? undefined}
+          color={entry.color}
+          className={kind === 'deck' && short ? 'short' : undefined}
           onClick={() => onOpenList({ kind, name: entry.list })}
           title={`${entry.list} ${kind === 'deck' ? 'uses' : 'wants'} ${entry.qty}, ${got} covered${ahead}`}
         >
           {entry.list} · {kind === 'deck' && !short ? entry.qty : `${got}/${entry.qty}`}
-        </button>
+        </ListChip>
       )
     })
   }
@@ -161,7 +150,10 @@ export function InventoryView(props: InventoryViewProps) {
           <button type="button" onClick={() => setEditing(true)}>
             Edit as text
           </button>
-          <button type="button" onClick={() => window.api.copyText(text).then(() => toast('Inventory copied to clipboard'))}>
+          <button
+            type="button"
+            onClick={() => window.api.copyText(inventoryText(inventory)).then(() => toast('Inventory copied to clipboard'))}
+          >
             Copy as text
           </button>
         </div>
@@ -171,19 +163,19 @@ export function InventoryView(props: InventoryViewProps) {
         <section className="summary-strip">
           <SummaryItem
             label="Inventory value"
-            value={formatEur(worth)}
+            value={formatEur(worth.total)}
             accent
-            note={pricing > 0 ? `Typical prices · ${pricing} loading` : 'Typical prices'}
+            note={worth.pending > 0 ? `Typical prices · ${worth.pending} loading` : 'Typical prices'}
             action={
               <button type="button" className="value-details-btn" onClick={onValueDetails} aria-label="Changes and top cards">
                 <Icon name="sparkle" />
-                <span className="value-details-tip" role="tooltip" aria-hidden="true">
+                <span className="tip tip-end" role="tooltip" aria-hidden="true">
                   Changes and top cards
                 </span>
               </button>
             }
           />
-          <SummaryItem label="Cards" value={String(totalCopies)} note={`${items.length} unique`} />
+          <SummaryItem label="Cards" value={String(worth.copies)} note={`${items.length} unique`} />
         </section>
       )}
 
@@ -208,26 +200,11 @@ export function InventoryView(props: InventoryViewProps) {
             onChange={setFilters}
             namePlaceholder="Filter by name…"
             loadingNote={dataLoading ? 'Loading card data…' : undefined}
-            end={
-              <label className="field-inline">
-                Sort
-                <select
-                  value={sort}
-                  onChange={(event) => void updateSettings({ sort: event.target.value as SortKey })}
-                  title="Applies to all decks, wishlists and the inventory"
-                >
-                  {sortOptionsFor('inventory').map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            }
+            end={<CardSortSelect view="inventory" value={sort} />}
           >
             {filtersActive(filters) && (
               <span className="muted small">
-                Showing {visibleCopies} of {totalCopies} copies
+                Showing {visibleCopies} of {worth.copies} copies
               </span>
             )}
           </FilterBar>
@@ -255,30 +232,25 @@ export function InventoryView(props: InventoryViewProps) {
                       label={`owned copies of ${item.name}`}
                     />
                   </td>
-                  <td className="col-name" {...previewFor(item.name)}>
-                    <div className="name-cell">
-                      <CardThumb src={item.value.printing?.imageSmall} loading={item.value.status === 'loading'} />
-                      <div className="name-main">
-                        <span className="card-name" title={item.name}>
-                          {item.name}
-                        </span>
-                        {hasVersions(item) &&
-                          item.copies
-                            .filter((copy) => copy.set || copy.foil)
-                            .map((copy) => (
-                              <button
-                                key={copyLabel(copy)}
-                                type="button"
-                                className={`chip link${copy.foil ? ' foil' : ''}`}
-                                onClick={() => setVersionsOf(nameKey(item.name))}
-                                title="Your versions of this card"
-                              >
-                                {copy.qty}× {copyLabel(copy)}
-                              </button>
-                            ))}
-                      </div>
-                    </div>
-                  </td>
+                  <NameCell images={item.value.printing} name={item.name} loading={item.value.status === 'loading'}>
+                    <span className="card-name" title={item.name}>
+                      {item.name}
+                    </span>
+                    {hasVersions(item) &&
+                      item.copies
+                        .filter((copy) => copy.set || copy.foil)
+                        .map((copy) => (
+                          <button
+                            key={copyLabel(copy)}
+                            type="button"
+                            className={`chip link${copy.foil ? ' foil' : ''}`}
+                            onClick={() => setVersionsOf(nameKey(item.name))}
+                            title="Your versions of this card"
+                          >
+                            {copy.qty}× {copyLabel(copy)}
+                          </button>
+                        ))}
+                  </NameCell>
                   <td>
                     <div className="chips">{usageChips(item, 'deck')}</div>
                   </td>
@@ -286,7 +258,7 @@ export function InventoryView(props: InventoryViewProps) {
                     <div className="chips">{usageChips(item, 'wishlist')}</div>
                   </td>
                   <td className="col-num">
-                    <ValueCell value={item.value} qty={item.qty} />
+                    <ValuePrice value={item.value} qty={item.qty} />
                   </td>
                   <td className="col-actions">
                     <button
@@ -336,7 +308,7 @@ export function InventoryView(props: InventoryViewProps) {
       {editing && (
         <TextEditorDialog
           title="Edit inventory as text"
-          initial={text}
+          initial={inventoryText(inventory)}
           mode="inventory"
           onClose={() => setEditing(false)}
           onSave={(value) => actions.replaceInventoryText(value)}
@@ -353,20 +325,16 @@ function valueOrder(value: ItemValue): number {
 }
 
 /** Value column cell by {@link ItemValue.status}. */
-function ValueCell({ value, qty }: { value: ItemValue; qty: number }) {
-  if (value.status === 'loading') return <Skeleton width={52} />
-  if (value.status === 'free') {
+function ValuePrice({ value, qty }: { value: ItemValue; qty: number }) {
+  if (value.status === 'priced') {
     return (
-      <span className="muted" title="Bundled basic lands count as free">
-        Free
-      </span>
+      <Price
+        unit={value.unit}
+        qty={qty}
+        total={value.total}
+        title={value.unpriced > 0 ? 'Some versions have no price and are left out' : undefined}
+      />
     )
   }
-  if (value.status === 'unpriced') return <span className="muted" title="No Cardmarket price">—</span>
-  return (
-    <span className="value-cell" title={value.unpriced > 0 ? 'Some versions have no price and are left out' : undefined}>
-      <strong>{formatEur(value.total)}</strong>
-      {qty > 1 && value.unit !== null && <span className="muted small">{formatEur(value.unit)} each</span>}
-    </span>
-  )
+  return <Price unit={value.status === 'loading' ? undefined : value.status === 'free' ? 0 : null} free={value.status === 'free'} />
 }

@@ -2,14 +2,13 @@ import { capEntries, type DeckFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
 import { listPriority, PRIORITIES } from '@shared/listPriority'
 import type { ListAnalysis } from '@shared/listModel'
-import { THEME_COLORS, type ThemeColor } from '@shared/themes'
 import type { CardLine } from '@shared/types'
-import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
 import { cardCount } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import type { Row } from '../lib/summary'
 import { useSettings } from '../stores/settings'
 import { CardDialog } from './CardDialog'
+import { ColorOptions } from './Controls'
 import { ConfirmDialog, PromptDialog, TextEditorDialog } from './Dialogs'
 import { Modal } from './Modal'
 import { PreconDialog } from './PreconDialog'
@@ -166,47 +165,19 @@ export function ListDialogs(props: ListDialogsProps) {
           }}
         />
       )
-    case 'color': {
-      const current = listColor(list.lines)
-      const choose = (color: ThemeColor | null) => {
-        actions.setListColor(list, color)
-        onClose()
-      }
+    case 'color':
       return (
         <Modal title={`${isDeck ? 'Deck' : 'List'} color`} size="medium" onClose={onClose}>
-          <div className="color-options list-colors" role="radiogroup" aria-label="Color">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={current === null}
-              className={`color-option${current === null ? ' selected' : ''}`}
-              onClick={() => choose(null)}
-              title="Follow the app color (Settings)"
-            >
-              <img className="color-icon" src={THEME_ICONS[settings.color]} alt="" draggable={false} />
-              <span className="color-label">Default</span>
-            </button>
-            {THEME_COLORS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                role="radio"
-                aria-checked={current === option.id}
-                className={`color-option${current === option.id ? ' selected' : ''}`}
-                onClick={() => choose(option.id)}
-                title={`${option.label} (${option.look})`}
-              >
-                <img className="color-icon" src={THEME_ICONS[option.id]} alt="" draggable={false} />
-                <span className="color-label">
-                  <img className="color-mana" src={MANA_SYMBOLS[option.id]} alt="" draggable={false} />
-                  {option.label}
-                </span>
-              </button>
-            ))}
-          </div>
+          <ColorOptions
+            value={listColor(list.lines)}
+            inherit={settings.color}
+            onChange={(color) => {
+              actions.setListColor(list, color)
+              onClose()
+            }}
+          />
         </Modal>
       )
-    }
     case 'priority': {
       const current = listPriority(list.lines)
       return (

@@ -8,7 +8,8 @@ import { cleanError } from '../lib/format'
 /**
  * Session store of printings by nameKey. Rate limiting, caching and prices live in the main process.
  * Cached data shows immediately; printings older than {@link PRINTINGS_MAX_AGE_MS} refresh in the
- * background; prices reload on `prices:updated`.
+ * background; prices reload on `prices:updated`. Changes notify subscribers in groups
+ * ({@link EMIT_DELAY_MS}), so a burst of loaded cards re-renders once.
  *
  * @packageDocumentation
  */
@@ -38,10 +39,17 @@ const entries = new Map<string, PrintingsEntry>()
 const listeners = new Set<() => void>()
 let version = 0
 
-/** Bumps the version and notifies subscribers. */
+/** Wait after a change before notifying, gathering the changes that follow into one notification. */
+const EMIT_DELAY_MS = 50
+let emitTimer: ReturnType<typeof setTimeout> | null = null
+
+/** Bumps the version and notifies subscribers once the changes of the next {@link EMIT_DELAY_MS} are in. */
 function emit(): void {
-  version += 1
-  for (const listener of listeners) listener()
+  emitTimer ??= setTimeout(() => {
+    emitTimer = null
+    version += 1
+    for (const listener of listeners) listener()
+  }, EMIT_DELAY_MS)
 }
 
 /** `useSyncExternalStore` subscribe. */
@@ -166,7 +174,10 @@ export async function reloadPrices(): Promise<void> {
   emit()
 }
 
+/** @returns Store version; it changes whenever entries do, so it keys values derived from them. */
+export const getPrintingsVersion = () => version
+
 /** Hook re-rendering on any entry change. @returns Store version. */
 export function usePrintingsVersion(): number {
-  return useSyncExternalStore(subscribe, () => version)
+  return useSyncExternalStore(subscribe, getPrintingsVersion)
 }

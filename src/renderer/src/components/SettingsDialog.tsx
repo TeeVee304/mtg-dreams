@@ -2,10 +2,9 @@ import { useState } from 'react'
 import type { AppSettings, Theme } from '@shared/api'
 import { COPIES_MODES } from '@shared/copies'
 import { PRICE_BASES } from '@shared/pricing'
-import { THEME_COLORS } from '@shared/themes'
-import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
 import { cleanError, formatDate } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
+import { ColorOptions } from './Controls'
 import { Modal } from './Modal'
 
 const THEMES: Array<{ id: Theme; label: string; hint: string }> = [
@@ -43,25 +42,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     <Modal title="Settings" onClose={onClose}>
       <section className="settings-section">
         <h3>Color</h3>
-        <div className="color-options" role="radiogroup" aria-label="Color">
-          {THEME_COLORS.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              role="radio"
-              aria-checked={settings.color === option.id}
-              className={`color-option${settings.color === option.id ? ' selected' : ''}`}
-              onClick={() => change({ color: option.id })}
-              title={`${option.label} (${option.look})`}
-            >
-              <img className="color-icon" src={THEME_ICONS[option.id]} alt="" draggable={false} />
-              <span className="color-label">
-                <img className="color-mana" src={MANA_SYMBOLS[option.id]} alt="" draggable={false} />
-                {option.label}
-              </span>
-            </button>
-          ))}
-        </div>
+        <ColorOptions value={settings.color} onChange={(color) => color && change({ color })} />
       </section>
 
       <section className="settings-section">

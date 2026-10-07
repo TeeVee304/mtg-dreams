@@ -1,11 +1,18 @@
 import { useState, type ReactNode } from 'react'
-import { sortOptionsFor, type CardFilters, type SortKey } from '@shared/cards'
+import type { CardFilters, SortKey } from '@shared/cards'
 import type { Section } from '@shared/listModel'
 import { cardCount, formatEur } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { summarize, type Row, type Summary } from '../lib/summary'
+import { CardSortSelect, Segmented } from './Controls'
 import { FilterBar } from './FilterBar'
 import { Icon } from './Icon'
+
+/** Card view options. */
+const CARD_VIEWS = [
+  { id: 'table', label: 'Table', title: 'Cards as table rows' },
+  { id: 'grid', label: 'Cards', title: 'Cards as images' }
+] as const
 
 /** Session-only folded section ids per list key. */
 const folded = new Map<string, Set<string>>()
@@ -64,35 +71,13 @@ export function ListTable(props: ListTableProps) {
         loadingNote={props.dataLoading ? 'Some cards are still loading and are hidden by these filters.' : undefined}
         end={
           <>
-            <div className="segmented" role="radiogroup" aria-label="View">
-              {(['table', 'grid'] as const).map((view) => (
-                <button
-                  key={view}
-                  type="button"
-                  role="radio"
-                  aria-checked={cardView === view}
-                  className={cardView === view ? 'selected' : undefined}
-                  onClick={() => void updateSettings({ cardView: view })}
-                  title={view === 'table' ? 'Cards as table rows' : 'Cards as images'}
-                >
-                  {view === 'table' ? 'Table' : 'Cards'}
-                </button>
-              ))}
-            </div>
-            <label className="field-inline">
-              Sort
-              <select
-                value={props.sort}
-                onChange={(event) => void updateSettings({ sort: event.target.value as SortKey })}
-                title="Applies to all decks, wishlists and the inventory"
-              >
-                {sortOptionsFor(props.sortView).map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <Segmented
+              label="View"
+              options={CARD_VIEWS}
+              value={cardView}
+              onChange={(view) => void updateSettings({ cardView: view })}
+            />
+            <CardSortSelect view={props.sortView} value={props.sort} />
           </>
         }
       >
@@ -112,39 +97,11 @@ export function ListTable(props: ListTableProps) {
       {cardView === 'grid' ? (
         <div className={`card-grid-view${props.picking ? ' picking' : ''}`}>
           {sections.map((section) => {
-            const sectionSummary = summarize(section.rows)
-            const leaders = section.id === 'Commander'
             const open = props.picking || !closed.has(section.id)
             return (
-              <section key={section.id} className={`grid-section${leaders ? ' commander-section' : ''}`}>
+              <section key={section.id} className={`grid-section${section.id === 'Commander' ? ' commander-section' : ''}`}>
                 <div className={`section-row grid-section-head${open ? '' : ' folded'}`}>
-                  <button
-                    type="button"
-                    className="section-toggle"
-                    onClick={() => toggle(section.id)}
-                    aria-expanded={open}
-                    title={open ? `Fold ${section.label.toLowerCase()}` : `Show ${section.label.toLowerCase()}`}
-                  >
-                    <span className="section-chevron" aria-hidden="true">
-                      <Icon name="chevron" />
-                    </span>
-                    {leaders && <Icon name="crown" />}
-                    <span className="section-label">
-                      {section.label} · {sectionSummary.cards}
-                    </span>
-                  </button>
-                  {section.warning && <span className="section-warning">{section.warning}</span>}
-                  {leaders && (
-                    <button
-                      type="button"
-                      className="section-action"
-                      onClick={props.onUnsetCommander}
-                      title="Stop using this card as the commander. It goes back to its type section."
-                    >
-                      Remove as commander
-                    </button>
-                  )}
-                  <span className="section-value">{formatEur(sectionSummary.total)}</span>
+                  <SectionHead section={section} open={open} onToggle={() => toggle(section.id)} onUnsetCommander={props.onUnsetCommander} />
                 </div>
                 {open && <div className="card-grid">{section.rows.map(props.renderTile)}</div>}
               </section>
@@ -168,40 +125,12 @@ export function ListTable(props: ListTableProps) {
             </tr>
           </thead>
           {sections.map((section) => {
-            const sectionSummary = summarize(section.rows)
-            const leaders = section.id === 'Commander'
             const open = props.picking || !closed.has(section.id)
             return (
-              <tbody key={section.id} className={leaders ? 'commander-section' : undefined}>
+              <tbody key={section.id} className={section.id === 'Commander' ? 'commander-section' : undefined}>
                 <tr className={`section-row${open ? '' : ' folded'}`}>
                   <td colSpan={isDeck ? 5 : 6}>
-                    <button
-                      type="button"
-                      className="section-toggle"
-                      onClick={() => toggle(section.id)}
-                      aria-expanded={open}
-                      title={open ? `Fold ${section.label.toLowerCase()}` : `Show ${section.label.toLowerCase()}`}
-                    >
-                      <span className="section-chevron" aria-hidden="true">
-                        <Icon name="chevron" />
-                      </span>
-                      {leaders && <Icon name="crown" />}
-                      <span className="section-label">
-                        {section.label} · {sectionSummary.cards}
-                      </span>
-                    </button>
-                    {section.warning && <span className="section-warning">{section.warning}</span>}
-                    {leaders && (
-                      <button
-                        type="button"
-                        className="section-action"
-                        onClick={props.onUnsetCommander}
-                        title="Stop using this card as the commander. It goes back to its type section."
-                      >
-                        Remove as commander
-                      </button>
-                    )}
-                    <span className="section-value">{formatEur(sectionSummary.total)}</span>
+                    <SectionHead section={section} open={open} onToggle={() => toggle(section.id)} onUnsetCommander={props.onUnsetCommander} />
                   </td>
                 </tr>
                 {open && section.rows.map(renderRow)}
@@ -211,6 +140,51 @@ export function ListTable(props: ListTableProps) {
         </table>
       )}
       {props.visibleRows === 0 && <p className="muted empty-filter">No cards match the current filters.</p>}
+    </>
+  )
+}
+
+/** Props of {@link SectionHead}. */
+interface SectionHeadProps {
+  section: Section<Row>
+  open: boolean
+  onToggle: () => void
+  onUnsetCommander: () => void
+}
+
+/** Section title bar, in the table and the grid: fold toggle with the card count, rule warning, commander removal and value. */
+function SectionHead({ section, open, onToggle, onUnsetCommander }: SectionHeadProps) {
+  const { cards, total } = summarize(section.rows)
+  const leaders = section.id === 'Commander'
+  return (
+    <>
+      <button
+        type="button"
+        className="section-toggle"
+        onClick={onToggle}
+        aria-expanded={open}
+        title={open ? `Fold ${section.label.toLowerCase()}` : `Show ${section.label.toLowerCase()}`}
+      >
+        <span className="section-chevron" aria-hidden="true">
+          <Icon name="chevron" />
+        </span>
+        {leaders && <Icon name="crown" />}
+        <span className="section-label">
+          {section.label} · {cards}
+        </span>
+      </button>
+      {section.warning && <span className="section-warning">{section.warning}</span>}
+      {leaders && (
+        <button
+          type="button"
+          className="section-action"
+          onClick={onUnsetCommander}
+          title="Stop using this card as the commander. It goes back to its type section."
+        >
+          Remove as commander
+        </button>
+      )}
+      <span className="section-value">{formatEur(total)}</span>
     </>
   )
 }
