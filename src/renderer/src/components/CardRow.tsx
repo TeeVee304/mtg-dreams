@@ -3,6 +3,7 @@ import { nameKey } from '@shared/decklist'
 import type { LegalityIssue } from '@shared/formats'
 import { heldWhere, shortfallNote } from '@shared/listModel'
 import { formatDate, formatEur } from '../lib/format'
+import { useNarrow } from '../hooks/useNarrow'
 import type { PriceDrop } from '../stores/history'
 import type { Row } from '../lib/summary'
 import { CardmarketButton, NameCell, Price } from './CardCells'
@@ -49,6 +50,7 @@ export function CardRow(props: CardRowProps) {
   const { row, pick, onPick, leader, crowned, isDeck, issue, shortfall, drop, maxQty, maxTitle } = props
   const { onQty, onToggleOwned, onOwnedDelta, onOpen, onRemove, onRename } = props
   const { line, entry, resolution, owned, unit } = row
+  const narrow = useNarrow()
   const printing = resolution?.printing ?? null
   const data = entry?.data
   const matchedName = data && !data.notFound && nameKey(data.name) !== nameKey(line.name) ? data.name : null
@@ -183,10 +185,17 @@ export function CardRow(props: CardRowProps) {
             {row.inventoryQty} owned · {heldWhere(row.holders, row.inventoryQty)}
           </span>
         )}
+        {narrow && (
+          <span className="name-version">
+            <VersionCell row={row} />
+          </span>
+        )}
       </NameCell>
-      <td className="col-version">
-        <VersionCell row={row} />
-      </td>
+      {!narrow && (
+        <td className="col-version">
+          <VersionCell row={row} />
+        </td>
+      )}
       <td className="col-num">
         <Price
           unit={loading ? undefined : unit}

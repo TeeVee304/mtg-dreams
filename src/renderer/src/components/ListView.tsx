@@ -283,6 +283,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         summary={summary}
         mainCards={mainCards}
         size={size}
+        target={isDeck ? (format?.deckSize ?? null) : null}
         lands={landCount(mainRows)}
         sideboard={analysis.sideboardCards}
         basis={settings.priceBasis}

@@ -10,10 +10,16 @@
   margin-top: 6px;
 }
 
+/* Fills in the list's theme color (the page carries the list's data-color). */
 .progress > div {
   height: 100%;
-  background: var(--good);
+  background: var(--accent);
   transition: width 0.3s;
+}
+
+/* A commander deck past its exact size. */
+.progress.over > div {
+  background: var(--warn);
 }
 
 /* Summary strip ---------------------------------------------------------------- */
@@ -71,37 +77,25 @@
   margin-top: 5px;
 }
 
-/* Inventory value: a square accent button on the item's right opens the Inventory Value dialog. */
-.summary-item:has(.value-details-btn) {
-  position: relative;
-  padding-right: 64px;
-}
-
+/* Inventory value: a quiet button at the end of the value line opens the Inventory Value dialog. */
 .value-details-btn {
-  position: absolute;
-  top: 50%;
-  right: 14px;
-  transform: translateY(-50%);
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  display: grid;
-  place-items: center;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--accent-ink);
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 35%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 3px 10px;
+  font-size: var(--fs-sm);
+  background: transparent;
+  color: var(--accent-text);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
 }
 
-.value-details-btn:hover:not(:disabled),
-.value-details-btn:focus-visible {
-  background: var(--accent);
-  filter: brightness(1.1);
+.value-details-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
 }
 
 .value-details-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 14px;
+  height: 14px;
 }
 

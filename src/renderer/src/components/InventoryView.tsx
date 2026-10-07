@@ -29,6 +29,7 @@ import { TextEditorDialog } from './Dialogs'
 import { copyLabel, InventoryVersionsDialog } from './InventoryVersions'
 import { FilterBar } from './FilterBar'
 import { Icon } from './Icon'
+import { MenuButton } from './MenuButton'
 import { Stepper } from './Stepper'
 import { SummaryItem } from './SummaryItem'
 import { useToast } from './Toasts'
@@ -151,12 +152,15 @@ export function InventoryView(props: InventoryViewProps) {
           <button type="button" onClick={() => setEditing(true)}>
             Edit as text
           </button>
-          <button
-            type="button"
-            onClick={() => window.api.copyText(inventoryText(inventory)).then(() => toast('Inventory copied to clipboard'))}
-          >
-            Copy as text
-          </button>
+          <MenuButton
+            label="More inventory actions"
+            items={[
+              {
+                label: 'Copy as text',
+                onSelect: () => void window.api.copyText(inventoryText(inventory)).then(() => toast('Inventory copied to clipboard'))
+              }
+            ]}
+          />
         </div>
       </header>
 
@@ -168,11 +172,15 @@ export function InventoryView(props: InventoryViewProps) {
             accent
             note={worth.pending > 0 ? `Typical prices · ${worth.pending} loading` : 'Typical prices'}
             action={
-              <button type="button" className="value-details-btn" onClick={onValueDetails} aria-label="Changes and top cards">
+              <button
+                type="button"
+                className="value-details-btn"
+                onClick={onValueDetails}
+                aria-label="Details: changes and top cards"
+                title="Changes and top cards"
+              >
                 <Icon name="sparkle" />
-                <span className="tip tip-end" role="tooltip" aria-hidden="true">
-                  Changes and top cards
-                </span>
+                Details
               </button>
             }
           />

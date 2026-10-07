@@ -13,6 +13,8 @@ interface ListValueCardsProps {
   mainCards: number
   /** Decks with a format: main deck size against it. */
   size: DeckSizeCheck | null
+  /** Decks with a format: the size it asks for. */
+  target: number | null
   /** Main deck land copies. */
   lands: number
   /** Sideboard copies. */
@@ -24,9 +26,10 @@ interface ListValueCardsProps {
  * One-line value summary above a list: deck value and size, or a wishlist's remaining cost and
  * collected share (with the owned value once something is owned).
  */
-export function ListValueCards({ isDeck, summary, mainCards, size, lands, sideboard, basis }: ListValueCardsProps) {
+export function ListValueCards({ isDeck, summary, mainCards, size, target, lands, sideboard, basis }: ListValueCardsProps) {
   if (isDeck) {
     const makeup = [size?.note, `${lands} lands · ${mainCards - lands} nonland`, sideboard > 0 && `${sideboard} sideboard`]
+    const filled = target ? Math.min(100, Math.round((mainCards / target) * 100)) : 0
     return (
       <section className="summary-strip">
         <Item label="Deck value" value={formatEur(summary.total)} accent note={priceNote(summary, basis)} />
@@ -35,7 +38,13 @@ export function ListValueCards({ isDeck, summary, mainCards, size, lands, sidebo
           value={size?.label ?? String(mainCards)}
           warn={size !== null && size.status !== 'ok'}
           note={makeup.filter(Boolean).join(' · ')}
-        />
+        >
+          {size && target && (
+            <div className={`progress${size.status === 'over' ? ' over' : ''}`} aria-label={`${mainCards} of ${target} cards`}>
+              <div style={{ width: `${filled}%` }} />
+            </div>
+          )}
+        </Item>
       </section>
     )
   }

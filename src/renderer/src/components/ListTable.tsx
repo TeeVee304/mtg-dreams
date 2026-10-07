@@ -4,6 +4,7 @@ import type { Section } from '@shared/listModel'
 import { cardCount, formatEur } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { summarize, type Row, type Summary } from '../lib/summary'
+import { useNarrow } from '../hooks/useNarrow'
 import { CardSortSelect, Segmented } from './Controls'
 import { FilterBar } from './FilterBar'
 import { Icon } from './Icon'
@@ -53,6 +54,7 @@ interface ListTableProps {
 export function ListTable(props: ListTableProps) {
   const { isDeck, sections, renderRow, visibleSummary, filtering } = props
   const { cardView } = useSettings()
+  const narrow = useNarrow()
   const [closed, setClosed] = useState<Set<string>>(() => folded.get(props.listKey) ?? new Set())
   const toggle = (id: string) => {
     const next = new Set(closed)
@@ -118,7 +120,7 @@ export function ListTable(props: ListTableProps) {
               )}
               <th className="col-qty">Qty</th>
               <th>Card</th>
-              <th className="col-version">Version</th>
+              {!narrow && <th className="col-version">Version</th>}
               <th className="col-num">Price</th>
               <th className="col-actions" aria-label="Actions" />
             </tr>
@@ -128,7 +130,7 @@ export function ListTable(props: ListTableProps) {
             return (
               <tbody key={section.id} className={section.id === 'Commander' ? 'commander-section' : undefined}>
                 <tr className={`section-row${open ? '' : ' folded'}`}>
-                  <td colSpan={isDeck ? 3 : 4}>
+                  <td colSpan={(isDeck ? 3 : 4) - (narrow ? 1 : 0)}>
                     <SectionTitle section={section} open={open} onToggle={() => toggle(section.id)} />
                   </td>
                   <td className="col-num">

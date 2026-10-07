@@ -19,6 +19,7 @@ import { listRows, summarize } from '../lib/summary'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
 import { wantedOverview } from '../lib/wanted'
 import { useCopyPool } from '../hooks/useCopyPool'
+import { useNarrow } from '../hooks/useNarrow'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { Icon } from './Icon'
 
@@ -51,12 +52,14 @@ interface SidebarProps {
 /**
  * Navigation: inventory and Most Wanted stay in place; decks and wishlists (collapsible sections with
  * price-drop counts and color symbols on hover) and trades scroll below them. The footer holds the
- * price status and settings.
+ * price status and settings. In narrow windows it is an icon rail: icons and list initials, with
+ * every list shown and names in tooltips (and for screen readers).
  */
 export function Sidebar(props: SidebarProps) {
   const { lists, inventory, view, onSelect, onNew, onSettings, pricedAt, onRefreshPrices } = props
   const { trades, myTrade, onShareTrade, onImportTrade } = props
   const [refreshing, setRefreshing] = useState(false)
+  const rail = useNarrow()
   const version = usePrintingsVersion()
   const settings = useSettings()
   const baselines = useBaselines()
@@ -88,8 +91,10 @@ export function Sidebar(props: SidebarProps) {
         className={`nav-item${active ? ' active' : ''}`}
         data-color={listColor(list.lines) ?? undefined}
         style={colors.length > 0 ? ({ '--colors': colors.length } as CSSProperties) : undefined}
+        title={rail ? list.name : undefined}
         onClick={() => onSelect({ page: 'list', list: { kind: list.kind, name: list.name } })}
       >
+        {rail && <Initials name={list.name} />}
         <span className="nav-name">{list.name}</span>
         {colors.length > 0 && (
           <span className="nav-colors" aria-label={`Colors: ${colors.join(', ')}`}>
@@ -132,11 +137,12 @@ export function Sidebar(props: SidebarProps) {
   const section = (kind: ListKind, title: string, empty: string) => {
     const items = lists.filter((list) => list.kind === kind)
     const label = kind === 'deck' ? 'New deck' : 'New wishlist'
-    const [open, toggle] = kind === 'deck' ? [decksOpen, toggleDecks] : [wishlistsOpen, toggleWishlists]
+    // The rail has no room for folding: it always shows every list.
+    const [open, toggle] = rail ? [true, () => {}] : kind === 'deck' ? [decksOpen, toggleDecks] : [wishlistsOpen, toggleWishlists]
     return (
       <>
         <div className="nav-section">
-          <span>
+          <span className="nav-section-title">
             {title}
             {!open && items.length > 0 && <span className="nav-section-count"> · {items.length}</span>}
           </span>
@@ -144,16 +150,18 @@ export function Sidebar(props: SidebarProps) {
             <button type="button" className="icon-btn" onClick={() => onNew(kind)} title={label} aria-label={label}>
               <Icon name="plus" />
             </button>
-            <button
-              type="button"
-              className={`icon-btn nav-section-toggle${open ? ' open' : ''}`}
-              onClick={toggle}
-              aria-expanded={open}
-              title={open ? `Collapse ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
-              aria-label={open ? `Collapse ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
-            >
-              <Icon name="chevron" />
-            </button>
+            {!rail && (
+              <button
+                type="button"
+                className={`icon-btn nav-section-toggle${open ? ' open' : ''}`}
+                onClick={toggle}
+                aria-expanded={open}
+                title={open ? `Collapse ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
+                aria-label={open ? `Collapse ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
+              >
+                <Icon name="chevron" />
+              </button>
+            )}
           </span>
         </div>
         {open && items.length === 0 && <p className="muted nav-empty">{empty}</p>}
@@ -163,7 +171,7 @@ export function Sidebar(props: SidebarProps) {
   }
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar${rail ? ' rail' : ''}`}>
       <div className="brand">
         <img className="brand-mark" src={THEME_ICONS[settings.color]} alt="" draggable={false} />
         <span>
@@ -175,10 +183,11 @@ export function Sidebar(props: SidebarProps) {
         <button
           type="button"
           className={`nav-item${view?.page === 'inventory' ? ' active' : ''}`}
+          title={rail ? 'Inventory' : undefined}
           onClick={() => onSelect({ page: 'inventory' })}
         >
           <span className="nav-name nav-icon-name">
-            Inventory <Icon name="backpack" />
+            <span className="nav-label">Inventory</span> <Icon name="backpack" />
           </span>
           <span className="nav-meta">
             {cardCount(worth.copies)}
@@ -188,10 +197,11 @@ export function Sidebar(props: SidebarProps) {
         <button
           type="button"
           className={`nav-item${view?.page === 'wanted' ? ' active' : ''}`}
+          title={rail ? 'Most Wanted' : undefined}
           onClick={() => onSelect({ page: 'wanted' })}
         >
           <span className="nav-name nav-icon-name">
-            Most Wanted <Icon name="cart" />
+            <span className="nav-label">Most Wanted</span> <Icon name="cart" />
           </span>
           <span className="nav-meta">
             {cardCount(sumOf(wanted.cards, (card) => card.toBuy))}
@@ -205,7 +215,7 @@ export function Sidebar(props: SidebarProps) {
         {section('wishlist', 'Wishlists', 'No wishlists yet.')}
 
         <div className="nav-section">
-          <span>Trades</span>
+          <span className="nav-section-title">Trades</span>
           <button
             type="button"
             className="icon-btn"
@@ -216,9 +226,9 @@ export function Sidebar(props: SidebarProps) {
             <Icon name="plus" />
           </button>
         </div>
-        <button type="button" className="nav-item share-item" onClick={onShareTrade}>
-          <span className="nav-name">
-            <Icon name="share" /> Share my trade list
+        <button type="button" className="nav-item share-item" onClick={onShareTrade} title={rail ? 'Share my trade list' : undefined}>
+          <span className="nav-name nav-icon-name">
+            <Icon name="share" /> <span className="nav-label">Share my trade list</span>
           </span>
         </button>
         {trades.map((trade, index) => {
@@ -229,8 +239,10 @@ export function Sidebar(props: SidebarProps) {
               key={trade.name}
               type="button"
               className={`nav-item${active ? ' active' : ''}`}
+              title={rail ? `Trade with ${trade.name}` : undefined}
               onClick={() => onSelect({ page: 'trade', friend: trade.name })}
             >
+              {rail && <Initials name={trade.name} />}
               <span className="nav-name">{trade.name}</span>
               <span className="nav-meta">
                 {totalCopies(forMe)} for you · {totalCopies(forThem)} for them
@@ -256,11 +268,22 @@ export function Sidebar(props: SidebarProps) {
             {refreshing ? 'Checking…' : 'Refresh'}
           </button>
         </div>
-        <button type="button" className="settings-btn" onClick={onSettings}>
-          <Icon name="settings" /> Settings
+        <button type="button" className="settings-btn" onClick={onSettings} title={rail ? 'Settings' : undefined}>
+          <Icon name="settings" /> <span className="nav-label">Settings</span>
         </button>
       </footer>
     </aside>
+  )
+}
+
+/** A list's or friend's initials, standing in for the name in the rail. */
+function Initials({ name }: { name: string }) {
+  const words = name.split(/\s+/).filter(Boolean)
+  const letters = words.length > 1 ? words[0][0] + words[1][0] : name.slice(0, 2)
+  return (
+    <span className="nav-initials" aria-hidden="true">
+      {letters}
+    </span>
   )
 }
 

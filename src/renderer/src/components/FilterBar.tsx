@@ -118,7 +118,6 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
                   title={rarity.label}
                   onClick={() => set({ rarities: toggle(filters.rarities, rarity.id) })}
                 >
-                  <span className="rarity-gem" aria-hidden="true" />
                   {rarity.short}
                 </button>
               )
