@@ -10,20 +10,15 @@ import {
   type TradeSnapshot
 } from '@shared/trade'
 import type { InventoryItem } from '@shared/types'
-import { cleanError } from '../lib/format'
+import { cardCount, cleanError, totalCopies } from '../lib/format'
 import type { CardList } from '../stores/library'
 import { updateSettings, useSettings } from '../stores/settings'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { Modal } from './Modal'
 import { useToast } from './Toasts'
 
-/** Pluralized count. */
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-/** Total copies label. */
-const copies = (cards: TradeCard[]) => {
-  const n = cards.reduce((sum, card) => sum + card.qty, 0)
-  return `${n} ${n === 1 ? 'copy' : 'copies'}`
-}
+/** Total copies label, e.g. `5 cards`. */
+const copies = (cards: TradeCard[]) => cardCount(totalCopies(cards))
 /** Plain `N Name` lines. */
 const cardsToText = (cards: TradeCard[]) => countLines(cards).join('\n')
 
@@ -86,16 +81,17 @@ export function ShareTradeDialog({ inventory, lists, onClose }: ShareTradeDialog
       </label>
       <div className="trade-summary">
         <div>
-          <strong>{plural(snapshot.haves.length, 'card')}</strong> you own
-          <span className="muted"> ({copies(snapshot.haves)})</span>
+          <strong>{copies(snapshot.haves)}</strong> you can spare
+          <span className="muted"> ({snapshot.haves.length} unique)</span>
         </div>
         <div>
-          <strong>{plural(snapshot.wants.length, 'card')}</strong> your wishlists still need
+          <strong>{copies(snapshot.wants)}</strong> your lists still need
         </div>
       </div>
       <p className="muted small">
         Your friend imports it in MTG Dreams to see which of their cards your lists need, and the other way round.
-        Prices, decks and where your files live are never included, and basic lands are left out.
+        Only spare copies are offered: copies your decks and wishlists use stay out. Prices, decks and where your
+        files live are never included, and basic lands are left out.
       </p>
       {error && <p className="warn">{error}</p>}
     </Modal>
@@ -153,7 +149,7 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
       setName(replaceName ?? snapshot.name)
       setHaves(cardsToText(snapshot.haves))
       setWants(cardsToText(snapshot.wants))
-      setNotice(`Read ${plural(snapshot.haves.length, 'card')} from “${file.fileName}”. Check the name, then import.`)
+      setNotice(`Read ${copies(snapshot.haves)} from “${file.fileName}”. Check the name, then import.`)
     })
 
   return (
@@ -168,8 +164,7 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
               <span className="warn">{pasted.error}</span>
             ) : pasted?.snapshot ? (
               <span>
-                {plural(pasted.snapshot.haves.length, 'card')} they have · {plural(pasted.snapshot.wants.length, 'card')} they
-                want{replaces ? ` · replaces your current list for ${target}` : ''}
+                {copies(pasted.snapshot.haves)} they have · {copies(pasted.snapshot.wants)} they want{replaces ? ` · replaces your current list for ${target}` : ''}
               </span>
             ) : null}
           </span>

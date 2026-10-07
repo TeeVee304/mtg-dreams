@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { nameKey } from '@shared/decklist'
 import type { LegalityIssue } from '@shared/formats'
-import { shortfallNote } from '@shared/listModel'
+import { heldWhere, shortfallNote } from '@shared/listModel'
 import { formatDate, formatEur } from '../lib/format'
 import type { PriceDrop } from '../stores/history'
 import type { Row } from '../lib/summary'
@@ -179,6 +179,11 @@ export function CardRow(props: CardRowProps) {
                 Use “{matchedName}”
               </button>
             )}
+            {!isDeck && row.holders && row.holders.length > 0 && !complete && (
+              <span className="muted small owned-note">
+                {row.inventoryQty} owned · {heldWhere(row.holders, row.inventoryQty)}
+              </span>
+            )}
           </div>
         </div>
       </td>
@@ -186,9 +191,7 @@ export function CardRow(props: CardRowProps) {
         <VersionCell row={row} />
       </td>
       <td className="col-num" title={entry?.data && unit === null ? 'No Cardmarket price for this version and finish' : undefined}>
-        {row.bundledIds ? (
-          <span className="muted" title="Bundled basic lands count as free">{formatEur(0)}</span>
-        ) : loading ? (
+        {row.bundledIds ? null : loading ? (
           <Skeleton width={44} />
         ) : (
           formatEur(unit)
@@ -202,7 +205,7 @@ export function CardRow(props: CardRowProps) {
       </td>
       <td className="col-num strong">
         {row.bundledIds ? (
-          <span className="muted" title="Bundled basic lands count as free">{formatEur(0)}</span>
+          <span className="muted" title="Bundled basic lands count as free">Free</span>
         ) : loading ? (
           <Skeleton width={52} />
         ) : unit === null ? (
@@ -252,7 +255,7 @@ function VersionCell({ row }: { row: Row }) {
   if (row.bundledIds) {
     return (
       <span className="version" title="Every version of this basic land counts as one generic card">
-        <span className="auto-badge">Any version</span>
+        <span className="auto-badge generic">Any version</span>
         {row.bundledIds.length > 1 && <span className="muted">{row.bundledIds.length} lines bundled</span>}
       </span>
     )

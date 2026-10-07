@@ -138,7 +138,7 @@ export function ListTable(props: ListTableProps) {
                       onClick={props.onUnsetCommander}
                       title="Stop using this card as the commander. It goes back to its type section."
                     >
-                      Unset
+                      Remove as commander
                     </button>
                   )}
                   <span className="section-value">{formatEur(sectionSummary.total)}</span>
@@ -196,7 +196,7 @@ export function ListTable(props: ListTableProps) {
                         onClick={props.onUnsetCommander}
                         title="Stop using this card as the commander. It goes back to its type section."
                       >
-                        Unset
+                        Remove as commander
                       </button>
                     )}
                     <span className="section-value">{formatEur(sectionSummary.total)}</span>

@@ -3,7 +3,9 @@ import { parseInventory, parseList } from './decklist'
 import {
   buildSnapshot,
   computeWants,
+  keptMatches,
   matchTrades,
+  myTradeSide,
   parseTradeText,
   serializeSnapshot,
   snapshotToText
@@ -40,13 +42,24 @@ describe('computeWants', () => {
   })
 })
 
+describe('myTradeSide', () => {
+  it('offers only the copies no list keeps, with separate copies', () => {
+    const side = myTradeSide(inventory, [...wishlists, deck], 'separate')
+    expect(side.haves).toEqual([{ name: 'Thoughtseize', qty: 1 }])
+    expect(side.kept).toEqual([
+      { name: 'Counterspell', qty: 2 },
+      { name: 'Sol Ring', qty: 3 }
+    ])
+  })
+})
+
 describe('buildSnapshot', () => {
-  it('shares everything owned except basic lands', () => {
+  it('shares spare copies except basic lands', () => {
     const snapshot = buildSnapshot(' Bruno ', inventory, wishlists, 'shared', now)
     expect(snapshot.name).toBe('Bruno')
     expect(snapshot.haves).toEqual([
-      { name: 'Counterspell', qty: 2 },
-      { name: 'Sol Ring', qty: 3 },
+      { name: 'Counterspell', qty: 1 },
+      { name: 'Sol Ring', qty: 2 },
       { name: 'Thoughtseize', qty: 1 }
     ])
     expect(snapshot.wants.map((w) => w.name)).toEqual(['Demonic Tutor', 'Lightning Bolt', 'Reanimate'])
@@ -113,8 +126,14 @@ describe('matchTrades', () => {
       { name: 'Lightning Bolt', qty: 4, available: 9, needed: 4, lists: [burn] }
     ])
     expect(forThem).toEqual([
-      { name: 'Sol Ring', qty: 2, available: 3, needed: 2, lists: [] },
+      { name: 'Sol Ring', qty: 2, available: 2, needed: 2, lists: [] },
       { name: 'Thoughtseize', qty: 1, available: 1, needed: 1, lists: [] }
     ])
+  })
+
+  it('lists the wants only copies your lists keep could cover', () => {
+    const side = myTradeSide(inventory, [...wishlists, deck], 'separate')
+    const friend = parseTradeText('// Want\n2 Sol Ring\n1 Thoughtseize\n3 Island', 'Ana')
+    expect(keptMatches(side.haves, side.kept, friend)).toEqual([{ name: 'Sol Ring', qty: 2, available: 3, needed: 2, lists: [] }])
   })
 })

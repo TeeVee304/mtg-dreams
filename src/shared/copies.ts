@@ -75,39 +75,87 @@ export function allocationOrder<L extends PoolList>(lists: L[]): L[] {
   return [...lists].sort((a, b) => rank(b) - rank(a) || a.name.localeCompare(b.name))
 }
 
+/** Owned copies of a card that one list gets. */
+export interface HeldCopies extends ListKey {
+  qty: number
+}
+
 /** Copy claims of all lists, from {@link copyPool}. */
 export interface CopyPool {
   mode: CopiesMode
   /** Copies of a card that lists ahead of `list` take first; 0 with shared copies. Unknown lists come last. */
   held(list: ListKey, key: string): number
+  /**
+   * Lists ahead of `list` that get some of the `owned` copies of a card, with the copies each gets,
+   * in allocation order; none with shared copies.
+   */
+  holders(list: ListKey, key: string, owned: number): HeldCopies[]
+  /**
+   * Lists that get some of the `owned` copies of a card, with the copies each gets: handed out in
+   * allocation order with separate copies; with shared copies, every list using it, each with all it uses.
+   */
+  usedBy(key: string, owned: number): HeldCopies[]
+  /** Copies of a card the lists keep, owned or not: all their claims with separate copies, the largest one with shared copies. */
+  inUse(key: string): number
   /** Copies of a card in decks other than `list`; 0 with shared copies. */
   inOtherDecks(list: ListKey, key: string): number
   /** Copies of a card claimed by all lists together; 0 with shared copies, where lists claim none. */
   claimed(key: string): number
 }
 
+/** A list's claim on a card's copies. */
+interface Claim {
+  /** Position in allocation order. */
+  at: number
+  list: ListKey
+  /** {@link listId} of a deck; null for wishlists. */
+  deck: string | null
+  qty: number
+}
+
 /** @returns Copy claims of `lists` in `mode`; recompute when lists change. */
 export function copyPool(lists: PoolList[], mode: CopiesMode): CopyPool {
   const order = allocationOrder(lists)
   const index = new Map(order.map((list, i) => [listId(list), i]))
-  const claims = new Map<string, Array<{ at: number; deck: string | null; qty: number }>>()
+  const claims = new Map<string, Claim[]>()
   order.forEach((list, at) => {
     for (const [key, total] of cardTotals(list.lines)) {
-      const entry = { at, deck: list.kind === 'deck' ? listId(list) : null, qty: total.qty }
+      const claim = { at, list: { kind: list.kind, name: list.name }, deck: list.kind === 'deck' ? listId(list) : null, qty: total.qty }
       const entries = claims.get(key)
-      if (entries) entries.push(entry)
-      else claims.set(key, [entry])
+      if (entries) entries.push(claim)
+      else claims.set(key, [claim])
     }
   })
-  const sum = (key: string, keep: (entry: { at: number; deck: string | null }) => boolean) =>
-    mode === 'shared' ? 0 : (claims.get(key) ?? []).reduce((total, entry) => (keep(entry) ? total + entry.qty : total), 0)
+  const sum = (key: string, keep: (claim: Claim) => boolean) =>
+    mode === 'shared' ? 0 : (claims.get(key) ?? []).reduce((total, claim) => (keep(claim) ? total + claim.qty : total), 0)
+  /** Hands `owned` copies out to the claims before position `before`, in allocation order. */
+  const handOut = (key: string, owned: number, before: number): HeldCopies[] => {
+    const given: HeldCopies[] = []
+    let left = owned
+    for (const claim of claims.get(key) ?? []) {
+      if (claim.at >= before || left <= 0) break
+      const qty = Math.min(claim.qty, left)
+      given.push({ ...claim.list, qty })
+      left -= qty
+    }
+    return given
+  }
   return {
     mode,
     held: (list, key) => {
       const at = index.get(listId(list)) ?? Infinity
-      return sum(key, (entry) => entry.at < at)
+      return sum(key, (claim) => claim.at < at)
     },
-    inOtherDecks: (list, key) => sum(key, (entry) => entry.deck !== null && entry.deck !== listId(list)),
+    holders: (list, key, owned) => (mode === 'shared' ? [] : handOut(key, owned, index.get(listId(list)) ?? Infinity)),
+    usedBy: (key, owned) =>
+      mode === 'separate'
+        ? handOut(key, owned, Infinity)
+        : owned > 0
+          ? (claims.get(key) ?? []).map((claim) => ({ ...claim.list, qty: Math.min(claim.qty, owned) }))
+          : [],
+    inUse: (key) =>
+      mode === 'shared' ? Math.max(0, ...(claims.get(key) ?? []).map((claim) => claim.qty)) : sum(key, () => true),
+    inOtherDecks: (list, key) => sum(key, (claim) => claim.deck !== null && claim.deck !== listId(list)),
     claimed: (key) => sum(key, () => true)
   }
 }

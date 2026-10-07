@@ -3,6 +3,7 @@ import { allocateOwned, nameKey } from '@shared/decklist'
 import { ownedVersion } from '@shared/inventory'
 import { resolveLine, type Resolution } from '@shared/pricing'
 import type { AppSettings } from '@shared/api'
+import type { HeldCopies } from '@shared/copies'
 import type { CardInfo, CardLine, InventoryItem } from '@shared/types'
 import { getPrintingsEntry, type PrintingsEntry } from '../stores/printings'
 
@@ -19,6 +20,8 @@ export interface Row {
   before: number
   /** Copies of the same card claimed by lists ahead of this one (separate copies). */
   held: number
+  /** Lists ahead that get the owned copies, with how many each gets; set by list pages. */
+  holders?: HeldCopies[]
   /** Total copies in the inventory. */
   inventoryQty: number
   /** EUR unit price; null if unknown. */

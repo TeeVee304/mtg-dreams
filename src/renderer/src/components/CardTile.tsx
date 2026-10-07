@@ -30,7 +30,9 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
   const loading = !row.bundledIds && !entry?.data && !entry?.error
   const complete = owned >= line.qty
   const problem = issue?.message ?? (shortfall > 0 ? shortfallNote(row).label : null)
-  const price = row.bundledIds ? 0 : unit === null ? null : unit * line.qty
+  /** Badge text: copies covered out of those in the deck for a shortfall, else the issue kind. */
+  const badge = issue ? (issue.severity === 'warning' ? 'Restricted' : 'Illegal') : `${line.qty - shortfall}/${line.qty}`
+  const price = unit === null ? null : unit * line.qty
 
   const classes = [
     'card-tile',
@@ -67,7 +69,8 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
         )}
         {problem && (
           <span className={`card-tile-problem${issue?.severity === 'warning' ? ' warning' : ''}`} title={problem}>
-            !
+            <span aria-hidden="true">{badge}</span>
+            <span className="sr-only">{problem}</span>
           </span>
         )}
         {leader && (
@@ -78,7 +81,7 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
       </span>
       <span className="card-tile-meta">
         <span className="card-tile-name">{name}</span>
-        <span className="card-tile-price">{loading ? '…' : formatEur(price)}</span>
+        <span className="card-tile-price">{loading ? '…' : row.bundledIds ? 'Free' : formatEur(price)}</span>
       </span>
     </button>
   )

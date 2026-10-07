@@ -161,6 +161,12 @@ tr:hover .owned-adjust,
   color: var(--good);
 }
 
+/* Bundled basic lands: any version, not a status. */
+.auto-badge.generic {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
 /* The version shown is the one in your inventory. */
 .auto-badge.yours {
   background: var(--accent-soft);
@@ -229,6 +235,11 @@ tr:hover .owned-adjust,
 
 .name-main {
   min-width: 0;
+}
+
+/* Where a card's owned copies went, under its name. */
+.owned-note {
+  display: block;
 }
 
 /* The art, cropped from the card's small image: scaled a little past the frame's width,

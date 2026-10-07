@@ -24,7 +24,7 @@ export function DeckStats({ rows }: { rows: StatsRow[] }) {
         </span>
         Stats
         <span className="muted small">
-          {`${counted(stats.spells, 'Card')} + ${counted(stats.lands, 'Land')}`}
+          {`${counted(stats.spells, 'card')} + ${counted(stats.lands, 'land')}`}
           {stats.pending > 0 && ` · ${cardCount(stats.pending)} loading`}
         </span>
       </button>
@@ -55,7 +55,7 @@ function ManaCurve({ stats }: { stats: Stats }) {
               <span className="curve-value">{total > 0 ? total : ''}</span>
               <div className="curve-bar" style={{ height: `${(total / tallest) * 100}%` }} />
               <span className="chart-tip" role="tooltip">
-                Mana Value <ManaCost manaValue={column.manaValue} />: {counted(column.creatures + column.others, 'Card')}
+                Mana value <ManaCost manaValue={column.manaValue} />: {counted(column.creatures + column.others, 'card')}
               </span>
             </div>
           )
@@ -70,7 +70,7 @@ function ManaCurve({ stats }: { stats: Stats }) {
       </div>
       {stats.averageManaValue !== null && (
         <p className="curve-average">
-          Average Mana Value: <strong>{stats.averageManaValue.toFixed(2)}</strong>
+          Average mana value: <strong>{stats.averageManaValue.toFixed(2)}</strong>
         </p>
       )}
     </figure>
@@ -80,24 +80,24 @@ function ManaCurve({ stats }: { stats: Stats }) {
 /** Curve column label; the last is `N+`. */
 const label = (manaValue: number) => (manaValue === CURVE_TOP ? `${CURVE_TOP}+` : String(manaValue))
 
-/** @returns Pluralized title-case count, e.g. `1 Card`. */
+/** @returns Pluralized count, e.g. `1 card`. */
 const counted = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 /** Curve bar tooltip. */
 const tip = (manaValue: number, creatures: number, others: number) =>
-  `Mana Value (${label(manaValue)}): ${counted(creatures + others, 'Card')}`
+  `Mana value (${label(manaValue)}): ${counted(creatures + others, 'card')}`
 
-/** Per-color spell bars in each color, plus colorless and multicolor counts. */
+/** Per-color spell bars in each color, plus colorless and multicolor counts; colors with no cards are left out. */
 function ColorBreakdown({ stats }: { stats: Stats }) {
   const bars = [
     ...STAT_COLORS.map((color) => ({ key: color, name: COLOR_NAMES[color], icon: MANA_SYMBOLS[color], count: stats.colors[color] })),
     { key: 'C', name: 'Colorless', icon: MANA_SYMBOLS.C, count: stats.colorless },
     { key: 'M', name: 'Multicolor', icon: null, count: stats.multicolor }
-  ]
+  ].filter((bar) => bar.count > 0)
   return (
     <figure className="stats-chart">
       <figcaption>
-        Color Distribution
+        Color distribution
         <span className="info-tip" tabIndex={0} aria-label="Multicolored cards count toward each of their colors">
           <Icon name="info" />
           <span className="chart-tip" role="tooltip">
@@ -107,7 +107,7 @@ function ColorBreakdown({ stats }: { stats: Stats }) {
       </figcaption>
       <ul className="color-bars">
         {bars.map((bar) => (
-          <li key={bar.key} className={bar.count === 0 ? 'is-zero' : undefined}>
+          <li key={bar.key}>
             <span className="color-bar-name">
               {bar.icon ? <img src={bar.icon} alt="" draggable={false} /> : <span className="multicolor-dot" aria-hidden="true" />}
               {bar.name}

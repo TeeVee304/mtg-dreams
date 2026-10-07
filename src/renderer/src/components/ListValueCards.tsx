@@ -1,3 +1,4 @@
+import type { DeckSizeCheck } from '@shared/formats'
 import { priceBasisLabel } from '@shared/pricing'
 import type { PriceBasis } from '@shared/types'
 import { formatEur } from '../lib/format'
@@ -7,6 +8,10 @@ import type { Summary } from '../lib/summary'
 interface ListValueCardsProps {
   isDeck: boolean
   summary: Summary
+  /** Main deck copies (sideboard aside). */
+  mainCards: number
+  /** Decks with a format: main deck size against it. */
+  size: DeckSizeCheck | null
   /** Card line count (not copies). */
   lines: number
   /** Main deck land copies. */
@@ -17,12 +22,18 @@ interface ListValueCardsProps {
 }
 
 /** Value stats: deck value, or wishlist remaining cost and owned share. */
-export function ListValueCards({ isDeck, summary, lines, lands, sideboard, basis }: ListValueCardsProps) {
+export function ListValueCards({ isDeck, summary, mainCards, size, lines, lands, sideboard, basis }: ListValueCardsProps) {
   if (isDeck) {
+    const makeup = [size?.note, `${lands} lands · ${mainCards - lands} nonland`, sideboard > 0 && `${sideboard} sideboard`]
     return (
       <section className="stats">
         <Stat label="Deck value" value={formatEur(summary.total)} accent note={priceNote(summary, basis)} />
-        <Stat label="Cards" value={String(summary.cards)} note={`${lands} lands · ${summary.cards - sideboard - lands} nonland${sideboard ? ` · ${sideboard} sideboard` : ''}`} />
+        <Stat
+          label="Cards"
+          value={size?.label ?? String(mainCards)}
+          warn={size !== null && size.status !== 'ok'}
+          note={makeup.filter(Boolean).join(' · ')}
+        />
         <Stat label="Unique cards" value={String(lines)} />
       </section>
     )
@@ -54,12 +65,12 @@ function priceNote(summary: Summary, basis: PriceBasis): string {
   return parts.join(' · ')
 }
 
-/** Single labeled stat card. */
-function Stat({ label, value, accent, note }: { label: string; value: string; accent?: boolean; note?: string }) {
+/** Single labeled stat card; `warn` colors the value. */
+function Stat({ label, value, accent, warn, note }: { label: string; value: string; accent?: boolean; warn?: boolean; note?: string }) {
   return (
     <div className={`stat${accent ? ' accent' : ''}`}>
       <span className="stat-label">{label}</span>
-      <span className="stat-value">{value}</span>
+      <span className={`stat-value${warn ? ' warn' : ''}`}>{value}</span>
       {note && <span className="stat-note">{note}</span>}
     </div>
   )

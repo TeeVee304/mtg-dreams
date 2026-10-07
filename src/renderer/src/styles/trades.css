@@ -82,3 +82,19 @@
 .trade-footnote {
   text-align: center;
 }
+
+/* Wants only copies your lists keep could cover: for reference, dimmed. */
+.trade-kept {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trade-kept .trade-table {
+  opacity: 0.6;
+}
+
+.owned-detail {
+  white-space: nowrap;
+}

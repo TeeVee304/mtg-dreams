@@ -2,11 +2,12 @@ import type { CSSProperties } from 'react'
 import type { ColorFilter } from '@shared/cards'
 import { STAT_COLORS } from '@shared/deckStats'
 import { cardLines, nameKey } from '@shared/decklist'
-import { listCommander, listFormat } from '@shared/formats'
+import { deckSizeCheck, listCommander, listFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
+import { sideboardIds } from '@shared/sideboard'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
-import { cardCount, formatEur } from '../lib/format'
+import { cardCount, formatEur, totalCopies } from '../lib/format'
 import { sameList, type CardList, type ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
 import { usePrintingsVersion } from '../stores/printings'
@@ -57,8 +58,12 @@ export function Sidebar(props: SidebarProps) {
   const pool = useCopyPool(lists)
 
   const renderList = (list: CardList) => {
-    const rows = buildRows(cardLines(list.lines), inventory, settings, undefined, (key) => pool.held(list, key))
+    const format = listFormat(list.lines)
+    const sideIds = sideboardIds(list.lines, !format?.commander)
+    const rows = buildRows(cardLines(list.lines), inventory, settings, sideIds, (key) => pool.held(list, key))
     const summary = summarize(rows)
+    const mainCards = totalCopies(rows.filter((row) => !row.side).map((row) => row.line))
+    const size = list.kind === 'deck' && format ? deckSizeCheck(format, mainCards) : null
     const cheaper =
       list.kind === 'wishlist'
         ? rows.filter(
@@ -67,7 +72,6 @@ export function Sidebar(props: SidebarProps) {
               priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
           ).length
         : 0
-    const format = listFormat(list.lines)
     const active = view?.page === 'list' && sameList(view.list, list)
     const colors = listColors(rows, format?.commander ? listCommander(list.lines) : null)
     const priced = summary.loading === 0 && summary.cards > 0
@@ -92,7 +96,16 @@ export function Sidebar(props: SidebarProps) {
         <span className="nav-meta">
           {format && `${format.label} · `}
           {list.kind === 'deck' ? (
-            `${cardCount(summary.cards)}${priced ? ` · ${formatEur(summary.total)}` : ''}`
+            <>
+              {size ? (
+                <span className={size.status === 'ok' ? undefined : 'warn'} title={size.note ?? undefined}>
+                  {size.label} cards
+                </span>
+              ) : (
+                cardCount(mainCards)
+              )}
+              {priced && ` · ${formatEur(summary.total)}`}
+            </>
           ) : complete ? (
             <span className="nav-complete">✓ Complete · {cardCount(summary.cards)}</span>
           ) : (
@@ -162,7 +175,7 @@ export function Sidebar(props: SidebarProps) {
           <span className="nav-name nav-icon-name">
             Inventory <Icon name="backpack" />
           </span>
-          <span className="nav-meta">{cardCount(inventory.size)}</span>
+          <span className="nav-meta">{cardCount(totalCopies(inventory.values()))}</span>
         </button>
         <button
           type="button"
@@ -173,7 +186,7 @@ export function Sidebar(props: SidebarProps) {
             Most Wanted <Icon name="cart" />
           </span>
           <span className="nav-meta">
-            {cardCount(wanted.cards.length)}
+            {cardCount(totalCopies(wanted.cards.map((card) => ({ qty: card.toBuy }))))}
             {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
           </span>
         </button>
@@ -212,7 +225,7 @@ export function Sidebar(props: SidebarProps) {
             >
               <span className="nav-name">{trade.name}</span>
               <span className="nav-meta">
-                {forMe.length} for you · {forThem.length} for them
+                {totalCopies(forMe)} for you · {totalCopies(forThem)} for them
               </span>
             </button>
           )

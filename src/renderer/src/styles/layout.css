@@ -66,6 +66,12 @@
   flex-wrap: wrap;
 }
 
+/* The title side shrinks first, so its meta line wraps before the actions drop below it. */
+.view-header > :first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .view-header p {
   margin-top: 4px;
 }

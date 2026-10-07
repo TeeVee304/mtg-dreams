@@ -48,8 +48,9 @@
 - A precon you own becomes a deck, with its exact printings, and its cards join your inventory.
 
 ### Trades with friends
-- **Share my trade list** saves a small `.mtgtrade` file, or copies it as text for a chat. It holds the cards you own and what your lists need (the cards Most Wanted lists).
-- Import a friend's list to see what each of you can give the other, and what each side is worth.
+- **Share my trade list** saves a small `.mtgtrade` file, or copies it as text for a chat. It holds your spare cards (copies your decks and wishlists don't use) and what your lists need (the cards Most Wanted lists).
+- Import a friend's list to see what each of you can give the other, and what each side is worth. Cards they want that
+  your lists use are shown apart, and left out of the balance.
 - Friends without the app can send a plain card list or a Moxfield export instead.
 
 ## Getting started

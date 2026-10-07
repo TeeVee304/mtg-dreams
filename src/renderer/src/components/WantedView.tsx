@@ -3,11 +3,12 @@ import { filtersActive, matchesFilters, needsCardData, NO_FILTERS, type CardFilt
 import { listId, type ListKey } from '@shared/copies'
 import { cardLines, countLines, nameKey } from '@shared/decklist'
 import { listColor } from '@shared/listColor'
+import { heldWhere } from '@shared/listModel'
 import { listPriority, priorityWeight, type ListPriority } from '@shared/listPriority'
 import type { ThemeColor } from '@shared/themes'
 import { featuredTokens, tokenLabel } from '@shared/tokens'
 import type { TradeSnapshot } from '@shared/trade'
-import type { InventoryItem } from '@shared/types'
+import type { InventoryItem, ListKind } from '@shared/types'
 import {
   costOf,
   DEFAULT_WANTED_SORT,
@@ -22,7 +23,7 @@ import {
 import { useCopyPool } from '../hooks/useCopyPool'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { useStoredValue } from '../hooks/useStoredValue'
-import { cardCount, formatEur } from '../lib/format'
+import { cardCount, formatEur, totalCopies } from '../lib/format'
 import { buildRows } from '../lib/summary'
 import { wantedOverview, type WantedOverview } from '../lib/wanted'
 import { getCardInfo, useCardInfoVersion } from '../stores/cardinfo'
@@ -71,20 +72,22 @@ interface WantedViewProps {
   actions: LibraryActions
   onOpenList: (list: ListRef) => void
   onOpenTrade: (friend: string) => void
+  /** Opens the new deck or wishlist dialog. */
+  onNew: (kind: ListKind) => void
 }
 
 /**
  * Most Wanted page: cards still missing from wishlists (and decks, with separate copies), merged
  * across lists and ranked for buying (best value by default), with a budget planner. Basic lands
- * and the tokens wishlist cards create have their own tabs.
+ * and the tokens wishlist cards create have their own tabs, shown when they have something to show.
  */
-export function WantedView({ lists, inventory, trades, actions, onOpenList, onOpenTrade }: WantedViewProps) {
+export function WantedView({ lists, inventory, trades, actions, onOpenList, onOpenTrade, onNew }: WantedViewProps) {
   const toast = useToast()
   usePrintingsVersion()
   useCardInfoVersion()
   const settings = useSettings()
   const baselines = useBaselines()
-  const [tab, setTab] = useStoredValue<WantedTab>('mtg-dreams.wantedTab', 'cards', isTab)
+  const [storedTab, setTab] = useStoredValue<WantedTab>('mtg-dreams.wantedTab', 'cards', isTab)
   const [sort, setSort] = useStoredValue<WantedSort>('mtg-dreams.wantedSort', DEFAULT_WANTED_SORT, isWantedSort)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
   const [friendsOnly, setFriendsOnly] = useState(false)
@@ -123,6 +126,18 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
     infoOf
   )
   const basics = [...overview.basics].sort((a, b) => b.toBuy - a.toBuy || a.name.localeCompare(b.name))
+  /** Lists Most Wanted draws from: decks count with separate copies only. */
+  const noLists = (separate ? lists : wishlists).length === 0
+  const toBuy = (cards: WantedCard[]) => totalCopies(cards.map((card) => ({ qty: card.toBuy })))
+  const tabs = (
+    [
+      ['cards', `Cards · ${toBuy(overview.cards)}`],
+      ['basics', `Basic lands · ${toBuy(overview.basics)}`],
+      ['tokens', 'Tokens']
+    ] as const
+  ).filter(([id]) => id === 'cards' || (id === 'basics' ? basics.length > 0 : wishlists.length > 0))
+  const tab = tabs.some(([id]) => id === storedTab) ? storedTab : 'cards'
+  const copyable = tab === 'cards' ? visible.length > 0 : tab === 'basics'
   const completers = overview.cards.filter((card) => card.completes.length > 0).length
 
   const markBought = (card: WantedCard) => {
@@ -166,14 +181,16 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
           <h1 className="nav-icon-name">
             Most Wanted <Icon name="cart" />
           </h1>
-          <p className="muted">
-            {cardCount(overview.cards.length)} to buy · {formatEur(overview.total)} to complete every {withDecks ? 'deck and wishlist' : 'wishlist'}
-            {overview.loading > 0 && ` (${overview.loading} still loading)`}
-            {completers > 0 && ` · ${completers} complete a list`}
-          </p>
+          {!noLists && (
+            <p className="muted">
+              {cardCount(toBuy(overview.cards))} to buy · {formatEur(overview.total)} to complete every {withDecks ? 'deck and wishlist' : 'wishlist'}
+              {overview.loading > 0 && ` (${overview.loading} still loading)`}
+              {completers > 0 && ` · ${completers} complete a list`}
+            </p>
+          )}
         </div>
         <div className="header-actions">
-          {tab !== 'tokens' && (
+          {copyable && (
             <button type="button" onClick={copyTab} title="As “N Card Name” lines, e.g. for a Cardmarket wants list">
               Copy as text
             </button>
@@ -181,23 +198,37 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
         </div>
       </header>
 
-      <BudgetPlanner overview={overview} actions={actions} onCopy={copy} />
+      {overview.cards.length > 0 && <BudgetPlanner overview={overview} actions={actions} onCopy={copy} />}
 
-      <div className="segmented wanted-tabs" role="tablist" aria-label="Most Wanted">
-        {(
-          [
-            ['cards', `Cards · ${overview.cards.length}`],
-            ['basics', `Basic lands · ${overview.basics.length}`],
-            ['tokens', 'Tokens']
-          ] as const
-        ).map(([id, label]) => (
-          <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'selected' : undefined} onClick={() => setTab(id)}>
-            {label}
-          </button>
-        ))}
-      </div>
+      {tabs.length > 1 && (
+        <div className="segmented wanted-tabs" role="tablist" aria-label="Most Wanted">
+          {tabs.map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? 'selected' : undefined} onClick={() => setTab(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'cards' && noLists && (
+        <div className="empty">
+          <p>{separate ? 'No decks or wishlists yet.' : 'No wishlists yet.'}</p>
+          <p className="muted">Most Wanted gathers the cards your {separate ? 'decks and wishlists' : 'wishlists'} still miss.</p>
+          <div className="welcome-actions">
+            {separate && (
+              <button type="button" onClick={() => onNew('deck')}>
+                New deck
+              </button>
+            )}
+            <button type="button" onClick={() => onNew('wishlist')}>
+              New wishlist
+            </button>
+          </div>
+        </div>
+      )}
 
       {tab === 'cards' &&
+        !noLists &&
         (overview.cards.length === 0 ? (
           <div className="empty">
             <p>Nothing to buy.</p>
@@ -263,6 +294,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                   const printing = overview.printingOf(card)
                   const drop = drops.get(card.key)
                   const haves = friends.get(card.key)
+                  const usedBy = card.owned > 0 ? pool.usedBy(card.key, card.owned) : []
                   return (
                     <tr key={card.key}>
                       <td className="col-name" {...previewHandlers({ src: printing?.imageNormal, back: printing?.imageBack, name: card.name })}>
@@ -291,6 +323,11 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                               >
                                 {haves.length === 1 ? `${haves[0].friend} has it` : `${haves.length} friends have it`}
                               </button>
+                            )}
+                            {card.owned > 0 && (
+                              <span className="muted small owned-note">
+                                {card.owned} owned{separate && usedBy.length > 0 && ` · ${heldWhere(usedBy, card.owned)}`}
+                              </span>
                             )}
                           </div>
                         </div>

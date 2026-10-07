@@ -7,6 +7,7 @@ import {
   analyzeList,
   copyCaps,
   filterRows,
+  heldWhere,
   landCount,
   limitReason,
   lineMax,
@@ -104,6 +105,18 @@ describe('analyzeList', () => {
     const analysis = analyzeList('deck', deck.lines, deck.rows)
     expect(deck.rows.map(analysis.shortfallOf)).toEqual([1, 1])
     expect(deck.rows.map((row) => shortfallNote(row).label)).toEqual(['Only 1 free', 'Used by other decks'])
+    const named = { ...deck.rows[1], holders: [{ kind: 'deck' as const, name: 'Burn', qty: 1 }] }
+    expect(shortfallNote(named)).toEqual({ label: 'Used by Burn', title: 'You own 1 (in Burn). Each copy belongs to one deck.' })
+  })
+
+  it('says where owned copies are, naming at most two lists', () => {
+    const burn = { kind: 'deck' as const, name: 'Burn', qty: 4 }
+    expect(heldWhere([burn], 4)).toBe('all in Burn')
+    expect(heldWhere([{ ...burn, qty: 1 }], 1)).toBe('in Burn')
+    expect(heldWhere([{ ...burn, qty: 2 }], 4)).toBe('2 in Burn')
+    const more = [2, 1, 1, 1].map((qty, i) => ({ kind: 'deck' as const, name: `Deck ${i + 1}`, qty }))
+    expect(heldWhere(more.slice(0, 2), 3)).toBe('2 in Deck 1, 1 in Deck 2')
+    expect(heldWhere(more, 5)).toBe('2 in Deck 1, 1 in Deck 2 and 2 more lists')
   })
 
   it('knows the commander and who could replace it', () => {

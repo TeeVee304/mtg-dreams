@@ -32,6 +32,34 @@ describe('copyPool', () => {
     expect(pool.inOtherDecks(lists[2], 'sol ring')).toBe(0)
     expect(pool.claimed('sol ring')).toBe(0)
   })
+
+  it('says which lists ahead get the owned copies, with separate copies', () => {
+    const pool = copyPool(lists, 'separate')
+    const angels = { kind: 'wishlist' as const, name: 'Angels' }
+    expect(pool.holders(angels, 'sol ring', 2)).toEqual([
+      { kind: 'deck', name: 'Burn', qty: 1 },
+      { kind: 'deck', name: 'Zombies', qty: 1 }
+    ])
+    expect(pool.holders(angels, 'sol ring', 9)).toHaveLength(3)
+    expect(pool.holders(angels, 'sol ring', 0)).toEqual([])
+    expect(copyPool(lists, 'shared').holders(angels, 'sol ring', 2)).toEqual([])
+  })
+
+  it('says which lists use the owned copies, and how many the lists keep', () => {
+    const separate = copyPool(lists, 'separate')
+    expect(separate.usedBy('sol ring', 3).map((held) => `${held.qty} ${held.name}`)).toEqual(['1 Burn', '1 Zombies', '1 Goblins'])
+    expect(separate.inUse('sol ring')).toBe(6)
+    const shared = copyPool(lists, 'shared')
+    expect(shared.usedBy('sol ring', 1).map((held) => `${held.qty} ${held.name}`)).toEqual([
+      '1 Burn',
+      '1 Zombies',
+      '1 Goblins',
+      '1 Angels',
+      '1 Someday'
+    ])
+    expect(shared.inUse('sol ring')).toBe(2)
+    expect(shared.inUse('black lotus')).toBe(0)
+  })
 })
 
 describe('copiesToAdd', () => {

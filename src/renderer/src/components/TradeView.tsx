@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import type { CopyPool } from '@shared/copies'
+import { nameKey } from '@shared/decklist'
+import { heldWhere } from '@shared/listModel'
 import { priceBasisLabel } from '@shared/pricing'
-import { matchTrades, type TradeCard, type TradeMatch, type TradeSnapshot, type Want } from '@shared/trade'
+import { keptMatches, matchTrades, type MyTradeSide, type TradeMatch, type TradeSnapshot } from '@shared/trade'
 import type { PriceBasis, Printing } from '@shared/types'
-import { cardCount, formatDate, formatEur, timeAgo } from '../lib/format'
+import { cardCount, formatDate, formatEur, timeAgo, totalCopies } from '../lib/format'
 import type { LibraryActions, ListRef } from '../stores/library'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
@@ -30,13 +33,15 @@ const byValue = (a: PricedMatch, b: PricedMatch) =>
 /** EUR total of priced matches. */
 const totalOf = (matches: PricedMatch[]) => matches.reduce((sum, m) => sum + (m.unit ?? 0) * m.qty, 0)
 /** Matched copy count label. */
-const matchedCards = (matches: TradeMatch[]) => cardCount(matches.reduce((sum, m) => sum + m.qty, 0))
+const matchedCards = (matches: TradeMatch[]) => cardCount(totalCopies(matches))
 
 /** Props of {@link TradeView}. */
 interface TradeViewProps {
   trade: TradeSnapshot
   /** Own trade side ({@link myTradeSide}). */
-  myTrade: { haves: TradeCard[]; wants: Want[] }
+  myTrade: MyTradeSide
+  /** Copy claims of all lists: which lists keep your copies. */
+  pool: CopyPool
   actions: LibraryActions
   onOpenList: (list: ListRef) => void
   /** Opens import to update this friend's list. */
@@ -44,22 +49,31 @@ interface TradeViewProps {
   onRenamed: (name: string) => void
 }
 
-/** Friend trade page: cards they can give and cards they want, priced; requests prices for matched cards only. */
-export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRenamed }: TradeViewProps) {
+/**
+ * Friend trade page: cards they can give and cards they want, priced; requests prices for matched
+ * cards only. Only spare copies are offered; wants that only copies your lists keep could cover are
+ * shown apart, outside the balance.
+ */
+export function TradeView({ trade, myTrade, pool, actions, onOpenList, onUpdate, onRenamed }: TradeViewProps) {
   const toast = useToast()
   usePrintingsVersion()
   const { priceBasis } = useSettings()
   const [dialog, setDialog] = useState<'rename' | 'delete' | null>(null)
 
   const { forMe, forThem } = useMemo(() => matchTrades(myTrade.haves, myTrade.wants, trade), [myTrade, trade])
+  const keptOnly = useMemo(() => keptMatches(myTrade.haves, myTrade.kept, trade), [myTrade, trade])
+  const spareOf = useMemo(() => new Map(myTrade.haves.map((card) => [nameKey(card.name), card.qty])), [myTrade])
+  const keptOf = useMemo(() => new Map(myTrade.kept.map((card) => [nameKey(card.name), card.qty])), [myTrade])
+  const ownedOf = (name: string) => (spareOf.get(nameKey(name)) ?? 0) + (keptOf.get(nameKey(name)) ?? 0)
 
-  const names = [...forMe, ...forThem].map((match) => match.name).join('\n')
+  const names = [...forMe, ...forThem, ...keptOnly].map((match) => match.name).join('\n')
   useEffect(() => {
     for (const name of names.split('\n')) if (name) requestPrintings(name, { priority: 'high' })
   }, [names])
 
   const receive = forMe.map((match) => price(match, priceBasis)).sort(byValue)
   const give = forThem.map((match) => price(match, priceBasis)).sort(byValue)
+  const kept = keptOnly.map((match) => price(match, priceBasis)).sort(byValue)
   const receiveTotal = totalOf(receive)
   const giveTotal = totalOf(give)
   const loading = [...receive, ...give].some((match) => match.unit === undefined)
@@ -73,7 +87,7 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
           <h1>Trading with {trade.name}</h1>
           <p className="muted">
             {trade.name}'s list from {formatDate(date.getTime())} ({timeAgo(date.getTime())}) ·{' '}
-            {cardCount(trade.haves.length)} they have · {trade.wants.length} they want
+            {cardCount(totalCopies(trade.haves))} they have · {cardCount(totalCopies(trade.wants))} they want
           </p>
         </div>
         <div className="header-actions">
@@ -158,7 +172,10 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
           {give.length > 0 ? (
             <MatchTable
               matches={give}
-              detail={(m) => <span className="muted">{m.available} owned</span>}
+              detail={(m) => {
+                const owned = ownedOf(m.name)
+                return <span className="muted owned-detail">{owned > m.available ? `${owned} owned · ${m.available} spare` : `${owned} owned`}</span>
+              }}
               detailLabel="You own"
               qtyNote={(m) => (m.available < m.needed ? `they need ${m.needed}` : undefined)}
             />
@@ -166,8 +183,25 @@ export function TradeView({ trade, myTrade, actions, onOpenList, onUpdate, onRen
             <p className="empty-note muted">
               {trade.wants.length === 0
                 ? `${trade.name} didn't share their lists.`
-                : `None of your cards are on ${trade.name}'s lists.`}
+                : `None of your spare cards are on ${trade.name}'s lists.`}
             </p>
+          )}
+          {kept.length > 0 && (
+            <div className="trade-kept">
+              <p className="muted small">
+                Also on {trade.name}'s lists, but your decks and wishlists use these copies, so they're not offered or
+                counted:
+              </p>
+              <MatchTable
+                matches={kept}
+                detail={(m) => <span className="muted owned-detail">{ownedOf(m.name)} owned</span>}
+                detailLabel="You own"
+                qtyNote={(m) => {
+                  const owned = ownedOf(m.name)
+                  return `${heldWhere(pool.usedBy(nameKey(m.name), owned), owned)}${m.available < m.needed ? ` · they need ${m.needed}` : ''}`
+                }}
+              />
+            </div>
           )}
         </section>
       </div>

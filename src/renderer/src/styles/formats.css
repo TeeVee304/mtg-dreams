@@ -107,16 +107,7 @@
   gap: 6px;
   padding: 4px 12px;
   border-radius: 999px;
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
   font-size: 13px;
-}
-
-.wand-btn:hover:not(:disabled) {
-  background: var(--accent-soft);
-  filter: brightness(1.15);
 }
 
 .wand-btn svg {

@@ -5,6 +5,7 @@ import {
   capEntries,
   commanderIssue,
   copyLimit,
+  deckSizeCheck,
   findFormat,
   legalityIssue,
   listCommander,
@@ -161,5 +162,20 @@ describe('capEntries', () => {
       { name: 'Swamp', qty: 12 }
     ])
     expect(result.skipped).toBe(2)
+  })
+})
+
+describe('deckSizeCheck', () => {
+  it('wants at least 60 cards in constructed formats', () => {
+    expect(deckSizeCheck(modern, 56)).toEqual({ status: 'short', label: '56/60', note: '4 short of 60' })
+    expect(deckSizeCheck(modern, 60)).toEqual({ status: 'ok', label: '60', note: null })
+    expect(deckSizeCheck(modern, 63)).toEqual({ status: 'ok', label: '63', note: null })
+  })
+
+  it('wants an exact size, commander included, in commander formats', () => {
+    expect(deckSizeCheck(commander, 44)).toEqual({ status: 'short', label: '44/100', note: '56 short of 100' })
+    expect(deckSizeCheck(commander, 100)).toEqual({ status: 'ok', label: '100/100', note: null })
+    expect(deckSizeCheck(commander, 101)).toEqual({ status: 'over', label: '101/100', note: '1 over 100' })
+    expect(deckSizeCheck(oathbreaker, 60).status).toBe('ok')
   })
 })

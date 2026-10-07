@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { cardLines, parseList, serializeList } from '@shared/decklist'
 import { bundledBasic } from '@shared/basics'
 import { copiesToAdd } from '@shared/copies'
@@ -23,13 +23,21 @@ import { WantedView } from './components/WantedView'
 import { Sidebar, type View } from './components/Sidebar'
 import { useToast } from './components/Toasts'
 import { useCopyPool } from './hooks/useCopyPool'
-import { cardCount, cleanError } from './lib/format'
+import { cardCount, cleanError, totalCopies } from './lib/format'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
 import { refreshStalePrintings, reloadPrices, requestPrintings } from './stores/printings'
 import { useSettings } from './stores/settings'
 
 /** Total copies across entries. */
 const countCards = (entries: PreconEntry[]) => entries.reduce((sum, entry) => sum + entry.qty, 0)
+
+/** @returns Identity of a page, for remembering its scroll position. */
+function pageKey(view: View | null): string {
+  if (view === null) return 'welcome'
+  if (view.page === 'list') return `list/${view.list.kind}/${view.list.name}`
+  if (view.page === 'trade') return `trade/${view.friend}`
+  return view.page
+}
 
 /** Input types that do not take text (and have no native undo). */
 const NOT_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'])
@@ -45,7 +53,8 @@ function isTyping(target: EventTarget | null): boolean {
  * Root component: library state, navigation, dialogs and global effects. Background effects: price
  * prefetch for all lists (active first; bundled basics skipped), hourly stale-printings refresh,
  * price reload on `prices:updated`. Shortcuts: Ctrl+K focuses card search; Ctrl+Z undoes the
- * latest edit outside text fields. Removals and bulk edits toast with Undo.
+ * latest edit outside text fields. Removals and bulk edits toast with Undo. Each page keeps its
+ * scroll position for the session; a page not opened yet starts at the top.
  */
 export default function App() {
   const toast = useToast()
@@ -70,6 +79,17 @@ export default function App() {
   }, [actions])
 
   const openList = (list: ListRef) => setView({ page: 'list', list })
+
+  const mainRef = useRef<HTMLElement>(null)
+  /** Scroll position of each page left this session, by {@link pageKey}. */
+  const scrolls = useRef(new Map<string, number>())
+  const shownPage = useRef(pageKey(view))
+  const currentPage = pageKey(view)
+  useLayoutEffect(() => {
+    if (shownPage.current === currentPage) return
+    shownPage.current = currentPage
+    if (mainRef.current) mainRef.current.scrollTop = scrolls.current.get(currentPage) ?? 0
+  }, [currentPage])
 
   useEffect(() => {
     if (state.status !== 'ready') return
@@ -178,7 +198,11 @@ export default function App() {
             .catch((error) => onError(cleanError(error)))
         }
       />
-      <main className="main">
+      <main
+        className="main"
+        ref={mainRef}
+        onScroll={(event) => scrolls.current.set(shownPage.current, event.currentTarget.scrollTop)}
+      >
         <PriceProgress />
         {view?.page === 'inventory' && (
           <InventoryView
@@ -197,6 +221,7 @@ export default function App() {
             actions={actions}
             onOpenList={openList}
             onOpenTrade={(friend) => setView({ page: 'trade', friend })}
+            onNew={setCreating}
           />
         )}
         {list && (
@@ -214,6 +239,7 @@ export default function App() {
             key={trade.name}
             trade={trade}
             myTrade={myTrade}
+            pool={pool}
             actions={actions}
             onOpenList={openList}
             onUpdate={() => setImporting({ replaceName: trade.name })}
@@ -285,7 +311,9 @@ export default function App() {
             const name = await actions.saveTrade(snapshot)
             setImporting(null)
             setView({ page: 'trade', friend: name })
-            toast(`Imported ${name}'s trade list: ${cardCount(snapshot.haves.length)} they have, ${snapshot.wants.length} they want`)
+            toast(
+              `Imported ${name}'s trade list: ${cardCount(totalCopies(snapshot.haves))} they have, ${cardCount(totalCopies(snapshot.wants))} they want`
+            )
           }}
         />
       )}

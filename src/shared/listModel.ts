@@ -7,6 +7,7 @@ import {
   type CardFilters,
   type SortKey
 } from './cards'
+import type { HeldCopies } from './copies'
 import { cardLines, nameKey } from './decklist'
 import {
   canLead,
@@ -43,6 +44,8 @@ export interface ModelRow {
   before: number
   /** Copies of the same card claimed by lists ahead of this one (separate copies). */
   held: number
+  /** Lists ahead that get the owned copies, with how many each gets (`CopyPool.holders`); set by list pages. */
+  holders?: HeldCopies[]
   /** Unit price in EUR; null if unknown. */
   unit: number | null
   /** Rarity of the resolved printing. */
@@ -185,15 +188,27 @@ export function freeCopies(row: ModelRow): number {
   return Math.max(0, row.inventoryQty - row.held)
 }
 
-/** @returns Short label and explanation of a deck row's shortfall. */
+/**
+ * @param holders - Lists getting some of the `owned` copies ({@link HeldCopies}), in allocation order.
+ * @returns Where those copies are, e.g. `all in Burn`, `in Burn` for a single copy, or `2 in Burn, 1 in
+ * Zombies and 1 more list`; at most two lists are named.
+ */
+export function heldWhere(holders: HeldCopies[], owned: number): string {
+  if (holders.length === 1 && holders[0].qty >= owned) return `${owned === 1 ? 'in' : 'all in'} ${holders[0].name}`
+  const named = holders.slice(0, 2).map((held) => `${held.qty} in ${held.name}`).join(', ')
+  const more = holders.length - 2
+  return more > 0 ? `${named} and ${more} more ${more === 1 ? 'list' : 'lists'}` : named
+}
+
+/** @returns Short label and explanation of a deck row's shortfall, naming the decks ahead when `row.holders` is set. */
 export function shortfallNote(row: ModelRow): { label: string; title: string } {
   if (row.inventoryQty === 0) return { label: 'Not in inventory', title: 'Decks can only use cards from your inventory' }
   if (row.held === 0) return { label: `Only ${row.inventoryQty} owned`, title: 'Decks can only use cards from your inventory' }
   const free = freeCopies(row)
-  return {
-    label: free === 0 ? 'Used by other decks' : `Only ${free} free`,
-    title: `You own ${row.inventoryQty}; decks ahead of this one use ${Math.min(row.held, row.inventoryQty)}. Each copy belongs to one deck.`
-  }
+  const holders = row.holders ?? []
+  const used = free > 0 ? `Only ${free} free` : holders.length === 1 ? `Used by ${holders[0].name}` : 'Used by other decks'
+  const where = holders.length > 0 ? heldWhere(holders, row.inventoryQty) : `decks ahead of this one use ${Math.min(row.held, row.inventoryQty)}`
+  return { label: used, title: `You own ${row.inventoryQty} (${where}). Each copy belongs to one deck.` }
 }
 
 /** Rendered list section. */

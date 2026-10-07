@@ -1,5 +1,5 @@
 import { genericBasic } from './basics'
-import { listNeeds, type CopiesMode, type ListKey, type PoolList } from './copies'
+import { copyPool, listNeeds, type CopiesMode, type ListKey, type PoolList } from './copies'
 import { countLines, nameKey, parseInventory } from './decklist'
 import { safeFileName } from './filenames'
 import type { InventoryItem } from './types'
@@ -77,20 +77,33 @@ export function computeWants(lists: PoolList[], inventory: Map<string, Inventory
   return [...wants.values()].sort(byName)
 }
 
-/** @returns Own haves (all owned cards except regular basics) and wants ({@link computeWants}), sorted by name. */
-export function myTradeSide(
-  inventory: Map<string, InventoryItem>,
-  lists: PoolList[],
-  mode: CopiesMode
-): { haves: TradeCard[]; wants: Want[] } {
-  const haves = [...inventory.values()]
-    .filter((item) => item.qty > 0 && tradable(item.name))
-    .map(({ name, qty }) => ({ name, qty }))
-    .sort(byName)
-  return { haves, wants: computeWants(lists, inventory, mode) }
+/** Own side of a trade, from {@link myTradeSide}. */
+export interface MyTradeSide {
+  /** Spare copies: owned copies no deck or wishlist keeps. Only these are offered to friends. */
+  haves: TradeCard[]
+  /** Owned copies the decks and wishlists keep (`CopyPool.inUse`); never offered. */
+  kept: TradeCard[]
+  wants: Want[]
 }
 
-/** @returns Shareable snapshot; wants omit list names. */
+/**
+ * @returns Own spare haves and kept copies (regular basics aside), and wants ({@link computeWants}),
+ * sorted by name.
+ */
+export function myTradeSide(inventory: Map<string, InventoryItem>, lists: PoolList[], mode: CopiesMode): MyTradeSide {
+  const pool = copyPool(lists, mode)
+  const haves: TradeCard[] = []
+  const kept: TradeCard[] = []
+  for (const [key, item] of inventory) {
+    if (item.qty <= 0 || !tradable(item.name)) continue
+    const inUse = Math.min(item.qty, pool.inUse(key))
+    if (item.qty > inUse) haves.push({ name: item.name, qty: item.qty - inUse })
+    if (inUse > 0) kept.push({ name: item.name, qty: inUse })
+  }
+  return { haves: haves.sort(byName), kept: kept.sort(byName), wants: computeWants(lists, inventory, mode) }
+}
+
+/** @returns Shareable snapshot of spare haves and wants; wants omit list names. */
 export function buildSnapshot(
   name: string,
   inventory: Map<string, InventoryItem>,
@@ -263,13 +276,15 @@ export interface TradeMatch {
   lists: ListKey[]
 }
 
+/** @returns Cards by nameKey. */
+const index = (cards: TradeCard[]) => new Map(cards.map((card) => [nameKey(card.name), card]))
+
 /** @returns `forMe`: friend's haves matching own wants. `forThem`: own haves matching friend's wants. */
 export function matchTrades(
   myHaves: TradeCard[],
   myWants: Want[],
   friend: Pick<TradeSnapshot, 'haves' | 'wants'>
 ): { forMe: TradeMatch[]; forThem: TradeMatch[] } {
-  const index = (cards: TradeCard[]) => new Map(cards.map((card) => [nameKey(card.name), card]))
   const theirHaves = index(friend.haves)
   const mine = index(myHaves)
   const forMe: TradeMatch[] = []
@@ -285,4 +300,26 @@ export function matchTrades(
     }
   }
   return { forMe, forThem }
+}
+
+/**
+ * Friend's wants that only copies your lists keep could cover, beyond the spare copies
+ * {@link matchTrades} already matched. Shown for reference; not part of the trade.
+ * @param myHaves - Own spare copies ({@link MyTradeSide.haves}).
+ * @param myKept - Own kept copies ({@link MyTradeSide.kept}).
+ * @returns Matches whose `available` is the kept copies.
+ */
+export function keptMatches(myHaves: TradeCard[], myKept: TradeCard[], friend: Pick<TradeSnapshot, 'wants'>): TradeMatch[] {
+  const spare = index(myHaves)
+  const kept = index(myKept)
+  const matches: TradeMatch[] = []
+  for (const want of friend.wants) {
+    const key = nameKey(want.name)
+    const mine = kept.get(key)
+    const short = want.qty - (spare.get(key)?.qty ?? 0)
+    if (mine && short > 0 && tradable(mine.name)) {
+      matches.push({ name: mine.name, qty: Math.min(mine.qty, short), available: mine.qty, needed: want.qty, lists: [] })
+    }
+  }
+  return matches
 }

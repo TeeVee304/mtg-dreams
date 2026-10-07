@@ -331,7 +331,7 @@ function ValueCell({ value, qty }: { value: ItemValue; qty: number }) {
   if (value.status === 'free') {
     return (
       <span className="muted" title="Bundled basic lands count as free">
-        {formatEur(0)}
+        Free
       </span>
     )
   }

@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } from '@shared/cards'
 import { cardLines, nameKey } from '@shared/decklist'
-import { commanderRule } from '@shared/formats'
 import type { Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import { listPriority } from '@shared/listPriority'
-import { listFormat } from '@shared/formats'
+import { deckSizeCheck, listFormat } from '@shared/formats'
 import { sideboardIds } from '@shared/sideboard'
 import {
   analyzeList,
@@ -78,7 +77,9 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
   const sortView = isDeck ? 'deck' : 'wishlist'
   const sort = sortFor(sortView, settings.sort)
   const sideboardAllowed = !listFormat(list.lines)?.commander
-  const rows = buildRows(cards, inventory, settings, sideboardIds(list.lines, sideboardAllowed), (key) => pool.held(list, key))
+  const rows = buildRows(cards, inventory, settings, sideboardIds(list.lines, sideboardAllowed), (key) => pool.held(list, key)).map(
+    (row) => (row.held > 0 ? { ...row, holders: pool.holders(list, nameKey(row.line.name), row.inventoryQty) } : row)
+  )
   const mainRows = rows.filter((row) => !row.side)
   const summary = summarize(rows)
   const baselines = useBaselines()
@@ -89,10 +90,14 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
 
   const analysis = analyzeList(list.kind, list.lines, rows)
   const { format, copiesOf, isCommander, canBeCommander, hasCommander, legalityErrors, ownershipErrors } = analysis
+  const mainCards = summary.cards - analysis.sideboardCards
+  const size = isDeck && format ? deckSizeCheck(format, mainCards) : null
 
+  /** Some card other than the commander can lead; until card data loads, none can. */
+  const canPickCommander = !!format?.commander && rows.some((row) => canBeCommander(row) && !isCommander(row))
   useEffect(() => {
-    if (!format?.commander) setPicking(false)
-  }, [format?.commander])
+    if (!canPickCommander) setPicking(false)
+  }, [canPickCommander])
   useEffect(() => {
     if (!picking) return
     const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setPicking(false)
@@ -181,23 +186,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
 
   const displayName = (row: Row) => row.flavorName ?? row.line.name
 
-  const togglePicking = () => {
-    if (picking || !format?.commander) {
-      setPicking(false)
-      return
-    }
-    if (!rows.some((row) => canBeCommander(row) && !isCommander(row))) {
-      const loadingData = rows.some((row) => !row.info && !row.bundledIds && !row.entry?.data?.notFound)
-      toast(
-        loadingData
-          ? 'Card details are still loading. Try again in a moment.'
-          : `No ${hasCommander ? 'other ' : ''}card in this ${noun} can be your commander: in ${format.label} it must be ${commanderRule(format)}.`,
-        'error'
-      )
-      return
-    }
-    setPicking(true)
-  }
+  const togglePicking = () => setPicking(!picking && canPickCommander)
 
   const chooseCommander = (row: Row) => {
     setPicking(false)
@@ -279,7 +268,12 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         format={format}
         lines={cards.length}
         summary={summary}
+        mainCards={mainCards}
+        sideboardCards={analysis.sideboardCards}
+        size={size}
         picking={picking}
+        hasCommander={hasCommander}
+        canPickCommander={canPickCommander}
         legalityErrors={legalityErrors}
         ownershipErrors={ownershipErrors}
         separateCopies={pool.mode === 'separate'}
@@ -299,7 +293,16 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
 
       {complete && <CompleteBanner cards={summary.cards} onMove={moveToDecks} />}
 
-      <ListValueCards isDeck={isDeck} summary={summary} lines={cards.length} lands={landCount(mainRows)} sideboard={analysis.sideboardCards} basis={settings.priceBasis} />
+      <ListValueCards
+        isDeck={isDeck}
+        summary={summary}
+        mainCards={mainCards}
+        size={size}
+        lines={cards.length}
+        lands={landCount(mainRows)}
+        sideboard={analysis.sideboardCards}
+        basis={settings.priceBasis}
+      />
 
       <DeckStats rows={mainRows} />
 

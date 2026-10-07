@@ -66,20 +66,44 @@
 .rarity {
   border-radius: 6px;
   background: var(--panel-2);
+  border-color: var(--border);
+}
+
+/* Letters stay at full strength; only the background and ring mark the selection. */
+.rarity,
+.rarity:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.rarity:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.rarity.on {
+  background: var(--accent-soft);
+}
+
+/* Like set symbols: a fixed rarity color inside a thick black outline, so they read the same in
+   every theme and mode. */
+.rarity {
+  font-size: 15px;
+  font-weight: 800;
+  -webkit-text-stroke: 3px #000;
+  paint-order: stroke fill;
 }
 
 .rarity-common {
-  color: var(--text);
+  color: #f2f2f2;
 }
 
 .rarity-uncommon {
-  color: #8fa3b5;
+  color: #b9c6d2;
 }
 
 .rarity-rare {
-  color: #d4a73c;
+  color: #e2b84c;
 }
 
 .rarity-mythic {
-  color: #e0622f;
+  color: #f0662a;
 }

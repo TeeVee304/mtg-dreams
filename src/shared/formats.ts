@@ -9,26 +9,49 @@ export interface DeckFormat {
   label: string
   /** Per-card copy limit; basics and `deckLimit` cards are exempt. */
   maxCopies: number
+  /** Main deck size: the minimum, or in commander formats the exact size, commander included. */
+  deckSize: number
   /** Commander format. */
   commander?: true
 }
 
 /** Supported paper formats (Scryfall legality keys). */
 export const FORMATS: DeckFormat[] = [
-  { id: 'standard', label: 'Standard', maxCopies: 4 },
-  { id: 'pioneer', label: 'Pioneer', maxCopies: 4 },
-  { id: 'modern', label: 'Modern', maxCopies: 4 },
-  { id: 'premodern', label: 'Premodern', maxCopies: 4 },
-  { id: 'legacy', label: 'Legacy', maxCopies: 4 },
-  { id: 'vintage', label: 'Vintage', maxCopies: 4 },
-  { id: 'pauper', label: 'Pauper', maxCopies: 4 },
-  { id: 'oldschool', label: 'Old School', maxCopies: 4 },
-  { id: 'commander', label: 'Commander', maxCopies: 1, commander: true },
-  { id: 'duel', label: 'Duel Commander', maxCopies: 1, commander: true },
-  { id: 'paupercommander', label: 'Pauper Commander', maxCopies: 1, commander: true },
-  { id: 'oathbreaker', label: 'Oathbreaker', maxCopies: 1, commander: true },
-  { id: 'predh', label: 'PreDH', maxCopies: 1, commander: true }
+  { id: 'standard', label: 'Standard', maxCopies: 4, deckSize: 60 },
+  { id: 'pioneer', label: 'Pioneer', maxCopies: 4, deckSize: 60 },
+  { id: 'modern', label: 'Modern', maxCopies: 4, deckSize: 60 },
+  { id: 'premodern', label: 'Premodern', maxCopies: 4, deckSize: 60 },
+  { id: 'legacy', label: 'Legacy', maxCopies: 4, deckSize: 60 },
+  { id: 'vintage', label: 'Vintage', maxCopies: 4, deckSize: 60 },
+  { id: 'pauper', label: 'Pauper', maxCopies: 4, deckSize: 60 },
+  { id: 'oldschool', label: 'Old School', maxCopies: 4, deckSize: 60 },
+  { id: 'commander', label: 'Commander', maxCopies: 1, deckSize: 100, commander: true },
+  { id: 'duel', label: 'Duel Commander', maxCopies: 1, deckSize: 100, commander: true },
+  { id: 'paupercommander', label: 'Pauper Commander', maxCopies: 1, deckSize: 100, commander: true },
+  { id: 'oathbreaker', label: 'Oathbreaker', maxCopies: 1, deckSize: 60, commander: true },
+  { id: 'predh', label: 'PreDH', maxCopies: 1, deckSize: 100, commander: true }
 ]
+
+/** Main deck size against its format, from {@link deckSizeCheck}. */
+export interface DeckSizeCheck {
+  /** `short` below the size; `over` above an exact (commander) size. */
+  status: 'ok' | 'short' | 'over'
+  /** Count to show: `56/60` while off size or in commander formats, else just the count. */
+  label: string
+  /** What is off, e.g. `4 short of 60`; null when the size is right. */
+  note: string | null
+}
+
+/** @param cards - Main deck copies (sideboard aside). */
+export function deckSizeCheck(format: DeckFormat, cards: number): DeckSizeCheck {
+  const size = format.deckSize
+  const status = cards < size ? 'short' : format.commander && cards > size ? 'over' : 'ok'
+  return {
+    status,
+    label: status === 'ok' && !format.commander ? String(cards) : `${cards}/${size}`,
+    note: status === 'short' ? `${size - cards} short of ${size}` : status === 'over' ? `${cards - size} over ${size}` : null
+  }
+}
 
 /** @returns Format by id; null if unknown or absent. */
 export function findFormat(id: string | null | undefined): DeckFormat | null {
