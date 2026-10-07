@@ -14,7 +14,7 @@
 
 .cards-table th {
   text-align: left;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -118,7 +118,7 @@
 }
 
 .owned-count {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   min-width: 26px;
@@ -144,7 +144,7 @@ tr:hover .owned-adjust,
   height: 20px;
   padding: 0;
   line-height: 1;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .version {
@@ -160,20 +160,20 @@ tr:hover .owned-adjust,
 .version .muted {
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 12.5px;
+  font-size: var(--fs-md);
 }
 
 .set-code {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .auto-badge {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--good-soft);
   color: var(--good);
 }
@@ -187,7 +187,7 @@ tr:hover .owned-adjust,
 /* The version shown is the one in your inventory. */
 .auto-badge.yours {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .stale {
@@ -199,7 +199,7 @@ tr:hover .owned-adjust,
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--panel);
 }
@@ -266,7 +266,7 @@ tr:hover .owned-adjust,
   flex: none;
   width: 36px;
   height: 26px;
-  border-radius: 4px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: var(--panel-2);
   box-shadow: inset 0 0 0 1px var(--border);

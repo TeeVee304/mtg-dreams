@@ -9,7 +9,7 @@
 .card-search input {
   width: 100%;
   padding: 10px 14px;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   border-radius: var(--radius);
 }
 
@@ -51,13 +51,13 @@
 
 .suggestions li {
   padding: 7px 10px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
 }
 
 .suggestions li.active {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .search-row {

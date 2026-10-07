@@ -40,7 +40,7 @@
 }
 
 .complete-text strong {
-  font-size: 15.5px;
+  font-size: var(--fs-lg);
 }
 
 .move-wrap {
@@ -56,10 +56,10 @@
   gap: 8px;
   padding: 10px 20px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(135deg, #3fae72, #2c8a57);
   color: #fff;
-  font-size: 14.5px;
+  font-size: var(--fs-lg);
   font-weight: 700;
   box-shadow: 0 6px 18px rgba(63, 174, 114, 0.35);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -118,7 +118,7 @@
   width: 8px;
   height: 12px;
   margin: -6px 0 0 -4px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--color);
   opacity: 0;
   animation: confetti-burst 0.8s cubic-bezier(0.15, 0.7, 0.3, 1) var(--delay) forwards;

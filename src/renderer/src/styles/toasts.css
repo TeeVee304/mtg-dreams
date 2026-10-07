@@ -17,7 +17,7 @@
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-left: 3px solid var(--good);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   padding: 9px 14px;
   box-shadow: var(--shadow);
   max-width: 420px;
@@ -31,7 +31,7 @@
 .toast-action {
   flex: none;
   margin: -4px -6px -4px 0;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .toast.error {

@@ -128,9 +128,13 @@ export function ListTable(props: ListTableProps) {
             return (
               <tbody key={section.id} className={section.id === 'Commander' ? 'commander-section' : undefined}>
                 <tr className={`section-row${open ? '' : ' folded'}`}>
-                  <td colSpan={isDeck ? 5 : 6}>
-                    <SectionHead section={section} open={open} onToggle={() => toggle(section.id)} />
+                  <td colSpan={isDeck ? 3 : 4}>
+                    <SectionTitle section={section} open={open} onToggle={() => toggle(section.id)} />
                   </td>
+                  <td className="col-num">
+                    <SectionValue section={section} />
+                  </td>
+                  <td className="col-actions" />
                 </tr>
                 {open && section.rows.map(renderRow)}
               </tbody>
@@ -150,9 +154,24 @@ interface SectionHeadProps {
   onToggle: () => void
 }
 
-/** Section title bar, in the table and the grid: fold toggle with the card count, rule warning and value. */
-function SectionHead({ section, open, onToggle }: SectionHeadProps) {
-  const { cards, total } = summarize(section.rows)
+/** Grid section title bar: fold toggle with the card count, rule warning and value. */
+function SectionHead(props: SectionHeadProps) {
+  return (
+    <>
+      <SectionTitle {...props} />
+      <SectionValue section={props.section} />
+    </>
+  )
+}
+
+/** A section's value; in the table it sits in the Price column. */
+function SectionValue({ section }: { section: Section<Row> }) {
+  return <span className="section-value">{formatEur(summarize(section.rows).total)}</span>
+}
+
+/** Fold toggle with the card count, and the section's rule warning. */
+function SectionTitle({ section, open, onToggle }: SectionHeadProps) {
+  const { cards } = summarize(section.rows)
   const leaders = section.id === 'Commander'
   return (
     <>
@@ -172,7 +191,6 @@ function SectionHead({ section, open, onToggle }: SectionHeadProps) {
         </span>
       </button>
       {section.warning && <span className="section-warning">{section.warning}</span>}
-      <span className="section-value">{formatEur(total)}</span>
     </>
   )
 }

@@ -70,7 +70,7 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
           </span>
         )}
         {problem && (
-          <span className={`card-tile-problem${issue?.severity === 'warning' ? ' warning' : ''}`} title={problem}>
+          <span className={`card-tile-problem${issue?.severity === 'error' ? '' : ' warning'}`} title={problem}>
             <span aria-hidden="true">{badge}</span>
             <span className="sr-only">{problem}</span>
           </span>

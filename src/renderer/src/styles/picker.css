@@ -26,7 +26,7 @@
 }
 
 .add-title h3 {
-  font-size: 17px;
+  font-size: var(--fs-xl);
 }
 
 .loading-line {
@@ -106,19 +106,19 @@
 }
 
 .version-row-title {
-  font-size: 13px;
+  font-size: var(--fs-md);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .version-row.auto .version-row-title {
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
 .version-row-sub {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -152,18 +152,18 @@
 }
 
 .tile.auto .tile-title {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .tile-image {
   aspect-ratio: 488 / 680;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   background: var(--hover);
   display: grid;
   place-items: center;
   color: var(--faint);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   margin-bottom: 4px;
 }
 
@@ -176,19 +176,19 @@
 
 .tile-price {
   font-weight: 650;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   font-variant-numeric: tabular-nums;
 }
 
 .tile-title {
-  font-size: 12.5px;
+  font-size: var(--fs-md);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .tile-sub {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -201,10 +201,10 @@
 
 .chip {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   line-height: 1.5;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--hover);
   color: var(--muted);
   border: none;
@@ -226,5 +226,5 @@
 .chip.fix-name {
   margin-left: 8px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }

@@ -81,7 +81,7 @@ export function ListHeader(props: ListHeaderProps) {
           {ownershipErrors > 0 && (
             <button
               type="button"
-              className={`chip illegal issue-badge${onlyProblems ? ' on' : ''}`}
+              className={`chip short issue-badge${onlyProblems ? ' on' : ''}`}
               onClick={props.onToggleProblems}
               title={problemsTitle}
             >

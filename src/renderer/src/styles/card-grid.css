@@ -13,7 +13,7 @@
   background: var(--panel-2);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -22,12 +22,11 @@
 }
 
 .grid-section-head .section-value {
-  float: none;
   margin-left: auto;
 }
 
 .commander-section .grid-section-head {
-  color: var(--accent);
+  color: var(--accent-text);
   background: linear-gradient(90deg, var(--accent-soft), transparent 70%), var(--panel-2);
 }
 
@@ -99,7 +98,7 @@
   place-items: center;
   padding: 10px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -125,7 +124,7 @@
   height: 22px;
   padding: 0 6px;
   border-radius: 11px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   background: rgba(10, 12, 16, 0.82);
@@ -153,16 +152,18 @@
   height: 14px;
 }
 
+/* Status colors are light in dark mode and dark in light mode, so the page background is the
+   readable ink on them either way. Warning covers restricted cards and missing copies. */
 .card-tile-problem {
   bottom: 6px;
   right: 6px;
   background: var(--bad);
+  color: var(--bg);
   cursor: help;
 }
 
 .card-tile-problem.warning {
   background: var(--warn);
-  color: #1b1b1b;
 }
 
 .card-tile-crown {
@@ -188,7 +189,7 @@
   align-items: baseline;
   gap: 8px;
   padding: 0 2px;
-  font-size: 12.5px;
+  font-size: var(--fs-md);
 }
 
 .card-tile-name {

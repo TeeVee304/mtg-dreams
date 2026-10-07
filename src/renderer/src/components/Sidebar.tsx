@@ -114,7 +114,7 @@ export function Sidebar(props: SidebarProps) {
           ) : complete ? (
             <span className="nav-complete">✓ Complete · {cardCount(summary.cards)}</span>
           ) : (
-            `${summary.ownedCards}/${summary.cards}${priced ? ` · ${formatEur(summary.neededValue)}` : ''}`
+            `${summary.ownedCards}/${summary.cards} cards${priced ? ` · ${formatEur(summary.neededValue)}` : ''}`
           )}
         </span>
         {cheaper > 0 && (

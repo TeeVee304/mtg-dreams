@@ -10,7 +10,7 @@
 
 .chip.completes-chip {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -36,7 +36,7 @@
   align-items: center;
   gap: 6px;
   padding: 3px 10px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .wanted-note {
@@ -82,7 +82,7 @@
   margin: 0;
   padding-left: 24px;
   overflow: auto;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .plan-list li {
@@ -106,5 +106,5 @@
 
 .chip.priority-chip.high {
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-text);
 }

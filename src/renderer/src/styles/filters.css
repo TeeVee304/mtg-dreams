@@ -11,8 +11,24 @@
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 8px 14px;
   flex-wrap: wrap;
+}
+
+/* A labeled set of toggles (and the color match select); groups sit further apart than the
+   toggles inside them. */
+.filter-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--faint);
 }
 
 /* Narrow, so view and sort usually fit on the same row. */
@@ -40,7 +56,7 @@
 
 .toggle-group {
   display: inline-flex;
-  gap: 2px;
+  gap: 4px;
 }
 
 .mana,
@@ -49,7 +65,7 @@
   height: 28px;
   padding: 0;
   border-radius: 50%;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   display: inline-grid;
   place-items: center;
@@ -83,12 +99,19 @@
 }
 
 .rarity {
-  border-radius: 6px;
+  width: auto;
+  padding: 0 8px 0 7px;
+  gap: 5px;
+  grid-auto-flow: column;
+  border-radius: var(--radius-pill);
   background: var(--panel-2);
   border-color: var(--border);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 600;
 }
 
-/* Letters stay at full strength; only the background and ring mark the selection. */
+/* Text stays at full strength; the background, ring and text color mark the selection. */
 .rarity,
 .rarity:hover:not(:disabled) {
   opacity: 1;
@@ -96,33 +119,34 @@
 
 .rarity:hover:not(:disabled) {
   background: var(--hover);
+  color: var(--text);
 }
 
 .rarity.on {
   background: var(--accent-soft);
+  color: var(--text);
 }
 
-/* Like set symbols: a fixed rarity color inside a thick black outline, so they read the same in
-   every theme and mode. */
-.rarity {
-  font-size: 15px;
-  font-weight: 800;
-  -webkit-text-stroke: 3px #000;
-  paint-order: stroke fill;
+/* A small gem in the set-symbol color of each rarity, ringed so it shows on any background. */
+.rarity-gem {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 35%, transparent);
 }
 
-.rarity-common {
-  color: #f2f2f2;
+.rarity-common .rarity-gem {
+  background: linear-gradient(135deg, #5a5a5a, #111);
 }
 
-.rarity-uncommon {
-  color: #b9c6d2;
+.rarity-uncommon .rarity-gem {
+  background: linear-gradient(135deg, #e3ebf2, #8a9aa8);
 }
 
-.rarity-rare {
-  color: #e2b84c;
+.rarity-rare .rarity-gem {
+  background: linear-gradient(135deg, #f5d98a, #b8862a);
 }
 
-.rarity-mythic {
-  color: #f0662a;
+.rarity-mythic .rarity-gem {
+  background: linear-gradient(135deg, #f9a65a, #d4401c);
 }

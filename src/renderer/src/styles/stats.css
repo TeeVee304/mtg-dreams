@@ -4,7 +4,7 @@
 
 .progress {
   height: 5px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--panel-2);
   overflow: hidden;
   margin-top: 6px;
@@ -41,7 +41,7 @@
 }
 
 .summary-label {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -53,8 +53,8 @@
 }
 
 .summary-value {
-  font-size: 18px;
-  font-weight: 650;
+  font-size: var(--fs-stat);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -63,7 +63,7 @@
 }
 
 .summary-note {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 

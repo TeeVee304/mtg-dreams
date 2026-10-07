@@ -6,7 +6,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .trade-summary {
@@ -28,7 +28,7 @@
   margin: 16px 0 8px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .import-lists {
@@ -55,7 +55,7 @@
 }
 
 .trade-heading {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;

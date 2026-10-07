@@ -160,7 +160,7 @@ export function CardRow(props: CardRowProps) {
           </span>
         )}
         {shortfall > 0 && (
-          <span className="chip illegal" title={shortfallNote(row).title}>
+          <span className="chip short" title={shortfallNote(row).title}>
             {shortfallNote(row).label}
           </span>
         )}

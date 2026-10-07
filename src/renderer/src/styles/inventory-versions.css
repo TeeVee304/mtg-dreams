@@ -15,7 +15,7 @@
   display: block;
   width: 32px;
   height: 45px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   object-fit: cover;
   background: var(--panel-2);
 }
@@ -32,18 +32,18 @@
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-md);
   font-weight: 600;
   background: var(--panel-2);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   color: var(--text);
   vertical-align: middle;
 }
 
 .versions-btn:hover:not(:disabled) {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .versions-btn svg {

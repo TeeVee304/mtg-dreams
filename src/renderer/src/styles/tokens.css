@@ -8,8 +8,11 @@
   --border: #2c313a;
   --text: #e8eaef;
   --muted: #979eac;
-  --faint: #6b7280;
+  --faint: #8a91a0;
+  /* Accent for fills, borders, icons and large text (3:1); --accent-text for smaller text
+     (4.5:1). They differ only where a readable accent would look muddy, like light gold. */
   --accent: #e3a94f;
+  --accent-text: var(--accent);
   --accent-ink: #1d1406;
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   /* Bright gradients (Inventory Value, the wand while picking): the same in light and dark. */
@@ -19,9 +22,11 @@
   --shine-ink: #2a1a05;
   --good: #5cc28a;
   --good-soft: rgba(92, 194, 138, 0.14);
-  --warn: #e8b54f;
-  --bad: #ef6b6b;
-  --bad-soft: rgba(239, 107, 107, 0.14);
+  /* Warn is orange and bad is red so neither reads as the gold accent (or the Red theme's). */
+  --warn: #f2843f;
+  --warn-soft: rgba(242, 132, 63, 0.14);
+  --bad: #f47a7a;
+  --bad-soft: rgba(244, 122, 122, 0.14);
   --foil: linear-gradient(100deg, #7dd3fc, #c4b5fd, #f9a8d4, #fde68a);
   /* The mana colors, the same in every color theme (the Stats panel's color bars). */
   --mana-w: #e3a94f;
@@ -30,7 +35,20 @@
   --mana-r: #ec7680;
   --mana-g: #6fcf9f;
   --mana-c: #b0b0b0;
+  /* Type scale; body text is --fs-base. --fs-stat is large text (bold, over 18.66px), which
+     needs only 3:1, so summary numbers can use the bright --accent. */
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 15px;
+  --fs-xl: 17px;
+  --fs-stat: 20px;
+  --fs-2xl: 22px;
+  --radius-xs: 3px;
+  --radius-sm: 6px;
   --radius: 8px;
+  --radius-pill: 999px;
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
@@ -44,15 +62,17 @@
     --border: #dcdcd6;
     --text: #1d2026;
     --muted: #626a78;
-    --faint: #8b92a0;
+    --faint: #656c7a;
     --accent: #b8741a;
-    --accent-ink: #ffffff;
+    --accent-text: #7a5b01;
+    --accent-ink: #1d1406;
     --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
-    --good: #238a55;
-    --good-soft: rgba(35, 138, 85, 0.12);
-    --warn: #a86a00;
-    --bad: #c9362f;
-    --bad-soft: rgba(201, 54, 47, 0.1);
+    --good: #17683f;
+    --good-soft: rgba(23, 104, 63, 0.12);
+    --warn: #a34a06;
+    --warn-soft: rgba(163, 74, 6, 0.1);
+    --bad: #b02b25;
+    --bad-soft: rgba(176, 43, 37, 0.1);
     --shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
     --mana-w: #b8741a;
     --mana-u: #2f66b0;
@@ -69,6 +89,7 @@
    it can override another app theme. */
 
 [data-color] {
+  --accent-text: var(--accent);
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
@@ -91,19 +112,20 @@
 }
 
 [data-color='B'] {
-  --accent: #a98ad8;
+  --accent: #b59ae0;
   --accent-ink: #1a1029;
-  --shine-1: #a98ad8;
+  --shine-1: #b59ae0;
   --shine-2: #ddd0f2;
   --shine-3: #6b45a8;
   --shine-ink: #1a1029;
 }
 
+/* A lighter coral red than the mana red, so the accent never reads as an error (--bad). */
 [data-color='R'] {
-  --accent: #ec7680;
+  --accent: #fd9488;
   --accent-ink: #2a0a0e;
-  --shine-1: #ec7680;
-  --shine-2: #f9c2c6;
+  --shine-1: #fd9488;
+  --shine-2: #fdd0ca;
   --shine-3: #b8303f;
   --shine-ink: #2a0a0e;
 }
@@ -133,11 +155,12 @@
 
   [data-color='W'] {
     --accent: #b8741a;
-    --accent-ink: #ffffff;
+    --accent-text: #7a5b01;
+    --accent-ink: #1d1406;
   }
 
   [data-color='U'] {
-    --accent: #2f66b0;
+    --accent: #285a9c;
     --accent-ink: #ffffff;
   }
 
@@ -147,17 +170,17 @@
   }
 
   [data-color='R'] {
-    --accent: #c0303f;
+    --accent: #a82352;
     --accent-ink: #ffffff;
   }
 
   [data-color='G'] {
-    --accent: #23845a;
+    --accent: #17694a;
     --accent-ink: #ffffff;
   }
 
   [data-color='C'] {
-    --accent: #7e7e7e;
+    --accent: #5a5a5a;
     --accent-ink: #ffffff;
   }
 }

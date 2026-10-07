@@ -16,7 +16,7 @@
 
 .menu-trigger.open {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .menu-list {
@@ -40,7 +40,7 @@
   background: none;
   text-align: left;
   padding: 7px 10px;
-  border-radius: 5px;
+  border-radius: var(--radius-sm);
   font-weight: 400;
   color: var(--text);
 }

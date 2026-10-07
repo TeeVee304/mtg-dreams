@@ -56,38 +56,43 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
           value={filters.name}
           onChange={(event) => set({ name: event.target.value })}
         />
-        <div className="toggle-group" role="group" aria-label="Colors" title="Colors use color identity, so lands count too">
-          {COLOR_LETTERS.map((color) => {
-            const on = filters.colors.includes(color)
-            return (
-              <button
-                key={color}
-                type="button"
-                className={`mana${on ? ' on' : ''}`}
-                aria-pressed={on}
-                aria-label={COLOR_NAMES[color]}
-                title={COLOR_NAMES[color]}
-                onClick={() => set({ colors: toggle(filters.colors, color) })}
-              >
-                <img src={MANA_SYMBOLS[color]} alt="" draggable={false} />
-              </button>
-            )
-          })}
+        <div className="filter-group">
+          <span className="filter-label" aria-hidden="true">
+            Color
+          </span>
+          <div className="toggle-group" role="group" aria-label="Colors" title="Colors use color identity, so lands count too">
+            {COLOR_LETTERS.map((color) => {
+              const on = filters.colors.includes(color)
+              return (
+                <button
+                  key={color}
+                  type="button"
+                  className={`mana${on ? ' on' : ''}`}
+                  aria-pressed={on}
+                  aria-label={COLOR_NAMES[color]}
+                  title={COLOR_NAMES[color]}
+                  onClick={() => set({ colors: toggle(filters.colors, color) })}
+                >
+                  <img src={MANA_SYMBOLS[color]} alt="" draggable={false} />
+                </button>
+              )
+            })}
+          </div>
+          {filters.colors.length > 0 && (
+            <select
+              value={filters.colorMode}
+              onChange={(event) => set({ colorMode: event.target.value as ColorMode })}
+              aria-label="How colors match"
+              title="“Only these” shows cards that fit within the selected colors, like a Commander color identity"
+            >
+              {COLOR_MODES.map((mode) => (
+                <option key={mode.id} value={mode.id}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
-        {filters.colors.length > 0 && (
-          <select
-            value={filters.colorMode}
-            onChange={(event) => set({ colorMode: event.target.value as ColorMode })}
-            aria-label="How colors match"
-            title="“Only these” shows cards that fit within the selected colors, like a Commander color identity"
-          >
-            {COLOR_MODES.map((mode) => (
-              <option key={mode.id} value={mode.id}>
-                {mode.label}
-              </option>
-            ))}
-          </select>
-        )}
         <select value={filters.type} onChange={(event) => set({ type: event.target.value })} aria-label="Card type">
           <option value="">All types</option>
           {CARD_TYPES.map((type) => (
@@ -96,23 +101,29 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
             </option>
           ))}
         </select>
-        <div className="toggle-group" role="group" aria-label="Rarity">
-          {RARITY_BUTTONS.map((rarity) => {
-            const on = filters.rarities.includes(rarity.id)
-            return (
-              <button
-                key={rarity.id}
-                type="button"
-                className={`rarity rarity-${rarity.id}${on ? ' on' : ''}`}
-                aria-pressed={on}
-                aria-label={rarity.label}
-                title={rarity.label}
-                onClick={() => set({ rarities: toggle(filters.rarities, rarity.id) })}
-              >
-                {rarity.short}
-              </button>
-            )
-          })}
+        <div className="filter-group">
+          <span className="filter-label" aria-hidden="true">
+            Rarity
+          </span>
+          <div className="toggle-group" role="group" aria-label="Rarity">
+            {RARITY_BUTTONS.map((rarity) => {
+              const on = filters.rarities.includes(rarity.id)
+              return (
+                <button
+                  key={rarity.id}
+                  type="button"
+                  className={`rarity rarity-${rarity.id}${on ? ' on' : ''}`}
+                  aria-pressed={on}
+                  aria-label={rarity.label}
+                  title={rarity.label}
+                  onClick={() => set({ rarities: toggle(filters.rarities, rarity.id) })}
+                >
+                  <span className="rarity-gem" aria-hidden="true" />
+                  {rarity.short}
+                </button>
+              )
+            })}
+          </div>
         </div>
         <label className="check">
           <input type="checkbox" checked={filters.legendary} onChange={(event) => set({ legendary: event.target.checked })} />

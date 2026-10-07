@@ -33,7 +33,7 @@
   border-radius: var(--radius);
   background: var(--panel-2);
   color: var(--bad);
-  font-size: 12.5px;
+  font-size: var(--fs-md);
   white-space: pre-wrap;
   text-align: left;
 }
@@ -98,13 +98,13 @@
   gap: 10px;
   padding: 18px 16px 14px;
   font-weight: 700;
-  font-size: 15px;
+  font-size: var(--fs-lg);
 }
 
 .brand small {
   display: block;
   font-weight: 400;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -156,7 +156,7 @@
 }
 
 .nav-item.active .nav-name {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .nav-name {
@@ -220,7 +220,7 @@
 }
 
 .nav-meta {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -230,7 +230,7 @@
   align-items: center;
   justify-content: space-between;
   margin: 14px 2px 4px 10px;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -239,7 +239,7 @@
 
 .nav-empty {
   padding: 4px 10px;
-  font-size: 12.5px;
+  font-size: var(--fs-md);
 }
 
 .sidebar-foot {

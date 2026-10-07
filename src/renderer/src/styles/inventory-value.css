@@ -31,7 +31,7 @@
   width: 60%;
   height: 4px;
   margin-top: 8px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--accent-soft);
   overflow: hidden;
 }
@@ -61,7 +61,7 @@
 }
 
 .value-change-total .delta {
-  font-size: 22px;
+  font-size: var(--fs-2xl);
 }
 
 .value-change-empty {
@@ -115,7 +115,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .movers-name {
@@ -131,7 +131,7 @@
 }
 
 .value-heading {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -154,7 +154,7 @@
   align-items: center;
   gap: 10px;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: var(--panel-2);
   animation: value-row-in 0.35s ease-out var(--stagger) both;
 }
@@ -165,7 +165,7 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 700;
   background: var(--hover);
   color: var(--muted);
@@ -193,7 +193,7 @@
 .value-thumb {
   width: 34px;
   height: 47px;
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   object-fit: cover;
   background: var(--hover);
 }
@@ -225,7 +225,7 @@
 .value-more {
   display: block;
   margin: 10px auto 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 16px;
 }
 
