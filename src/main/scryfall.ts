@@ -196,7 +196,7 @@ const NUMBER_WORDS: Record<string, number> = { two: 2, three: 3, four: 4, five: 
 const LEADS_RE = /can be your commander|isn't on the battlefield, it's an? [^.]*\bcreature\b/i
 
 /** Maps a Scryfall card to {@link CardInfo}; colors fall back to the union of face colors, sorted WUBRG. */
-function toCardInfo(card: any): CardInfo {
+export function toCardInfo(card: any): CardInfo {
   const faces: any[] = card.card_faces ?? []
   const colors: string[] = card.colors ?? [...new Set(faces.flatMap((face) => face.colors ?? []))]
   const text: string = card.oracle_text ?? faces.map((face) => face.oracle_text ?? '').join('\n')

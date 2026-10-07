@@ -68,6 +68,68 @@ export function fetchJson(url: string, service: string, body?: unknown, timeoutM
   })
 }
 
+/** Silence allowed between chunks of a streamed download. */
+const IDLE_TIMEOUT_MS = 60_000
+
+/**
+ * Streams a large text file line by line, gunzipping `.gz` files, without holding it in memory.
+ * The timeout covers silence between chunks rather than the whole download. Stopping early
+ * cancels the download.
+ * @param service - Service name for error messages.
+ * @param onBytes - Called with the (compressed) bytes received so far.
+ * @throws Error with a user-facing message on network failure, HTTP error, a stalled or damaged download.
+ */
+export async function* fetchLines(
+  url: string,
+  service: string,
+  onBytes?: (received: number) => void,
+  idleTimeoutMs = IDLE_TIMEOUT_MS
+): AsyncGenerator<string> {
+  const controller = new AbortController()
+  let timer = setTimeout(() => controller.abort(), idleTimeoutMs)
+  const touch = () => {
+    clearTimeout(timer)
+    timer = setTimeout(() => controller.abort(), idleTimeoutMs)
+  }
+  let received = 0
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': env().userAgent }, signal: controller.signal })
+    if (!res.ok || !res.body) throw new HttpError(`${service} responded with HTTP ${res.status}.`)
+    // A transfer encoding is undone by fetch already; a .gz file is not.
+    const gzipped =
+      !res.headers.get('content-encoding') &&
+      (new URL(url).pathname.endsWith('.gz') || (res.headers.get('content-type') ?? '').includes('gzip'))
+    let bytes: ReadableStream<Uint8Array> = res.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, out) {
+          received += chunk.byteLength
+          touch()
+          onBytes?.(received)
+          out.enqueue(chunk)
+        }
+      })
+    )
+    if (gzipped) bytes = bytes.pipeThrough(new DecompressionStream('gzip') as unknown as TransformStream<Uint8Array, Uint8Array>)
+    let rest = ''
+    for await (const text of bytes.pipeThrough(new TextDecoderStream())) {
+      const lines = (rest + text).split(/\r?\n/)
+      rest = lines.pop() ?? ''
+      for (const line of lines) if (line.trim()) yield line
+    }
+    if (rest.trim()) yield rest.replace(/\r$/, '')
+  } catch (error) {
+    if (error instanceof HttpError) throw error
+    if (controller.signal.aborted) throw new Error(`${service} stopped sending data. Try again in a moment.`)
+    throw new Error(received > 0 ? `The download from ${service} broke off. Try again in a moment.` : `Could not reach ${service} — are you offline?`)
+  } finally {
+    clearTimeout(timer)
+    controller.abort()
+  }
+}
+
+/** HTTP error status, reported as is. */
+class HttpError extends Error {}
+
 /** @returns `Last-Modified` from a HEAD request; null if absent or non-2xx. */
 export function fetchLastModified(url: string, service: string): Promise<string | null> {
   return request(url, service, { method: 'HEAD' }, TIMEOUT_MS, async (res) =>

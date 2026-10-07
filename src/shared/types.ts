@@ -139,6 +139,17 @@ export interface CardInfo {
   canBeCommander?: true
 }
 
+/** A card of the local card library (one per Oracle card), for deckbuilding. */
+export interface LibraryCard extends CardInfo {
+  manaCost: string
+  /** Oracle text, faces joined by newlines. */
+  text: string
+  /** Keyword abilities and ability words, e.g. `Landfall`, `Madness`. */
+  keywords: string[]
+  /** Cardmarket products of its paper printings: positive ids have a non-foil finish, negative ids are foil-only. */
+  products: number[]
+}
+
 /** Response of a printings lookup. */
 export interface PrintingsResult {
   /** Canonical Scryfall name; may differ from the query after fuzzy matching. */

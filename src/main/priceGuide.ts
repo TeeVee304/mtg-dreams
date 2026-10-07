@@ -1,3 +1,4 @@
+import { pick } from '@shared/pricing'
 import type { PriceBasis, Prices, PrintingsResult } from '@shared/types'
 import { readCacheFile, writeCacheFile } from './cacheFiles'
 import { env } from './environment'
@@ -138,6 +139,15 @@ export function priceGuideDate(): number | null {
 export function guideTrend(cardmarketId: number): [number, number] | undefined {
   const row = guide?.rows.get(cardmarketId)
   return row && [row[1], row[4]]
+}
+
+/**
+ * @param foil - Foil instead of non-foil price.
+ * @returns A product's price on `basis` (falling back to trend, like {@link pick}); null if the guide has none.
+ */
+export function guidePrice(cardmarketId: number, foil: boolean, basis: PriceBasis): number | null {
+  const row = guide?.rows.get(cardmarketId)
+  return row ? pick(merge({}, row, foil ? 3 : 0), basis) : null
 }
 
 /** Overlays positive guide prices of one finish (`offset` 0 or 3) onto `fallback`. */
