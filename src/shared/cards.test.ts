@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   compareCards,
+  curveSlot,
   isBasicLand,
   isSortKey,
   matchesColors,
@@ -29,6 +30,17 @@ const delver = info({
   typeLine: 'Creature — Human Wizard // Creature — Human Insect'
 })
 const filters = (overrides: Partial<CardFilters>): CardFilters => ({ ...NO_FILTERS, ...overrides })
+
+describe('mana value filter', () => {
+  it('matches the mana curve column, leaving lands out like the curve does', () => {
+    expect([bolt, niv, tower].map(curveSlot)).toEqual([1, 6, null])
+    expect(curveSlot(info({ manaValue: 9 }))).toBe(7)
+    expect(matchesFilters('Lightning Bolt', bolt, undefined, filters({ manaValue: 1 }))).toBe(true)
+    expect(matchesFilters('Niv-Mizzet, Parun', niv, undefined, filters({ manaValue: 1 }))).toBe(false)
+    expect(matchesFilters('Command Tower', tower, undefined, filters({ manaValue: 0 }))).toBe(false)
+    expect(matchesFilters('Lightning Bolt', undefined, undefined, filters({ manaValue: 1 }))).toBe(false)
+  })
+})
 
 describe('isBasicLand', () => {
   it('knows basics, snow basics and Wastes', () => {

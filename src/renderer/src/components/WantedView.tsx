@@ -15,7 +15,6 @@ import {
   isWantedSort,
   planPurchases,
   sortWanted,
-  valueOf,
   WANTED_SORTS,
   type WantedCard,
   type WantedSort
@@ -241,6 +240,22 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
               onChange={setFilters}
               namePlaceholder="Filter by name…"
               loadingNote={needsCardData(filters) && overview.cards.some((card) => infoOf(card) === undefined) ? 'Loading card data…' : undefined}
+              end={
+                <label className="field-inline">
+                  Sort
+                  <select
+                    value={sort}
+                    onChange={(event) => setSort(event.target.value as WantedSort)}
+                    title={WANTED_SORTS.find((option) => option.id === sort)?.hint || undefined}
+                  >
+                    {WANTED_SORTS.map((option) => (
+                      <option key={option.id} value={option.id} title={option.hint || undefined}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              }
             >
               {trades.length > 0 && (
                 <label className="check" title="Cards on a friend's trade list: ask before buying">
@@ -253,17 +268,6 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                   Showing {visible.length} of {overview.cards.length}
                 </span>
               )}
-              <span className="spacer" />
-              <label className="field-inline">
-                Sort
-                <select value={sort} onChange={(event) => setSort(event.target.value as WantedSort)}>
-                  {WANTED_SORTS.map((option) => (
-                    <option key={option.id} value={option.id} title={option.hint || undefined}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
             </FilterBar>
             <table className="cards-table wanted-table">
               <thead>
@@ -280,11 +284,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                   >
                     To buy
                   </th>
-                  <th className="col-num">Unit</th>
                   <th className="col-num">Cost</th>
-                  <th className="col-num" title="Cost divided by the lists it serves (high-priority lists count double, low half). Lower is better.">
-                    Per list
-                  </th>
                   <th className="col-actions" aria-label="Actions" />
                 </tr>
               </thead>
@@ -337,15 +337,12 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                       </td>
                       <td className="col-num">{card.toBuy}</td>
                       <td className="col-num">
-                        <Price value={unit} />
-                      </td>
-                      <td className="col-num">
-                        <strong>
-                          <Price value={costOf(card, unit)} />
-                        </strong>
-                      </td>
-                      <td className="col-num muted">
-                        <Price value={valueOf(card, unit)} />
+                        <span className="value-cell">
+                          <strong>
+                            <Price value={costOf(card, unit)} />
+                          </strong>
+                          {card.toBuy > 1 && typeof unit === 'number' && <span className="muted small">{formatEur(unit)} each</span>}
+                        </span>
                       </td>
                       <td className="col-actions">
                         {printing?.cardmarketUrl && (
@@ -359,8 +356,14 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                             <Icon name="external" />
                           </button>
                         )}
-                        <button type="button" className="bought-btn" onClick={() => markBought(card)} title={`Add ${card.toBuy} to your inventory`}>
-                          <Icon name="check" /> Bought
+                        <button
+                          type="button"
+                          className="bought-btn"
+                          onClick={() => markBought(card)}
+                          title={`Add ${card.toBuy} to your inventory`}
+                          aria-label="Bought"
+                        >
+                          <Icon name="check" /> <span className="bought-label">Bought</span>
                         </button>
                       </td>
                     </tr>
@@ -412,8 +415,14 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
                         <Price value={costOf(card, overview.unitOf(card))} />
                       </td>
                       <td className="col-actions">
-                        <button type="button" className="bought-btn" onClick={() => markBought(card)} title={`Add ${card.toBuy} to your inventory`}>
-                          <Icon name="check" /> Bought
+                        <button
+                          type="button"
+                          className="bought-btn"
+                          onClick={() => markBought(card)}
+                          title={`Add ${card.toBuy} to your inventory`}
+                          aria-label="Bought"
+                        >
+                          <Icon name="check" /> <span className="bought-label">Bought</span>
                         </button>
                       </td>
                     </tr>

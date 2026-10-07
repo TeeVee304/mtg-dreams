@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { CARD_TYPES, filtersActive, NO_FILTERS, type CardFilters, type ColorFilter, type ColorMode } from '@shared/cards'
+import { CARD_TYPES, CURVE_TOP, filtersActive, NO_FILTERS, type CardFilters, type ColorFilter, type ColorMode } from '@shared/cards'
 import { MANA_SYMBOLS } from '../lib/artwork'
 
 const COLOR_BUTTONS: Array<{ id: ColorFilter; label: string }> = [
@@ -36,12 +36,14 @@ interface FilterBarProps {
   namePlaceholder: string
   /** Note shown while card data loads and data filters are active. */
   loadingNote?: string
-  /** Extra second-row controls (owned toggles, sort, counts). */
+  /** Extra controls after the filters (owned toggles, counts). */
   children?: ReactNode
+  /** Controls kept together at the end of the row (view, sort); they wrap as one when the row is full. */
+  end?: ReactNode
 }
 
-/** Name, color, type, rarity and legendary filters. */
-export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, children }: FilterBarProps) {
+/** Name, color, type, rarity and legendary filters, with the page's own controls on the same row. */
+export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, children, end }: FilterBarProps) {
   const set = (patch: Partial<CardFilters>) => onChange({ ...filters, ...patch })
 
   return (
@@ -116,18 +118,25 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
           <input type="checkbox" checked={filters.legendary} onChange={(event) => set({ legendary: event.target.checked })} />
           Legendary
         </label>
+        {filters.manaValue !== null && (
+          <button
+            type="button"
+            className="chip link curve-filter"
+            onClick={() => set({ manaValue: null })}
+            title="Set from the mana curve in Statistics. Click to remove."
+          >
+            Mana value {filters.manaValue === CURVE_TOP ? `${CURVE_TOP}+` : filters.manaValue} ×
+          </button>
+        )}
         {filtersActive(filters) && (
           <button type="button" className="link-btn" onClick={() => onChange(NO_FILTERS)}>
             Clear filters
           </button>
         )}
+        {children}
+        {end && <div className="filter-end">{end}</div>}
       </div>
-      {(children || loadingNote) && (
-        <div className="filter-row">
-          {children}
-          {loadingNote && <span className="muted small">{loadingNote}</span>}
-        </div>
-      )}
+      {loadingNote && <p className="muted small filter-note">{loadingNote}</p>}
     </div>
   )
 }

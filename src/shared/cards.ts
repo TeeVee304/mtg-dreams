@@ -40,14 +40,35 @@ export interface CardFilters {
   rarities: string[]
   /** Require the Legendary supertype. */
   legendary: boolean
+  /** Mana curve column ({@link curveSlot}): nonland cards of this mana value; null for any. */
+  manaValue: number | null
 }
 
 /** Filter state matching every card. */
-export const NO_FILTERS: CardFilters = { name: '', colors: [], colorMode: 'any', type: '', rarities: [], legendary: false }
+export const NO_FILTERS: CardFilters = {
+  name: '',
+  colors: [],
+  colorMode: 'any',
+  type: '',
+  rarities: [],
+  legendary: false,
+  manaValue: null
+}
+
+/** Last mana curve column; it gathers this mana value and above. */
+export const CURVE_TOP = 7
+
+/** @returns A card's mana curve column (0..{@link CURVE_TOP}); null for lands, which the curve leaves out. */
+export function curveSlot(info: CardInfo): number | null {
+  if (frontTypeWords(info.typeLine).includes('Land')) return null
+  return Math.min(CURVE_TOP, Math.max(0, Math.floor(info.manaValue)))
+}
 
 /** @returns Whether any filter besides name is set, i.e. matching requires {@link CardInfo}. */
 export function needsCardData(filters: CardFilters): boolean {
-  return filters.colors.length > 0 || filters.type !== '' || filters.rarities.length > 0 || filters.legendary
+  return (
+    filters.colors.length > 0 || filters.type !== '' || filters.rarities.length > 0 || filters.legendary || filters.manaValue !== null
+  )
 }
 
 /** @returns Whether any filter is set. */
@@ -101,6 +122,7 @@ export function matchesFilters(
   }
   if (filters.legendary && !words.includes('Legendary')) return false
   if (filters.rarities.length > 0 && !filters.rarities.includes(rarity ?? info.rarity)) return false
+  if (filters.manaValue !== null && curveSlot(info) !== filters.manaValue) return false
   return true
 }
 

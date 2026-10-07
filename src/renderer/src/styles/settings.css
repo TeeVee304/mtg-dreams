@@ -92,3 +92,19 @@ input.switch:checked::after {
   margin-left: 8px;
   font-weight: 400;
 }
+
+.data-dir {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
+.settings-credits {
+  margin: 22px 0 0;
+  text-align: center;
+}
+
+/* Room between the price note and the setting below it. */
+.radio-options + .settings-note {
+  margin-bottom: 14px;
+}

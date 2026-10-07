@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import type { ColorFilter } from '@shared/cards'
 import { STAT_COLORS } from '@shared/deckStats'
 import { cardLines, nameKey } from '@shared/decklist'
@@ -7,7 +7,8 @@ import { listColor } from '@shared/listColor'
 import { sideboardIds } from '@shared/sideboard'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
-import { cardCount, formatEur, totalCopies } from '../lib/format'
+import { VALUATION_BASIS, valueCollection } from '../lib/collection'
+import { cardCount, formatDate, formatEur, totalCopies } from '../lib/format'
 import { sameList, type CardList, type ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
 import { usePrintingsVersion } from '../stores/printings'
@@ -27,13 +28,13 @@ interface SidebarProps {
   lists: CardList[]
   inventory: Map<string, InventoryItem>
   view: View | null
-  dataDir: string
   onSelect: (view: View) => void
   onNew: (kind: ListKind) => void
-  onOpenDataDir: () => void
-  onChangeDataDir: () => void
   onSettings: () => void
-  onCollectionValue: () => void
+  /** Publication time of the Cardmarket price guide in use; null if none yet. */
+  pricedAt: number | null
+  /** Checks Cardmarket for newer prices. */
+  onRefreshPrices: () => Promise<void>
   trades: TradeSnapshot[]
   /** Own trade side ({@link myTradeSide}). */
   myTrade: { haves: TradeCard[]; wants: Want[] }
@@ -42,13 +43,14 @@ interface SidebarProps {
 }
 
 /**
- * Navigation: inventory, Most Wanted, decks and wishlists (collapsible sections with price-drop counts
- * and color symbols on hover) and trades; data folder and settings actions.
+ * Navigation: inventory and Most Wanted stay in place; decks and wishlists (collapsible sections with
+ * price-drop counts and color symbols on hover) and trades scroll below them. The footer holds the
+ * price status and settings.
  */
 export function Sidebar(props: SidebarProps) {
-  const { lists, inventory, view, dataDir, onSelect, onNew, onOpenDataDir, onChangeDataDir, onSettings, onCollectionValue } =
-    props
+  const { lists, inventory, view, onSelect, onNew, onSettings, pricedAt, onRefreshPrices } = props
   const { trades, myTrade, onShareTrade, onImportTrade } = props
+  const [refreshing, setRefreshing] = useState(false)
   usePrintingsVersion()
   const settings = useSettings()
   const baselines = useBaselines()
@@ -56,6 +58,7 @@ export function Sidebar(props: SidebarProps) {
   const [wishlistsOpen, toggleWishlists] = useStoredToggle('mtg-dreams.wishlistsOpen', true)
   const wanted = wantedOverview(lists, inventory, settings)
   const pool = useCopyPool(lists)
+  const worth = valueCollection(inventory, VALUATION_BASIS, settings.bundleBasics)
 
   const renderList = (list: CardList) => {
     const format = listFormat(list.lines)
@@ -166,7 +169,7 @@ export function Sidebar(props: SidebarProps) {
         </span>
       </div>
 
-      <nav>
+      <nav className="nav-fixed">
         <button
           type="button"
           className={`nav-item${view?.page === 'inventory' ? ' active' : ''}`}
@@ -175,7 +178,10 @@ export function Sidebar(props: SidebarProps) {
           <span className="nav-name nav-icon-name">
             Inventory <Icon name="backpack" />
           </span>
-          <span className="nav-meta">{cardCount(totalCopies(inventory.values()))}</span>
+          <span className="nav-meta">
+            {cardCount(worth.copies)}
+            {inventory.size > 0 && worth.pending === 0 && ` · ${formatEur(worth.total)}`}
+          </span>
         </button>
         <button
           type="button"
@@ -190,9 +196,9 @@ export function Sidebar(props: SidebarProps) {
             {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
           </span>
         </button>
-        <button type="button" className="value-btn" onClick={onCollectionValue} title="What is my collection worth?">
-          <Icon name="sparkle" /> Inventory Value
-        </button>
+      </nav>
+
+      <nav className="nav-scroll">
         {section('deck', 'Decks', 'No decks yet.')}
         {section('wishlist', 'Wishlists', 'No wishlists yet.')}
 
@@ -233,18 +239,21 @@ export function Sidebar(props: SidebarProps) {
       </nav>
 
       <footer className="sidebar-foot">
-        <div className="foot-row">
-          <span className="muted small" title={dataDir}>
-            Data folder
-          </span>
-          <button type="button" className="link-btn" onClick={onOpenDataDir}>
-            Open
-          </button>
-          <button type="button" className="link-btn" onClick={onChangeDataDir}>
-            Change…
+        <div className="foot-row price-status">
+          <span className="muted small">{pricedAt ? `Prices from ${formatDate(pricedAt)}` : 'No prices yet'}</span>
+          <button
+            type="button"
+            className="link-btn small"
+            disabled={refreshing}
+            title="Check Cardmarket for a newer price guide (also checked hourly)"
+            onClick={() => {
+              setRefreshing(true)
+              void onRefreshPrices().finally(() => setRefreshing(false))
+            }}
+          >
+            {refreshing ? 'Checking…' : 'Refresh'}
           </button>
         </div>
-        <span className="muted tiny">Card data &amp; images © Scryfall / Wizards of the Coast</span>
         <button type="button" className="settings-btn" onClick={onSettings}>
           <Icon name="settings" /> Settings
         </button>

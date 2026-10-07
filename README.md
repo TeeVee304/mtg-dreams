@@ -33,7 +33,7 @@
   decks stay built. Decks get your copies first (by name), then wishlists by priority. Choose *shared between lists*
   if you move cards between decks: then one copy counts for every list.
 - **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
-- A **Stats** panel shows the mana curve and the colors of the cards besides lands.
+- A **Statistics** panel shows the mana curve and the colors of the cards besides lands.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers the cards create, with which cards make each one.
 - Give a wishlist a **priority** (High, Normal, Low) from its ⋯ menu: it weights its cards in Most Wanted and, with separate copies, decides which wishlists get your copies first.
 

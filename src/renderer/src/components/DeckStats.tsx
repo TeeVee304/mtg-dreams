@@ -8,12 +8,23 @@ import { Icon } from './Icon'
 const OPEN_KEY = 'mtg-dreams.statsOpen'
 const COLOR_NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' } as const
 
+/** Props of {@link DeckStats}. */
+interface DeckStatsProps {
+  /** Main deck rows. */
+  rows: StatsRow[]
+  /** Curve column the list is filtered to; null for none. */
+  manaValue: number | null
+  /** Filters the list to a curve column; null clears it. */
+  onManaValue: (manaValue: number | null) => void
+}
+
 /**
- * Collapsible stats panel, open by default: mana curve and color breakdown (see {@link deckStats}).
- * @param rows - Main deck rows.
+ * Collapsible stats panel of decks and wishlists (deck plans), closed by default with the card and
+ * land counts: mana curve and color breakdown (see {@link deckStats}). A curve bar filters the list
+ * to its mana value.
  */
-export function DeckStats({ rows }: { rows: StatsRow[] }) {
-  const [open, toggle] = useStoredToggle(OPEN_KEY, true)
+export function DeckStats({ rows, manaValue, onManaValue }: DeckStatsProps) {
+  const [open, toggle] = useStoredToggle(OPEN_KEY, false)
   const stats = deckStats(rows)
 
   return (
@@ -22,7 +33,7 @@ export function DeckStats({ rows }: { rows: StatsRow[] }) {
         <span className="deck-stats-chevron" aria-hidden="true">
           ›
         </span>
-        Stats
+        Statistics
         <span className="muted small">
           {`${counted(stats.spells, 'card')} + ${counted(stats.lands, 'land')}`}
           {stats.pending > 0 && ` · ${cardCount(stats.pending)} loading`}
@@ -30,7 +41,7 @@ export function DeckStats({ rows }: { rows: StatsRow[] }) {
       </button>
       {open && stats.spells > 0 && (
         <div className="deck-stats-body">
-          <ManaCurve stats={stats} />
+          <ManaCurve stats={stats} selected={manaValue} onSelect={onManaValue} />
           <ColorBreakdown stats={stats} />
         </div>
       )}
@@ -38,26 +49,46 @@ export function DeckStats({ rows }: { rows: StatsRow[] }) {
   )
 }
 
-/** Mana curve bar chart, creatures and others stacked, in the accent color. */
-function ManaCurve({ stats }: { stats: Stats }) {
+/**
+ * Mana curve bar chart: creatures at the bottom of each bar, other spells stacked above in a lighter
+ * shade. A bar is a toggle that filters the list to its mana value.
+ */
+function ManaCurve({ stats, selected, onSelect }: { stats: Stats; selected: number | null; onSelect: (manaValue: number | null) => void }) {
   const tallest = Math.max(1, ...stats.curve.map((column) => column.creatures + column.others))
-  const summary = stats.curve
-    .map((column) => `${label(column.manaValue)}: ${column.creatures + column.others}`)
-    .join(', ')
   return (
     <figure className="stats-chart">
-      <figcaption>Mana curve</figcaption>
-      <div className="curve" role="img" aria-label={`Cards by mana value. ${summary}`}>
+      <figcaption className="curve-caption">
+        Mana curve
+        <span className="curve-legend" aria-hidden="true">
+          <span className="curve-key creatures" /> Creatures
+          <span className="curve-key others" /> Other spells
+        </span>
+      </figcaption>
+      <div className={`curve${selected !== null ? ' filtering' : ''}`} role="group" aria-label="Filter the list by mana value">
         {stats.curve.map((column) => {
           const total = column.creatures + column.others
+          const on = selected === column.manaValue
           return (
-            <div key={column.manaValue} className="curve-slot" tabIndex={0} aria-label={tip(column.manaValue, column.creatures, column.others)}>
+            <button
+              key={column.manaValue}
+              type="button"
+              className={`curve-slot${on ? ' on' : ''}`}
+              aria-pressed={on}
+              aria-label={tip(column.manaValue, column.creatures, column.others)}
+              disabled={total === 0 && !on}
+              onClick={() => onSelect(on ? null : column.manaValue)}
+            >
               <span className="curve-value">{total > 0 ? total : ''}</span>
-              <div className="curve-bar" style={{ height: `${(total / tallest) * 100}%` }} />
-              <span className="chart-tip" role="tooltip">
-                Mana value <ManaCost manaValue={column.manaValue} />: {counted(column.creatures + column.others, 'card')}
+              <span className="curve-bar" style={{ height: `${(total / tallest) * 100}%` }}>
+                {column.others > 0 && <span className="curve-part others" style={{ flexGrow: column.others }} />}
+                {column.creatures > 0 && <span className="curve-part creatures" style={{ flexGrow: column.creatures }} />}
               </span>
-            </div>
+              <span className="chart-tip" role="tooltip">
+                Mana Value <ManaCost manaValue={column.manaValue} />
+                <br />
+                <span className="muted">{on ? 'Click to show every card' : 'Click to show'}</span>
+              </span>
+            </button>
           )
         })}
       </div>
@@ -83,9 +114,9 @@ const label = (manaValue: number) => (manaValue === CURVE_TOP ? `${CURVE_TOP}+` 
 /** @returns Pluralized count, e.g. `1 card`. */
 const counted = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
-/** Curve bar tooltip. */
+/** Curve bar accessible name. */
 const tip = (manaValue: number, creatures: number, others: number) =>
-  `Mana value (${label(manaValue)}): ${counted(creatures + others, 'card')}`
+  `Mana value (${label(manaValue)}): ${counted(creatures + others, 'card')}, ${counted(creatures, 'creature')}`
 
 /** Per-color spell bars in each color, plus colorless and multicolor counts; colors with no cards are left out. */
 function ColorBreakdown({ stats }: { stats: Stats }) {

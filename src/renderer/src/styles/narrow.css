@@ -9,11 +9,45 @@
     width: 170px;
   }
 
-  .col-name {
-    min-width: 220px;
+  .col-name,
+  .inventory-table .col-name {
+    min-width: 180px;
   }
 
   .card-name {
-    max-width: 220px;
+    max-width: 180px;
+  }
+
+  .col-owned {
+    width: 100px;
+  }
+
+  .cards-table th,
+  .cards-table td {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .list-table .col-actions {
+    width: 64px;
+  }
+
+  .inventory-table .card-name {
+    max-width: 140px;
+  }
+
+  .inventory-table .chips .chip {
+    max-width: 90px;
+  }
+
+  /* Row buttons keep their icons and lose their words (their names stay for screen readers). */
+  .inventory-table .col-actions,
+  .wanted-table .col-actions {
+    width: auto;
+  }
+
+  .versions-label,
+  .bought-label {
+    display: none;
   }
 }

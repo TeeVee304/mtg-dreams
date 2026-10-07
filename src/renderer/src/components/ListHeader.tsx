@@ -35,7 +35,6 @@ interface ListHeaderProps {
   onToggleProblems: () => void
   onTogglePicking: () => void
   onFormat: (formatId: string | null) => void
-  onRefreshPrices: () => void
   onEditText: () => void
   /** Copies the list text to the clipboard. */
   onCopy: () => void
@@ -141,9 +140,6 @@ export function ListHeader(props: ListHeaderProps) {
         </div>
       </div>
       <div className="header-actions">
-        <button type="button" onClick={props.onRefreshPrices} disabled={lines === 0}>
-          Refresh prices
-        </button>
         <button type="button" onClick={props.onEditText}>
           Edit as text
         </button>

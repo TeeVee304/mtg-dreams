@@ -11,17 +11,36 @@
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
+/* Narrow, so view and sort usually fit on the same row. */
 .filter-row .filter {
-  width: 220px;
+  width: 132px;
+  padding-left: 10px;
+  padding-right: 8px;
+}
+
+/* View and sort: pushed to the row's end, and onto their own line together when it is full. */
+.filter-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.filter-end .segmented button {
+  padding: 4px 10px;
+}
+
+.filter-note {
+  margin: 0;
 }
 
 .toggle-group {
   display: inline-flex;
-  gap: 3px;
+  gap: 2px;
 }
 
 .mana,

@@ -73,6 +73,27 @@
   white-space: nowrap;
 }
 
+.list-table .col-actions {
+  width: 76px;
+}
+
+/* Row buttons appear on hover or keyboard focus, so rows read as cards, not toolbars. */
+.cards-table td.col-actions > * {
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.cards-table tr:hover td.col-actions > *,
+.cards-table tr:focus-within td.col-actions > * {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .cards-table td.col-actions > * {
+    opacity: 1;
+  }
+}
+
 /* Names get the room first: they stay on one line, and chips wrap below them instead. */
 .col-name {
   cursor: default;

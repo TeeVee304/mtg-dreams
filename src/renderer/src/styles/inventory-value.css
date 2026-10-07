@@ -2,50 +2,6 @@
 
 /* Inventory Value ------------------------------------------------------------------ */
 
-.value-btn {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  margin: 6px 0 2px;
-  padding: 8px 12px;
-  border: none;
-  border-radius: var(--radius);
-  background: linear-gradient(120deg, var(--shine-1), var(--shine-2) 45%, var(--shine-3));
-  background-size: 200% 100%;
-  color: var(--shine-ink);
-  font-weight: 700;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--shine-1) 35%, transparent);
-  animation: value-gradient 6s ease-in-out infinite;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.value-btn:hover:not(:disabled) {
-  background: linear-gradient(120deg, var(--shine-1), var(--shine-2) 45%, var(--shine-3));
-  background-size: 200% 100%;
-  transform: translateY(-1px);
-  box-shadow: 0 7px 20px color-mix(in srgb, var(--shine-1) 50%, transparent);
-}
-
-.value-btn:active:not(:disabled) {
-  transform: scale(0.98);
-}
-
-.value-btn::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
-  transform: skewX(-20deg);
-  animation: shine 3.5s ease-in-out infinite;
-}
-
 .modal.medium {
   width: min(640px, 100%);
 }
@@ -278,16 +234,6 @@
   text-align: center;
 }
 
-@keyframes value-gradient {
-  0%,
-  100% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-}
-
 @keyframes value-row-in {
   from {
     opacity: 0;
@@ -296,8 +242,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .value-btn,
-  .value-btn::after,
   .value-row {
     animation: none;
   }

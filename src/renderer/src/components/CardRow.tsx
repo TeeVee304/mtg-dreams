@@ -191,10 +191,17 @@ export function CardRow(props: CardRowProps) {
         <VersionCell row={row} />
       </td>
       <td className="col-num" title={entry?.data && unit === null ? 'No Cardmarket price for this version and finish' : undefined}>
-        {row.bundledIds ? null : loading ? (
-          <Skeleton width={44} />
+        {row.bundledIds ? (
+          <span className="muted" title="Bundled basic lands count as free">Free</span>
+        ) : loading ? (
+          <Skeleton width={52} />
+        ) : unit === null ? (
+          '—'
         ) : (
-          formatEur(unit)
+          <span className="value-cell">
+            <strong>{formatEur(unit * line.qty)}</strong>
+            {line.qty > 1 && <span className="muted small">{formatEur(unit)} each</span>}
+          </span>
         )}
         {entry?.data?.staleError && (
           <span className="stale" title={`Showing cached price: ${entry.data.staleError}`}>
@@ -203,28 +210,7 @@ export function CardRow(props: CardRowProps) {
           </span>
         )}
       </td>
-      <td className="col-num strong">
-        {row.bundledIds ? (
-          <span className="muted" title="Bundled basic lands count as free">Free</span>
-        ) : loading ? (
-          <Skeleton width={52} />
-        ) : unit === null ? (
-          '—'
-        ) : (
-          formatEur(unit * line.qty)
-        )}
-      </td>
       <td className="col-actions">
-        <button
-          type="button"
-          className="icon-btn"
-          onClick={onOpen}
-          disabled={!!row.bundledIds}
-          title={row.bundledIds ? 'Bundled basic land: no versions to choose' : 'Card details and version'}
-          aria-label="Card details and version"
-        >
-          <Icon name="versions" />
-        </button>
         <button
           type="button"
           className="icon-btn"

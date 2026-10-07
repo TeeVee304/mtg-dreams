@@ -123,6 +123,8 @@ export interface TrackerApi {
    * @returns Whether prices changed, and the current guide's publication time.
    */
   refreshPrices(): Promise<{ updated: boolean; pricedAt: number | null }>
+  /** @returns Publication time of the price guide on disk, without checking for a newer one; null if none. */
+  getPriceDate(): Promise<number | null>
   /** @returns Unsubscribe function. */
   onPricesUpdated(callback: () => void): () => void
   /** Adds Cardmarket product ids to the daily price history. */

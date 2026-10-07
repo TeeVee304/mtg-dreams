@@ -23,7 +23,7 @@ import { WantedView } from './components/WantedView'
 import { Sidebar, type View } from './components/Sidebar'
 import { useToast } from './components/Toasts'
 import { useCopyPool } from './hooks/useCopyPool'
-import { cardCount, cleanError, totalCopies } from './lib/format'
+import { cardCount, cleanError, formatDate, totalCopies } from './lib/format'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
 import { refreshStalePrintings, reloadPrices, requestPrintings } from './stores/printings'
 import { useSettings } from './stores/settings'
@@ -72,6 +72,8 @@ export default function App() {
   const [valueOpen, setValueOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [importing, setImporting] = useState<{ replaceName?: string } | null>(null)
+  /** Publication time of the price guide in use. */
+  const [pricedAt, setPricedAt] = useState<number | null>(null)
 
   useEffect(() => {
     void actions.reload(true)
@@ -103,14 +105,18 @@ export default function App() {
   const { bundleBasics, copies } = useSettings()
   const pool = useCopyPool(state.lists)
   const active = view?.page === 'list' ? view.list : null
+  /** Cards to price: the open list's first, then the other lists', then the rest of the inventory (for its value). */
   const namesKey = useMemo(
     () =>
-      [...state.lists]
-        .sort((a, b) => Number(active !== null && sameList(b, active)) - Number(active !== null && sameList(a, active)))
-        .flatMap((list) => cardLines(list.lines).map((line) => line.name))
+      [
+        ...[...state.lists]
+          .sort((a, b) => Number(active !== null && sameList(b, active)) - Number(active !== null && sameList(a, active)))
+          .flatMap((list) => cardLines(list.lines).map((line) => line.name)),
+        ...[...state.inventory.values()].map((item) => item.name)
+      ]
         .filter((name) => !bundledBasic(name, bundleBasics))
         .join('\n'),
-    [state.lists, active, bundleBasics]
+    [state.lists, state.inventory, active, bundleBasics]
   )
   useEffect(() => {
     for (const name of namesKey.split('\n')) if (name) requestPrintings(name)
@@ -123,7 +129,36 @@ export default function App() {
     return () => clearInterval(timer)
   }, [])
 
-  useEffect(() => window.api.onPricesUpdated(() => void reloadPrices()), [])
+  const loadPriceDate = useCallback(() => window.api.getPriceDate().then(setPricedAt, () => undefined), [])
+  useEffect(() => void loadPriceDate(), [loadPriceDate])
+  useEffect(
+    () =>
+      window.api.onPricesUpdated(() => {
+        void reloadPrices()
+        void loadPriceDate()
+      }),
+    [loadPriceDate]
+  )
+
+  /** Checks Cardmarket for a newer price guide and says what it found. */
+  const refreshPrices = () =>
+    window.api.refreshPrices().then(
+      ({ updated, pricedAt: at }) => {
+        setPricedAt(at)
+        toast(
+          updated
+            ? `New Cardmarket prices loaded (${formatDate(at!)})`
+            : `Prices are up to date: Cardmarket, ${at ? formatDate(at) : 'not loaded yet'}`
+        )
+      },
+      (error) => onError(cleanError(error))
+    )
+
+  const changeDataDir = () =>
+    actions
+      .chooseDataDir()
+      .then((changed) => changed && toast('Data folder changed'))
+      .catch((error) => onError(cleanError(error)))
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -181,22 +216,15 @@ export default function App() {
         lists={state.lists}
         inventory={state.inventory}
         view={view}
-        dataDir={state.dataDir}
         onSelect={setView}
         onNew={setCreating}
         onSettings={() => setSettingsOpen(true)}
-        onCollectionValue={() => setValueOpen(true)}
+        pricedAt={pricedAt}
+        onRefreshPrices={refreshPrices}
         trades={state.trades}
         myTrade={myTrade}
         onShareTrade={() => setShareOpen(true)}
         onImportTrade={() => setImporting({})}
-        onOpenDataDir={() => void window.api.openDataDir()}
-        onChangeDataDir={() =>
-          actions
-            .chooseDataDir()
-            .then((changed) => changed && toast('Data folder changed'))
-            .catch((error) => onError(cleanError(error)))
-        }
       />
       <main
         className="main"
@@ -211,6 +239,7 @@ export default function App() {
             actions={actions}
             onOpenList={openList}
             onAddPrecon={() => setPrecon('deck')}
+            onValueDetails={() => setValueOpen(true)}
           />
         )}
         {view?.page === 'wanted' && (
@@ -290,7 +319,16 @@ export default function App() {
           onAdd={(deck, entries) => createFromPrecon(precon, deck, entries)}
         />
       )}
-      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsDialog
+          onClose={() => setSettingsOpen(false)}
+          dataDir={state.dataDir}
+          onOpenDataDir={() => void window.api.openDataDir()}
+          onChangeDataDir={changeDataDir}
+          pricedAt={pricedAt}
+          onRefreshPrices={refreshPrices}
+        />
+      )}
       {conflict && (
         <ConflictDialog
           name={conflict.name}

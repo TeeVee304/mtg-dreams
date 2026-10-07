@@ -4,7 +4,7 @@ import { COPIES_MODES } from '@shared/copies'
 import { PRICE_BASES } from '@shared/pricing'
 import { THEME_COLORS } from '@shared/themes'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
-import { cleanError } from '../lib/format'
+import { cleanError, formatDate } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { Modal } from './Modal'
 
@@ -14,10 +14,25 @@ const THEMES: Array<{ id: Theme; label: string; hint: string }> = [
   { id: 'dark', label: 'Dark', hint: 'Always dark' }
 ]
 
+/** Props of {@link SettingsDialog}. */
+interface SettingsDialogProps {
+  onClose: () => void
+  /** Folder holding decks, wishlists, the inventory and trades. */
+  dataDir: string
+  onOpenDataDir: () => void
+  onChangeDataDir: () => void
+  /** Publication time of the Cardmarket price guide in use; null if none yet. */
+  pricedAt: number | null
+  /** Checks Cardmarket for newer prices. */
+  onRefreshPrices: () => Promise<void>
+}
+
 /** Settings dialog; changes apply immediately. */
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog(props: SettingsDialogProps) {
+  const { onClose, dataDir, onOpenDataDir, onChangeDataDir, pricedAt, onRefreshPrices } = props
   const settings = useSettings()
   const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   const change = (patch: Partial<AppSettings>) => {
     setError(null)
@@ -87,7 +102,23 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             </label>
           ))}
         </div>
-        <p className="muted tiny settings-note">From Cardmarket’s daily price guide, in EUR. Inventory Value always uses the typical price.</p>
+        <p className="muted tiny settings-note">
+          From Cardmarket’s daily price guide, in EUR{pricedAt ? `, published ${formatDate(pricedAt)}` : ''}. Checked
+          hourly.{' '}
+          <button
+            type="button"
+            className="link-btn"
+            disabled={refreshing}
+            onClick={() => {
+              setRefreshing(true)
+              void onRefreshPrices().finally(() => setRefreshing(false))
+            }}
+          >
+            {refreshing ? 'Checking…' : 'Check now'}
+          </button>
+          <br />
+          Inventory Value always uses the typical price.
+        </p>
         <label className="setting-toggle">
           <span className="setting-text">
             <span className="setting-label">Price drop alerts</span>
@@ -159,7 +190,29 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           />
         </label>
       </section>
+
+      <section className="settings-section">
+        <h3>Data folder</h3>
+        <p className="data-dir" title={dataDir}>
+          {dataDir}
+        </p>
+        <div className="foot-row">
+          <button type="button" onClick={onOpenDataDir}>
+            Open
+          </button>
+          <button type="button" onClick={onChangeDataDir}>
+            Change…
+          </button>
+        </div>
+        <p className="muted tiny settings-note">
+          Your decks, wishlists, inventory and trades, as plain text files. Settings and caches stay with Windows.
+        </p>
+      </section>
       {error && <p className="warn">{error}</p>}
+      <p className="muted tiny settings-credits">
+        Card data &amp; images © Scryfall / Wizards of the Coast. Prices from Cardmarket. MTG Dreams is not affiliated
+        with them.
+      </p>
     </Modal>
   )
 }

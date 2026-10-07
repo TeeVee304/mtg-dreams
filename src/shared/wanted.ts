@@ -113,7 +113,11 @@ export function valueOf(card: WantedCard, unit: UnitPrice): UnitPrice {
 
 /** Most Wanted sort options. */
 export const WANTED_SORTS = [
-  { id: 'value', label: 'Best value', hint: 'Lowest cost per list served' },
+  {
+    id: 'value',
+    label: 'Best value',
+    hint: 'Lowest cost per list served: decks and high-priority lists count double, low-priority lists half'
+  },
   { id: 'lists', label: 'Most wanted', hint: 'Wanted by the most lists' },
   { id: 'completion', label: 'Closest to completing', hint: 'Finishes lists that are nearly done' },
   { id: 'price', label: 'Cheapest', hint: 'Lowest cost to buy' },

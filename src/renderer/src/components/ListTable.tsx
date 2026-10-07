@@ -62,6 +62,39 @@ export function ListTable(props: ListTableProps) {
         onChange={props.onFilters}
         namePlaceholder="Filter by name…"
         loadingNote={props.dataLoading ? 'Some cards are still loading and are hidden by these filters.' : undefined}
+        end={
+          <>
+            <div className="segmented" role="radiogroup" aria-label="View">
+              {(['table', 'grid'] as const).map((view) => (
+                <button
+                  key={view}
+                  type="button"
+                  role="radio"
+                  aria-checked={cardView === view}
+                  className={cardView === view ? 'selected' : undefined}
+                  onClick={() => void updateSettings({ cardView: view })}
+                  title={view === 'table' ? 'Cards as table rows' : 'Cards as images'}
+                >
+                  {view === 'table' ? 'Table' : 'Cards'}
+                </button>
+              ))}
+            </div>
+            <label className="field-inline">
+              Sort
+              <select
+                value={props.sort}
+                onChange={(event) => void updateSettings({ sort: event.target.value as SortKey })}
+                title="Applies to all decks, wishlists and the inventory"
+              >
+                {sortOptionsFor(props.sortView).map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        }
       >
         {!isDeck && (
           <label className="check">
@@ -75,36 +108,6 @@ export function ListTable(props: ListTableProps) {
             {isDeck ? `${formatEur(visibleSummary.total)} value` : `${formatEur(visibleSummary.neededValue)} still needed`}
           </span>
         )}
-        <span className="spacer" />
-        <div className="segmented" role="radiogroup" aria-label="View">
-          {(['table', 'grid'] as const).map((view) => (
-            <button
-              key={view}
-              type="button"
-              role="radio"
-              aria-checked={cardView === view}
-              className={cardView === view ? 'selected' : undefined}
-              onClick={() => void updateSettings({ cardView: view })}
-              title={view === 'table' ? 'Cards as table rows' : 'Cards as images'}
-            >
-              {view === 'table' ? 'Table' : 'Cards'}
-            </button>
-          ))}
-        </div>
-        <label className="field-inline">
-          Sort
-          <select
-            value={props.sort}
-            onChange={(event) => void updateSettings({ sort: event.target.value as SortKey })}
-            title="Applies to all decks, wishlists and the inventory"
-          >
-            {sortOptionsFor(props.sortView).map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
       </FilterBar>
       {cardView === 'grid' ? (
         <div className={`card-grid-view${props.picking ? ' picking' : ''}`}>
@@ -149,7 +152,7 @@ export function ListTable(props: ListTableProps) {
           })}
         </div>
       ) : (
-        <table className={`cards-table${props.picking ? ' picking' : ''}`}>
+        <table className={`cards-table list-table${props.picking ? ' picking' : ''}`}>
           <thead>
             <tr>
               {!isDeck && (
@@ -160,8 +163,7 @@ export function ListTable(props: ListTableProps) {
               <th className="col-qty">Qty</th>
               <th>Card</th>
               <th className="col-version">Version</th>
-              <th className="col-num">Unit</th>
-              <th className="col-num">Total</th>
+              <th className="col-num">Price</th>
               <th className="col-actions" aria-label="Actions" />
             </tr>
           </thead>
@@ -172,7 +174,7 @@ export function ListTable(props: ListTableProps) {
             return (
               <tbody key={section.id} className={leaders ? 'commander-section' : undefined}>
                 <tr className={`section-row${open ? '' : ' folded'}`}>
-                  <td colSpan={isDeck ? 6 : 7}>
+                  <td colSpan={isDeck ? 5 : 6}>
                     <button
                       type="button"
                       className="section-toggle"

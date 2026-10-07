@@ -21,7 +21,7 @@ import type { CopyPool } from '@shared/copies'
 import type { CardLine, InventoryItem } from '@shared/types'
 import { bundledBasic } from '@shared/basics'
 import { getCardInfo } from '../stores/cardinfo'
-import { cleanError, formatDate } from '../lib/format'
+import { cleanError } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
@@ -167,17 +167,6 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
     .filter(Boolean)
     .join(' · ')
 
-  const refreshPrices = () =>
-    window.api.refreshPrices().then(
-      ({ updated, pricedAt }) =>
-        toast(
-          updated
-            ? `New Cardmarket prices loaded (${formatDate(pricedAt!)})`
-            : `Prices are up to date: Cardmarket, ${pricedAt ? formatDate(pricedAt) : 'not loaded yet'}`
-        ),
-      (error) => toast(cleanError(error), 'error')
-    )
-
   const toggleOwned = (row: Row) => {
     const change = ownedToggle(row)
     if (change.kind === 'set') actions.setOwned(row.line.name, change.qty, lineVersion(row.line))
@@ -281,7 +270,6 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         onToggleProblems={() => setOnlyProblems(!onlyProblems)}
         onTogglePicking={togglePicking}
         onFormat={(formatId) => actions.setListFormat(list, formatId)}
-        onRefreshPrices={refreshPrices}
         onEditText={() => setDialog({ kind: 'text' })}
         onCopy={() => window.api.copyText(list.text).then(() => toast(`${isDeck ? 'Deck' : 'List'} copied to clipboard`))}
         onColor={() => setDialog({ kind: 'color' })}
@@ -298,13 +286,16 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         summary={summary}
         mainCards={mainCards}
         size={size}
-        lines={cards.length}
         lands={landCount(mainRows)}
         sideboard={analysis.sideboardCards}
         basis={settings.priceBasis}
       />
 
-      <DeckStats rows={mainRows} />
+      <DeckStats
+        rows={mainRows}
+        manaValue={filters.manaValue}
+        onManaValue={(manaValue) => setFilters({ ...filters, manaValue })}
+      />
 
       <div className="search-row">
         {isDeck ? (

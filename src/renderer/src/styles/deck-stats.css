@@ -75,16 +75,86 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Creatures at the bottom in the accent color, other spells above in a lighter shade of it. */
 .curve-bar {
   width: min(24px, 70%);
-  background: var(--accent);
+  display: flex;
+  flex-direction: column;
   border-radius: 4px 4px 0 0;
+  overflow: hidden;
   min-height: 0;
 }
 
-.curve-slot:hover .curve-bar,
+.curve-part {
+  min-height: 0;
+}
+
+.curve-part.creatures,
+.curve-key.creatures {
+  background: var(--accent);
+}
+
+.curve-part.others,
+.curve-key.others {
+  background: color-mix(in srgb, var(--accent) 45%, var(--panel));
+}
+
+.curve-slot:hover:not(:disabled) .curve-bar,
 .curve-slot:focus-visible .curve-bar {
   filter: brightness(1.15);
+}
+
+/* A bar is a filter toggle: the chosen one stays bright, the others fade back. */
+.curve-slot {
+  border: none;
+  background: none;
+  padding: 0;
+  border-radius: 6px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.curve-slot:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.curve-slot:disabled {
+  cursor: default;
+}
+
+.curve.filtering .curve-slot:not(.on) .curve-bar {
+  opacity: 0.35;
+}
+
+.curve-slot.on .curve-value {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.curve-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.curve-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+}
+
+.curve-key {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.curve-key.others {
+  margin-left: 8px;
 }
 
 .curve-axis {

@@ -11,6 +11,7 @@ import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../store
 import { useSettings } from '../stores/settings'
 import { ConfirmDialog, PromptDialog } from './Dialogs'
 import { previewHandlers } from './HoverPreview'
+import { MenuButton } from './MenuButton'
 import { useToast } from './Toasts'
 
 /** Match with cheapest-printing price. */
@@ -94,12 +95,13 @@ export function TradeView({ trade, myTrade, pool, actions, onOpenList, onUpdate,
           <button type="button" onClick={onUpdate}>
             Update from file…
           </button>
-          <button type="button" onClick={() => setDialog('rename')}>
-            Rename
-          </button>
-          <button type="button" className="danger-ghost" onClick={() => setDialog('delete')}>
-            Remove
-          </button>
+          <MenuButton
+            label="More trade actions"
+            items={[
+              { label: 'Rename…', onSelect: () => setDialog('rename') },
+              { label: 'Remove…', onSelect: () => setDialog('delete'), danger: true }
+            ]}
+          />
         </div>
       </header>
 

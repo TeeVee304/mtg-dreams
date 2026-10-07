@@ -1,8 +1,7 @@
-import { frontTypeWords } from './cards'
+import { CURVE_TOP, curveSlot, frontTypeWords } from './cards'
 import type { CardInfo } from './types'
 
-/** Last curve column; it aggregates this mana value and above. */
-export const CURVE_TOP = 7
+export { CURVE_TOP }
 
 /** Colors counted in stats, WUBRG order. */
 export const STAT_COLORS = ['W', 'U', 'B', 'R', 'G'] as const
@@ -59,8 +58,8 @@ export function deckStats(rows: StatsRow[]): DeckStats {
       continue
     }
     if (!info) continue
-    const types = frontTypeWords(info.typeLine)
-    if (types.includes('Land')) {
+    const slot = curveSlot(info)
+    if (slot === null) {
       stats.lands += line.qty
       continue
     }
@@ -68,8 +67,8 @@ export function deckStats(rows: StatsRow[]): DeckStats {
     const qty = line.qty
     stats.spells += qty
     totalManaValue += info.manaValue * qty
-    const column = curve[Math.min(CURVE_TOP, Math.max(0, Math.floor(info.manaValue)))]
-    if (types.includes('Creature')) column.creatures += qty
+    const column = curve[slot]
+    if (frontTypeWords(info.typeLine).includes('Creature')) column.creatures += qty
     else column.others += qty
 
     const cardColors = STAT_COLORS.filter((color) => info.colors.includes(color))

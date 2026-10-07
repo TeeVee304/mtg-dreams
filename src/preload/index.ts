@@ -23,6 +23,7 @@ const api: TrackerApi = {
   getCardInfos: (names) => ipcRenderer.invoke('scryfall:cardInfos', names),
   getCardImages: (names) => ipcRenderer.invoke('scryfall:images', names),
   refreshPrices: () => ipcRenderer.invoke('prices:refresh'),
+  getPriceDate: () => ipcRenderer.invoke('prices:date'),
   onPricesUpdated: (callback) => {
     const listener = () => callback()
     ipcRenderer.on('prices:updated', listener)

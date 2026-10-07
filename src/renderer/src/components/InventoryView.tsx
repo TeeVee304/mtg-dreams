@@ -32,6 +32,7 @@ import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
 import { CardThumb, Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
+import { SummaryItem } from './SummaryItem'
 import { useToast } from './Toasts'
 
 /** Copies of a card used by one list. */
@@ -52,13 +53,16 @@ interface InventoryViewProps {
   onOpenList: (list: ListRef) => void
   /** Opens precon import. */
   onAddPrecon: () => void
+  /** Opens the Inventory Value dialog. */
+  onValueDetails: () => void
 }
 
 /**
- * Inventory page: filterable, sortable table with value, version editing and list usage. Uses the
- * nearest inventory equivalent of the global sort. Requests card data and printings for all items.
+ * Inventory page: value summary, then a filterable, sortable table with value, version editing and
+ * list usage. Uses the nearest inventory equivalent of the global sort. Requests card data and
+ * printings for all items.
  */
-export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrecon }: InventoryViewProps) {
+export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrecon, onValueDetails }: InventoryViewProps) {
   const toast = useToast()
   useCardInfoVersion()
   usePrintingsVersion()
@@ -116,6 +120,8 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
   )
 
   const totalCopies = items.reduce((sum, item) => sum + item.qty, 0)
+  const worth = items.reduce((sum, item) => sum + item.value.total, 0)
+  const pricing = items.filter((item) => item.value.status === 'loading').length
   const visibleCopies = visible.reduce((sum, item) => sum + item.qty, 0)
   const dataLoading = needsCardData(filters) && items.some((item) => item.info === undefined)
   const text = serializeInventory(inventory)
@@ -147,19 +153,33 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
       <header className="view-header">
         <div>
           <h1>Inventory</h1>
-          <p className="muted">
-            {items.length} unique cards · {totalCopies} copies
-          </p>
         </div>
         <div className="header-actions">
           <button type="button" onClick={() => setEditing(true)}>
             Edit as text
           </button>
           <button type="button" onClick={() => window.api.copyText(text).then(() => toast('Inventory copied to clipboard'))}>
-            Copy
+            Copy as text
           </button>
         </div>
       </header>
+
+      {items.length > 0 && (
+        <section className="summary-strip">
+          <SummaryItem
+            label="Inventory value"
+            value={formatEur(worth)}
+            accent
+            note={pricing > 0 ? `Typical prices · ${pricing} loading` : 'Typical prices'}
+            action={
+              <button type="button" className="link-btn summary-action" onClick={onValueDetails}>
+                Changes and top cards
+              </button>
+            }
+          />
+          <SummaryItem label="Cards" value={String(totalCopies)} note={`${items.length} unique`} />
+        </section>
+      )}
 
       <div className="search-row">
         <CardSearch
@@ -182,27 +202,28 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
             onChange={setFilters}
             namePlaceholder="Filter by name…"
             loadingNote={dataLoading ? 'Loading card data…' : undefined}
+            end={
+              <label className="field-inline">
+                Sort
+                <select
+                  value={sort}
+                  onChange={(event) => void updateSettings({ sort: event.target.value as SortKey })}
+                  title="Applies to all decks, wishlists and the inventory"
+                >
+                  {sortOptionsFor('inventory').map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            }
           >
             {filtersActive(filters) && (
               <span className="muted small">
                 Showing {visibleCopies} of {totalCopies} copies
               </span>
             )}
-            <span className="spacer" />
-            <label className="field-inline">
-              Sort
-              <select
-                value={sort}
-                onChange={(event) => void updateSettings({ sort: event.target.value as SortKey })}
-                title="Applies to all decks, wishlists and the inventory"
-              >
-                {sortOptionsFor('inventory').map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
           </FilterBar>
           <table className="cards-table inventory-table">
             <thead>
@@ -270,7 +291,7 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
                       aria-label={`Versions of ${item.name} you own`}
                     >
                       <Icon name="versions" />
-                      Versions
+                      <span className="versions-label">Versions</span>
                     </button>
                     <button
                       type="button"

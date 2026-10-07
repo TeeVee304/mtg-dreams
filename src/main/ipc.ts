@@ -10,7 +10,7 @@ import { TRADE_EXTENSION } from '@shared/trade'
 import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
 import { getDeckTokens } from './tokens'
-import { priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
+import { loadPriceGuide, priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
 import { getBaselines, pricesAt, recordCurrentPrices, trackPrices, updateBaselines } from './priceHistory'
 import { autocomplete, getCardImages, getCardInfos, getPrintings } from './scryfall'
 import * as storage from './storage'
@@ -225,6 +225,10 @@ export function registerIpc(): void {
       notifyPricesUpdated()
     }
     return { updated, pricedAt: priceGuideDate() }
+  })
+  ipcMain.handle('prices:date', async () => {
+    await loadPriceGuide()
+    return priceGuideDate()
   })
 
   ipcMain.handle('scryfall:images', (_e, names: unknown) => {

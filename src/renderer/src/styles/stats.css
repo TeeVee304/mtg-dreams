@@ -1,4 +1,4 @@
-/* The value cards at the top of a list. */
+/* The value cards (trades) and the value strip at the top of a list. */
 
 /* Stats -------------------------------------------------------------------- */
 
@@ -56,4 +56,64 @@
   height: 100%;
   background: var(--good);
   transition: width 0.3s;
+}
+
+/* Summary strip ---------------------------------------------------------------- */
+
+/* One compact panel of figures, so the cards themselves start high on the page. */
+.summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.summary-item {
+  flex: 1 1 240px;
+  min-width: 0;
+  padding: 9px 16px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.summary-item + .summary-item {
+  border-left: 1px solid var(--border);
+}
+
+.summary-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.summary-line {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+}
+
+.summary-value {
+  font-size: 18px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.summary-item.accent .summary-value {
+  color: var(--accent);
+}
+
+.summary-note {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.summary-item .progress {
+  margin-top: 5px;
+}
+
+/* A link after the note, e.g. to the Inventory Value details. */
+.summary-action {
+  font-size: 12px;
 }
