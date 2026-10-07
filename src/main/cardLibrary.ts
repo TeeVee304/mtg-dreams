@@ -1,3 +1,4 @@
+import type { CardLibraryStatus } from '@shared/api'
 import { nameKey } from '@shared/decklist'
 import { FORMATS } from '@shared/formats'
 import { readCard, type CardProfile } from '@shared/mechanics'
@@ -56,13 +57,6 @@ interface Library {
   /** Profiles, read on first request. */
   profiles: Promise<CardWithProfile[]> | null
 }
-
-/** What the library is doing, for progress display. */
-export type CardLibraryStatus =
-  | { state: 'missing' }
-  /** `progress` 0 to 1; null if the size is unknown. */
-  | { state: 'downloading'; progress: number | null }
-  | { state: 'ready'; cards: number; updatedAt: string }
 
 let library: Library | null = null
 let loading: Promise<void> | null = null

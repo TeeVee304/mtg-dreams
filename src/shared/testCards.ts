@@ -181,7 +181,44 @@ const CARDS = {
     keywords: ['Enchant'],
     colorIdentity: ['G']
   },
-  Exploration: { typeLine: 'Enchantment', text: 'You may play an additional land on each of your turns.', keywords: [], colorIdentity: ['G'] }
+  Exploration: { typeLine: 'Enchantment', text: 'You may play an additional land on each of your turns.', keywords: [], colorIdentity: ['G'] },
+  Gamble: {
+    typeLine: 'Sorcery',
+    text: 'Search your library for a card, put that card into your hand, discard a card at random, then shuffle.',
+    keywords: [],
+    colorIdentity: ['R']
+  },
+  'Worldly Tutor': {
+    typeLine: 'Instant',
+    text: 'Search your library for a creature card, reveal it, then shuffle and put the card on top.',
+    keywords: [],
+    colorIdentity: ['G']
+  },
+  'Heroic Intervention': {
+    typeLine: 'Instant',
+    text: 'Permanents you control gain hexproof and indestructible until end of turn.',
+    keywords: [],
+    colorIdentity: ['G']
+  },
+  'Swiftfoot Boots': {
+    typeLine: 'Artifact — Equipment',
+    text: "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
+    keywords: ['Equip'],
+    colorIdentity: []
+  },
+  Apocalypse: { typeLine: 'Sorcery', text: 'Exile all permanents. You discard your hand.', keywords: [], colorIdentity: ['R'] },
+  Pangosaur: {
+    typeLine: 'Creature — Dinosaur',
+    text: "Whenever a player plays a land, return this creature to its owner's hand.",
+    keywords: [],
+    colorIdentity: ['G']
+  },
+  Vibrance: {
+    typeLine: 'Creature — Elemental Incarnation',
+    text: 'When this creature enters, if {R}{R} was spent to cast it, this creature deals 3 damage to any target.\nWhen this creature enters, if {G}{G} was spent to cast it, search your library for a land card, reveal it, put it into your hand, then shuffle. You gain 2 life.\nEvoke {R/G}{R/G} (You may cast this spell for its evoke cost. If you do, it\'s sacrificed when it enters.)',
+    keywords: ['Evoke'],
+    colorIdentity: ['G', 'R']
+  }
 } satisfies Record<string, Pick<LibraryCard, 'typeLine' | 'text' | 'keywords' | 'colorIdentity'>>
 
 /** Fixture card names. */
@@ -221,7 +258,14 @@ const MANA_COSTS: Record<TestCardName, string> = {
   'Lotus Cobra': '{1}{G}',
   'Splendid Reclamation': '{3}{G}',
   "Nylea's Presence": '{1}{G}',
-  Exploration: '{G}'
+  Exploration: '{G}',
+  Gamble: '{R}',
+  'Worldly Tutor': '{G}',
+  'Heroic Intervention': '{1}{G}',
+  'Swiftfoot Boots': '{2}',
+  Apocalypse: '{R}{R}{R}',
+  Pangosaur: '{G}',
+  Vibrance: '{3}{R/G}{R/G}'
 }
 
 /** Mana value of a mana cost: `{2}{G}{G}` → 4. */

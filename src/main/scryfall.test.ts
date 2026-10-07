@@ -110,7 +110,8 @@ async function setup(userData?: string) {
     userAgent: 'MTGDreams/test',
     scryfallApi: base,
     mtgjsonApi: base,
-    priceGuideUrl: base
+    priceGuideUrl: base,
+    anthropicApi: base
   })
   return { dir, scryfall: await import('./scryfall') }
 }

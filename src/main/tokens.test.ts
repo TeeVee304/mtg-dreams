@@ -55,7 +55,7 @@ afterAll(async () => {
 async function setup() {
   vi.resetModules()
   const { setEnvironment } = await import('./environment')
-  setEnvironment({ userData: dir, documents: dir, appData: dir, trash: async () => undefined, userAgent: 'MTGDreams/test', scryfallApi: base, mtgjsonApi: base, priceGuideUrl: base })
+  setEnvironment({ userData: dir, documents: dir, appData: dir, trash: async () => undefined, userAgent: 'MTGDreams/test', scryfallApi: base, mtgjsonApi: base, priceGuideUrl: base, anthropicApi: base })
   return import('./tokens')
 }
 

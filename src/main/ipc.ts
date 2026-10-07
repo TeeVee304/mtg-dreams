@@ -2,9 +2,13 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell, typ
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import type { PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '@shared/api'
+import { MAX_ANCHORS } from '@shared/deckBrief'
+import { readDeckSnapshot, type DeckProgress } from '@shared/deckSession'
 import { isPriceBasis } from '@shared/pricing'
 import { settingsPatch } from '@shared/settings'
 import { TRADE_EXTENSION } from '@shared/trade'
+import { removeApiKey, saveApiKey } from './apiKey'
+import { buildDeck, changeDeck, deckHelperStatus, deckPlanSummary, deckRoutes } from './deckHelper'
 import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
 import { getDeckTokens } from './tokens'
@@ -215,4 +219,43 @@ export function registerIpc(): void {
 
   ipcMain.handle('shell:openExternal', (_e, url: unknown) => openExternalSafe(text(url, 'URL')))
   ipcMain.handle('clipboard:write', (_e, value: unknown) => clipboard.writeText(text(value, 'text')))
+
+  ipcMain.handle('deck:status', () => deckHelperStatus())
+  ipcMain.handle('deck:saveKey', (_e, key: unknown) => saveApiKey(text(key, 'API key').slice(0, MAX_KEY_LENGTH)))
+  ipcMain.handle('deck:removeKey', () => removeApiKey())
+  ipcMain.handle('deck:routes', (_e, commander: unknown, anchors: unknown) =>
+    deckRoutes({ commander: text(commander, 'commander'), anchors: cardNames(anchors, MAX_ANCHORS, 200) })
+  )
+  ipcMain.handle('deck:plan', (_e, brief: unknown) => deckPlanSummary(brief))
+  ipcMain.handle('deck:build', (event, brief: unknown) =>
+    runDeckJob((progress, signal) => buildDeck(brief, (p) => progress(event, p), signal))
+  )
+  ipcMain.handle('deck:change', (event, brief: unknown, deck: unknown, request: unknown) => {
+    const snapshot = readDeckSnapshot(deck)
+    const asked = text(request, 'request').trim()
+    if (!asked || asked.length > MAX_REQUEST_LENGTH) throw new Error(`Ask for a change in up to ${MAX_REQUEST_LENGTH} characters.`)
+    return runDeckJob((progress, signal) => changeDeck(brief, snapshot, asked, (p) => progress(event, p), signal))
+  })
+  ipcMain.handle('deck:cancel', () => deckJob?.abort())
+}
+
+/** Longest API key accepted. */
+const MAX_KEY_LENGTH = 400
+/** Longest change request. */
+const MAX_REQUEST_LENGTH = 1000
+/** The running deck build or change. */
+let deckJob: AbortController | null = null
+
+/** Runs a deck build or change, stopping any running one, and sends its progress to the window that asked. */
+async function runDeckJob<T>(
+  run: (progress: (event: IpcMainInvokeEvent, p: DeckProgress) => void, signal: AbortSignal) => Promise<T>
+): Promise<T> {
+  deckJob?.abort()
+  const job = new AbortController()
+  deckJob = job
+  try {
+    return await run((event, p) => !event.sender.isDestroyed() && event.sender.send('deck:progress', p), job.signal)
+  } finally {
+    if (deckJob === job) deckJob = null
+  }
 }

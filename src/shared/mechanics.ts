@@ -29,7 +29,8 @@ const landType = (plural: string): MechanicInfo => ({
   label: plural,
   explain: `Counts or triggers on ${plural} you control.`,
   provide: `gives you ${plural}`,
-  use: `counts your ${plural}`
+  use: `counts your ${plural}`,
+  stop: `gets rid of your ${plural} too`
 })
 
 /** Mechanics the detectors know. */
@@ -60,7 +61,8 @@ const MECHANIC_INFO = {
     explain: 'Gets better the more lands you control.',
     term: 'lands matter',
     provide: 'grows your number of lands',
-    use: 'gets better with more lands'
+    use: 'gets better with more lands',
+    stop: 'gets rid of your lands too'
   },
   'land-leaves': {
     label: 'Lands leaving play',
@@ -295,10 +297,12 @@ interface Detector {
   side: Side
   id: MechanicId | RoleId
   in: Part[]
-  /** All must match within one sentence. */
+  /** All must match within one sentence, or within the whole part with {@link Detector.whole}. */
   all: RegExp[]
   /** Skips sentences that match. */
   unless?: RegExp
+  /** Matches across the sentences of a part: "Exile the top card. You may play it." */
+  whole?: true
   weight?: number
   /** Card-level condition. */
   only?: (facts: Facts, ability: Ability) => boolean
@@ -330,6 +334,14 @@ const YOU_DISCARD_RE =
   /(?:^|[.,;:—] |\bthen |\band |\byou (?:may )?)discards? (?:a|an|one|two|three|four|\w+|X|that many|your hand|all|up to|the rest|any number)\b|\beach player discards\b/i
 /** Land words in effects. */
 const LAND_WORD_RE = /\b(?:lands?|land cards?|Plains|Islands?|Swamps?|Mountains?|Forests?)\b/
+/** Where a tutor puts the card it finds. */
+const TUTOR_TO_RE = /\binto your hand\b|\bon top\b|\bonto the battlefield\b/i
+/** Searches that aren't tutors: for lands (ramp), or for one named card. */
+const TUTOR_SKIP_RE = /\b(?:lands?|land cards?|Plains|Islands?|Swamps?|Mountains?|Forests?)\b|\bnamed\b|\bsame name\b/
+/** Destroying or exiling every land along with other permanents. */
+const LAND_WIPE_RE = /\b(?:destroy|exile) all (?:permanents|(?:[\w-]+, )*(?:[\w-]+,? and )?lands)\b|\beach player sacrifices all lands\b/i
+/** Triggered effects that only hurt you: a payoff in name only. */
+const DRAWBACK_RE = /^(?:return this\b[^.]*\bto its owner's hand|sacrifice this\b[^.]*|you lose \d+ life)\.?$/i
 /** Effects that help another player rather than you. */
 const OTHERS_RE = /\bopponent|\btheir library\b|\bits controller\b|\bthat player\b|\btarget player\b/i
 /** Damage or life loss for every opponent at once. */
@@ -337,13 +349,17 @@ const TABLE_BURN_RE = /\bdeals? [^.]*?\bdamage to (?:each opponent|each player)\
 /** Damage to one player, or to any target. */
 const TARGET_BURN_RE = /\bdeals? (?:\d+|X|that much|damage equal|\w+)(?: damage)?[^.]*\bto (?:any target|target player|target opponent|that player)\b/i
 /** Triggers that happen once: as the card enters, dies, turns face up, or a Saga chapter. */
-const ONCE_TRIGGER_RE = /^(?:chapter|this(?: [\w-]+)? (?:enters|dies|is turned face up))$/i
+const ONCE_TRIGGER_RE = /^(?:chapter|this(?: [\w-]+)? (?:enters|dies|is turned face up))(?:,? if\b.*)?$/i
 
 /** The ability can happen again and again: activated, a recurring trigger, or a permanent's static ability. */
 const repeats = (facts: Facts, ability: Ability) =>
   ability.kind === 'activated' ||
   (ability.kind === 'triggered' && !ONCE_TRIGGER_RE.test(ability.trigger ?? '')) ||
   (ability.kind === 'static' && !isSpell(facts))
+
+/** Repeats with no once-a-turn limit: no tap symbol and no loyalty cost. */
+const repeatsFreely = (facts: Facts, ability: Ability) =>
+  repeats(facts, ability) && !(ability.kind === 'activated' && /\{[TQ]\}|^[+−-]?(?:\d+|X)$/.test(ability.cost ?? ''))
 
 /** Text detectors, in no particular order; the strongest finding per id wins. */
 const DETECTORS: Detector[] = [
@@ -376,8 +392,9 @@ const DETECTORS: Detector[] = [
   { side: 'provides', id: 'discard', in: ['cost'], all: [/\bdiscard\b/i] },
   { side: 'uses', id: 'discard', in: ['trigger'], all: [/\byou (?:cycle or )?discards?\b|\bdiscard one or more\b|\ba player discards\b|\bdiscarded\b/i], unless: /opponent/i },
   { side: 'uses', id: 'empty-hand', in: ['trigger', 'effect', 'cost'], all: [/\bno cards in (?:your )?hand\b|\bone or fewer cards in (?:your )?hand\b|\bfewer than \w+ cards in (?:your )?hand\b/i] },
-  // A repeatable discard empties your hand, unless it hands you a card back.
+  // A repeatable discard empties your hand, unless it hands you a card back; fully without a tap symbol.
   { side: 'provides', id: 'empty-hand', in: ['cost'], all: [/\bdiscard\b/i], weight: 0.8, only: (_, a) => a.kind === 'activated' && !/\bdraws?\b|\b(?:into|to) your hand\b/i.test(a.effect) },
+  { side: 'provides', id: 'empty-hand', in: ['cost'], all: [/\bdiscard\b/i], only: (f, a) => repeatsFreely(f, a) && a.kind === 'activated' && !/\bdraws?\b|\b(?:into|to) your hand\b/i.test(a.effect) },
   { side: 'provides', id: 'empty-hand', in: ['effect'], all: [/\bdiscard (?:your hand|all (?:the )?cards in your hand)\b/i], unless: /\bdraws?\b/i },
   { side: 'provides', id: 'empty-hand', in: ['effect'], all: [/\bput (?:a|an|any number of|up to \w+|two|\w+) (?:[\w-]+ )?cards? from your hand onto the battlefield\b/i], weight: 0.6 },
   { side: 'provides', id: 'card-draw', in: ['effect'], all: [/\bdraws? (?:a|an|one|two|three|four|five|six|seven|\w+|X|that many) (?:additional )?cards?\b|\bdraws? cards equal\b/i], unless: /\b(?:target|each|an) opponent draws\b/i },
@@ -422,6 +439,7 @@ const DETECTORS: Detector[] = [
   { side: 'uses', id: 'treasure', in: ['trigger', 'effect', 'cost'], all: [/\bTreasures? you control\b|\bsacrifice a Treasure\b|\bTreasure tokens? you control\b/i] },
   // Roles
   { side: 'roles', id: 'ramp', in: ['effect'], all: [/^add\b/i], only: (facts, a) => !facts.land && a.kind === 'activated' && /\{T\}/.test(a.cost ?? '') },
+  { side: 'roles', id: 'ramp', in: ['effect'], all: [/^add\b/i], only: (facts, a) => !facts.land && a.kind === 'triggered' && repeats(facts, a), weight: 0.8 },
   { side: 'roles', id: 'ramp', in: ['effect'], all: [/\badd (?:\{|one mana|two mana|\w+ mana)/i], only: (facts, a) => !facts.land && a.kind === 'static' && isSpell(facts), weight: 0.3 },
   { side: 'roles', id: 'removal', in: ['effect'], all: [/\b(?:destroy|exile) (?:target|up to (?:one|two|three|\w+) target|another target)\b[^.]*\b(?:creature|artifact|enchantment|planeswalker|permanent|battle)s?\b/i], unless: /\bfrom (?:a|your|their|target player's|an opponent's) graveyard\b|\byou control\b/i },
   { side: 'roles', id: 'removal', in: ['effect'], all: [/\bdeals? (?:\d+|X|that much|damage equal|\w+)(?: damage)?[^.]*\bto (?:any target|target (?:creature|planeswalker|attacking|blocking|player or planeswalker|creature or planeswalker|battle))\b/i] },
@@ -430,16 +448,26 @@ const DETECTORS: Detector[] = [
   { side: 'roles', id: 'removal', in: ['effect'], all: [/\breturn target (?:nonland permanent|creature|artifact|enchantment|permanent)\b[^.]*\bto its owner's hand\b/i], weight: 0.6 },
   { side: 'roles', id: 'board-wipe', in: ['effect'], all: [/\b(?:destroy|exile) all (?:other )?(?:creatures|nonland permanents|artifacts|enchantments|permanents|planeswalkers)\b|\bdeals? (?:\d+|X) damage to each creature\b|\ball creatures get -|\beach creature gets -|\breturn all (?:other )?(?:creatures|nonland permanents)\b/i] },
   { side: 'roles', id: 'counterspell', in: ['effect'], all: [/\bcounter target\b/i] },
-  { side: 'roles', id: 'protection', in: ['effect'], all: [/\b(?:creatures|permanents) you control (?:gain|have) (?:hexproof|indestructible|shroud|protection)\b|\btarget (?:creature|permanent) you control gains (?:hexproof|indestructible|shroud|protection)\b|\bphases? out\b/i] },
-  { side: 'roles', id: 'tutor', in: ['effect'], all: [/\bsearch your library for\b/i, /\binto your hand\b|\bon top of your library\b|\bonto the battlefield\b/i], unless: LAND_WORD_RE },
+  // Protection: everything you control beats gear for one creature, which beats a one-off.
+  { side: 'roles', id: 'protection', in: ['effect'], all: [/\b(?:creatures|permanents) you control (?:gain|have) (?:hexproof|indestructible|shroud|protection)\b|\b(?:creatures|permanents) you control phase out\b/i] },
+  { side: 'roles', id: 'protection', in: ['effect'], all: [/\b(?:equipped|enchanted) creature (?:has|gains) (?:hexproof|indestructible|shroud|protection)\b/i], weight: 0.8 },
+  { side: 'roles', id: 'protection', in: ['effect'], all: [/\btarget (?:creature|permanent) you control gains (?:hexproof|indestructible|shroud|protection)\b|\bphases? out\b/i], weight: 0.7 },
+  // Card search: any card beats one kind of card; a card with one name is too narrow to count.
+  { side: 'roles', id: 'tutor', in: ['effect'], all: [/\bsearch your library for (?:a|an|up to \w+) cards?\b/i, TUTOR_TO_RE], unless: TUTOR_SKIP_RE },
+  { side: 'roles', id: 'tutor', in: ['effect'], all: [/\bsearch your library for\b/i, TUTOR_TO_RE], unless: TUTOR_SKIP_RE, weight: 0.6 },
+  // Wipes that take your lands with everything else.
+  ...(['land-count', ...BASIC_TYPES.map(([type]) => typeId(type))] as MechanicId[]).map(
+    (id): Detector => ({ side: 'stops', id, in: ['effect'], all: [LAND_WIPE_RE], unless: /\byou don't control\b|\byour opponents control\b/i })
+  ),
   { side: 'roles', id: 'evasion', in: ['effect'], all: [/\b(?:creatures you control|target creature|equipped creature|enchanted creature|creatures? you control)\b[^.]*\b(?:gains?|have|has) (?:flying|trample|menace|shadow)\b|\bcan't be blocked\b/i] },
-  // Direct damage: to every opponent beats one target, and again and again beats once.
+  // Direct damage: to every opponent beats one target, and again and again beats once a turn, which beats once.
   { side: 'roles', id: 'burn', in: ['effect'], all: [TABLE_BURN_RE], only: repeats },
   { side: 'roles', id: 'burn', in: ['effect'], all: [TABLE_BURN_RE], weight: 0.6 },
+  { side: 'roles', id: 'burn', in: ['effect'], all: [TARGET_BURN_RE], only: repeatsFreely },
   { side: 'roles', id: 'burn', in: ['effect'], all: [TARGET_BURN_RE], only: repeats, weight: 0.8 },
   { side: 'roles', id: 'burn', in: ['effect'], all: [/\bdeals? (?:X|that much|damage equal)\b/i, TARGET_BURN_RE], weight: 0.6 },
   { side: 'roles', id: 'burn', in: ['effect'], all: [TARGET_BURN_RE], weight: 0.3 },
-  { side: 'roles', id: 'card-advantage', in: ['effect'], all: [/\bexile the top\b/i, /\byou may (?:play|cast)\b/i] },
+  { side: 'roles', id: 'card-advantage', in: ['effect'], all: [/\bexile the top\b/i, /\byou may (?:play|cast)\b/i], whole: true },
   { side: 'roles', id: 'card-advantage', in: ['effect'], all: [/\breturn\b[^.]*\bfrom your graveyard to your hand\b/i], weight: 0.6 },
   { side: 'roles', id: 'card-advantage', in: ['effect'], all: [/\bplay lands? from the top of your library\b/i], weight: 0.7 }
 ]
@@ -547,8 +575,9 @@ export function readCard(card: ReadableCard): CardProfile {
     }
     for (const detector of DETECTORS) {
       if (detector.only && !detector.only(facts, ability)) continue
+      if (detector.side === 'uses' && ability.kind === 'triggered' && DRAWBACK_RE.test(ability.effect)) continue
       const hit = detector.in.some((part) =>
-        sentences(parts[part]).some(
+        (detector.whole ? [parts[part]] : sentences(parts[part])).some(
           (sentence) => detector.all.every((re) => re.test(sentence)) && !detector.unless?.test(sentence)
         )
       )

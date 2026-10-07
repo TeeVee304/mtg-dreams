@@ -42,6 +42,19 @@ const api: TrackerApi = {
     const listener = () => callback()
     ipcRenderer.on('window:focus', listener)
     return () => ipcRenderer.removeListener('window:focus', listener)
+  },
+  getDeckHelperStatus: () => ipcRenderer.invoke('deck:status'),
+  saveApiKey: (key) => ipcRenderer.invoke('deck:saveKey', key),
+  removeApiKey: () => ipcRenderer.invoke('deck:removeKey'),
+  getDeckRoutes: (commander, anchors) => ipcRenderer.invoke('deck:routes', commander, anchors),
+  planDeck: (brief) => ipcRenderer.invoke('deck:plan', brief),
+  buildDeck: (brief) => ipcRenderer.invoke('deck:build', brief),
+  changeDeck: (brief, deck, request) => ipcRenderer.invoke('deck:change', brief, deck, request),
+  cancelDeckBuild: () => ipcRenderer.invoke('deck:cancel'),
+  onDeckProgress: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, progress: Parameters<typeof callback>[0]) => callback(progress)
+    ipcRenderer.on('deck:progress', listener)
+    return () => ipcRenderer.removeListener('deck:progress', listener)
   }
 }
 

@@ -52,7 +52,7 @@ describe('reading what a card does', () => {
   })
 
   it('tells discard outlets that empty your hand from ones that refill it', () => {
-    expect(provides('Seismic Assault')).toMatchObject({ discard: 1, 'lands-in-graveyard': 1, 'empty-hand': 0.8 })
+    expect(provides('Seismic Assault')).toMatchObject({ discard: 1, 'lands-in-graveyard': 1, 'empty-hand': 1 })
     expect(roles('Seismic Assault')).toContain('burn')
     expect(provides('Glint-Horn Buccaneer')).not.toHaveProperty('empty-hand')
     expect(uses('Glint-Horn Buccaneer')).toMatchObject({ discard: 1 })
@@ -110,11 +110,43 @@ describe('reading what a card does', () => {
 
   it('weighs direct damage by how often it happens and whom it hits', () => {
     const burn = (name: TestCardName) => read(name).roles.find((r) => r.id === 'burn')?.weight
+    // Every opponent, or any target again and again: no tap symbol, so no once-a-turn limit.
     expect(burn('Glint-Horn Buccaneer')).toBe(1)
-    expect(burn('Seismic Assault')).toBe(0.8)
-    expect(burn('Valakut, the Molten Pinnacle')).toBe(0.8)
+    expect(burn('Seismic Assault')).toBe(1)
+    expect(burn('Valakut, the Molten Pinnacle')).toBe(1)
+    // A loyalty ability works once a turn; a spell once.
     expect(burn('Wrenn and Six')).toBe(0.8)
     expect(burn('Fiery Temper')).toBe(0.3)
+  })
+
+  it('counts damage as it enters once, even with a condition', () => {
+    expect(read('Vibrance').roles.find((r) => r.id === 'burn')?.weight).toBe(0.3)
+  })
+
+  it('weighs card search for any card above search for one kind', () => {
+    const tutor = (name: TestCardName) => read(name).roles.find((r) => r.id === 'tutor')?.weight
+    expect(tutor('Gamble')).toBe(1)
+    expect(tutor('Worldly Tutor')).toBe(0.6)
+    expect(tutor('Cultivate')).toBeUndefined()
+  })
+
+  it('weighs protection for everything above gear for one creature, read from Equipment too', () => {
+    const protection = (name: TestCardName) => read(name).roles.find((r) => r.id === 'protection')?.weight
+    expect(protection('Heroic Intervention')).toBe(1)
+    expect(protection('Swiftfoot Boots')).toBe(0.8)
+  })
+
+  it('flags wipes that take your lands too', () => {
+    expect(stops('Apocalypse')).toMatchObject({ 'type-mountain': 1, 'land-count': 1 })
+    expect(stops('Splendid Reclamation')).toEqual({})
+  })
+
+  it('ignores triggers that only hurt you', () => {
+    expect(uses('Pangosaur')).toEqual({})
+  })
+
+  it('reads mana from landfall as ramp', () => {
+    expect(roles('Lotus Cobra')).toContain('ramp')
   })
 
   it('keeps the rules text each finding came from', () => {
