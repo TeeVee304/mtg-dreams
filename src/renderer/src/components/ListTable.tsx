@@ -47,7 +47,6 @@ interface ListTableProps {
   dataLoading: boolean
   /** Commander picking mode; forces all sections open. */
   picking: boolean
-  onUnsetCommander: () => void
 }
 
 /** Filter bar plus foldable type sections (commander first) rendered as table or grid per settings. */
@@ -101,7 +100,7 @@ export function ListTable(props: ListTableProps) {
             return (
               <section key={section.id} className={`grid-section${section.id === 'Commander' ? ' commander-section' : ''}`}>
                 <div className={`section-row grid-section-head${open ? '' : ' folded'}`}>
-                  <SectionHead section={section} open={open} onToggle={() => toggle(section.id)} onUnsetCommander={props.onUnsetCommander} />
+                  <SectionHead section={section} open={open} onToggle={() => toggle(section.id)} />
                 </div>
                 {open && <div className="card-grid">{section.rows.map(props.renderTile)}</div>}
               </section>
@@ -130,7 +129,7 @@ export function ListTable(props: ListTableProps) {
               <tbody key={section.id} className={section.id === 'Commander' ? 'commander-section' : undefined}>
                 <tr className={`section-row${open ? '' : ' folded'}`}>
                   <td colSpan={isDeck ? 5 : 6}>
-                    <SectionHead section={section} open={open} onToggle={() => toggle(section.id)} onUnsetCommander={props.onUnsetCommander} />
+                    <SectionHead section={section} open={open} onToggle={() => toggle(section.id)} />
                   </td>
                 </tr>
                 {open && section.rows.map(renderRow)}
@@ -149,11 +148,10 @@ interface SectionHeadProps {
   section: Section<Row>
   open: boolean
   onToggle: () => void
-  onUnsetCommander: () => void
 }
 
-/** Section title bar, in the table and the grid: fold toggle with the card count, rule warning, commander removal and value. */
-function SectionHead({ section, open, onToggle, onUnsetCommander }: SectionHeadProps) {
+/** Section title bar, in the table and the grid: fold toggle with the card count, rule warning and value. */
+function SectionHead({ section, open, onToggle }: SectionHeadProps) {
   const { cards, total } = summarize(section.rows)
   const leaders = section.id === 'Commander'
   return (
@@ -174,16 +172,6 @@ function SectionHead({ section, open, onToggle, onUnsetCommander }: SectionHeadP
         </span>
       </button>
       {section.warning && <span className="section-warning">{section.warning}</span>}
-      {leaders && (
-        <button
-          type="button"
-          className="section-action"
-          onClick={onUnsetCommander}
-          title="Stop using this card as the commander. It goes back to its type section."
-        >
-          Remove as commander
-        </button>
-      )}
       <span className="section-value">{formatEur(total)}</span>
     </>
   )

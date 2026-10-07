@@ -82,7 +82,9 @@ export function CardRow(props: CardRowProps) {
       }
       title={
         pick === 'ok'
-          ? `Make ${row.flavorName ?? line.name} the commander`
+          ? leader
+            ? `Stop using ${row.flavorName ?? line.name} as the commander`
+            : `Make ${row.flavorName ?? line.name} the commander`
           : pick === 'no'
             ? "Can't be the commander in this format"
             : undefined

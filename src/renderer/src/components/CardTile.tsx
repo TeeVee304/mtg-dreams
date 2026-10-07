@@ -50,7 +50,9 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
       disabled={!!row.bundledIds && !pick}
       title={
         pick === 'ok'
-          ? `Make ${name} the commander`
+          ? leader
+            ? `Stop using ${name} as the commander`
+            : `Make ${name} the commander`
           : pick === 'no'
             ? "Can't be the commander in this format"
             : row.bundledIds

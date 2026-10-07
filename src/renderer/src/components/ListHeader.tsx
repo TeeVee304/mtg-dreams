@@ -1,7 +1,5 @@
-import { commanderRule, type DeckFormat, type DeckSizeCheck } from '@shared/formats'
+import { commanderRule, type DeckFormat } from '@shared/formats'
 import type { ListPriority } from '@shared/listPriority'
-import { cardCount, formatDate } from '../lib/format'
-import type { Summary } from '../lib/summary'
 import { FormatSelect } from './Controls'
 import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
@@ -12,20 +10,11 @@ interface ListHeaderProps {
   /** Noun used in labels. */
   noun: 'deck' | 'list'
   format: DeckFormat | null
-  /** Card line count (not copies). */
-  lines: number
-  summary: Summary
-  /** Main deck copies (sideboard aside). */
-  mainCards: number
-  /** Sideboard copies. */
-  sideboardCards: number
-  /** Decks with a format: main deck size against it. */
-  size: DeckSizeCheck | null
   /** Commander picking mode active. */
   picking: boolean
   /** The list has a commander. */
   hasCommander: boolean
-  /** Some card other than the commander can lead the list. */
+  /** Some card can lead the list, or the commander can be removed. */
   canPickCommander: boolean
   legalityErrors: number
   ownershipErrors: number
@@ -49,9 +38,9 @@ interface ListHeaderProps {
   onDelete: () => void
 }
 
-/** List title bar: format select, commander picking, problem badges, price status and list actions. */
+/** List title bar: format select, commander picking, problem badges and list actions. */
 export function ListHeader(props: ListHeaderProps) {
-  const { name, noun, format, lines, summary, legalityErrors, ownershipErrors, onlyProblems } = props
+  const { name, noun, format, legalityErrors, ownershipErrors, onlyProblems } = props
   const { picking, hasCommander, canPickCommander } = props
   const problemsTitle = onlyProblems ? 'Show all cards' : 'Show only cards with problems'
   return (
@@ -72,7 +61,7 @@ export function ListHeader(props: ListHeaderProps) {
               title={
                 picking
                   ? 'Cancel (Esc)'
-                  : `Then click the card that leads this ${noun}. In ${format.label} it must be ${commanderRule(format)}.`
+                  : `Then click the card that leads this ${noun}. In ${format.label} it must be ${commanderRule(format)}.${hasCommander ? ' Click your commander to remove it.' : ''}`
               }
             >
               <Icon name="wand" />
@@ -112,21 +101,6 @@ export function ListHeader(props: ListHeaderProps) {
               {props.priority === 'high' ? '★ High priority' : 'Low priority'}
             </button>
           )}
-          <span className="muted">
-            {props.size ? (
-              <span className={props.size.status === 'ok' ? undefined : 'warn'} title={props.size.note ?? undefined}>
-                {props.size.label} cards
-              </span>
-            ) : (
-              cardCount(props.mainCards)
-            )}
-            {props.sideboardCards > 0 && ` + ${props.sideboardCards} sideboard`} ·{' '}
-            {summary.loading > 0
-              ? `loading prices ${lines - summary.loading}/${lines}…`
-              : summary.pricedAt
-                ? `prices from ${formatDate(summary.pricedAt)}`
-                : 'no prices yet'}
-          </span>
         </div>
       </div>
       <div className="header-actions">

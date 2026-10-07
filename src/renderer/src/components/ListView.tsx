@@ -92,8 +92,10 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
   const mainCards = summary.cards - analysis.sideboardCards
   const size = isDeck && format ? deckSizeCheck(format, mainCards) : null
 
-  /** Some card other than the commander can lead; until card data loads, none can. */
-  const canPickCommander = !!format?.commander && rows.some((row) => canBeCommander(row) && !isCommander(row))
+  /** Picking is useful: a card can lead, or the commander can be removed; until card data loads, none can lead. */
+  const canPickCommander = !!format?.commander && rows.some((row) => isCommander(row) || canBeCommander(row))
+  /** Picking state of a row; the commander is always pickable, which removes it. */
+  const pickOf = (row: Row) => (picking ? (isCommander(row) || canBeCommander(row) ? 'ok' : 'no') : undefined)
   useEffect(() => {
     if (!canPickCommander) setPicking(false)
   }, [canPickCommander])
@@ -179,7 +181,8 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
   const chooseCommander = (row: Row) => {
     setPicking(false)
     if (isCommander(row)) {
-      toast(`${displayName(row)} is already your commander`)
+      actions.setListCommander(list, null)
+      toast(`${displayName(row)} is no longer your commander`)
       return
     }
     actions.setListCommander(list, row.line.name)
@@ -191,7 +194,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
     <CardRow
       key={row.line.id}
       row={row}
-      pick={picking ? (canBeCommander(row) ? 'ok' : 'no') : undefined}
+      pick={pickOf(row)}
       onPick={() => chooseCommander(row)}
       leader={isCommander(row)}
       crowned={crowned !== null && nameKey(row.line.name) === crowned}
@@ -217,7 +220,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
       key={row.line.id}
       row={row}
       isDeck={isDeck}
-      pick={picking ? (canBeCommander(row) ? 'ok' : 'no') : undefined}
+      pick={pickOf(row)}
       leader={isCommander(row)}
       crowned={crowned !== null && nameKey(row.line.name) === crowned}
       issue={analysis.issueOf(row)}
@@ -254,11 +257,6 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         name={list.name}
         noun={noun}
         format={format}
-        lines={cards.length}
-        summary={summary}
-        mainCards={mainCards}
-        sideboardCards={analysis.sideboardCards}
-        size={size}
         picking={picking}
         hasCommander={hasCommander}
         canPickCommander={canPickCommander}
@@ -345,7 +343,6 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
           filtering={filtering}
           dataLoading={dataLoading}
           picking={picking}
-          onUnsetCommander={() => actions.setListCommander(list, null)}
         />
       ) : (
         !adding && (

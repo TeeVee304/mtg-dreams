@@ -178,22 +178,6 @@
   height: 13px;
 }
 
-.section-action {
-  margin-left: 10px;
-  padding: 0 6px;
-  border: none;
-  background: none;
-  color: var(--faint);
-  font: inherit;
-  font-size: 11px;
-}
-
-.section-action:hover:not(:disabled) {
-  background: none;
-  color: var(--text);
-  text-decoration: underline;
-}
-
 .cards-table tr.leader td:first-child {
   box-shadow: inset 3px 0 0 var(--accent);
 }
