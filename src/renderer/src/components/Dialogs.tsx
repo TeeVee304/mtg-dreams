@@ -162,6 +162,9 @@ function ParseStats({ text, mode }: { text: string; mode: 'list' | 'inventory' }
   )
 }
 
+/** Example shown in empty list text fields. */
+const LIST_PLACEHOLDER = 'Paste a Goldfish / Arena / Moxfield list here, e.g.\n4 Lightning Bolt\n1 Sol Ring [CMM]'
+
 /** List syntax help text. */
 const FORMAT_HINT = 'One card per line: “4 Lightning Bolt”. Optional version: “4 Lightning Bolt <141> [A25]”, foil: “(F)”.'
 
@@ -207,6 +210,7 @@ export function TextEditorDialog({ title, initial, mode, onSave, onClose }: Text
         className="text-editor"
         autoFocus
         spellCheck={false}
+        placeholder={LIST_PLACEHOLDER}
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
@@ -282,7 +286,7 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onClose }: NewList
         <textarea
           className="text-editor short"
           spellCheck={false}
-          placeholder={'Paste a Goldfish / Arena / Moxfield list here, e.g.\n4 Lightning Bolt\n1 Sol Ring [CMM]'}
+          placeholder={LIST_PLACEHOLDER}
           value={text}
           onChange={(event) => setText(event.target.value)}
         />

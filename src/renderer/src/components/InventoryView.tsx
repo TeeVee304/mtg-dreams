@@ -55,6 +55,8 @@ interface InventoryViewProps {
   onAddPrecon: () => void
   /** Opens the Inventory Value dialog. */
   onValueDetails: () => void
+  /** Opens with the text editor, to paste a collection. */
+  startPasting?: boolean
 }
 
 /**
@@ -62,7 +64,8 @@ interface InventoryViewProps {
  * list usage. Uses the nearest inventory equivalent of the global sort. Requests card data and
  * printings for all items.
  */
-export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrecon, onValueDetails }: InventoryViewProps) {
+export function InventoryView(props: InventoryViewProps) {
+  const { inventory, lists, actions, onOpenList, onAddPrecon, onValueDetails, startPasting } = props
   const toast = useToast()
   useCardInfoVersion()
   usePrintingsVersion()
@@ -70,7 +73,7 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
   const { bundleBasics } = settings
   const sort = sortFor('inventory', settings.sort)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
-  const [editing, setEditing] = useState(false)
+  const [editing, setEditing] = useState(startPasting ?? false)
   /** nameKey of the item in the versions dialog. */
   const [versionsOf, setVersionsOf] = useState<string | null>(null)
   const versionsItem = versionsOf ? inventory.get(versionsOf) : undefined
@@ -172,8 +175,11 @@ export function InventoryView({ inventory, lists, actions, onOpenList, onAddPrec
             accent
             note={pricing > 0 ? `Typical prices · ${pricing} loading` : 'Typical prices'}
             action={
-              <button type="button" className="link-btn summary-action" onClick={onValueDetails}>
-                Changes and top cards
+              <button type="button" className="value-details-btn" onClick={onValueDetails} aria-label="Changes and top cards">
+                <Icon name="sparkle" />
+                <span className="value-details-tip" role="tooltip" aria-hidden="true">
+                  Changes and top cards
+                </span>
               </button>
             }
           />

@@ -240,6 +240,7 @@ export default function App() {
             onOpenList={openList}
             onAddPrecon={() => setPrecon('deck')}
             onValueDetails={() => setValueOpen(true)}
+            startPasting={view.paste}
           />
         )}
         {view?.page === 'wanted' && (
@@ -275,22 +276,47 @@ export default function App() {
             onRenamed={(name) => setView({ page: 'trade', friend: name })}
           />
         )}
-        {view === null && (
-          <div className="empty welcome">
-            <h1>Welcome to MTG Dreams</h1>
-            <p className="muted">
-              Build decks from the cards you own, and plan wishlists with live Cardmarket prices.
-            </p>
-            <div className="welcome-actions">
-              <button type="button" className="primary" onClick={() => setCreating('deck')}>
-                New deck
-              </button>
-              <button type="button" onClick={() => setCreating('wishlist')}>
-                New wishlist
-              </button>
+        {view === null &&
+          (state.inventory.size === 0 ? (
+            <div className="empty welcome">
+              <h1>Welcome to MTG Dreams</h1>
+              <p className="muted">Decks are built from the cards you own, so start by adding your collection.</p>
+              <div className="welcome-actions">
+                <button type="button" className="primary" onClick={() => setView({ page: 'inventory', paste: true })}>
+                  Paste your collection
+                </button>
+                <button type="button" onClick={() => setPrecon('deck')}>
+                  Add a precon you own
+                </button>
+              </div>
+              <p className="muted small">
+                Or plan first:{' '}
+                <button type="button" className="link-btn" onClick={() => setCreating('deck')}>
+                  New deck
+                </button>{' '}
+                ·{' '}
+                <button type="button" className="link-btn" onClick={() => setCreating('wishlist')}>
+                  New wishlist
+                </button>
+              </p>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="empty welcome">
+              <h1>Welcome to MTG Dreams</h1>
+              <p className="muted">
+                Build a deck from the {cardCount(totalCopies(state.inventory.values()))} you own, or plan one with a
+                wishlist.
+              </p>
+              <div className="welcome-actions">
+                <button type="button" className="primary" onClick={() => setCreating('deck')}>
+                  New deck
+                </button>
+                <button type="button" onClick={() => setCreating('wishlist')}>
+                  New wishlist
+                </button>
+              </div>
+            </div>
+          ))}
       </main>
       <HoverPreview />
       <HistorySync ready={state.status === 'ready'} lists={state.lists} inventory={state.inventory} />

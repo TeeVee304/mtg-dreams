@@ -113,7 +113,58 @@
   margin-top: 5px;
 }
 
-/* A link after the note, e.g. to the Inventory Value details. */
-.summary-action {
+/* Inventory value: a square accent button on the item's right opens the Inventory Value dialog. */
+.summary-item:has(.value-details-btn) {
+  position: relative;
+  padding-right: 64px;
+}
+
+.value-details-btn {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.value-details-btn:hover:not(:disabled),
+.value-details-btn:focus-visible {
+  background: var(--accent);
+  filter: brightness(1.1);
+}
+
+.value-details-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.value-details-tip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  z-index: 5;
+  white-space: nowrap;
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 9px;
   font-size: 12px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
+
+.value-details-btn:hover .value-details-tip,
+.value-details-btn:focus-visible .value-details-tip {
+  display: block;
 }

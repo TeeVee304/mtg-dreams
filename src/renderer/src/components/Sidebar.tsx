@@ -20,8 +20,12 @@ import { useCopyPool } from '../hooks/useCopyPool'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { Icon } from './Icon'
 
-/** Main page selection. */
-export type View = { page: 'inventory' } | { page: 'wanted' } | { page: 'list'; list: ListRef } | { page: 'trade'; friend: string }
+/** Main page selection; `paste` opens the inventory's text editor (from the welcome screen). */
+export type View =
+  | { page: 'inventory'; paste?: boolean }
+  | { page: 'wanted' }
+  | { page: 'list'; list: ListRef }
+  | { page: 'trade'; friend: string }
 
 /** Props of {@link Sidebar}. */
 interface SidebarProps {

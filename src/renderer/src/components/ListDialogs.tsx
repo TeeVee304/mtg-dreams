@@ -114,6 +114,18 @@ export function ListDialogs(props: ListDialogsProps) {
                   }
                 }
           }
+          commander={
+            format?.commander
+              ? {
+                  leads: analysis.isCommander(cardRow),
+                  canLead: analysis.canBeCommander(cardRow),
+                  onMake: () => {
+                    actions.setListCommander(list, cardRow.line.name)
+                    toast(`${cardRow.flavorName ?? cardRow.line.name} now leads this ${noun}`)
+                  }
+                }
+              : undefined
+          }
           onClose={onClose}
         />
       ) : null

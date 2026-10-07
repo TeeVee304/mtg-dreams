@@ -47,6 +47,45 @@
   min-width: 0;
 }
 
+.card-view-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-view-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-view-actions svg {
+  width: 14px;
+  height: 14px;
+}
+
+.chip.commander-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* Legality in every format, folded under its summary. */
+.legality-more {
+  width: 100%;
+}
+
+.legality-more summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+
 .card-facts {
   display: grid;
   grid-template-columns: auto 1fr;

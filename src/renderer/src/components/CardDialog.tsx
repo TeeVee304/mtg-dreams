@@ -37,14 +37,17 @@ interface CardDialogProps {
   onUpdate: (patch: Partial<NewCard>) => void
   /** Board controls; absent where there is no sideboard (commander formats). */
   board?: { side: boolean; onMove: () => void }
+  /** Commander formats: whether the card leads the list or could, and how to make it lead. */
+  commander?: { leads: boolean; canLead: boolean; onMake: () => void }
   onClose: () => void
 }
 
 /**
  * Card details dialog; version, finish and quantity changes apply immediately. A pinned single-finish
- * printing locks the finish. Two-sided cards can be flipped to show the back face.
+ * printing locks the finish. Two-sided cards can be flipped to show the back face. Legality in every
+ * format is folded away; the list's own format shows as a chip.
  */
-export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, board, onClose }: CardDialogProps) {
+export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, board, commander, onClose }: CardDialogProps) {
   const { line, resolution, unit, info } = row
   const entry = usePrintingsFor(line.name)
   const printings = entry?.data?.printings ?? []
@@ -178,23 +181,44 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
               {unit === null && entry?.data && <span className="muted small"> — no Cardmarket price for this version and finish</span>}
             </dd>
           </dl>
-          {printing?.cardmarketUrl && (
-            <button type="button" onClick={() => window.api.openExternal(printing.cardmarketUrl!)}>
-              Open on Cardmarket <Icon name="external" />
-            </button>
-          )}
+          <div className="card-view-actions">
+            {commander?.leads && (
+              <span className="chip commander-chip">
+                <Icon name="crown" /> Commander
+              </span>
+            )}
+            {commander && !commander.leads && commander.canLead && (
+              <button type="button" onClick={commander.onMake}>
+                <Icon name="crown" /> Make commander
+              </button>
+            )}
+            {printing?.cardmarketUrl && (
+              <button type="button" onClick={() => window.api.openExternal(printing.cardmarketUrl!)}>
+                Open on Cardmarket <Icon name="external" />
+              </button>
+            )}
+          </div>
           {info && (
-            <div className="legality-grid" aria-label="Format legality">
-              {FORMATS.map((f) => {
-                const status = info.legalities[f.id] ?? 'not_legal'
-                return (
-                  <div key={f.id} className={`legality ${status}${format?.id === f.id ? ' current' : ''}`}>
-                    <span>{f.label}</span>
-                    <span className="legality-status">{STATUS_LABELS[status] ?? status}</span>
-                  </div>
-                )
-              })}
-            </div>
+            <details className="legality-more">
+              <summary>
+                All formats
+                <span className="muted small">
+                  {' '}
+                  · legal in {FORMATS.filter((f) => info.legalities[f.id] === 'legal').length} of {FORMATS.length}
+                </span>
+              </summary>
+              <div className="legality-grid" aria-label="Format legality">
+                {FORMATS.map((f) => {
+                  const status = info.legalities[f.id] ?? 'not_legal'
+                  return (
+                    <div key={f.id} className={`legality ${status}${format?.id === f.id ? ' current' : ''}`}>
+                      <span>{f.label}</span>
+                      <span className="legality-status">{STATUS_LABELS[status] ?? status}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </details>
           )}
         </div>
       </div>
