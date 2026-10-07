@@ -97,8 +97,8 @@ export function conflictsWith(profile: CardProfile, focus: FocusCard[]): Conflic
   return conflicts.sort((a, b) => b.weight - a.weight)
 }
 
-/** "makes you discard, which puts land cards into your graveyard" for implied mechanics. */
-function providePhrase(signal: Signal): string {
+/** @returns What a provided signal does, e.g. "makes you discard, which puts land cards into your graveyard" for an implied one. */
+export function providePhrase(signal: Signal): string {
   const own = MECHANICS[signal.id].provide
   return signal.via ? `${MECHANICS[signal.via].provide}, which ${own.replace(/^is /, 'means ')}` : own
 }

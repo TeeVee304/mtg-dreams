@@ -332,6 +332,18 @@ const YOU_DISCARD_RE =
 const LAND_WORD_RE = /\b(?:lands?|land cards?|Plains|Islands?|Swamps?|Mountains?|Forests?)\b/
 /** Effects that help another player rather than you. */
 const OTHERS_RE = /\bopponent|\btheir library\b|\bits controller\b|\bthat player\b|\btarget player\b/i
+/** Damage or life loss for every opponent at once. */
+const TABLE_BURN_RE = /\bdeals? [^.]*?\bdamage to (?:each opponent|each player)\b|\beach opponent loses (?:\d+|X|\w+) life\b/i
+/** Damage to one player, or to any target. */
+const TARGET_BURN_RE = /\bdeals? (?:\d+|X|that much|damage equal|\w+)(?: damage)?[^.]*\bto (?:any target|target player|target opponent|that player)\b/i
+/** Triggers that happen once: as the card enters, dies, turns face up, or a Saga chapter. */
+const ONCE_TRIGGER_RE = /^(?:chapter|this(?: [\w-]+)? (?:enters|dies|is turned face up))$/i
+
+/** The ability can happen again and again: activated, a recurring trigger, or a permanent's static ability. */
+const repeats = (facts: Facts, ability: Ability) =>
+  ability.kind === 'activated' ||
+  (ability.kind === 'triggered' && !ONCE_TRIGGER_RE.test(ability.trigger ?? '')) ||
+  (ability.kind === 'static' && !isSpell(facts))
 
 /** Text detectors, in no particular order; the strongest finding per id wins. */
 const DETECTORS: Detector[] = [
@@ -421,7 +433,12 @@ const DETECTORS: Detector[] = [
   { side: 'roles', id: 'protection', in: ['effect'], all: [/\b(?:creatures|permanents) you control (?:gain|have) (?:hexproof|indestructible|shroud|protection)\b|\btarget (?:creature|permanent) you control gains (?:hexproof|indestructible|shroud|protection)\b|\bphases? out\b/i] },
   { side: 'roles', id: 'tutor', in: ['effect'], all: [/\bsearch your library for\b/i, /\binto your hand\b|\bon top of your library\b|\bonto the battlefield\b/i], unless: LAND_WORD_RE },
   { side: 'roles', id: 'evasion', in: ['effect'], all: [/\b(?:creatures you control|target creature|equipped creature|enchanted creature|creatures? you control)\b[^.]*\b(?:gains?|have|has) (?:flying|trample|menace|shadow)\b|\bcan't be blocked\b/i] },
-  { side: 'roles', id: 'burn', in: ['effect'], all: [/\bdeals? (?:\d+|X|that much|damage equal|\w+)(?: damage)?[^.]*\bto (?:any target|each opponent|target player|target opponent|each player|that player)\b|\beach opponent loses (?:\d+|X|\w+) life\b/i] },
+  // Direct damage: to every opponent beats one target, and again and again beats once.
+  { side: 'roles', id: 'burn', in: ['effect'], all: [TABLE_BURN_RE], only: repeats },
+  { side: 'roles', id: 'burn', in: ['effect'], all: [TABLE_BURN_RE], weight: 0.6 },
+  { side: 'roles', id: 'burn', in: ['effect'], all: [TARGET_BURN_RE], only: repeats, weight: 0.8 },
+  { side: 'roles', id: 'burn', in: ['effect'], all: [/\bdeals? (?:X|that much|damage equal)\b/i, TARGET_BURN_RE], weight: 0.6 },
+  { side: 'roles', id: 'burn', in: ['effect'], all: [TARGET_BURN_RE], weight: 0.3 },
   { side: 'roles', id: 'card-advantage', in: ['effect'], all: [/\bexile the top\b/i, /\byou may (?:play|cast)\b/i] },
   { side: 'roles', id: 'card-advantage', in: ['effect'], all: [/\breturn\b[^.]*\bfrom your graveyard to your hand\b/i], weight: 0.6 },
   { side: 'roles', id: 'card-advantage', in: ['effect'], all: [/\bplay lands? from the top of your library\b/i], weight: 0.7 }

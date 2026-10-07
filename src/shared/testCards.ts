@@ -1,4 +1,4 @@
-import type { ReadableCard } from './mechanics'
+import type { LibraryCard } from './types'
 
 /**
  * Test fixtures: real Oracle text (Scryfall, October 2026) of cards around the Flubs, the Fool and
@@ -8,7 +8,7 @@ import type { ReadableCard } from './mechanics'
  */
 
 /** Type line, Oracle text and keywords by card name. */
-const CARDS: Record<string, Omit<ReadableCard, 'name'> & { colorIdentity: string[] }> = {
+const CARDS = {
   'Flubs, the Fool': {
     typeLine: 'Legendary Creature — Frog Scout',
     text: 'You may play an additional land on each of your turns.\nWhenever you play a land or cast a spell, draw a card if you have no cards in hand. Otherwise, discard a card.',
@@ -182,17 +182,62 @@ const CARDS: Record<string, Omit<ReadableCard, 'name'> & { colorIdentity: string
     colorIdentity: ['G']
   },
   Exploration: { typeLine: 'Enchantment', text: 'You may play an additional land on each of your turns.', keywords: [], colorIdentity: ['G'] }
-}
+} satisfies Record<string, Pick<LibraryCard, 'typeLine' | 'text' | 'keywords' | 'colorIdentity'>>
 
 /** Fixture card names. */
 export type TestCardName = keyof typeof CARDS
 
-/** @returns The fixture card, legal in Commander. */
-export function testCard(name: TestCardName): ReadableCard & { colorIdentity: string[]; legalities: Record<string, string> } {
-  return { name, ...CARDS[name], legalities: { commander: 'legal' } }
+/** Mana costs, front face first. */
+const MANA_COSTS: Record<TestCardName, string> = {
+  'Flubs, the Fool': '{G}{U}{R}',
+  'Valakut, the Molten Pinnacle': '',
+  'Blood Moon': '{2}{R}',
+  'Crucible of Worlds': '{3}',
+  'Seismic Assault': '{R}{R}{R}',
+  'Glint-Horn Buccaneer': '{1}{R}{R}',
+  Harmonize: '{2}{G}{G}',
+  'Faithless Looting': '{R}',
+  'Thrill of Possibility': '{1}{R}',
+  'Tatyova, Benthic Druid': '{3}{G}{U}',
+  'Aesi, Tyrant of Gyre Strait': '{4}{G}{U}',
+  'Prismatic Omen': '{1}{G}',
+  Scapeshift: '{2}{G}{G}',
+  'Wooded Foothills': '',
+  'Stomping Ground': '',
+  Mountain: '',
+  'Titania, Protector of Argoth': '{4}{G}',
+  'Rest in Peace': '{1}{W}',
+  'Waste Not': '{1}{B}',
+  'Fiery Temper': '{1}{R}{R}',
+  'Valley Rannet': '{4}{R}{G}',
+  'Path to Exile': '{W}',
+  'Rhystic Study': '{2}{U}',
+  Cultivate: '{2}{G}',
+  'Retreat to Valakut': '{2}{R}',
+  'Wrenn and Six': '{R}{G}',
+  "Azusa's Many Journeys // Likeness of the Seeker": '{1}{G}',
+  "Grafdigger's Cage": '{1}',
+  Greenseeker: '{G}',
+  'Lotus Cobra': '{1}{G}',
+  'Splendid Reclamation': '{3}{G}',
+  "Nylea's Presence": '{1}{G}',
+  Exploration: '{G}'
+}
+
+/** Mana value of a mana cost: `{2}{G}{G}` → 4. */
+export function manaValueOf(manaCost: string): number {
+  const symbols = manaCost.split(' // ')[0].match(/\{[^}]+\}/g) ?? []
+  return symbols.reduce((sum, symbol) => sum + (/^\{\d+\}$/.test(symbol) ? Number(symbol.slice(1, -1)) : symbol === '{X}' ? 0 : 1), 0)
+}
+
+/** @returns The fixture card, legal in Commander, with no Cardmarket products. */
+export function testCard(name: TestCardName): LibraryCard {
+  const manaCost = MANA_COSTS[name]
+  const colors = ['W', 'U', 'B', 'R', 'G'].filter((color) => manaCost.includes(`{${color}}`))
+  return { name, ...CARDS[name], manaCost, manaValue: manaValueOf(manaCost), colors, rarity: 'rare', legalities: { commander: 'legal' }, products: [] }
 }
 
 /** @returns Every fixture card. */
-export function testCards() {
+export function testCards(): LibraryCard[] {
   return (Object.keys(CARDS) as TestCardName[]).map(testCard)
 }

@@ -108,6 +108,15 @@ describe('reading what a card does', () => {
     expect(stops("Grafdigger's Cage")).toEqual({ graveyard: 0.5 })
   })
 
+  it('weighs direct damage by how often it happens and whom it hits', () => {
+    const burn = (name: TestCardName) => read(name).roles.find((r) => r.id === 'burn')?.weight
+    expect(burn('Glint-Horn Buccaneer')).toBe(1)
+    expect(burn('Seismic Assault')).toBe(0.8)
+    expect(burn('Valakut, the Molten Pinnacle')).toBe(0.8)
+    expect(burn('Wrenn and Six')).toBe(0.8)
+    expect(burn('Fiery Temper')).toBe(0.3)
+  })
+
   it('keeps the rules text each finding came from', () => {
     const discard = read('Flubs, the Fool').provides.find((s) => s.id === 'discard')
     expect(discard?.evidence).toBe('Whenever you play a land or cast a spell, draw a card if you have no cards in hand. Otherwise, discard a card.')
