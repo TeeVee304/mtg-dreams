@@ -35,7 +35,11 @@ const CARDS: Record<string, CardInfo> = {
   Atraxa: info('Atraxa', 'Legendary Creature — Phyrexian Angel', { commander: 'legal' }, { manaValue: 4 }),
   'Llanowar Elves': info('Llanowar Elves', 'Creature — Elf', { commander: 'legal' }, { manaValue: 1, rarity: 'common' }),
   'Command Tower': info('Command Tower', 'Land', { commander: 'legal' }, { manaValue: 0 }),
-  Island: info('Island', 'Basic Land — Island', { commander: 'legal' }, { manaValue: 0 })
+  Island: info('Island', 'Basic Land — Island', { commander: 'legal' }, { manaValue: 0 }),
+  'Flubs, the Fool': info('Flubs, the Fool', 'Legendary Creature — Frog', { commander: 'legal', modern: 'legal' }, { colorIdentity: ['G', 'U', 'R'] }),
+  'Worm Harvest': info('Worm Harvest', 'Sorcery', { commander: 'legal', modern: 'legal' }, { colorIdentity: ['B', 'G'] }),
+  'Dakmor Salvage': info('Dakmor Salvage', 'Land', { commander: 'legal', modern: 'legal' }, { colorIdentity: ['B'] }),
+  'Mana Crypt': info('Mana Crypt', 'Artifact', { commander: 'banned' }, { manaValue: 0 })
 }
 
 /**
@@ -125,6 +129,33 @@ describe('analyzeList', () => {
     expect(analysis.hasCommander).toBe(true)
     expect(rows.filter(analysis.isCommander).map((row) => row.line.name)).toEqual(['Atraxa'])
     expect(rows.filter(analysis.canBeCommander).map((row) => row.line.name)).toEqual(['Atraxa'])
+  })
+
+  it("flags cards outside the commander's color identity as problems", () => {
+    const { lines, rows } = rowsOf(
+      '// Format: Commander\n// Commander: Flubs, the Fool\n1 Flubs, the Fool\n1 Worm Harvest\n1 Dakmor Salvage\n1 Sol Ring\n1 Llanowar Elves\n1 Mana Crypt'
+    )
+    const analysis = analyzeList('wishlist', lines, rows)
+    expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([
+      null,
+      "Outside your commander's colors",
+      "Outside your commander's colors",
+      null,
+      null,
+      'Banned in Commander'
+    ])
+    expect(analysis.legalityErrors).toBe(3)
+    const filters = { filters: NO_FILTERS, hideOwned: false, onlyProblems: true }
+    expect(names(filterRows(rows, 'wishlist', analysis, filters))).toEqual(['Worm Harvest', 'Dakmor Salvage', 'Mana Crypt'])
+  })
+
+  it('checks color identity only with a commander in a commander format', () => {
+    const cards = '1 Flubs, the Fool\n1 Worm Harvest\n1 Dakmor Salvage'
+    for (const text of [`// Format: Commander\n${cards}`, `// Format: Modern\n// Commander: Flubs, the Fool\n${cards}`]) {
+      const { lines, rows } = rowsOf(text)
+      const analysis = analyzeList('wishlist', lines, rows)
+      expect(rows.some((row) => analysis.issueOf(row)?.message === "Outside your commander's colors")).toBe(false)
+    }
   })
 })
 

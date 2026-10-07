@@ -192,6 +192,16 @@ export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number
 }
 
 /**
+ * @param identity - The commander's color identity.
+ * @returns Error if the card's color identity has a color outside `identity`; colorless cards always pass.
+ */
+export function colorIdentityIssue(card: CardInfo, identity: string[]): LegalityIssue | null {
+  return card.colorIdentity.some((color) => !identity.includes(color))
+    ? { severity: 'error', message: "Outside your commander's colors" }
+    : null
+}
+
+/**
  * @returns Max copies: Infinity for basics and `deckLimit: 'any'`, the card's numeric `deckLimit`,
  * 1 if restricted, else the format limit. Without `card`, only basics are recognized by name.
  */

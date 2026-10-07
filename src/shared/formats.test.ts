@@ -3,6 +3,7 @@ import { parseList, serializeList } from './decklist'
 import {
   canLead,
   capEntries,
+  colorIdentityIssue,
   commanderIssue,
   copyLimit,
   deckSizeCheck,
@@ -125,6 +126,26 @@ describe('legalityIssue', () => {
     expect(legalityIssue(commander, card({ commander: 'legal' }, { typeLine: 'Basic Land — Island' }), 30)).toBeNull()
     expect(legalityIssue(commander, card({ commander: 'legal' }, { deckLimit: 'any' }), 40)).toBeNull()
     expect(legalityIssue(commander, card({ commander: 'legal' }, { deckLimit: 7 }), 8)?.message).toBe('Max 7 copies in Commander')
+  })
+})
+
+describe('colorIdentityIssue', () => {
+  const temur = ['G', 'U', 'R']
+
+  it('flags cards with a color outside the commander identity, hybrid and rules-text colors included', () => {
+    const leyline = card({ commander: 'legal' }, { name: 'Leyline of the Guildpact', colorIdentity: ['W', 'U', 'B', 'R', 'G'] })
+    const wormHarvest = card({ commander: 'legal' }, { name: 'Worm Harvest', colorIdentity: ['B', 'G'] })
+    const dakmor = card({ commander: 'legal' }, { name: 'Dakmor Salvage', typeLine: 'Land', colorIdentity: ['B'] })
+    for (const outside of [leyline, wormHarvest, dakmor]) {
+      expect(colorIdentityIssue(outside, temur)).toEqual({ severity: 'error', message: "Outside your commander's colors" })
+    }
+  })
+
+  it('accepts cards within the identity and colorless cards', () => {
+    expect(colorIdentityIssue(card({}, { colorIdentity: ['U', 'R'] }), temur)).toBeNull()
+    expect(colorIdentityIssue(card({}, { colorIdentity: [] }), temur)).toBeNull()
+    expect(colorIdentityIssue(card({}, { colorIdentity: [] }), [])).toBeNull()
+    expect(colorIdentityIssue(card({}, { colorIdentity: ['G'] }), [])?.severity).toBe('error')
   })
 })
 

@@ -11,6 +11,7 @@ import type { HeldCopies } from './copies'
 import { cardLines, nameKey } from './decklist'
 import {
   canLead,
+  colorIdentityIssue,
   commanderIssue,
   copyLimit,
   legalityIssue,
@@ -100,6 +101,7 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
   const canBeCommander = (row: R) =>
     !!format?.commander && !row.bundledIds && !!row.info && canLead(format, row.info, row.entry?.data?.printings)
 
+  const identity = rows.find(isCommander)?.info?.colorIdentity ?? null
   const issues = new Map<R, LegalityIssue | null>()
   if (format) {
     for (const row of rows) {
@@ -109,7 +111,7 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
         row,
         isCommander(row)
           ? commanderIssue(format, row.info, row.entry?.data?.printings ?? [], count)
-          : legalityIssue(format, row.info, count)
+          : legalityIssue(format, row.info, count) ?? (identity ? colorIdentityIssue(row.info, identity) : null)
       )
     }
   }
