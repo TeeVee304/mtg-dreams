@@ -1,0 +1,86 @@
+/* The Deck Wizard's hat and sidebar item, loaded with the app; the popup has its own styles. */
+
+/* The hat ------------------------------------------------------------------------ */
+
+/* The cone wobbles from the brim, and sparkles twinkle, when its button is hovered or focused. */
+.wizard-hat .hat-body {
+  transform-box: view-box;
+  transform-origin: 12px 20px;
+}
+
+.wizard-hat .hat-spark {
+  opacity: 0;
+  stroke: var(--shine-2);
+}
+
+.hat-host:hover .wizard-hat .hat-body,
+.hat-host:focus-visible .wizard-hat .hat-body {
+  animation: hat-wobble 0.7s ease-in-out;
+}
+
+.hat-host:hover .wizard-hat .hat-spark,
+.hat-host:focus-visible .wizard-hat .hat-spark {
+  animation: hat-twinkle 1.2s ease-in-out infinite;
+}
+
+.wizard-hat .hat-spark:last-child {
+  animation-delay: 0.4s;
+}
+
+/* While the wizard is open, its sidebar item shines like the wand does while picking. */
+.nav-item.wizard-open {
+  background: linear-gradient(120deg, var(--accent), var(--shine-2), var(--accent));
+  background-size: 200% 100%;
+  animation: wand-glow 1.6s linear infinite;
+}
+
+.nav-item.wizard-open .nav-name,
+.nav-item.wizard-open .nav-meta {
+  color: var(--accent-ink);
+}
+
+.modal-title-icon svg {
+  color: var(--accent);
+}
+
+@keyframes hat-wobble {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  25% {
+    transform: rotate(-9deg);
+  }
+  60% {
+    transform: rotate(7deg);
+  }
+  85% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes hat-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hat-host:hover .wizard-hat .hat-body,
+  .hat-host:focus-visible .wizard-hat .hat-body,
+  .nav-item.wizard-open {
+    animation: none;
+  }
+
+  .hat-host:hover .wizard-hat .hat-spark,
+  .hat-host:focus-visible .wizard-hat .hat-spark {
+    animation: none;
+    opacity: 1;
+  }
+}

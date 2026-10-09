@@ -22,6 +22,7 @@ import { ImportTradeDialog, ShareTradeDialog } from './components/TradeDialogs'
 import { TradeView } from './components/TradeView'
 import { WantedView } from './components/WantedView'
 import { Sidebar, type View } from './components/Sidebar'
+import { DeckWizardDialog } from './features/deckWizard'
 import { useToast } from './components/Toasts'
 import { useCopyPool } from './hooks/useCopyPool'
 import { cardCount, cleanError, formatDate } from './lib/format'
@@ -70,6 +71,7 @@ export default function App() {
   const [valueOpen, setValueOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [importing, setImporting] = useState<{ replaceName?: string } | null>(null)
+  const [wizardOpen, setWizardOpen] = useState(false)
   /** Publication time of the price guide in use. */
   const [pricedAt, setPricedAt] = useState<number | null>(null)
 
@@ -226,6 +228,8 @@ export default function App() {
         myTrade={myTrade}
         onShareTrade={() => setShareOpen(true)}
         onImportTrade={() => setImporting({})}
+        onWizard={() => setWizardOpen(true)}
+        wizardOpen={wizardOpen}
       />
       <main
         className="main"
@@ -299,6 +303,10 @@ export default function App() {
                 ·{' '}
                 <button type="button" className="link-btn" onClick={() => setCreating('wishlist')}>
                   New wishlist
+                </button>{' '}
+                ·{' '}
+                <button type="button" className="link-btn" onClick={() => setWizardOpen(true)}>
+                  Let the Deck Wizard plan a Commander deck
                 </button>
               </p>
             </div>
@@ -317,6 +325,12 @@ export default function App() {
                   New wishlist
                 </button>
               </div>
+              <p className="muted small">
+                New to Commander?{' '}
+                <button type="button" className="link-btn" onClick={() => setWizardOpen(true)}>
+                  Let the Deck Wizard plan a deck with you
+                </button>
+              </p>
             </div>
           ))}
       </main>
@@ -330,6 +344,14 @@ export default function App() {
             setPrecon(creating)
             setCreating(null)
           }}
+          onWizard={
+            creating === 'wishlist'
+              ? () => {
+                  setCreating(null)
+                  setWizardOpen(true)
+                }
+              : undefined
+          }
           onCreate={async (name, text, formatId, addToInventory) => {
             const lines = withFormat(parseList(text), formatId)
             const created = await actions.createList(creating, name, serializeList(lines))
@@ -365,6 +387,18 @@ export default function App() {
         />
       )}
       {valueOpen && <CollectionValueDialog inventory={state.inventory} onClose={() => setValueOpen(false)} />}
+      {wizardOpen && (
+        <DeckWizardDialog
+          onClose={() => setWizardOpen(false)}
+          wishlistNames={state.lists.filter((l) => l.kind === 'wishlist').map((l) => l.name)}
+          onCreate={async (name, text, cards) => {
+            const created = await actions.createList('wishlist', name, text)
+            setWizardOpen(false)
+            openList(created)
+            toast(`Created wishlist “${created.name}” with ${cardCount(cards)}`)
+          }}
+        />
+      )}
       {shareOpen && (
         <ShareTradeDialog myTrade={myTrade} onClose={() => setShareOpen(false)} />
       )}

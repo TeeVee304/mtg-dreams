@@ -172,15 +172,11 @@ export function InventoryView(props: InventoryViewProps) {
             accent
             note={worth.pending > 0 ? `Typical prices · ${worth.pending} loading` : 'Typical prices'}
             action={
-              <button
-                type="button"
-                className="value-details-btn"
-                onClick={onValueDetails}
-                aria-label="Details: changes and top cards"
-                title="Changes and top cards"
-              >
+              <button type="button" className="value-details-btn" onClick={onValueDetails} aria-label="Changes and top cards">
                 <Icon name="sparkle" />
-                Details
+                <span className="tip tip-end" role="tooltip" aria-hidden="true">
+                  Changes and top cards
+                </span>
               </button>
             }
           />

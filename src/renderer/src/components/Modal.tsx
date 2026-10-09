@@ -7,11 +7,16 @@ interface ModalProps {
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
-  size?: 'normal' | 'medium' | 'wide'
+  /** `wizard`: wide, with a fixed height so steps don't change its size. */
+  size?: 'normal' | 'medium' | 'wide' | 'wizard'
+  /** Shown before the title. */
+  icon?: ReactNode
+  /** Whether a click on the backdrop closes it; false where a stray click would lose work. */
+  dismissable?: boolean
 }
 
-/** Modal dialog with title, body and optional footer; closes on Escape or backdrop click. */
-export function Modal({ title, onClose, children, footer, size = 'normal' }: ModalProps) {
+/** Modal dialog with title, body and optional footer; closes on Escape or, unless not `dismissable`, a backdrop click. */
+export function Modal({ title, onClose, children, footer, size = 'normal', icon, dismissable = true }: ModalProps) {
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
@@ -30,12 +35,15 @@ export function Modal({ title, onClose, children, footer, size = 'normal' }: Mod
     <div
       className="modal-backdrop"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (dismissable && event.target === event.currentTarget) onClose()
       }}
     >
       <div className={`modal ${size}`} role="dialog" aria-modal="true" aria-label={title}>
         <header className="modal-head">
-          <h2>{title}</h2>
+          <h2 className={icon ? 'modal-title-icon' : undefined}>
+            {icon}
+            {title}
+          </h2>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
             ×
           </button>

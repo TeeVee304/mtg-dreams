@@ -1,10 +1,5 @@
 import type { SortKey } from './cards'
 import type { CopiesMode } from './copies'
-import type { DeckBrief, RouteOption } from './deckBrief'
-import type { DeckCheck } from './deckCheck'
-import type { DeckPick, Draft } from './deckDraft'
-import type { BuiltDeck, DeckProgress } from './deckSession'
-import type { DeckTemplate } from './deckTemplate'
 import type { DeckTokenData } from './tokens'
 import type { ThemeColor } from './themes'
 import type { CardInfo, ListKind, PreconDeck, PreconSummary, PriceBasis, PrintingsResult } from './types'
@@ -83,40 +78,6 @@ export interface PrintingsOptions {
   priority?: 'high' | 'low'
   /** Fetch all printings, including every basic land printing (default: newest page only). */
   full?: boolean
-}
-
-/** What the card library is doing, for progress display. */
-export type CardLibraryStatus =
-  | { state: 'missing' }
-  /** `progress` 0 to 1; null if the size is unknown. */
-  | { state: 'downloading'; progress: number | null }
-  | { state: 'ready'; cards: number; updatedAt: string }
-
-/** What the deckbuilding helper needs before it can build. */
-export interface DeckHelperStatus {
-  /** The player's Anthropic API key: `unavailable` where this PC can't store it securely. */
-  apiKey: 'missing' | 'saved' | 'unavailable'
-  library: CardLibraryStatus
-}
-
-/** A brief's plan, with the app's own draft as a preview, before Claude builds the deck. */
-export interface DeckPlanSummary {
-  /** The brief as checked. */
-  brief: DeckBrief
-  template: DeckTemplate
-  draft: Draft
-  /** Check of the draft. */
-  check: DeckCheck
-  /** Cards the deck may play. */
-  eligible: number
-  /** Cards left out by the player or the budget, by reason. */
-  excluded: { overCap: number; unpriced: number; avoided: number }
-}
-
-/** A deck to change: the 99 and its summary. */
-export interface DeckSnapshot {
-  picks: DeckPick[]
-  summary: string
 }
 
 /** IPC bridge exposed by the preload script as `window.api`. */
@@ -198,37 +159,4 @@ export interface TrackerApi {
   copyText(text: string): Promise<void>
   /** @returns Unsubscribe function. */
   onWindowFocus(callback: () => void): () => void
-  /** @returns Whether the deckbuilding helper has an API key and the card library. */
-  getDeckHelperStatus(): Promise<DeckHelperStatus>
-  /**
-   * Checks the player's Anthropic API key and saves it encrypted.
-   * @throws Error in plain words if the key is rejected or can't be stored.
-   */
-  saveApiKey(key: string): Promise<void>
-  removeApiKey(): Promise<void>
-  /**
-   * @returns Ways to win for a commander and key cards, those they point to first.
-   * @throws Error in plain words for an unknown or invalid commander or key card.
-   */
-  getDeckRoutes(commander: string, anchors: string[]): Promise<RouteOption[]>
-  /**
-   * @returns The plan for a brief, with the app's own draft; downloads the card library on first use.
-   * @throws Error in plain words for an invalid brief, or when card data can't be downloaded.
-   */
-  planDeck(brief: DeckBrief): Promise<DeckPlanSummary>
-  /**
-   * Builds the 99 with Claude; progress arrives through {@link onDeckProgress}. Starting another
-   * build or change stops this one.
-   * @throws Error in plain words on failure; `Stopped.` when cancelled.
-   */
-  buildDeck(brief: DeckBrief): Promise<BuiltDeck>
-  /**
-   * Changes a deck as the player asks, or answers their question about it.
-   * @throws Error in plain words on failure; `Stopped.` when cancelled.
-   */
-  changeDeck(brief: DeckBrief, deck: DeckSnapshot, request: string): Promise<BuiltDeck>
-  /** Stops the running build or change, if any. */
-  cancelDeckBuild(): Promise<void>
-  /** @returns Unsubscribe function. */
-  onDeckProgress(callback: (progress: DeckProgress) => void): () => void
 }

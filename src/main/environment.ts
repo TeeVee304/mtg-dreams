@@ -19,24 +19,13 @@ export interface Environment {
   mtgjsonApi: string
   /** Cardmarket daily price guide URL. */
   priceGuideUrl: string
-  /** Anthropic API base URL, for the deckbuilding helper. */
-  anthropicApi: string
-  /** Encrypts small secrets for this OS user (Electron `safeStorage`); absent where unavailable. */
-  secrets?: SecretStore
-}
-
-/** Encryption of small secrets, such as the player's API key, readable only by this OS user. */
-export interface SecretStore {
-  encrypt(text: string): Buffer
-  decrypt(data: Buffer): string
 }
 
 /** Production service endpoints. */
 export const SERVICES = {
   scryfallApi: 'https://api.scryfall.com',
   mtgjsonApi: 'https://mtgjson.com/api/v5',
-  priceGuideUrl: 'https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_1.json',
-  anthropicApi: 'https://api.anthropic.com'
+  priceGuideUrl: 'https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_1.json'
 }
 
 let current: Environment | null = null

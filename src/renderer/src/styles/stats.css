@@ -77,25 +77,39 @@
   margin-top: 5px;
 }
 
-/* Inventory value: a quiet button at the end of the value line opens the Inventory Value dialog. */
+/* Inventory value: a square accent button on the item's right opens the Inventory Value dialog. */
+.summary-item:has(.value-details-btn) {
+  position: relative;
+  padding-right: 64px;
+}
+
 .value-details-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-left: auto;
-  padding: 3px 10px;
-  font-size: var(--fs-sm);
-  background: transparent;
-  color: var(--accent-text);
-  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
-.value-details-btn:hover:not(:disabled) {
-  background: var(--accent-soft);
+.value-details-btn:hover:not(:disabled),
+.value-details-btn:focus-visible {
+  background: var(--accent);
+  filter: brightness(1.1);
 }
 
+/* The sparkle's drawing sits up and to the right in its box (the small star); nudged to the middle. */
 .value-details-btn svg {
-  width: 14px;
-  height: 14px;
+  width: 22px;
+  height: 22px;
+  transform: translate(-1.15px, 0.45px);
 }
 

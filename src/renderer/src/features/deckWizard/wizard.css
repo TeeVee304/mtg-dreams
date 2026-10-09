@@ -1,0 +1,878 @@
+/* The Deck Wizard popup: its layout, the answer cards and the review. Loaded with the popup. */
+
+/* The popup ---------------------------------------------------------------------- */
+
+.modal-title-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal.wizard {
+  width: min(1000px, 100%);
+  height: min(720px, calc(100vh - 48px));
+}
+
+.modal.wizard .modal-body {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.wizard {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.wizard-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.wizard-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 18px 24px 28px;
+}
+
+.wizard-step h3 {
+  font-size: var(--fs-lg);
+  margin: 22px 0 4px;
+}
+
+.wizard-step h3:first-child {
+  margin-top: 0;
+}
+
+.step-intro {
+  color: var(--muted);
+  font-size: var(--fs-md);
+  max-width: 64ch;
+  margin-bottom: 10px;
+}
+
+.library-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.wizard-resume {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 10px;
+  padding: 40px;
+  text-align: center;
+}
+
+.wizard-resume > svg {
+  color: var(--accent);
+}
+
+.wishlist-name input {
+  width: 220px;
+}
+
+/* Steps --------------------------------------------------------------------------- */
+
+.step-rail {
+  display: flex;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0 20px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.step-rail button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  background: none;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-md);
+  color: var(--muted);
+}
+
+.step-number {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+}
+
+.step-rail .done .step-number {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.step-rail .current button {
+  color: var(--text);
+  font-weight: 600;
+  background: var(--accent-soft);
+}
+
+.step-rail .current .step-number {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* The brief ----------------------------------------------------------------------- */
+
+.brief-panel {
+  width: 250px;
+  flex: none;
+  overflow-y: auto;
+  padding: 16px 14px;
+  border-left: 1px solid var(--border);
+  background: var(--panel-2);
+}
+
+.brief-panel h3 {
+  font-size: var(--fs-base);
+}
+
+.brief-panel ul {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+}
+
+.brief-line {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: none;
+  padding: 5px 6px;
+}
+
+.brief-line:disabled {
+  opacity: 1;
+}
+
+.brief-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.brief-value {
+  font-size: var(--fs-md);
+  overflow-wrap: anywhere;
+}
+
+.brief-line.unset .brief-value {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* Answers ------------------------------------------------------------------------ */
+
+.choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.choice.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.choice.selected:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.choice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.choice-label {
+  font-weight: 600;
+}
+
+.choice-badge {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.choice-plain {
+  font-size: var(--fs-md);
+  color: var(--muted);
+}
+
+/* A focused card or brief line shows the explanation of its name, as hovering does. */
+.choice:focus-visible .term-tip,
+.brief-line:focus-visible .term-tip {
+  display: block;
+}
+
+.choice-why {
+  font-size: var(--fs-sm);
+  color: var(--accent-text);
+}
+
+.kind-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.kind-toggle {
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-md);
+  padding: 3px 12px;
+}
+
+.kind-toggle.selected {
+  border-color: var(--warn);
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.name-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+
+.chip.name-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--fs-sm);
+  padding: 1px 2px 1px 10px;
+  color: var(--text);
+}
+
+.chip-remove {
+  border: none;
+  background: none;
+  padding: 0 6px;
+  line-height: 1.2;
+  color: var(--muted);
+}
+
+/* Glossary terms: dotted, with their meaning on hover or focus. */
+.term {
+  position: relative;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.tip.term-tip {
+  white-space: normal;
+  width: max-content;
+  max-width: 280px;
+  text-align: left;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+/* Card search -------------------------------------------------------------------- */
+
+.card-search-box {
+  position: relative;
+  max-width: 560px;
+}
+
+.card-search-box input {
+  width: 100%;
+}
+
+.search-hits {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.search-hits li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  column-gap: 10px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.search-hits li.active {
+  background: var(--hover);
+}
+
+.hit-name {
+  font-weight: 500;
+}
+
+.hit-type {
+  grid-column: 1 / -1;
+}
+
+.search-none {
+  margin-top: 6px;
+}
+
+/* Commander and key cards -------------------------------------------------------- */
+
+.focus-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.focus-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding-right: 28px;
+}
+
+.focus-price {
+  margin-left: auto;
+}
+
+.traits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.traits-label {
+  min-width: 96px;
+}
+
+.chip.trait {
+  position: relative;
+  cursor: help;
+  font-size: var(--fs-sm);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.anchor-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.anchor-list > li {
+  position: relative;
+}
+
+.anchor-remove {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.link-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: var(--fs-md);
+  color: var(--muted);
+}
+
+.link-list li::marker {
+  content: '✓  ';
+  color: var(--good);
+}
+
+/* Budget ------------------------------------------------------------------------- */
+
+.budget-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 18px;
+}
+
+.amount-field {
+  width: 240px;
+}
+
+.amount-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.amount-input input {
+  flex: 1;
+}
+
+.budget-live {
+  margin: 0 0 6px;
+}
+
+.wizard-step .field > .segmented {
+  align-self: flex-start;
+}
+
+.wildcards {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 380px;
+}
+
+.wildcards input {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.wildcards-count {
+  min-width: 2ch;
+  font-size: var(--fs-stat);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Build -------------------------------------------------------------------------- */
+
+.plan-slots {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.plan-slots li {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.plan-count {
+  min-width: 2.5ch;
+  text-align: right;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  color: var(--accent-text);
+}
+
+.plan-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-why {
+  font-size: var(--fs-sm);
+}
+
+.build-box {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.build-box {
+  background: linear-gradient(135deg, var(--accent-soft), transparent 65%);
+}
+
+.build-box h3 {
+  margin-top: 0;
+}
+
+.build-btn {
+  padding: 8px 18px;
+  font-size: var(--fs-lg);
+}
+
+.build-now {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.spinner {
+  display: inline-block;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  vertical-align: -1px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Review ------------------------------------------------------------------------- */
+
+.stale-note {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.review-summary p {
+  max-width: 72ch;
+}
+
+.budget-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 4px;
+  font-weight: 500;
+}
+
+.budget-bar {
+  flex: 0 0 220px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--hover);
+  overflow: hidden;
+}
+
+.budget-bar span {
+  display: block;
+  height: 100%;
+  background: var(--good);
+}
+
+.budget-bar span.over {
+  background: var(--bad);
+}
+
+.review-notes {
+  margin: 10px 0;
+  padding-left: 18px;
+  font-size: var(--fs-md);
+}
+
+.review-notes .latest {
+  color: var(--accent-text);
+}
+
+.review-notes .bad {
+  color: var(--bad);
+}
+
+.review-group h4 {
+  margin: 18px 0 4px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.review-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.review-card {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: baseline;
+  column-gap: 14px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.review-name {
+  font-weight: 500;
+}
+
+.review-qty {
+  margin-right: 6px;
+  color: var(--muted);
+}
+
+.review-actions {
+  display: inline-flex;
+  gap: 10px;
+  opacity: 0;
+}
+
+.review-card:hover .review-actions,
+.review-card:focus-within .review-actions {
+  opacity: 1;
+}
+
+.review-reason,
+.review-warn {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+.review-reason {
+  color: var(--muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+/* Deck ideas ------------------------------------------------------------------- */
+
+.ideas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.idea {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.idea.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.idea.selected:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.idea-title {
+  font-weight: 650;
+  font-size: var(--fs-lg);
+}
+
+.idea-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.idea-tag {
+  font-size: var(--fs-xs);
+}
+
+.idea-pitch {
+  font-size: var(--fs-md);
+  color: var(--muted);
+}
+
+.idea-samples {
+  color: var(--text);
+}
+
+.idea-sample {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+/* "More options" and "Build your own": depth on demand. */
+.more-options {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.more-options > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--accent-text);
+  width: max-content;
+}
+
+.more-options[open] > summary {
+  margin-bottom: 8px;
+}
+
+.more-options h4 {
+  margin: 14px 0 2px;
+}
+
+.quick-build {
+  font-weight: 600;
+}
+
+/* Deck report ------------------------------------------------------------------ */
+
+.deck-report {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.report-card {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+}
+
+.report-card h4 {
+  margin: 0 0 6px;
+}
+
+.report-card p {
+  margin: 4px 0;
+}
+
+.report-curve {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  align-items: end;
+  gap: 4px;
+  height: 84px;
+  margin: 6px 0;
+}
+
+.curve-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.curve-bar {
+  width: 100%;
+  min-height: 2px;
+  border-radius: 3px 3px 0 0;
+  background: var(--accent);
+}
+
+.curve-count {
+  color: var(--muted);
+}
+
+.curve-mv {
+  color: var(--faint);
+}
+
+.pip {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  vertical-align: baseline;
+}
+
+.pip-w {
+  background: var(--mana-w);
+}
+
+.pip-u {
+  background: var(--mana-u);
+}
+
+.pip-b {
+  background: var(--mana-b);
+}
+
+.pip-r {
+  background: var(--mana-r);
+}
+
+.pip-g {
+  background: var(--mana-g);
+}
+
+.report-jobs,
+.report-combos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.report-jobs li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.report-combos li {
+  margin: 3px 0;
+}
+
+.rebuild-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+
+.review-card.locked .review-name {
+  color: var(--accent-text);
+}

@@ -1,5 +1,6 @@
-import { app, BrowserWindow, safeStorage, session, shell } from 'electron'
+import { app, BrowserWindow, session, shell } from 'electron'
 import { join } from 'node:path'
+import { registerDeckWizard } from './deckWizard'
 import { SERVICES, setEnvironment } from './environment'
 import { applyTheme, notifyPricesUpdated, openExternalSafe, registerIpc, windowBackground } from './ipc'
 import { startPriceGuide } from './priceGuide'
@@ -11,7 +12,8 @@ import { getAppSettings, getTheme, migrateFromOldName } from './storage'
 /**
  * Electron main entry: single-instance lock, environment setup, IPC, window and price guide polling.
  * Service URLs can be overridden in unpackaged builds via `MTG_DREAMS_SCRYFALL_API`,
- * `MTG_DREAMS_MTGJSON_API`, `MTG_DREAMS_PRICE_GUIDE_URL` and `MTG_DREAMS_ANTHROPIC_API` (used by e2e tests).
+ * `MTG_DREAMS_MTGJSON_API` and `MTG_DREAMS_PRICE_GUIDE_URL` (used by e2e tests). The Deck Wizard
+ * is a feature of its own, registered here (see `deckWizard/index.ts`).
  *
  * @packageDocumentation
  */
@@ -92,16 +94,13 @@ if (!app.requestSingleInstanceLock()) {
       userAgent: `MTGDreams/${app.getVersion()}`,
       scryfallApi: (!app.isPackaged && process.env.MTG_DREAMS_SCRYFALL_API) || SERVICES.scryfallApi,
       mtgjsonApi: (!app.isPackaged && process.env.MTG_DREAMS_MTGJSON_API) || SERVICES.mtgjsonApi,
-      priceGuideUrl: (!app.isPackaged && process.env.MTG_DREAMS_PRICE_GUIDE_URL) || SERVICES.priceGuideUrl,
-      anthropicApi: (!app.isPackaged && process.env.MTG_DREAMS_ANTHROPIC_API) || SERVICES.anthropicApi,
-      ...(safeStorage.isEncryptionAvailable() && {
-        secrets: { encrypt: (text) => safeStorage.encryptString(text), decrypt: (data) => safeStorage.decryptString(data) }
-      })
+      priceGuideUrl: (!app.isPackaged && process.env.MTG_DREAMS_PRICE_GUIDE_URL) || SERVICES.priceGuideUrl
     })
     migrateFromOldName()
     applyTheme(getTheme())
     void loadScryfallCache()
     registerIpc()
+    registerDeckWizard()
     createWindow()
     startPriceGuide(() => void recordCurrentPrices().finally(notifyPricesUpdated))
     app.on('activate', () => {

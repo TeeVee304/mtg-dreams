@@ -21,6 +21,7 @@ import { wantedOverview } from '../lib/wanted'
 import { useCopyPool } from '../hooks/useCopyPool'
 import { useNarrow } from '../hooks/useNarrow'
 import { useStoredToggle } from '../hooks/useStoredToggle'
+import { DeckWizardNavItem } from '../features/deckWizard'
 import { Icon } from './Icon'
 
 /** Main page selection; `paste` opens the inventory's text editor (from the welcome screen). */
@@ -47,6 +48,10 @@ interface SidebarProps {
   myTrade: { haves: TradeCard[]; wants: Want[] }
   onShareTrade: () => void
   onImportTrade: () => void
+  /** Opens the Deck Wizard. */
+  onWizard: () => void
+  /** The Deck Wizard is open; its item shines. */
+  wizardOpen: boolean
 }
 
 /**
@@ -57,7 +62,7 @@ interface SidebarProps {
  */
 export function Sidebar(props: SidebarProps) {
   const { lists, inventory, view, onSelect, onNew, onSettings, pricedAt, onRefreshPrices } = props
-  const { trades, myTrade, onShareTrade, onImportTrade } = props
+  const { trades, myTrade, onShareTrade, onImportTrade, onWizard, wizardOpen } = props
   const [refreshing, setRefreshing] = useState(false)
   const rail = useNarrow()
   const version = usePrintingsVersion()
@@ -208,6 +213,7 @@ export function Sidebar(props: SidebarProps) {
             {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
           </span>
         </button>
+        <DeckWizardNavItem onOpen={onWizard} open={wizardOpen} rail={rail} />
       </nav>
 
       <nav className="nav-scroll">

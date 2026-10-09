@@ -229,11 +229,13 @@ interface NewListDialogProps {
   onCreate: (name: string, text: string, formatId: string | null, addToInventory: boolean) => Promise<void>
   /** Switches to precon import. */
   onFromPrecon: () => void
+  /** Opens the Deck Wizard instead; offered for wishlists. */
+  onWizard?: () => void
   onClose: () => void
 }
 
 /** New deck or wishlist dialog: name, optional format and pasted list. */
-export function NewListDialog({ kind, onCreate, onFromPrecon, onClose }: NewListDialogProps) {
+export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose }: NewListDialogProps) {
   const isDeck = kind === 'deck'
   const [name, setName] = useState('')
   const [format, setFormat] = useState('')
@@ -296,6 +298,15 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onClose }: NewList
         <button type="button" className="link-btn" onClick={onFromPrecon}>
           start from an official precon…
         </button>
+        {onWizard && (
+          <>
+            {' '}
+            or{' '}
+            <button type="button" className="link-btn" onClick={onWizard}>
+              let the Deck Wizard plan a Commander deck…
+            </button>
+          </>
+        )}
       </p>
       {error && <p className="warn">{error}</p>}
     </Modal>
