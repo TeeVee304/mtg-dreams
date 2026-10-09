@@ -84,8 +84,10 @@
 
 /* Sidebar ------------------------------------------------------------------ */
 
+/* Always dark ink (tokens.css), in light mode too: the page's anchor. */
 .sidebar {
-  background: var(--panel);
+  background: #10121f;
+  color: var(--text);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -97,20 +99,18 @@
   align-items: center;
   gap: 10px;
   padding: 18px 16px 14px;
-  font-weight: 700;
-  font-size: var(--fs-lg);
 }
 
-.brand small {
-  display: block;
-  font-weight: 400;
-  font-size: var(--fs-sm);
-  color: var(--muted);
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .brand-mark {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   flex: none;
 }
 
@@ -123,7 +123,7 @@
 
 /* Inventory and Most Wanted stay put; the lists below them scroll. */
 .sidebar .nav-fixed {
-  padding-bottom: 6px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -138,17 +138,18 @@
   flex-shrink: 0;
 }
 
+/* A picture (list art, an icon tile or initials) beside the name and its figures. */
 .nav-item {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 1px;
+  align-items: center;
+  gap: 10px;
   width: 100%;
   text-align: left;
   border: none;
+  border-radius: 10px;
   background: transparent;
-  padding: 7px 10px;
+  padding: 6px 8px;
 }
 
 .nav-item.active {
@@ -159,24 +160,79 @@
   color: var(--accent-text);
 }
 
+.nav-thumb {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--panel-2);
+}
+
+.nav-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.nav-tile svg {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+.nav-item.active .nav-tile svg {
+  color: var(--accent);
+}
+
+/* The Deck Wizard's tile is foil. */
+.nav-tile-foil {
+  background: var(--foil);
+}
+
+.nav-tile-foil svg {
+  color: #1a1430;
+}
+
+.nav-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
 .nav-name {
-  font-weight: 500;
+  font-weight: 600;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
 }
 
-.nav-icon-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+/* A wishlist's collected share, in the list's color. */
+.nav-progress {
+  display: block;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--hover);
+  overflow: hidden;
+}
+
+.nav-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
 }
 
 .nav-colors {
   position: absolute;
-  top: 9px;
-  right: 10px;
+  top: 7px;
+  right: 8px;
   display: flex;
   gap: 2px;
   opacity: 0;
@@ -200,6 +256,13 @@
   max-width: calc(100% - 16px * var(--colors, 0));
 }
 
+/* A label with its icon after it (Statistics, page titles). */
+.nav-icon-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .nav-section-actions {
   display: inline-flex;
   align-items: center;
@@ -215,26 +278,28 @@
 }
 
 .nav-section-count {
-  font-weight: 400;
   color: var(--faint);
 }
 
 .nav-meta {
   font-size: var(--fs-sm);
+  line-height: 1.25;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav-section {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 14px 2px 4px 10px;
-  font-size: var(--fs-sm);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--faint);
+  margin: 14px 2px 2px 10px;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .nav-empty {
@@ -279,4 +344,162 @@
 
 .collapsible.open .collapsible-chevron {
   transform: rotate(90deg);
+}
+
+/* Art banner: a list's header over its commander's art ------------------------------ */
+
+.view-header.art-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 270px;
+  padding: 18px 20px 22px 26px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--panel);
+  color: var(--text);
+}
+
+.hero-art {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 28%;
+}
+
+/* Darkened toward the title (bottom left), so the text reads on any art. */
+.art-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(to top, #0c0e1a 0%, rgba(12, 14, 26, 0.88) 28%, rgba(12, 14, 26, 0.35) 62%, rgba(12, 14, 26, 0.15) 100%),
+    linear-gradient(to right, rgba(12, 14, 26, 0.75) 0%, rgba(12, 14, 26, 0) 55%);
+}
+
+.art-hero .header-title {
+  align-self: flex-end;
+}
+
+.art-hero h1 {
+  color: #f4f2fa;
+  font-size: 46px;
+}
+
+.art-hero .header-actions button,
+.art-hero .header-meta select {
+  background: rgba(12, 14, 26, 0.55);
+  border-color: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+.art-hero .header-actions button:hover:not(:disabled) {
+  background: rgba(12, 14, 26, 0.75);
+}
+
+.art-hero .header-meta,
+.hero-leader {
+  color: #c9cadb;
+}
+
+.hero-leader {
+  margin-top: 6px;
+}
+
+.hero-leader strong {
+  color: #f4f2fa;
+  font-weight: 600;
+}
+
+.header-colors {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.header-colors img {
+  width: 16px;
+  height: 16px;
+}
+
+/* Facts line: a list's figures and its Statistics on one quiet line; the panel opens below. */
+
+.facts-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 28px;
+}
+
+.facts-row .summary-strip {
+  display: contents;
+}
+
+.facts-row .summary-item {
+  order: 1;
+}
+
+.facts-row .collapsible {
+  order: 2;
+}
+
+.facts-row .summary-item.accent {
+  order: 3;
+  margin-left: auto;
+}
+
+.facts-row .collapsible.open {
+  order: 4;
+  flex-basis: 100%;
+}
+
+.facts-row .summary-item .progress {
+  min-width: 200px;
+}
+
+/* The Statistics button's tiny mana curve. */
+.mini-curve {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+  align-self: center;
+}
+
+.mini-curve span {
+  width: 5px;
+  min-height: 1px;
+  border-radius: 1px;
+  background: var(--accent);
+}
+
+.mini-curve .mini-curve-gap {
+  background: var(--border);
+}
+
+/* The inventory's banner: a strip of its most valuable cards' art. */
+.view-header.inventory-hero {
+  min-height: 210px;
+}
+
+.hero-strip {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  display: flex;
+}
+
+.hero-strip img {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  object-fit: cover;
+}
+
+.hero-eyebrow {
+  margin-bottom: 4px;
+  font-size: var(--fs-md);
+  color: #c9cadb;
 }

@@ -1,5 +1,6 @@
 import type { ColorFilter } from '@shared/cards'
 import type { ThemeColor } from '@shared/themes'
+import type { Printing } from '@shared/types'
 import iconB from '../assets/icons/B.png'
 import iconC from '../assets/icons/C.png'
 import iconG from '../assets/icons/G.png'
@@ -18,3 +19,12 @@ export const THEME_ICONS: Record<ThemeColor, string> = { W: iconW, U: iconU, B: 
 
 /** Scryfall mana symbol SVGs (svgs.scryfall.io/card-symbols), inlined by Vite. */
 export const MANA_SYMBOLS: Record<ColorFilter, string> = { W: manaW, U: manaU, B: manaB, R: manaR, G: manaG, C: manaC }
+
+/**
+ * @returns Scryfall art crop of a printing (the illustration alone, about 626 px wide), derived
+ * from its normal image URL; null without one.
+ */
+export function artCrop(printing: Pick<Printing, 'imageNormal'> | null | undefined): string | null {
+  const url = printing?.imageNormal
+  return url && url.includes('/normal/') ? url.replace('/normal/', '/art_crop/') : null
+}

@@ -34,7 +34,8 @@ export function DeckStats({ rows, manaValue, onManaValue }: DeckStatsProps) {
       onToggle={toggle}
       title={
         <span className="nav-icon-name">
-          Statistics <Icon name="chart" />
+          <MiniCurve stats={stats} />
+          Statistics
         </span>
       }
       summary={
@@ -110,6 +111,19 @@ function ManaCurve({ stats, selected, onSelect }: { stats: Stats; selected: numb
         </p>
       )}
     </figure>
+  )
+}
+
+/** The mana curve in miniature, on the panel's button. */
+function MiniCurve({ stats }: { stats: Stats }) {
+  const totals = stats.curve.map((column) => column.creatures + column.others)
+  const tallest = Math.max(1, ...totals)
+  return (
+    <span className="mini-curve" aria-hidden="true">
+      {totals.map((total, index) => (
+        <span key={index} className={total === 0 ? 'mini-curve-gap' : undefined} style={{ height: `${Math.max(1, (total / tallest) * 22)}px` }} />
+      ))}
+    </span>
   )
 }
 

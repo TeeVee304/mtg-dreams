@@ -18,7 +18,9 @@ import {
 } from '@shared/listModel'
 import type { CopyPool } from '@shared/copies'
 import type { CardLine, InventoryItem } from '@shared/types'
+import { STAT_COLORS } from '@shared/deckStats'
 import { getCardInfo } from '../stores/cardinfo'
+import { artCrop } from '../lib/artwork'
 import { cleanError } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
@@ -89,6 +91,14 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
   const size = isDeck && format ? deckSizeCheck(format, mainCards) : null
 
   const { picking, canPickCommander, togglePicking, pickOf, isCrowned, chooseCommander } = useCommanderPicking(list, rows, analysis, actions)
+
+  const leaderRow = rows.find(isCommander)
+  const leaderArt = settings.cardImages ? artCrop(leaderRow?.resolution?.printing) : null
+  const leaderColors = leaderRow?.info
+    ? leaderRow.info.colorIdentity.length === 0
+      ? (['C'] as const)
+      : STAT_COLORS.filter((color) => leaderRow.info!.colorIdentity.includes(color))
+    : []
 
   useEffect(() => {
     if (legalityErrors + ownershipErrors === 0) setOnlyProblems(false)
@@ -183,6 +193,9 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
     <div className="view" data-color={listColor(list.lines) ?? undefined}>
       <ListHeader
         name={list.name}
+        art={leaderArt}
+        leader={leaderRow ? (leaderRow.flavorName ?? leaderRow.line.name) : null}
+        colors={[...leaderColors]}
         noun={noun}
         format={format}
         picking={picking}
@@ -206,6 +219,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
 
       {complete && <CompleteBanner cards={summary.cards} onMove={moveToDecks} />}
 
+      <div className="facts-row">
       <ListValueCards
         isDeck={isDeck}
         summary={summary}
@@ -222,6 +236,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         manaValue={filters.manaValue}
         onManaValue={(manaValue) => setFilters({ ...filters, manaValue })}
       />
+      </div>
 
       <ListAddCards
         list={list}

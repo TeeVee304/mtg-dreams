@@ -1,5 +1,15 @@
 /* Elements and small shared pieces: buttons, inputs, fields. */
 
+/* Fraunces (SIL Open Font License, see assets/fonts), the display serif of titles and headline
+   figures; latin subset, variable weight and optical size. */
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("../assets/fonts/Fraunces.woff2") format("woff2");
+}
+
 * {
   box-sizing: border-box;
 }
@@ -14,7 +24,7 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
-  font: var(--fs-base)/1.45 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  font: var(--fs-base)/1.45 var(--font-body);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -26,8 +36,11 @@ h3 {
 }
 
 h1 {
-  font-size: var(--fs-2xl);
-  letter-spacing: -0.01em;
+  font-family: var(--font-display);
+  font-size: var(--fs-display);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
 }
 
 p {

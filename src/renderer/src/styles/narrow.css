@@ -84,8 +84,7 @@
   padding: 14px 0 10px;
 }
 
-.sidebar.rail .brand > span,
-.sidebar.rail .nav-meta,
+.sidebar.rail .brand-name,
 .sidebar.rail .nav-colors,
 .sidebar.rail .nav-section-title,
 .sidebar.rail .nav-empty,
@@ -94,8 +93,8 @@
 }
 
 /* Names stay for screen readers; the tooltip shows them on hover. */
-.sidebar.rail .nav-label,
-.sidebar.rail .nav-item > .nav-name:not(.nav-icon-name) {
+.sidebar.rail .nav-text,
+.sidebar.rail .nav-label {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -111,16 +110,9 @@
 
 .sidebar.rail .nav-item {
   width: 44px;
-  height: 40px;
+  height: 44px;
   padding: 0;
-  align-items: center;
   justify-content: center;
-  border-radius: var(--radius);
-}
-
-.sidebar.rail .nav-icon-name svg {
-  width: 20px;
-  height: 20px;
 }
 
 .sidebar.rail .nav-section {
@@ -131,17 +123,18 @@
   border-top: 1px solid var(--border);
 }
 
-/* A list's initials, tinted in its own color (the button carries the list's data-color). */
+/* The picture of a list without art: its initials, tinted in its own color (the button carries
+   the list's data-color). */
 .nav-initials {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-sm);
+  width: 100%;
+  height: 100%;
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: var(--fs-sm);
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -149,13 +142,8 @@
   background: transparent;
 }
 
-.sidebar.rail .nav-item.active .nav-initials {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
-.sidebar.rail .nav-fixed .nav-item.active {
-  background: var(--accent-soft);
+.sidebar.rail .nav-item.active .nav-thumb {
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .sidebar.rail .sidebar-foot {

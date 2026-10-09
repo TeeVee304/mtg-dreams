@@ -1,4 +1,6 @@
+import { COLOR_NAMES, type ColorFilter } from '@shared/cards'
 import { commanderRule, type DeckFormat } from '@shared/formats'
+import { MANA_SYMBOLS } from '../lib/artwork'
 import type { ListPriority } from '@shared/listPriority'
 import { FormatSelect } from './Controls'
 import { Icon } from './Icon'
@@ -7,6 +9,12 @@ import { MenuButton } from './MenuButton'
 /** Props of {@link ListHeader}. */
 interface ListHeaderProps {
   name: string
+  /** Art crop of the commander: the header becomes an art banner. Null for a plain header. */
+  art: string | null
+  /** The commander, named under the title. */
+  leader: string | null
+  /** The commander's color identity, as mana symbols. */
+  colors: ColorFilter[]
   /** Noun used in labels. */
   noun: 'deck' | 'list'
   format: DeckFormat | null
@@ -38,16 +46,32 @@ interface ListHeaderProps {
   onDelete: () => void
 }
 
-/** List title bar: format select, commander picking, problem badges and list actions. */
+/**
+ * List title bar: format select, commander picking, problem badges and list actions. With the
+ * commander's art it is a banner: the art behind the title, darkened toward the text.
+ */
 export function ListHeader(props: ListHeaderProps) {
-  const { name, noun, format, legalityErrors, ownershipErrors, onlyProblems } = props
+  const { name, noun, format, legalityErrors, ownershipErrors, onlyProblems, art, leader, colors } = props
   const { picking, hasCommander, canPickCommander } = props
   const problemsTitle = onlyProblems ? 'Show all cards' : 'Show only cards with problems'
   return (
-    <header className="view-header">
-      <div>
+    <header className={`view-header${art ? ' art-hero' : ''}`}>
+      {art && <img className="hero-art" src={art} alt="" draggable={false} />}
+      <div className="header-title">
         <h1>{name}</h1>
+        {leader && (
+          <p className="hero-leader">
+            Led by <strong>{leader}</strong>
+          </p>
+        )}
         <div className="header-meta">
+          {colors.length > 0 && (
+            <span className="header-colors" aria-label={`Colors: ${colors.map((color) => COLOR_NAMES[color]).join(', ')}`}>
+              {colors.map((color) => (
+                <img key={color} src={MANA_SYMBOLS[color]} alt="" draggable={false} />
+              ))}
+            </span>
+          )}
           <label className="field-inline format-field">
             Format
             <FormatSelect value={format?.id ?? ''} onChange={(id) => props.onFormat(id || null)} label="Deck format" />

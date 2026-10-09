@@ -1,22 +1,25 @@
-/* Colors, sizes and the six mana-color themes, light and dark. */
+/* Colors, sizes and the six mana-color themes, light and dark. The neutrals are a deep ink blue
+   rather than gray, so card art reads like jewels on a binder page at night. */
 
 :root {
-  --bg: #121418;
-  --panel: #1a1d23;
-  --panel-2: #21252c;
-  --hover: #262a32;
-  --border: #2c313a;
-  --text: #e8eaef;
-  --muted: #979eac;
-  --faint: #8a91a0;
+  --bg: #0c0e1a;
+  --panel: #11142a;
+  --panel-2: #191d33;
+  --hover: #1d2240;
+  --border: #262b44;
+  --text: #ecebf3;
+  --muted: #a0a2bb;
+  --faint: #8487a3;
   /* Accent for fills, borders, icons and large text (3:1); --accent-text for smaller text
      (4.5:1). They differ only where a readable accent would look muddy, like light gold. */
-  --accent: #e3a94f;
+  --accent: #e9c77f;
   --accent-text: var(--accent);
   --accent-ink: #1d1406;
+  /* The theme color as it reads on ink: the sidebar and art headers stay dark in light mode too. */
+  --glow: #e9c77f;
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   /* Bright gradients (Inventory Value, the wand while picking): the same in light and dark. */
-  --shine-1: #e3a94f;
+  --shine-1: #e9c77f;
   --shine-2: #f6d989;
   --shine-3: #c77d2a;
   --shine-ink: #2a1a05;
@@ -45,9 +48,15 @@
   --fs-xl: 17px;
   --fs-stat: 20px;
   --fs-2xl: 22px;
+  /* Page titles and headline figures, in the display serif. */
+  --fs-display: 44px;
+  --fs-figure: 24px;
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
   --radius-xs: 3px;
   --radius-sm: 6px;
   --radius: 8px;
+  --radius-lg: 14px;
   --radius-pill: 999px;
   --shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
@@ -55,14 +64,14 @@
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #f5f5f3;
+    --bg: #f5f4f1;
     --panel: #ffffff;
-    --panel-2: #f0f0ed;
-    --hover: #e9e9e5;
-    --border: #dcdcd6;
-    --text: #1d2026;
-    --muted: #626a78;
-    --faint: #656c7a;
+    --panel-2: #f3f2f7;
+    --hover: #f0eff7;
+    --border: #e0dfe9;
+    --text: #171a2c;
+    --muted: #5b5e76;
+    --faint: #62657d;
     --accent: #b8741a;
     --accent-text: #7a5b01;
     --accent-ink: #1d1406;
@@ -94,15 +103,17 @@
 }
 
 [data-color='W'] {
-  --accent: #e3a94f;
+  --glow: #e9c77f;
+  --accent: #e9c77f;
   --accent-ink: #1d1406;
-  --shine-1: #e3a94f;
+  --shine-1: #e9c77f;
   --shine-2: #f6d989;
   --shine-3: #c77d2a;
   --shine-ink: #2a1a05;
 }
 
 [data-color='U'] {
+  --glow: #7fb2ea;
   --accent: #7fb2ea;
   --accent-ink: #0b1a2e;
   --shine-1: #7fb2ea;
@@ -112,6 +123,7 @@
 }
 
 [data-color='B'] {
+  --glow: #b59ae0;
   --accent: #b59ae0;
   --accent-ink: #1a1029;
   --shine-1: #b59ae0;
@@ -122,6 +134,7 @@
 
 /* A lighter coral red than the mana red, so the accent never reads as an error (--bad). */
 [data-color='R'] {
+  --glow: #fd9488;
   --accent: #fd9488;
   --accent-ink: #2a0a0e;
   --shine-1: #fd9488;
@@ -131,6 +144,7 @@
 }
 
 [data-color='G'] {
+  --glow: #6fcf9f;
   --accent: #6fcf9f;
   --accent-ink: #0c2118;
   --shine-1: #6fcf9f;
@@ -140,6 +154,7 @@
 }
 
 [data-color='C'] {
+  --glow: #b0b0b0;
   --accent: #b0b0b0;
   --accent-ink: #151515;
   --shine-1: #b0b0b0;
@@ -183,4 +198,33 @@
     --accent: #5a5a5a;
     --accent-ink: #ffffff;
   }
+}
+
+/* Always dark: the sidebar and the art headers keep the ink neutrals and the theme's glow in light
+   mode too, so the page has dark anchors and art never sits on white. A list's own color inside
+   them (data-color) glows the same way. */
+.sidebar,
+.art-hero {
+  --bg: #0c0e1a;
+  --panel: #13162a;
+  --panel-2: #1b1f33;
+  --hover: #1b1f33;
+  --border: #222640;
+  --text: #ecebf3;
+  --muted: #a0a2bb;
+  --faint: #8487a3;
+  --good: #5cc28a;
+  --warn: #f2843f;
+  --bad: #f47a7a;
+  color-scheme: dark;
+}
+
+.sidebar,
+.art-hero,
+.sidebar [data-color],
+.art-hero [data-color] {
+  --accent: var(--glow);
+  --accent-text: var(--glow);
+  --accent-soft: color-mix(in srgb, var(--glow) 13%, transparent);
+  --accent-ink: #14121f;
 }

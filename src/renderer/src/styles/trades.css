@@ -3,9 +3,6 @@
 /* Trades ------------------------------------------------------------------------------ */
 
 .share-item .nav-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
   color: var(--accent-text);
 }
 

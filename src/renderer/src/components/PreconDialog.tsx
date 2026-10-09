@@ -139,7 +139,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
               onChange={(event) => setQuery(event.target.value)}
             />
             <select value={type} onChange={(event) => setType(event.target.value)} aria-label="Deck type">
-              <option value="all">All types</option>
+              <option value="all">All Types</option>
               {types.map((name) => (
                 <option key={name} value={name}>
                   {name}

@@ -17,6 +17,7 @@ import { totalCopies } from '@shared/totals'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../stores/cardinfo'
 import { inventoryValue, type ItemValue } from '../lib/collection'
+import { artCrop } from '../lib/artwork'
 import { formatEur } from '../lib/format'
 import { useCopyPool } from '../hooks/useCopyPool'
 import { inventoryText, type CardList, type LibraryActions, type ListRef } from '../stores/library'
@@ -119,6 +120,14 @@ export function InventoryView(props: InventoryViewProps) {
   )
 
   const visibleCopies = totalCopies(visible)
+  /** Art of the six most valuable cards, for the header. */
+  const showcase = settings.cardImages
+    ? items
+        .filter((item) => item.value.status === 'priced' && artCrop(item.value.printing))
+        .sort((a, b) => b.value.total - a.value.total)
+        .slice(0, 6)
+        .map((item) => artCrop(item.value.printing)!)
+    : []
   const dataLoading = needsCardData(filters) && items.some((item) => item.info === undefined)
 
   const usageChips = (item: InventoryItem, kind: ListKind) => {
@@ -144,8 +153,16 @@ export function InventoryView(props: InventoryViewProps) {
 
   return (
     <div className="view">
-      <header className="view-header">
-        <div>
+      <header className={`view-header${showcase.length > 0 ? ' art-hero inventory-hero' : ''}`}>
+        {showcase.length > 0 && (
+          <div className="hero-strip" aria-hidden="true">
+            {showcase.map((art) => (
+              <img key={art} src={art} alt="" draggable={false} />
+            ))}
+          </div>
+        )}
+        <div className="header-title">
+          {showcase.length > 0 && <p className="hero-eyebrow">Your collection</p>}
           <h1>Inventory</h1>
         </div>
         <div className="header-actions">

@@ -10,3 +10,6 @@ Thumbs.db
 # End-to-end tests and CI are kept locally only.
 e2e/
 .github/
+
+# Real-data checks and benchmarks (need a local card library) are kept locally only.
+*.local.test.ts

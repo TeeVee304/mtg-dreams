@@ -18,10 +18,10 @@ import type { CardList, LibraryActions, ListRef } from '../../stores/library'
 import { usePrintingsVersion } from '../../stores/printings'
 import { useSettings } from '../../stores/settings'
 import { Segmented } from '../Controls'
-import { Icon } from '../Icon'
 import { useToast } from '../Toasts'
 import { BasicsTab } from './BasicsTab'
 import { BudgetPlanner } from './BudgetPlanner'
+import { WishlistShelf } from './WishlistShelf'
 import { CardsTab, type FriendHaves } from './CardsTab'
 import { listMetas } from './parts'
 import { TokensTab } from './TokensTab'
@@ -137,9 +137,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
     <div className="view wanted-view">
       <header className="view-header">
         <div>
-          <h1 className="nav-icon-name">
-            Most Wanted <Icon name="cart" />
-          </h1>
+          <h1>Most Wanted</h1>
           {!noLists && (
             <p className="muted">
               {cardCount(toBuy(overview.cards))} to buy · {formatEur(overview.total)} to complete every {withDecks ? 'deck and wishlist' : 'wishlist'}
@@ -156,6 +154,8 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
           )}
         </div>
       </header>
+
+      <WishlistShelf lists={lists} inventory={inventory} onOpenList={onOpenList} />
 
       {overview.cards.length > 0 && <BudgetPlanner overview={overview} actions={actions} onCopy={copy} />}
 

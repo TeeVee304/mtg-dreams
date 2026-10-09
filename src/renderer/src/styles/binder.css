@@ -1,0 +1,141 @@
+/* The moonlit binder: page-level refinements over the base styles. Tables are quieter (no shouting
+   headers, larger art, steppers that appear on hover), section titles use the display serif, and
+   list chips are neutral with a dot in the list's color, so color never reads as a status. */
+
+/* Tables ----------------------------------------------------------------------------- */
+
+.cards-table {
+  border-radius: var(--radius-lg);
+}
+
+.cards-table th {
+  background: transparent;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Art thumbnails, cropped from the small image like before, at a size where the art reads. */
+.thumb {
+  width: 56px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  box-shadow: none;
+}
+
+.thumb.skeleton {
+  height: 40px;
+}
+
+.thumb img {
+  width: 67px;
+  left: -6px;
+  top: -11px;
+}
+
+/* Quantities read as plain numbers; the stepper's buttons appear on hover or keyboard focus. */
+.cards-table .stepper {
+  border-color: transparent;
+  background: transparent;
+}
+
+.cards-table .stepper button {
+  visibility: hidden;
+}
+
+.cards-table tr:hover .stepper,
+.cards-table tr:focus-within .stepper {
+  border-color: var(--border);
+  background: var(--panel);
+}
+
+.cards-table tr:hover .stepper button,
+.cards-table tr:focus-within .stepper button {
+  visibility: visible;
+}
+
+@media (hover: none) {
+  .cards-table .stepper button {
+    visibility: visible;
+  }
+}
+
+/* Section titles: the display serif, in sentence case. */
+.cards-table .section-row td,
+.grid-section-head {
+  background: transparent !important;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text);
+  padding-top: 14px;
+}
+
+.grid-section-head {
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 10px 2px 8px;
+}
+
+.cards-table .commander-section .section-row td,
+.cards-table .commander-section .section-row td:first-child,
+.commander-section .grid-section-head {
+  background: transparent !important;
+  color: var(--text);
+}
+
+.commander-section .section-toggle > svg {
+  color: var(--accent);
+}
+
+.section-value,
+.section-warning {
+  font-family: var(--font-body);
+  font-size: var(--fs-md);
+  font-weight: 400;
+}
+
+.section-value {
+  color: var(--faint);
+}
+
+/* Chips ------------------------------------------------------------------------------ */
+
+/* A list: neutral, with a dot in its own color (the chip carries the list's data-color). */
+.chip.link.list-chip {
+  background: var(--panel-2);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.chip.link.list-chip::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+
+/* Controls --------------------------------------------------------------------------- */
+
+.view input[type='search'],
+.view .filter-bar select,
+.view .search-row button {
+  min-height: 38px;
+  border-radius: 10px;
+}
+
+.view .segmented {
+  border-radius: 10px;
+}
+
+.collapsible {
+  border-radius: var(--radius-lg);
+}

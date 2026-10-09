@@ -94,7 +94,7 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
           )}
         </div>
         <select value={filters.type} onChange={(event) => set({ type: event.target.value })} aria-label="Card type">
-          <option value="">All types</option>
+          <option value="">All Types</option>
           {CARD_TYPES.map((type) => (
             <option key={type} value={type}>
               {type}

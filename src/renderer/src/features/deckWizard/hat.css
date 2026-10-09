@@ -35,7 +35,8 @@
 }
 
 .nav-item.wizard-open .nav-name,
-.nav-item.wizard-open .nav-meta {
+.nav-item.wizard-open .nav-meta,
+.nav-item.wizard-open .nav-tile svg {
   color: var(--accent-ink);
 }
 

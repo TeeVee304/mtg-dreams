@@ -38,10 +38,13 @@ export function DeckWizardNavItem({ onOpen, open, rail }: DeckWizardNavItemProps
       title={rail ? 'Deck Wizard: plan a Commander deck' : undefined}
       onClick={onOpen}
     >
-      <span className="nav-name nav-icon-name">
-        <span className="nav-label">Deck Wizard</span> <WizardHat />
+      <span className="nav-thumb nav-tile nav-tile-foil" aria-hidden="true">
+        <WizardHat />
       </span>
-      <span className="nav-meta">Plan a Commander deck</span>
+      <span className="nav-text">
+        <span className="nav-name">Deck Wizard</span>
+        <span className="nav-meta">Plan a Commander deck</span>
+      </span>
     </button>
   )
 }

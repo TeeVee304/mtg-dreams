@@ -1,7 +1,8 @@
-import { app, BrowserWindow, session, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ClipboardItem, Menu, nativeImage, session, shell } from 'electron'
 import { join } from 'node:path'
+import { contextMenuItems } from './contextMenu'
 import { registerDeckWizard } from './deckWizard'
-import { SERVICES, setEnvironment } from './environment'
+import { env, SERVICES, setEnvironment } from './environment'
 import { applyTheme, notifyPricesUpdated, openExternalSafe, registerIpc, windowBackground } from './ipc'
 import { startPriceGuide } from './priceGuide'
 import { recordCurrentPrices } from './priceHistory'
@@ -23,7 +24,8 @@ const MAX_RELOADS_PER_MINUTE = 3
 
 /**
  * Creates the sandboxed main window. Reloads the renderer after a crash (bounded by
- * {@link MAX_RELOADS_PER_MINUTE}); routes new windows and navigation to {@link openExternalSafe}.
+ * {@link MAX_RELOADS_PER_MINUTE}); routes new windows and navigation to {@link openExternalSafe};
+ * shows a right-click menu for images and text ({@link contextMenuItems}).
  */
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -55,6 +57,15 @@ function createWindow(): void {
     if (crashes.filter((at) => now - at < 60_000).length <= MAX_RELOADS_PER_MINUTE) window.webContents.reload()
   })
 
+  window.webContents.on('context-menu', (_event, params) => {
+    const items = contextMenuItems(params, {
+      copyImageAt: (x, y) => window.webContents.copyImageAt(x, y),
+      copyImageFrom: (url, fallback) => void copyImageFrom(url).catch(fallback),
+      copyText: (text) => void clipboard.writeText(text)
+    })
+    if (items.length > 0) Menu.buildFromTemplate(items).popup({ window })
+  })
+
   window.webContents.setWindowOpenHandler(({ url }) => {
     openExternalSafe(url)
     return { action: 'deny' }
@@ -71,6 +82,15 @@ function createWindow(): void {
   } else {
     void window.loadFile(join(__dirname, '../renderer/index.html'))
   }
+}
+
+/** Downloads an image and puts it on the clipboard as a PNG; rejects if it can't be read as an image. */
+async function copyImageFrom(url: string): Promise<void> {
+  const response = await fetch(url, { headers: { 'User-Agent': env().userAgent }, signal: AbortSignal.timeout(15_000) })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const image = nativeImage.createFromBuffer(Buffer.from(await response.arrayBuffer()))
+  if (image.isEmpty()) throw new Error('Not an image')
+  await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' }) })])
 }
 
 if (!app.requestSingleInstanceLock()) {

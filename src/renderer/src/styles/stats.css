@@ -24,26 +24,21 @@
 
 /* Summary strip ---------------------------------------------------------------- */
 
-/* One compact panel of figures, so the cards themselves start high on the page. */
+/* One quiet line of figures, no panel, so the cards themselves start high on the page. */
 .summary-strip {
   display: flex;
   flex-wrap: wrap;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  align-items: flex-end;
+  gap: 12px 32px;
+  padding: 2px 4px;
 }
 
 .summary-item {
-  flex: 1 1 240px;
+  flex: 0 1 auto;
   min-width: 0;
-  padding: 9px 16px 10px;
   display: flex;
   flex-direction: column;
   gap: 1px;
-}
-
-.summary-item + .summary-item {
-  border-left: 1px solid var(--border);
 }
 
 .summary-label {
@@ -59,13 +54,11 @@
 }
 
 .summary-value {
-  font-size: var(--fs-stat);
-  font-weight: 700;
+  font-family: var(--font-display);
+  font-size: var(--fs-figure);
+  font-weight: 500;
+  line-height: 1.15;
   font-variant-numeric: tabular-nums;
-}
-
-.summary-item.accent .summary-value {
-  color: var(--accent);
 }
 
 .summary-note {

@@ -1,10 +1,4 @@
 import { useMemo, useState, type CSSProperties } from 'react'
-import type { AppSettings, PriceBaseline } from '@shared/api'
-import type { ColorFilter } from '@shared/cards'
-import type { CopyPool } from '@shared/copies'
-import { STAT_COLORS } from '@shared/deckStats'
-import { nameKey } from '@shared/decklist'
-import { deckSizeCheck, listCommander, listFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
 import { sumOf, totalCopies } from '@shared/totals'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
@@ -12,10 +6,10 @@ import type { InventoryItem, ListKind } from '@shared/types'
 import { inventoryValue } from '../lib/collection'
 import { cardCount, formatDate, formatEur } from '../lib/format'
 import { sameList, type CardList, type ListRef } from '../stores/library'
-import { priceDrop, useBaselines } from '../stores/history'
+import { useBaselines } from '../stores/history'
 import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
-import { listRows, summarize } from '../lib/summary'
+import { listFigures } from '../lib/listFigures'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
 import { wantedOverview } from '../lib/wanted'
 import { useCopyPool } from '../hooks/useCopyPool'
@@ -85,10 +79,11 @@ export function Sidebar(props: SidebarProps) {
   )
 
   const renderList = (list: CardList) => {
-    const { format, summary, mainCards, size, cheaper, colors } = figures.get(list)!
+    const { format, summary, mainCards, size, cheaper, colors, art } = figures.get(list)!
     const active = view?.page === 'list' && sameList(view.list, list)
     const priced = summary.loading === 0 && summary.cards > 0
     const complete = list.kind === 'wishlist' && summary.cards > 0 && summary.ownedCards >= summary.cards
+    const collected = summary.cards > 0 ? Math.round((summary.ownedCards / summary.cards) * 100) : 0
     return (
       <button
         key={`${list.kind}/${list.name}`}
@@ -99,8 +94,16 @@ export function Sidebar(props: SidebarProps) {
         title={rail ? list.name : undefined}
         onClick={() => onSelect({ page: 'list', list: { kind: list.kind, name: list.name } })}
       >
-        {rail && <Initials name={list.name} />}
+        <span className="nav-thumb" aria-hidden="true">
+          {art && settings.cardImages ? <img src={art} alt="" loading="lazy" draggable={false} /> : <Initials name={list.name} />}
+        </span>
+        <span className="nav-text">
         <span className="nav-name">{list.name}</span>
+        {list.kind === 'wishlist' && !complete && summary.cards > 0 && (
+          <span className="nav-progress" aria-hidden="true">
+            <span style={{ width: `${Math.max(collected, 2)}%` }} />
+          </span>
+        )}
         {colors.length > 0 && (
           <span className="nav-colors" aria-label={`Colors: ${colors.join(', ')}`}>
             {colors.map((color) => (
@@ -108,10 +111,10 @@ export function Sidebar(props: SidebarProps) {
             ))}
           </span>
         )}
-        <span className="nav-meta">
-          {format && `${format.label} · `}
+        <span className="nav-meta" title={priced ? (list.kind === 'deck' ? `Worth ${formatEur(summary.total)}` : undefined) : undefined}>
           {list.kind === 'deck' ? (
             <>
+              {format && `${format.label} · `}
               {size ? (
                 <span className={size.status === 'ok' ? undefined : 'warn'} title={size.note ?? undefined}>
                   {size.label} cards
@@ -119,12 +122,11 @@ export function Sidebar(props: SidebarProps) {
               ) : (
                 cardCount(mainCards)
               )}
-              {priced && ` · ${formatEur(summary.total)}`}
             </>
           ) : complete ? (
             <span className="nav-complete">✓ Complete · {cardCount(summary.cards)}</span>
           ) : (
-            `${summary.ownedCards}/${summary.cards} cards${priced ? ` · ${formatEur(summary.neededValue)}` : ''}`
+            `${summary.ownedCards} of ${summary.cards}${priced ? ` · ${formatEur(summary.neededValue)} to go` : ''}`
           )}
         </span>
         {cheaper > 0 && (
@@ -135,6 +137,7 @@ export function Sidebar(props: SidebarProps) {
             ↓ {cheaper} cheaper
           </span>
         )}
+        </span>
       </button>
     )
   }
@@ -179,9 +182,7 @@ export function Sidebar(props: SidebarProps) {
     <aside className={`sidebar${rail ? ' rail' : ''}`}>
       <div className="brand">
         <img className="brand-mark" src={THEME_ICONS[settings.color]} alt="" draggable={false} />
-        <span>
-          MTG Dreams<small>Decks · wishlists · EUR prices</small>
-        </span>
+        <span className="brand-name">MTG Dreams</span>
       </div>
 
       <nav className="nav-fixed">
@@ -191,12 +192,15 @@ export function Sidebar(props: SidebarProps) {
           title={rail ? 'Inventory' : undefined}
           onClick={() => onSelect({ page: 'inventory' })}
         >
-          <span className="nav-name nav-icon-name">
-            <span className="nav-label">Inventory</span> <Icon name="backpack" />
+          <span className="nav-thumb nav-tile" aria-hidden="true">
+            <Icon name="backpack" />
           </span>
-          <span className="nav-meta">
-            {cardCount(worth.copies)}
-            {inventory.size > 0 && worth.pending === 0 && ` · ${formatEur(worth.total)}`}
+          <span className="nav-text">
+            <span className="nav-name">Inventory</span>
+            <span className="nav-meta">
+              {cardCount(worth.copies)}
+              {inventory.size > 0 && worth.pending === 0 && ` · ${formatEur(worth.total)}`}
+            </span>
           </span>
         </button>
         <button
@@ -205,12 +209,15 @@ export function Sidebar(props: SidebarProps) {
           title={rail ? 'Most Wanted' : undefined}
           onClick={() => onSelect({ page: 'wanted' })}
         >
-          <span className="nav-name nav-icon-name">
-            <span className="nav-label">Most Wanted</span> <Icon name="cart" />
+          <span className="nav-thumb nav-tile" aria-hidden="true">
+            <Icon name="cart" />
           </span>
-          <span className="nav-meta">
-            {cardCount(sumOf(wanted.cards, (card) => card.toBuy))}
-            {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
+          <span className="nav-text">
+            <span className="nav-name">Most Wanted</span>
+            <span className="nav-meta">
+              {cardCount(sumOf(wanted.cards, (card) => card.toBuy))}
+              {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
+            </span>
           </span>
         </button>
         <DeckWizardNavItem onOpen={onWizard} open={wizardOpen} rail={rail} />
@@ -233,8 +240,11 @@ export function Sidebar(props: SidebarProps) {
           </button>
         </div>
         <button type="button" className="nav-item share-item" onClick={onShareTrade} title={rail ? 'Share my trade list' : undefined}>
-          <span className="nav-name nav-icon-name">
-            <Icon name="share" /> <span className="nav-label">Share my trade list</span>
+          <span className="nav-thumb nav-tile" aria-hidden="true">
+            <Icon name="share" />
+          </span>
+          <span className="nav-text">
+            <span className="nav-name">Share my trade list</span>
           </span>
         </button>
         {trades.map((trade, index) => {
@@ -248,10 +258,14 @@ export function Sidebar(props: SidebarProps) {
               title={rail ? `Trade with ${trade.name}` : undefined}
               onClick={() => onSelect({ page: 'trade', friend: trade.name })}
             >
-              {rail && <Initials name={trade.name} />}
-              <span className="nav-name">{trade.name}</span>
-              <span className="nav-meta">
-                {totalCopies(forMe)} for you · {totalCopies(forThem)} for them
+              <span className="nav-thumb" aria-hidden="true">
+                <Initials name={trade.name} />
+              </span>
+              <span className="nav-text">
+                <span className="nav-name">{trade.name}</span>
+                <span className="nav-meta">
+                  {totalCopies(forMe)} for you · {totalCopies(forThem)} for them
+                </span>
               </span>
             </button>
           )
@@ -291,51 +305,4 @@ function Initials({ name }: { name: string }) {
       {letters}
     </span>
   )
-}
-
-/** @returns Sidebar figures of a list: totals, deck size, price drops and color identity. */
-function listFigures(
-  list: CardList,
-  inventory: Map<string, InventoryItem>,
-  settings: AppSettings,
-  baselines: Record<string, PriceBaseline>,
-  pool: CopyPool
-) {
-  const format = listFormat(list.lines)
-  const rows = listRows(list, inventory, settings, pool)
-  const mainCards = sumOf(rows, (row) => (row.side ? 0 : row.line.qty))
-  const cheaper =
-    list.kind === 'wishlist'
-      ? rows.filter(
-          (row) =>
-            !row.bundledIds &&
-            priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
-        ).length
-      : 0
-  return {
-    format,
-    summary: summarize(rows),
-    mainCards,
-    size: list.kind === 'deck' && format ? deckSizeCheck(format, mainCards) : null,
-    cheaper,
-    colors: listColors(rows, format?.commander ? listCommander(list.lines) : null)
-  }
-}
-
-/**
- * @param rows - List rows, with card data once loaded.
- * @param commander - Commander name in commander formats; its color identity decides alone.
- * @returns Color identity in WUBRG order: the commander's, else the union of the cards'. `C` when that
- * identity is empty: a colorless commander, or a list whose cards are all colorless (once all have loaded).
- */
-function listColors(rows: Array<{ line: { name: string }; info?: { colorIdentity: string[] } | null }>, commander: string | null): ColorFilter[] {
-  if (commander) {
-    const info = rows.find((row) => nameKey(row.line.name) === nameKey(commander))?.info
-    if (!info) return []
-    return info.colorIdentity.length === 0 ? ['C'] : STAT_COLORS.filter((color) => info.colorIdentity.includes(color))
-  }
-  const identity = new Set(rows.flatMap((row) => row.info?.colorIdentity ?? []))
-  if (identity.size > 0) return STAT_COLORS.filter((color) => identity.has(color))
-  const loaded = rows.length > 0 && rows.every((row) => row.info !== undefined) && rows.some((row) => row.info)
-  return loaded ? ['C'] : []
 }

@@ -24,7 +24,7 @@ test('a deck shows its prices, type sections and value', async () => {
     // Cardmarket trend: 10 + 1.50 + 0.20 + 0.30, with bundled basic lands free.
     await run.waitForText('.summary-item.accent .summary-value', /12[,.]00/)
     const sections = await page.locator('.section-row .section-label').allInnerTexts()
-    assert.deepEqual(sections, ['CREATURES · 2', 'ARTIFACTS · 1', 'LANDS · 11'])
+    assert.deepEqual(sections, ['Creatures · 2', 'Artifacts · 1', 'Lands · 11'])
     // Stats: Llanowar Elves and Sol Ring at 1, Atraxa at 4; Command Tower and 10 Islands are lands.
     await run.waitForText('.collapsible-toggle', /3 cards \+ 11 lands$/)
     await page.locator('.collapsible-toggle').first().click()
@@ -85,7 +85,7 @@ test('the wand makes a legendary creature the commander, saved in the file', asy
     assert.deepEqual(pickable, ["Atraxa, Praetors' Voice"])
     await page.locator('tr.pick-ok').click()
     await page.waitForSelector('.commander-section')
-    assert.equal(await page.locator('.section-row .section-label').first().innerText(), 'COMMANDER · 1')
+    assert.equal(await page.locator('.section-row .section-label').first().innerText(), 'Commander · 1')
     assert.match(run.read('decks/Superfriends.txt'), /^\/\/ Format: Commander\n\/\/ Commander: Atraxa, Praetors' Voice\n/)
   } finally {
     await run.close()

@@ -41,7 +41,7 @@ export function CommanderStep({ brief, update, focus, unavailable }: CommanderSt
       </p>
       <CardSearchBox
         label="Search commanders"
-        placeholder={brief.commander ? 'Search for another commander' : 'Search commanders, e.g. Flubs'}
+        placeholder={brief.commander ? 'Search for another commander' : 'Search commanders'}
         search={searchCommanders}
         disabled={unavailable}
         onPick={(card) => {
@@ -63,7 +63,7 @@ export function CommanderStep({ brief, update, focus, unavailable }: CommanderSt
 
           <h3>Key cards</h3>
           <p className="step-intro">
-            Optional: up to {MAX_ANCHORS} cards the deck must be built around, like Valakut for Flubs. They are always in
+            Optional: up to {MAX_ANCHORS} cards the deck must be built around. They are always in
             the deck, and every other card is picked to work with them and your commander.
           </p>
           <CardSearchBox
