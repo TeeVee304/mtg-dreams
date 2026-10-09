@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { MECHANICS } from '@shared/deckWizard/mechanics'
+import { MECHANICS } from '@shared/deckWizard/vocabulary'
 import { explainConflict, explainLink, rankCandidates, type Candidate, type FocusCard } from '@shared/deckWizard/synergy'
 import type { LibraryCard } from '@shared/deckWizard/libraryCard'
 import { setEnvironment, SERVICES } from '../environment'

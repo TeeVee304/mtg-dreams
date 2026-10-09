@@ -2,7 +2,7 @@ import { isBasicLand } from '../cards'
 import { nameKey } from '../decklist'
 import type { LibraryCard } from './libraryCard'
 import { isEngine } from './deckBrief'
-import type { CardProfile, MechanicId } from './mechanics'
+import type { CardProfile, MechanicId } from './vocabulary'
 
 /**
  * What decks built by people play, from the official Commander precons: Wizards of the Coast's own

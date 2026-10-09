@@ -64,6 +64,24 @@ export function loadPriceGuide(): Promise<void> {
   return loading
 }
 
+/** Reads the guide from disk again, after another thread saved a newer one. */
+export function reloadPriceGuide(): Promise<void> {
+  loading = null
+  return loadPriceGuide()
+}
+
+/** Called after a newer guide is saved. */
+const savedListeners = new Set<() => void>()
+
+/**
+ * Calls `listener` whenever a newer guide is saved, so other threads can reload it.
+ * @returns Unsubscribe function.
+ */
+export function onPriceGuideSaved(listener: () => void): () => void {
+  savedListeners.add(listener)
+  return () => savedListeners.delete(listener)
+}
+
 /** Positive number, else 0. */
 const positive = (value: unknown) => (typeof value === 'number' && value > 0 ? value : 0)
 
@@ -115,6 +133,7 @@ export function refreshPriceGuide(): Promise<boolean> {
       const changed = next.createdAt !== guide?.createdAt
       guide = next
       await save(next)
+      for (const listener of savedListeners) listener()
       return changed
     } finally {
       refreshing = null

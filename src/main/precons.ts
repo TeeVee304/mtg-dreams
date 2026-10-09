@@ -1,6 +1,6 @@
 import { simplifyCardName } from '@shared/precons'
 import type { PreconCard, PreconDeck, PreconSummary } from '@shared/types'
-import { readCacheFile, writeCacheFile } from './cacheFiles'
+import { cachedFetch } from './cacheFiles'
 import { env } from './environment'
 import { fetchJson } from './http'
 
@@ -50,39 +50,9 @@ async function getJson(url: string): Promise<any> {
   return res.data
 }
 
-/** Cache envelope. */
-interface Cached<T> {
-  fetchedAt: number
-  data: T
-}
-
-/** Cache files read or written this session, by name. */
-const memory = new Map<string, Cached<unknown>>()
-
-/**
- * Serves a file under `precons/` in the cache while younger than `ttl`; otherwise fetches and caches
- * the data, serving the stale copy if the fetch fails.
- * @throws The fetch error when nothing is cached.
- */
-async function cached<T>(file: string, ttl: number, fetch: () => Promise<T>): Promise<T> {
-  const path = `precons/${file}`
-  const copy = (memory.get(path) as Cached<T> | undefined) ?? (await readCacheFile<Cached<T>>(path))
-  if (copy) memory.set(path, copy)
-  if (copy && Date.now() - copy.fetchedAt < ttl) return copy.data
-  try {
-    const fresh: Cached<T> = { fetchedAt: Date.now(), data: await fetch() }
-    memory.set(path, fresh)
-    void writeCacheFile(path, fresh)
-    return fresh.data
-  } catch (error) {
-    if (copy) return copy.data
-    throw error
-  }
-}
-
 /** @returns Paper precons, newest first. Cached for {@link INDEX_TTL_MS}. */
 export function getPreconIndex(): Promise<PreconSummary[]> {
-  return cached('index.json', INDEX_TTL_MS, async () => {
+  return cachedFetch('precons/index.json', INDEX_TTL_MS, async () => {
     const body = await getJson(`${env().mtgjsonApi}/DeckList.json`)
     return (body.data as any[])
       .filter((deck) => !DIGITAL_TYPES.has(deck.type) && FILE_NAME_RE.test(deck.fileName))
@@ -121,17 +91,25 @@ function toCard(card: any, board: PreconCard['board']): PreconCard | null {
  */
 export async function getPrecon(fileName: string): Promise<PreconDeck> {
   if (!FILE_NAME_RE.test(fileName)) throw new Error('Invalid deck name.')
-  return cached(`deck-v${DECK_CACHE_VERSION}-${fileName}.json`, DECK_TTL_MS, async (): Promise<PreconDeck> => {
-    const { data } = await getJson(`${env().mtgjsonApi}/decks/${fileName}.json`)
-    return {
-      fileName,
-      name: data.name,
-      code: data.code,
-      type: data.type,
-      releaseDate: data.releaseDate ?? '',
-      cards: BOARDS.flatMap(([key, board]) =>
-        ((data[key] ?? []) as any[]).map((card) => toCard(card, board)).filter((card): card is PreconCard => card !== null)
-      )
-    }
-  })
+  return cachedFetch(`precons/deck-v${DECK_CACHE_VERSION}-${fileName}.json`, DECK_TTL_MS, () => fetchPrecon(fileName))
+}
+
+/**
+ * Fetches a decklist without caching it, for callers that keep their own copy.
+ * @param fileName - MTGJSON deck file name.
+ * @throws Error if `fileName` is invalid, or the fetch fails.
+ */
+export async function fetchPrecon(fileName: string): Promise<PreconDeck> {
+  if (!FILE_NAME_RE.test(fileName)) throw new Error('Invalid deck name.')
+  const { data } = await getJson(`${env().mtgjsonApi}/decks/${fileName}.json`)
+  return {
+    fileName,
+    name: data.name,
+    code: data.code,
+    type: data.type,
+    releaseDate: data.releaseDate ?? '',
+    cards: BOARDS.flatMap(([key, board]) =>
+      ((data[key] ?? []) as any[]).map((card) => toCard(card, board)).filter((card): card is PreconCard => card !== null)
+    )
+  }
 }

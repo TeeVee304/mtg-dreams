@@ -1,7 +1,7 @@
 import type { BracketCombo, BracketFacts } from './combos'
 import { BRACKET_IDS, BRACKETS, type BracketId } from './deckBrief'
 import { nameKey } from '../decklist'
-import type { CardProfile } from './mechanics'
+import type { CardProfile } from './vocabulary'
 
 /**
  * The Commander Brackets rules: what each power level allows (Game Changers, two-card combos,

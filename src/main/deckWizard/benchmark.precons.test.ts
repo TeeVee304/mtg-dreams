@@ -39,7 +39,8 @@ describe.skipIf(!DIR || !existsSync(join(DIR ?? '', 'card-library.json')))('the 
   beforeAll(async () => {
     setEnvironment({ ...SERVICES, userData: DIR!, documents: DIR!, appData: DIR!, trash: async () => undefined, userAgent: 'MTGDreams/benchmark' })
     setWizardServices({ spellbookApi: 'http://127.0.0.1:9' })
-    const helper = await import('./deckHelper')
+    const { deckIdeasFor } = await import('./insights')
+    const { planDeck } = await import('./planning')
     const { loadCommunityDecks } = await import('./community')
     const { libraryCard, loadCardLibrary } = await import('./cardLibrary')
     await loadCardLibrary()
@@ -53,10 +54,10 @@ describe.skipIf(!DIR || !existsSync(join(DIR ?? '', 'card-library.json')))('the 
       const commander = libraryCard(precon.commanders[0])!.name
       let brief: DeckBrief = newBrief(commander)
       // The idea built on the precon itself would give its answers away.
-      const idea = (await helper.deckIdeasFor(brief)).find((i) => !i.id.startsWith(PRECON_IDEA))
+      const idea = (await deckIdeasFor(brief)).find((i) => !i.id.startsWith(PRECON_IDEA))
       if (idea) brief = { ...brief, ideaId: idea.id, strategy: idea.strategy, wincons: idea.wincons, engines: idea.engines }
-      const without = await helper.planDeck(brief, { noCommunity: true })
-      const withStats = await helper.planDeck(brief, { leaveOut: precon.id })
+      const without = await planDeck(brief, { noCommunity: true })
+      const withStats = await planDeck(brief, { leaveOut: precon.id })
       const names = (plan: typeof without) => plan.draft.picks.map((pick) => pick.name)
       const staples = ['Sol Ring', 'Arcane Signet', 'Command Tower'].filter((name) => names(withStats).includes(name))
       rows.push({ precon, without: overlap(names(without), precon), with: overlap(names(withStats), precon), staples })

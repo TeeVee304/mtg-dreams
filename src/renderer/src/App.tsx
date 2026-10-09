@@ -1,33 +1,22 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { cardLines, parseList, serializeList } from '@shared/decklist'
-import { bundledBasic } from '@shared/basics'
-import { copiesToAdd } from '@shared/copies'
-import { withCommander, withFormat } from '@shared/formats'
-import { preconListName, type PreconEntry } from '@shared/precons'
-import { entriesToLines } from '@shared/sideboard'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { totalCopies } from '@shared/totals'
 import { myTradeSide } from '@shared/trade'
-import type { ListKind, PreconDeck } from '@shared/types'
-import { CARD_SEARCH_ID } from './components/CardSearch'
-import { ConflictDialog, NewListDialog } from './components/Dialogs'
+import { AppDialogs, type AppDialog } from './components/AppDialogs'
 import { HistorySync } from './components/HistorySync'
 import { HoverPreview } from './components/HoverPreview'
 import { InventoryView } from './components/InventoryView'
-import { CollectionValueDialog } from './components/CollectionValue'
 import { ListView } from './components/ListView'
-import { PreconDialog } from './components/PreconDialog'
 import { PriceProgress } from './components/PriceProgress'
-import { SettingsDialog } from './components/SettingsDialog'
-import { ImportTradeDialog, ShareTradeDialog } from './components/TradeDialogs'
-import { TradeView } from './components/TradeView'
-import { WantedView } from './components/WantedView'
 import { Sidebar, type View } from './components/Sidebar'
-import { DeckWizardDialog } from './features/deckWizard'
 import { useToast } from './components/Toasts'
+import { TradeView } from './components/TradeView'
+import { WantedView } from './components/wanted/WantedView'
+import { Welcome } from './components/Welcome'
 import { useCopyPool } from './hooks/useCopyPool'
-import { cardCount, cleanError, formatDate } from './lib/format'
+import { usePrices } from './hooks/usePrices'
+import { useScrollMemory } from './hooks/useScrollMemory'
+import { useShortcuts } from './hooks/useShortcuts'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
-import { refreshStalePrintings, reloadPrices, requestPrintings } from './stores/printings'
 import { useSettings } from './stores/settings'
 
 /** @returns Identity of a page, for remembering its scroll position. */
@@ -38,22 +27,10 @@ function pageKey(view: View | null): string {
   return view.page
 }
 
-/** Input types that do not take text (and have no native undo). */
-const NOT_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'])
-
-/** @returns Whether `target` is a text field (native Ctrl+Z applies). */
-function isTyping(target: EventTarget | null): boolean {
-  if (target instanceof HTMLTextAreaElement) return true
-  if (target instanceof HTMLInputElement) return !NOT_TEXT_INPUTS.has(target.type)
-  return target instanceof HTMLElement && target.isContentEditable
-}
-
 /**
- * Root component: library state, navigation, dialogs and global effects. Background effects: price
- * prefetch for all lists (active first; bundled basics skipped), hourly stale-printings refresh,
- * price reload on `prices:updated`. Shortcuts: Ctrl+K focuses card search; Ctrl+Z undoes the
- * latest edit outside text fields. Removals and bulk edits toast with Undo. Each page keeps its
- * scroll position for the session; a page not opened yet starts at the top.
+ * Root component: library state, navigation between pages, and the one dialog open at a time.
+ * Prices stay current through {@link usePrices}; shortcuts come from {@link useShortcuts}; each
+ * page keeps its scroll position for the session. Removals and bulk edits toast with Undo.
  */
 export default function App() {
   const toast = useToast()
@@ -65,34 +42,14 @@ export default function App() {
   )
   const { state, actions, conflict } = useLibrary({ onError, onUndoable })
   const [view, setView] = useState<View | null>(null)
-  const [creating, setCreating] = useState<ListKind | null>(null)
-  const [precon, setPrecon] = useState<ListKind | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [valueOpen, setValueOpen] = useState(false)
-  const [shareOpen, setShareOpen] = useState(false)
-  const [importing, setImporting] = useState<{ replaceName?: string } | null>(null)
-  const [wizardOpen, setWizardOpen] = useState(false)
-  /** Publication time of the price guide in use. */
-  const [pricedAt, setPricedAt] = useState<number | null>(null)
+  const [dialog, setDialog] = useState<AppDialog | null>(null)
 
   useEffect(() => {
     void actions.reload(true)
     return window.api.onWindowFocus(() => void actions.reload())
   }, [actions])
 
-  const openList = (list: ListRef) => setView({ page: 'list', list })
-
-  const mainRef = useRef<HTMLElement>(null)
-  /** Scroll position of each page left this session, by {@link pageKey}. */
-  const scrolls = useRef(new Map<string, number>())
-  const shownPage = useRef(pageKey(view))
-  const currentPage = pageKey(view)
-  useLayoutEffect(() => {
-    if (shownPage.current === currentPage) return
-    shownPage.current = currentPage
-    if (mainRef.current) mainRef.current.scrollTop = scrolls.current.get(currentPage) ?? 0
-  }, [currentPage])
-
+  // A page whose list or trade is gone falls back to the first list.
   useEffect(() => {
     if (state.status !== 'ready') return
     if (view?.page === 'inventory' || view?.page === 'wanted') return
@@ -102,103 +59,14 @@ export default function App() {
     setView(first ? { page: 'list', list: { kind: first.kind, name: first.name } } : null)
   }, [state.status, state.lists, state.trades, view])
 
-  const { bundleBasics, copies } = useSettings()
+  const openList = (list: ListRef) => setView({ page: 'list', list })
+  const openTrade = (friend: string) => setView({ page: 'trade', friend })
+  const scroll = useScrollMemory<HTMLElement>(pageKey(view))
+  const { copies } = useSettings()
   const pool = useCopyPool(state.lists)
-  const active = view?.page === 'list' ? view.list : null
-  /** Cards to price: the open list's first, then the other lists', then the rest of the inventory (for its value). */
-  const namesKey = useMemo(
-    () =>
-      [
-        ...[...state.lists]
-          .sort((a, b) => Number(active !== null && sameList(b, active)) - Number(active !== null && sameList(a, active)))
-          .flatMap((list) => cardLines(list.lines).map((line) => line.name)),
-        ...[...state.inventory.values()].map((item) => item.name)
-      ]
-        .filter((name) => !bundledBasic(name, bundleBasics))
-        .join('\n'),
-    [state.lists, state.inventory, active, bundleBasics]
-  )
-  useEffect(() => {
-    for (const name of namesKey.split('\n')) if (name) requestPrintings(name)
-  }, [namesKey])
-
-  const myTrade = useMemo(
-    () => myTradeSide(state.inventory, state.lists, copies, pool),
-    [state.inventory, state.lists, copies, pool]
-  )
-
-  useEffect(() => {
-    const timer = setInterval(refreshStalePrintings, 60 * 60 * 1000)
-    return () => clearInterval(timer)
-  }, [])
-
-  const loadPriceDate = useCallback(() => window.api.getPriceDate().then(setPricedAt, () => undefined), [])
-  useEffect(() => void loadPriceDate(), [loadPriceDate])
-  useEffect(
-    () =>
-      window.api.onPricesUpdated(() => {
-        void reloadPrices()
-        void loadPriceDate()
-      }),
-    [loadPriceDate]
-  )
-
-  /** Checks Cardmarket for a newer price guide and says what it found. */
-  const refreshPrices = () =>
-    window.api.refreshPrices().then(
-      ({ updated, pricedAt: at }) => {
-        setPricedAt(at)
-        toast(
-          updated
-            ? `New Cardmarket prices loaded (${formatDate(at!)})`
-            : `Prices are up to date: Cardmarket, ${at ? formatDate(at) : 'not loaded yet'}`
-        )
-      },
-      (error) => onError(cleanError(error))
-    )
-
-  const changeDataDir = () =>
-    actions
-      .chooseDataDir()
-      .then((changed) => changed && toast('Data folder changed'))
-      .catch((error) => onError(cleanError(error)))
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!event.ctrlKey || event.altKey) return
-      const key = event.key.toLowerCase()
-      if (key === 'k') {
-        event.preventDefault()
-        document.getElementById(CARD_SEARCH_ID)?.focus()
-      } else if (key === 'z' && !event.shiftKey && !isTyping(event.target)) {
-        event.preventDefault()
-        showUndone(actions.undo())
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [actions, showUndone])
-
-  /**
-   * Creates a list from a precon. Decks also add their cards to the inventory. Commander decks get
-   * the Commander format and their first commander.
-   */
-  const createFromPrecon = async (kind: ListKind, deck: PreconDeck, entries: PreconEntry[]) => {
-    const name = preconListName(deck.name, state.lists.filter((list) => list.kind === kind).map((list) => list.name))
-    const lines = entriesToLines(entries)
-    const format = deck.type === 'Commander Deck' ? 'commander' : null
-    const leader = format ? deck.cards.find((card) => card.board === 'commander')?.name : undefined
-    const text = serializeList(withCommander(withFormat(lines, format), leader ?? null))
-    const created = await actions.createList(kind, name, text)
-    if (kind === 'deck') actions.addOwned(entries)
-    setPrecon(null)
-    openList(created)
-    toast(
-      kind === 'deck'
-        ? `Created deck “${created.name}” and added its ${cardCount(totalCopies(entries))} to your inventory`
-        : `Created “${created.name}” with ${cardCount(totalCopies(entries))}`
-    )
-  }
+  const { pricedAt, refreshPrices } = usePrices(state.lists, state.inventory, view?.page === 'list' ? view.list : null)
+  const myTrade = useMemo(() => myTradeSide(state.inventory, state.lists, copies, pool), [state.inventory, state.lists, copies, pool])
+  useShortcuts(useCallback(() => showUndone(actions.undo()), [actions, showUndone]))
 
   if (state.status === 'loading') return <div className="splash">Loading…</div>
   if (state.status === 'error') {
@@ -212,6 +80,7 @@ export default function App() {
 
   const list = view?.page === 'list' ? state.lists.find((l) => sameList(l, view.list)) : undefined
   const trade = view?.page === 'trade' ? state.trades.find((t) => t.name === view.friend) : undefined
+  const newList = (kind: 'deck' | 'wishlist') => setDialog({ kind: 'new-list', list: kind })
 
   return (
     <div className="app">
@@ -220,22 +89,18 @@ export default function App() {
         inventory={state.inventory}
         view={view}
         onSelect={setView}
-        onNew={setCreating}
-        onSettings={() => setSettingsOpen(true)}
+        onNew={newList}
+        onSettings={() => setDialog({ kind: 'settings' })}
         pricedAt={pricedAt}
         onRefreshPrices={refreshPrices}
         trades={state.trades}
         myTrade={myTrade}
-        onShareTrade={() => setShareOpen(true)}
-        onImportTrade={() => setImporting({})}
-        onWizard={() => setWizardOpen(true)}
-        wizardOpen={wizardOpen}
+        onShareTrade={() => setDialog({ kind: 'share-trade' })}
+        onImportTrade={() => setDialog({ kind: 'import-trade' })}
+        onWizard={() => setDialog({ kind: 'wizard' })}
+        wizardOpen={dialog?.kind === 'wizard'}
       />
-      <main
-        className="main"
-        ref={mainRef}
-        onScroll={(event) => scrolls.current.set(shownPage.current, event.currentTarget.scrollTop)}
-      >
+      <main className="main" ref={scroll.ref} onScroll={scroll.onScroll}>
         <PriceProgress />
         {view?.page === 'inventory' && (
           <InventoryView
@@ -243,8 +108,8 @@ export default function App() {
             lists={state.lists}
             actions={actions}
             onOpenList={openList}
-            onAddPrecon={() => setPrecon('deck')}
-            onValueDetails={() => setValueOpen(true)}
+            onAddPrecon={() => setDialog({ kind: 'precon', list: 'deck' })}
+            onValueDetails={() => setDialog({ kind: 'value' })}
             startPasting={view.paste}
           />
         )}
@@ -255,20 +120,11 @@ export default function App() {
             trades={state.trades}
             actions={actions}
             onOpenList={openList}
-            onOpenTrade={(friend) => setView({ page: 'trade', friend })}
-            onNew={setCreating}
+            onOpenTrade={openTrade}
+            onNew={newList}
           />
         )}
-        {list && (
-          <ListView
-            key={`${list.kind}/${list.name}`}
-            list={list}
-            inventory={state.inventory}
-            pool={pool}
-            actions={actions}
-            onOpenList={openList}
-          />
-        )}
+        {list && <ListView key={`${list.kind}/${list.name}`} list={list} inventory={state.inventory} pool={pool} actions={actions} onOpenList={openList} />}
         {trade && (
           <TradeView
             key={trade.name}
@@ -278,145 +134,35 @@ export default function App() {
             lists={state.lists}
             actions={actions}
             onOpenList={openList}
-            onUpdate={() => setImporting({ replaceName: trade.name })}
-            onRenamed={(name) => setView({ page: 'trade', friend: name })}
+            onUpdate={() => setDialog({ kind: 'import-trade', replaceName: trade.name })}
+            onRenamed={openTrade}
           />
         )}
-        {view === null &&
-          (state.inventory.size === 0 ? (
-            <div className="empty welcome">
-              <h1>Welcome to MTG Dreams</h1>
-              <p className="muted">Decks are built from the cards you own, so start by adding your collection.</p>
-              <div className="welcome-actions">
-                <button type="button" className="primary" onClick={() => setView({ page: 'inventory', paste: true })}>
-                  Paste your collection
-                </button>
-                <button type="button" onClick={() => setPrecon('deck')}>
-                  Add a precon you own
-                </button>
-              </div>
-              <p className="muted small">
-                Or plan first:{' '}
-                <button type="button" className="link-btn" onClick={() => setCreating('deck')}>
-                  New deck
-                </button>{' '}
-                ·{' '}
-                <button type="button" className="link-btn" onClick={() => setCreating('wishlist')}>
-                  New wishlist
-                </button>{' '}
-                ·{' '}
-                <button type="button" className="link-btn" onClick={() => setWizardOpen(true)}>
-                  Let the Deck Wizard plan a Commander deck
-                </button>
-              </p>
-            </div>
-          ) : (
-            <div className="empty welcome">
-              <h1>Welcome to MTG Dreams</h1>
-              <p className="muted">
-                Build a deck from the {cardCount(totalCopies(state.inventory.values()))} you own, or plan one with a
-                wishlist.
-              </p>
-              <div className="welcome-actions">
-                <button type="button" className="primary" onClick={() => setCreating('deck')}>
-                  New deck
-                </button>
-                <button type="button" onClick={() => setCreating('wishlist')}>
-                  New wishlist
-                </button>
-              </div>
-              <p className="muted small">
-                New to Commander?{' '}
-                <button type="button" className="link-btn" onClick={() => setWizardOpen(true)}>
-                  Let the Deck Wizard plan a deck with you
-                </button>
-              </p>
-            </div>
-          ))}
+        {view === null && (
+          <Welcome
+            owned={totalCopies(state.inventory.values())}
+            onPaste={() => setView({ page: 'inventory', paste: true })}
+            onAddPrecon={() => setDialog({ kind: 'precon', list: 'deck' })}
+            onNew={newList}
+            onWizard={() => setDialog({ kind: 'wizard' })}
+          />
+        )}
       </main>
       <HoverPreview />
       <HistorySync ready={state.status === 'ready'} lists={state.lists} inventory={state.inventory} />
-      {creating && (
-        <NewListDialog
-          kind={creating}
-          onClose={() => setCreating(null)}
-          onFromPrecon={() => {
-            setPrecon(creating)
-            setCreating(null)
-          }}
-          onWizard={
-            creating === 'wishlist'
-              ? () => {
-                  setCreating(null)
-                  setWizardOpen(true)
-                }
-              : undefined
-          }
-          onCreate={async (name, text, formatId, addToInventory) => {
-            const lines = withFormat(parseList(text), formatId)
-            const created = await actions.createList(creating, name, serializeList(lines))
-            const missing = addToInventory ? copiesToAdd(cardLines(lines), state.inventory, pool) : []
-            if (missing.length > 0) actions.addOwned(missing)
-            setCreating(null)
-            openList(created)
-          }}
-        />
-      )}
-      {precon && (
-        <PreconDialog
-          target={{ kind: precon === 'deck' ? 'new-deck' : 'new-list' }}
-          onClose={() => setPrecon(null)}
-          onAdd={(deck, entries) => createFromPrecon(precon, deck, entries)}
-        />
-      )}
-      {settingsOpen && (
-        <SettingsDialog
-          onClose={() => setSettingsOpen(false)}
-          dataDir={state.dataDir}
-          onOpenDataDir={() => void window.api.openDataDir()}
-          onChangeDataDir={changeDataDir}
-          pricedAt={pricedAt}
-          onRefreshPrices={refreshPrices}
-        />
-      )}
-      {conflict && (
-        <ConflictDialog
-          name={conflict.name}
-          onKeepMine={() => void actions.resolveConflict(true)}
-          onLoadOther={() => void actions.resolveConflict(false)}
-        />
-      )}
-      {valueOpen && <CollectionValueDialog inventory={state.inventory} onClose={() => setValueOpen(false)} />}
-      {wizardOpen && (
-        <DeckWizardDialog
-          onClose={() => setWizardOpen(false)}
-          wishlistNames={state.lists.filter((l) => l.kind === 'wishlist').map((l) => l.name)}
-          onCreate={async (name, text, cards) => {
-            const created = await actions.createList('wishlist', name, text)
-            setWizardOpen(false)
-            openList(created)
-            toast(`Created wishlist “${created.name}” with ${cardCount(cards)}`)
-          }}
-        />
-      )}
-      {shareOpen && (
-        <ShareTradeDialog myTrade={myTrade} onClose={() => setShareOpen(false)} />
-      )}
-      {importing && (
-        <ImportTradeDialog
-          existingNames={state.trades.map((t) => t.name)}
-          replaceName={importing.replaceName}
-          onClose={() => setImporting(null)}
-          onImport={async (snapshot) => {
-            const name = await actions.saveTrade(snapshot)
-            setImporting(null)
-            setView({ page: 'trade', friend: name })
-            toast(
-              `Imported ${name}'s trade list: ${cardCount(totalCopies(snapshot.haves))} they have, ${cardCount(totalCopies(snapshot.wants))} they want`
-            )
-          }}
-        />
-      )}
+      <AppDialogs
+        dialog={dialog}
+        setDialog={setDialog}
+        state={state}
+        actions={actions}
+        conflict={conflict}
+        pool={pool}
+        myTrade={myTrade}
+        pricedAt={pricedAt}
+        onRefreshPrices={refreshPrices}
+        onOpenList={openList}
+        onOpenTrade={openTrade}
+      />
     </div>
   )
 }

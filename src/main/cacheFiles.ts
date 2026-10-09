@@ -43,3 +43,38 @@ export function writeCacheFileNow(name: string, data: unknown): void {
     writeFileSync(path, JSON.stringify(data))
   } catch {}
 }
+
+/** A cached answer from a service, with when it was fetched. */
+interface Cached<T> {
+  fetchedAt: number
+  data: T
+}
+
+/** Cached answers read or written this session, by file name. */
+const memory = new Map<string, Cached<unknown>>()
+
+/**
+ * Serves a cache file while younger than `ttlMs`, from memory once read; otherwise fetches the
+ * data and caches it, serving the stale copy if the fetch fails.
+ * @param name - Path relative to userData.
+ * @throws The fetch error when nothing is cached.
+ */
+export async function cachedFetch<T>(name: string, ttlMs: number, fetch: () => Promise<T>): Promise<T> {
+  const copy = (memory.get(name) as Cached<T> | undefined) ?? (await readCacheFile<Cached<T>>(name))
+  if (copy) memory.set(name, copy)
+  if (copy && Date.now() - copy.fetchedAt < ttlMs) return copy.data
+  try {
+    const fresh: Cached<T> = { fetchedAt: Date.now(), data: await fetch() }
+    memory.set(name, fresh)
+    await writeCacheFile(name, fresh)
+    return fresh.data
+  } catch (error) {
+    if (copy) return copy.data
+    throw error
+  }
+}
+
+/** Forgets the cached answers held in memory, so the next reads come from disk (tests). */
+export function clearCacheMemory(): void {
+  memory.clear()
+}

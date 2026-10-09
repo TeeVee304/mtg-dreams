@@ -1,4 +1,4 @@
-import { isCreatureType, MECHANICS, type CardProfile, type MechanicId, type Signal } from './mechanics'
+import { isCreatureType, MECHANICS, type CardProfile, type MechanicId, type Signal } from './vocabulary'
 
 /**
  * Connects cards to the cards a deck is built around (its commander and pinned key cards): which

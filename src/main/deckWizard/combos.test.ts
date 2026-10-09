@@ -4,7 +4,8 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { bracketFacts, clearSpellbookMemory, findCombos } from './combos'
+import { clearCacheMemory } from '../cacheFiles'
+import { bracketFacts, findCombos } from './combos'
 import { SERVICES, setEnvironment } from '../environment'
 import { setWizardServices } from './services'
 
@@ -34,7 +35,7 @@ beforeEach(async () => {
   setEnvironment({ ...SERVICES, userData: dir, documents: dir, appData: dir, trash: async () => undefined, userAgent: 'MTGDreams/test' })
   setWizardServices({ spellbookApi: base })
   requests.length = 0
-  clearSpellbookMemory()
+  clearCacheMemory()
 })
 afterEach(() => rm(dir, { recursive: true, force: true }))
 
@@ -44,7 +45,7 @@ describe('Commander Spellbook client', () => {
     expect(search?.included.map((c) => c.id)).toEqual(['618-1537'])
     expect(requests[0].body).toEqual({ commanders: [{ card: 'Kiki-Jiki, Mirror Breaker' }], main: [{ card: 'Zealous Conscripts' }, { card: 'Lightning Bolt' }] })
     await findCombos(['Kiki-Jiki, Mirror Breaker'], ['Lightning Bolt', 'Zealous Conscripts'])
-    clearSpellbookMemory()
+    clearCacheMemory()
     await findCombos(['Kiki-Jiki, Mirror Breaker'], ['Zealous Conscripts', 'Lightning Bolt'])
     expect(requests).toHaveLength(1)
   })

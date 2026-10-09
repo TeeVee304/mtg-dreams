@@ -1,5 +1,5 @@
 import { BRACKETS, engineChoice, interactionOf, paceOf, STRATEGIES, winconChoice, type BracketId, type DeckBrief, type WinconId } from './deckBrief'
-import { MECHANICS, ROLES, type MechanicId, type RoleId, type Signal } from './mechanics'
+import { MECHANICS, ROLES, type MechanicId, type RoleId, type Signal } from './vocabulary'
 import type { FocusCard } from './synergy'
 
 /**

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { readCard, type CardProfile, type MechanicId, type RoleId } from './mechanics'
+import { readCard } from './mechanics'
+import type { CardProfile, MechanicId, RoleId } from './vocabulary'
 import { testCard, type TestCardName } from './testCards'
 
 const read = (name: TestCardName) => readCard(testCard(name))

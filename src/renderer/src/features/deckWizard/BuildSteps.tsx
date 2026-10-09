@@ -10,7 +10,7 @@ import type { GlossaryEntry } from '@shared/deckWizard/glossary'
 import { formatEur } from '../../lib/format'
 import { previewHandlers } from '../../components/HoverPreview'
 import { DeckReportPanel } from './DeckReport'
-import { shortName } from './model'
+import { shortName } from '@shared/cards'
 import { TermText, Tip } from './Term'
 
 /**

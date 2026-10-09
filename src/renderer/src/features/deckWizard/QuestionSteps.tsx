@@ -18,14 +18,14 @@ import {
   type WinconOption
 } from '@shared/deckWizard/deckBrief'
 import type { DeckIdea } from '@shared/deckWizard/deckIdeas'
-import { ROLES, type MechanicId } from '@shared/deckWizard/mechanics'
+import { ROLES, type MechanicId } from '@shared/deckWizard/vocabulary'
 import { PRICE_BASES } from '@shared/pricing'
 import { formatEur } from '../../lib/format'
 import { Segmented } from '../../components/Controls'
 import { previewHandlers } from '../../components/HoverPreview'
 import { CardSearchBox } from './CardSearchBox'
 import { ChoiceGroup, type ChoiceOption } from './ChoiceGroup'
-import { shortName } from './model'
+import { shortName } from '@shared/cards'
 import { Tip } from './Term'
 
 /**

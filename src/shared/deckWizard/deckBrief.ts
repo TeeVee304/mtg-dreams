@@ -1,5 +1,5 @@
 import { nameKey } from '../decklist'
-import { mechanicName, MECHANICS, ROLES, type MechanicId, type RoleId, type Signal } from './mechanics'
+import { mechanicName, MECHANICS, ROLES, type MechanicId, type RoleId, type Signal } from './vocabulary'
 import { DEFAULT_PRICE_BASIS, isPriceBasis } from '../pricing'
 import { providePhrase, type FocusCard } from './synergy'
 import type { PriceBasis } from '../types'

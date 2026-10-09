@@ -71,12 +71,12 @@ describe.skipIf(!SNAPSHOT || !existsSync(SNAPSHOT))('the card reader against EDH
   beforeAll(async () => {
     setEnvironment({ ...SERVICES, userData: DIR!, documents: DIR!, appData: DIR!, trash: async () => undefined, userAgent: 'MTGDreams/benchmark' })
     setWizardServices({ spellbookApi: 'http://127.0.0.1:9' })
-    const helper = await import('./deckHelper')
+    const { deckFocusInfo } = await import('./focus')
     const snapshot = JSON.parse(readFileSync(SNAPSHOT!, 'utf8')) as Snapshot[]
     for (const commander of snapshot) {
       let focus: DeckFocusInfo
       try {
-        focus = await helper.deckFocusInfo(commander.name, [], 'trend')
+        focus = await deckFocusInfo(commander.name, [], 'trend')
       } catch {
         continue
       }

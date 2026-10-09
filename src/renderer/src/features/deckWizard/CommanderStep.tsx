@@ -4,7 +4,7 @@ import { MAX_ANCHORS, type DeckBrief } from '@shared/deckWizard/deckBrief'
 import { formatEur } from '../../lib/format'
 import { previewHandlers } from '../../components/HoverPreview'
 import { CardSearchBox } from './CardSearchBox'
-import { shortName } from './model'
+import { shortName } from '@shared/cards'
 
 /** What the wizard knows about the chosen commander and key cards. */
 export interface FocusState {

@@ -6,7 +6,7 @@ import { pickReason } from '@shared/deckWizard/deckDraft'
 import { offeredGroups } from '@shared/deckWizard/deckPool'
 import { FLUBS_BRIEF } from '@shared/deckWizard/testDecks'
 import { setEnvironment, SERVICES } from '../environment'
-import type { DeckPlan } from './deckHelper'
+import type { DeckPlan } from './planning'
 
 /**
  * Acceptance test on real data: a Flubs, the Fool deck built around Valakut, the Molten Pinnacle,
@@ -22,36 +22,38 @@ const DIR = process.env.MTG_DREAMS_LIBRARY_DIR
 describe.skipIf(!DIR)('building the Flubs + Valakut deck from real data', { timeout: 600_000 }, () => {
   let plan: DeckPlan
   let wincons: WinconOption[]
-  let helper: typeof import('./deckHelper')
+  let focus: typeof import('./focus')
+  let planning: typeof import('./planning')
 
   beforeAll(async () => {
     setEnvironment({ ...SERVICES, userData: DIR!, documents: DIR!, appData: DIR!, trash: async () => undefined, userAgent: 'MTGDreams/acceptance-test' })
-    helper = await import('./deckHelper')
+    focus = await import('./focus')
+    planning = await import('./planning')
     // The precons' statistics steer the picks, as in the app once they're downloaded.
     await (await import('./cardLibrary')).ensureCardLibrary()
     await (await import('./community')).loadCommunityDecks()
-    wincons = await helper.deckWincons(FLUBS_BRIEF)
-    plan = await helper.planDeck(FLUBS_BRIEF)
+    wincons = await focus.deckWincons(FLUBS_BRIEF)
+    plan = await planning.planDeck(FLUBS_BRIEF)
     await writeFile(join(DIR!, 'flubs-deck.md'), report(plan, wincons))
   }, 600_000)
 
   const picked = (name: string) => plan.draft.picks.find((p) => p.name === name)
 
   it('finds commanders, and cards a commander’s deck may play, by name', async () => {
-    expect((await helper.searchDeckCards('flubs', { commanders: true, basis: 'trend' }))[0].name).toBe('Flubs, the Fool')
-    const valakut = await helper.searchDeckCards('valakut', { commander: 'Flubs, the Fool', basis: 'trend' })
+    expect((await focus.searchDeckCards('flubs', { commanders: true, basis: 'trend' }))[0].name).toBe('Flubs, the Fool')
+    const valakut = await focus.searchDeckCards('valakut', { commander: 'Flubs, the Fool', basis: 'trend' })
     expect(valakut.map((c) => c.name)).toEqual(expect.arrayContaining(['Valakut, the Molten Pinnacle', 'Valakut Exploration']))
-    expect(await helper.searchDeckCards('path to exile', { commander: 'Flubs, the Fool', basis: 'trend' })).toEqual([])
+    expect(await focus.searchDeckCards('path to exile', { commander: 'Flubs, the Fool', basis: 'trend' })).toEqual([])
   })
 
   it('says what Flubs and Valakut do, and how they connect', async () => {
-    const focus = await helper.deckFocusInfo('Flubs, the Fool', ['Valakut, the Molten Pinnacle'], 'trend')
-    expect(focus.commander.provides.map((t) => t.label)).toEqual(expect.arrayContaining(['Extra Land Drops', 'Discard']))
-    expect(focus.commander.needs).toContainEqual(expect.objectContaining({ label: 'Hellbent', plain: 'Empty hand' }))
-    expect(focus.anchors[0].links).toContain(
+    const info = await focus.deckFocusInfo('Flubs, the Fool', ['Valakut, the Molten Pinnacle'], 'trend')
+    expect(info.commander.provides.map((t) => t.label)).toEqual(expect.arrayContaining(['Extra Land Drops', 'Discard']))
+    expect(info.commander.needs).toContainEqual(expect.objectContaining({ label: 'Hellbent', plain: 'Empty hand' }))
+    expect(info.anchors[0].links).toContain(
       'Flubs, the Fool lets you play extra lands each turn, which puts extra lands onto the battlefield — Valakut, the Molten Pinnacle triggers whenever a land enters under your control.'
     )
-    expect(focus.anchors[0].conflicts).toEqual([])
+    expect(info.anchors[0].conflicts).toEqual([])
   })
 
   it('suggests Group Slug for Valakut', () => {

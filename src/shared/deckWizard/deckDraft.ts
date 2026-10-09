@@ -1,9 +1,10 @@
 import { BRACKETS, engineChoice, interactionOf, INTERACTIONS, STRATEGIES, winconChoice } from './deckBrief'
+import { shortName } from '../cards'
 import { nameKey } from '../decklist'
 import { DECK_CARDS, slotInfo, type Slot, type SlotId } from './deckTemplate'
 import { communityScore, fitSignal, isLand, rarestLink, slotScore, type CandidatePool, type PoolCard } from './deckPool'
 import { BASIC_LANDS, basicSplit, colorPips, landColors } from './manaBase'
-import { MECHANICS, mechanicName, type MechanicId } from './mechanics'
+import { MECHANICS, mechanicName, type MechanicId } from './vocabulary'
 import { explainLink } from './synergy'
 
 /**
@@ -190,9 +191,6 @@ export function draftDeck(pool: CandidatePool): Draft {
     .filter((gap) => gap.missing > 0)
   return { picks, short }
 }
-
-/** "Flubs" from "Flubs, the Fool". */
-const shortName = (name: string) => name.split(/,| \/\/ /)[0]
 
 /** How a drafted deck plays, in plain words, from its brief. */
 export function draftSummary(pool: CandidatePool): string {

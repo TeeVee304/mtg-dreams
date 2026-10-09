@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } from '@shared/cards'
 import { cardLines, nameKey } from '@shared/decklist'
 import type { Version } from '@shared/inventory'
@@ -18,21 +18,20 @@ import {
 } from '@shared/listModel'
 import type { CopyPool } from '@shared/copies'
 import type { CardLine, InventoryItem } from '@shared/types'
-import { bundledBasic } from '@shared/basics'
 import { getCardInfo } from '../stores/cardinfo'
 import { cleanError } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceDrop, useBaselines } from '../stores/history'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
+import { useCommanderPicking } from '../hooks/useCommanderPicking'
 import { listRows, summarize, type Row } from '../lib/summary'
 import { CardRow } from './CardRow'
 import { CardTile } from './CardTile'
-import { AddCardPanel } from './CardEditors'
 import { CompleteBanner } from './CompleteBanner'
 import { DeckStats } from './DeckStats'
 import { DeckTokens } from './DeckTokens'
-import { CardSearch, type SearchChoice } from './CardSearch'
+import { ListAddCards } from './ListAddCards'
 import { ListDialogs, type ListDialog } from './ListDialogs'
 import { ListHeader } from './ListHeader'
 import { ListTable } from './ListTable'
@@ -52,7 +51,8 @@ interface ListViewProps {
 
 /**
  * Deck or wishlist page: state and handlers; rendering is delegated to ListHeader, ListValueCards,
- * DeckStats, ListTable and ListDialogs. Rules come from {@link analyzeList}. Lines pinned to
+ * DeckStats, ListAddCards, ListTable and ListDialogs, and commander picking to
+ * {@link useCommanderPicking}. Rules come from {@link analyzeList}. Lines pinned to
  * printings missing from a partial (basic land) result trigger a `full` fetch.
  */
 export function ListView({ list, inventory, pool, actions, onOpenList }: ListViewProps) {
@@ -60,15 +60,11 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
   usePrintingsVersion()
   const isDeck = list.kind === 'deck'
   const noun = isDeck ? 'deck' : 'list'
-  const [adding, setAdding] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
   const [dialog, setDialog] = useState<ListDialog | null>(null)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
   const [hideOwned, setHideOwned] = useState(false)
   const [onlyProblems, setOnlyProblems] = useState(false)
-  /** Commander picking mode: the next clicked card becomes commander. */
-  const [picking, setPicking] = useState(false)
-  /** nameKey of the just-chosen commander, for a brief animation. */
-  const [crowned, setCrowned] = useState<string | null>(null)
 
   const cards = cardLines(list.lines)
   const settings = useSettings()
@@ -88,28 +84,11 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
       : priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
 
   const analysis = analyzeList(list.kind, list.lines, rows)
-  const { format, copiesOf, isCommander, canBeCommander, hasCommander, legalityErrors, ownershipErrors } = analysis
+  const { format, copiesOf, isCommander, hasCommander, legalityErrors, ownershipErrors } = analysis
   const mainCards = summary.cards - analysis.sideboardCards
   const size = isDeck && format ? deckSizeCheck(format, mainCards) : null
 
-  /** Picking is useful: a card can lead, or the commander can be removed; until card data loads, none can lead. */
-  const canPickCommander = !!format?.commander && rows.some((row) => isCommander(row) || canBeCommander(row))
-  /** Picking state of a row; the commander is always pickable, which removes it. */
-  const pickOf = (row: Row) => (picking ? (isCommander(row) || canBeCommander(row) ? 'ok' : 'no') : undefined)
-  useEffect(() => {
-    if (!canPickCommander) setPicking(false)
-  }, [canPickCommander])
-  useEffect(() => {
-    if (!picking) return
-    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setPicking(false)
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [picking])
-  useEffect(() => {
-    if (!crowned) return
-    const timer = setTimeout(() => setCrowned(null), 1800)
-    return () => clearTimeout(timer)
-  }, [crowned])
+  const { picking, canPickCommander, togglePicking, pickOf, isCrowned, chooseCommander } = useCommanderPicking(list, rows, analysis, actions)
 
   useEffect(() => {
     if (legalityErrors + ownershipErrors === 0) setOnlyProblems(false)
@@ -120,15 +99,6 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
 
   const filtering = filtersActive(filters) || hideOwned || onlyProblems
   const dataLoading = needsCardData(filters) && rows.some((row) => !row.info && !row.entry?.data?.notFound)
-
-  const inventoryChoices = useMemo<SearchChoice[]>(
-    () =>
-      [...inventory.values()].map((item) => {
-        const inOther = pool.inOtherDecks(list, nameKey(item.name))
-        return { name: item.name, hint: inOther > 0 ? `${item.qty} owned, ${Math.min(inOther, item.qty)} in other decks` : `${item.qty} owned` }
-      }),
-    [inventory, pool, list]
-  )
 
   const capsFor = (name: string) =>
     copyCaps(
@@ -142,52 +112,10 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
   const limitFor = (name: string) => limitReason(format, name, capsFor(name))
   const maxFor = (line: CardLine) => lineMax(line, capsFor(line.name), copiesOf(line.name))
 
-  const pickCard = (name: string) => {
-    const inList = copiesOf(name)
-    if (capsFor(name).cap - inList <= 0) {
-      toast(`${limitFor(name)}, and this ${noun} already has ${inList}.`, 'error')
-      return
-    }
-    const generic = bundledBasic(name, bundleBasics)
-    if (generic) {
-      actions.addCards(list, [{ qty: 1, name: generic.info.name, foil: false }])
-      toast(`Added 1× ${generic.info.name}`)
-      return
-    }
-    setAdding(name)
-  }
-
-  const addCaps = adding ? capsFor(adding) : null
-  const addInList = adding ? copiesOf(adding) : 0
-  const addRoom = addCaps ? addCaps.cap - addInList : Infinity
-  const addNote = [
-    isDeck && addCaps && (addCaps.inOtherDecks > 0 ? `${addCaps.ownedCap} of your ${addCaps.ownedQty} free` : `You own ${addCaps.ownedCap}`),
-    addInList > 0 && `${addInList} already in this ${noun}`,
-    format && addCaps && Number.isFinite(addCaps.formatCap) && `${format.label}: max ${addCaps.formatCap}`
-  ]
-    .filter(Boolean)
-    .join(' · ')
-
   const toggleOwned = (row: Row) => {
     const change = ownedToggle(row)
     if (change.kind === 'set') actions.setOwned(row.line.name, change.qty, lineVersion(row.line))
     else setDialog({ kind: 'unown', line: row.line, inventoryQty: row.inventoryQty, target: change.target })
-  }
-
-  const displayName = (row: Row) => row.flavorName ?? row.line.name
-
-  const togglePicking = () => setPicking(!picking && canPickCommander)
-
-  const chooseCommander = (row: Row) => {
-    setPicking(false)
-    if (isCommander(row)) {
-      actions.setListCommander(list, null)
-      toast(`${displayName(row)} is no longer your commander`)
-      return
-    }
-    actions.setListCommander(list, row.line.name)
-    setCrowned(nameKey(row.line.name))
-    toast(`${displayName(row)} now leads this ${noun}`)
   }
 
   const renderRow = (row: Row) => (
@@ -197,7 +125,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
       pick={pickOf(row)}
       onPick={() => chooseCommander(row)}
       leader={isCommander(row)}
-      crowned={crowned !== null && nameKey(row.line.name) === crowned}
+      crowned={isCrowned(row)}
       isDeck={isDeck}
       issue={analysis.issueOf(row)}
       shortfall={analysis.shortfallOf(row)}
@@ -222,7 +150,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
       isDeck={isDeck}
       pick={pickOf(row)}
       leader={isCommander(row)}
-      crowned={crowned !== null && nameKey(row.line.name) === crowned}
+      crowned={isCrowned(row)}
       issue={analysis.issueOf(row)}
       shortfall={analysis.shortfallOf(row)}
       onOpen={() => setDialog({ kind: 'card', lineId: row.line.id })}
@@ -295,35 +223,19 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         onManaValue={(manaValue) => setFilters({ ...filters, manaValue })}
       />
 
-      <div className="search-row">
-        {isDeck ? (
-          <CardSearch placeholder="Add a card from your inventory…  (Ctrl+K)" choices={inventoryChoices} onPick={pickCard} />
-        ) : (
-          <>
-            <CardSearch placeholder="Add a card to this list…  (Ctrl+K)" onPick={pickCard} />
-            <button type="button" onClick={() => setDialog({ kind: 'precon' })}>
-              Add precon…
-            </button>
-          </>
-        )}
-      </div>
-      {adding && (
-        <AddCardPanel
-          key={adding}
-          name={adding}
-          maxQty={Number.isFinite(addRoom) ? addRoom : undefined}
-          maxTitle={limitFor(adding)}
-          note={addNote || undefined}
-          actionLabel={isDeck ? 'Add to deck' : 'Add to list'}
-          sideboardChoice={sideboardAllowed}
-          onCancel={() => setAdding(null)}
-          onAdd={(card, side) => {
-            actions.addCards(list, [{ ...card, side }])
-            setAdding(null)
-            toast(`Added ${card.qty}× ${card.name}${side ? ' to the sideboard' : ''}`)
-          }}
-        />
-      )}
+      <ListAddCards
+        list={list}
+        inventory={inventory}
+        pool={pool}
+        actions={actions}
+        format={format}
+        copiesOf={copiesOf}
+        capsFor={capsFor}
+        limitFor={limitFor}
+        sideboardAllowed={sideboardAllowed}
+        onAddPrecon={() => setDialog({ kind: 'precon' })}
+        onAdding={setAdding}
+      />
 
       {cards.length > 0 ? (
         <ListTable

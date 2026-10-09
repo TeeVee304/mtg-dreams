@@ -10,7 +10,7 @@ import {
   type DeckBrief
 } from '@shared/deckWizard/deckBrief'
 import type { BuiltDeck } from '@shared/deckWizard/deckSession'
-import { ROLES } from '@shared/deckWizard/mechanics'
+import { ROLES } from '@shared/deckWizard/vocabulary'
 import { formatEur } from '../../lib/format'
 
 /**
@@ -95,8 +95,6 @@ export function clearDraft(): void {
   } catch {}
 }
 
-/** "Flubs" from "Flubs, the Fool". */
-export const shortName = (name: string) => name.split(/,| \/\/ /)[0]
 
 /** "A, B and C". */
 export const listWords = (words: string[]) => (words.length < 2 ? words.join('') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`)

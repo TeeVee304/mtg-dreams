@@ -256,6 +256,9 @@ export function frontTypeWords(typeLine: string): string[] {
 }
 
 /** @returns Section from the front face's types; `Other` when `info` is missing or matches none. */
+/** "Flubs" from "Flubs, the Fool": a card's name up to its comma or second face. */
+export const shortName = (name: string) => name.split(/,| \/\/ /)[0]
+
 export function typeGroup(info: CardInfo | null | undefined): TypeGroup {
   if (!info) return 'Other'
   const words = frontTypeWords(info.typeLine)

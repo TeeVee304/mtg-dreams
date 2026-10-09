@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { readCacheFile, writeCacheFile, writeCacheFileNow } from './cacheFiles'
+import { cachedFetch, clearCacheMemory, readCacheFile, writeCacheFile, writeCacheFileNow } from './cacheFiles'
 import { setEnvironment, SERVICES } from './environment'
 
 let dir = ''
@@ -33,5 +33,30 @@ describe('cache files', () => {
     await expect(writeCacheFile('blocker/inside.json', {})).resolves.toBeUndefined()
     expect(() => writeCacheFileNow('blocker/inside.json', {})).not.toThrow()
     expect(existsSync(join(dir, 'blocker', 'inside.json'))).toBe(false)
+  })
+})
+
+describe('cached fetches', () => {
+  const DAY = 24 * 60 * 60 * 1000
+
+  it('fetch once, then answer from memory and, after a restart, from disk', async () => {
+    let fetched = 0
+    const fetch = async () => ({ answer: ++fetched })
+    expect(await cachedFetch('answers/a.json', DAY, fetch)).toEqual({ answer: 1 })
+    expect(await cachedFetch('answers/a.json', DAY, fetch)).toEqual({ answer: 1 })
+    clearCacheMemory()
+    expect(await cachedFetch('answers/a.json', DAY, fetch)).toEqual({ answer: 1 })
+    expect(fetched).toBe(1)
+  })
+
+  it('fetch again once stale, and serve the stale copy when that fails', async () => {
+    let fetched = 0
+    await cachedFetch('answers/b.json', DAY, async () => ++fetched)
+    expect(await cachedFetch('answers/b.json', 0, async () => ++fetched)).toBe(2)
+    expect(await cachedFetch('answers/b.json', 0, () => Promise.reject(new Error('offline')))).toBe(2)
+  })
+
+  it('fail when nothing is cached and the fetch fails', async () => {
+    await expect(cachedFetch('answers/c.json', DAY, () => Promise.reject(new Error('offline')))).rejects.toThrow('offline')
   })
 })

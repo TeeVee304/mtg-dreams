@@ -25,8 +25,8 @@ export type CardLibraryStatus =
 /** What the wizard needs before it can build. */
 export interface DeckHelperStatus {
   library: CardLibraryStatus
-  /** Official precons read for statistics so far, and whether more are downloading. */
-  precons: { decks: number; loading: boolean }
+  /** Official precons read for statistics so far, whether more are downloading, and how many couldn't be. */
+  precons: { decks: number; loading: boolean; failed: number }
   /** Why the last download of card data or prices failed; null if it didn't. */
   error: string | null
 }

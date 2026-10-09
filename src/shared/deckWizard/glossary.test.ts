@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { STRATEGIES, WINCONS } from './deckBrief'
-import { ROLES } from './mechanics'
+import { ROLES } from './vocabulary'
 import { findTerms, glossaryEntry, GLOSSARY } from './glossary'
 
 const marked = (text: string, seen?: Parameters<typeof findTerms>[1]) =>

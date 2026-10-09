@@ -1,10 +1,11 @@
 import { isBasicLand } from '../cards'
 import { nameKey } from '../decklist'
+import { eurText } from '../pricing'
 import type { DeckBrief } from './deckBrief'
 import { fitSignal, isLand, MIN_FIT } from './deckPool'
 import { DECK_CARDS, type DeckTemplate, type SlotId } from './deckTemplate'
 import { colorIdentityIssue, findFormat, legalityIssue } from '../formats'
-import type { CardProfile } from './mechanics'
+import type { CardProfile } from './vocabulary'
 import { conflictsWith, explainConflict, type FocusCard } from './synergy'
 import type { LibraryCard } from './libraryCard'
 
@@ -58,8 +59,6 @@ export interface CheckedPick {
   slot: SlotId
 }
 
-/** "€12.50". */
-const eur = (value: number) => `€${value.toFixed(2)}`
 /** Commander format. */
 const COMMANDER = findFormat('commander')!
 
@@ -111,7 +110,7 @@ export function checkDeck(picks: CheckedPick[], context: CheckContext): DeckChec
     if (price === null) {
       unpriced++
     } else if (brief.budget.perCard !== null && price > brief.budget.perCard) {
-      const message = `${card.name} costs ${eur(price)}, over your ${eur(brief.budget.perCard)} limit per card.`
+      const message = `${card.name} costs ${eurText(price)}, over your ${eurText(brief.budget.perCard)} limit per card.`
       if (anchors.has(key)) warn(`${message} It stays, as one of your key cards.`, card.name)
       else error(message, card.name)
     }
@@ -128,7 +127,7 @@ export function checkDeck(picks: CheckedPick[], context: CheckContext): DeckChec
 
   if (cards !== DECK_CARDS) error(`The deck has ${cards} cards besides the commander; Commander needs exactly ${DECK_CARDS}.`)
   if (brief.budget.total !== null && total > brief.budget.total) {
-    error(`The deck costs ${eur(total)}, ${eur(total - brief.budget.total)} over your ${eur(brief.budget.total)} budget.`)
+    error(`The deck costs ${eurText(total)}, ${eurText(total - brief.budget.total)} over your ${eurText(brief.budget.total)} budget.`)
   }
   if (unpriced > 0) warn(`${unpriced} ${unpriced === 1 ? 'card has' : 'cards have'} no Cardmarket price, so the total may be higher.`)
   for (const anchor of brief.anchors) {

@@ -6,7 +6,7 @@ import { exclusion, isLand, type CandidatePool } from './deckPool'
 import type { DeckTemplate, SlotRole } from './deckTemplate'
 import { SLOT_ROLES } from './deckTemplate'
 import { colorPips, landColors } from './manaBase'
-import { ROLES, type CardProfile } from './mechanics'
+import { ROLES, type CardProfile } from './vocabulary'
 import type { LibraryCard } from './libraryCard'
 
 /**

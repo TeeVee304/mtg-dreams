@@ -1,11 +1,12 @@
 import type { CommunityDeck } from '@shared/deckWizard/community'
 import { readCacheFile, writeCacheFile } from '../cacheFiles'
-import { getPrecon, getPreconIndex } from '../precons'
+import { fetchPrecon, getPreconIndex } from '../precons'
 
 /**
  * Decks built by people for the wizard's statistics: the official Commander precons, through the
- * app's MTGJSON client. Each decklist is fetched once and kept, by name only, in one cache file;
- * new precons are added as MTGJSON lists them. Offline, the decks fetched so far are used.
+ * app's MTGJSON client. Each decklist is fetched once and kept, by name only, in one cache file
+ * (not in the app's own precon cache too); new precons are added as MTGJSON lists them. Offline,
+ * the decks fetched so far are used.
  *
  * @packageDocumentation
  */
@@ -28,6 +29,11 @@ interface Cache {
 
 let decks: CommunityDeck[] | null = null
 let loading: Promise<CommunityDeck[]> | null = null
+/** Decklists the last load couldn't fetch. */
+let failed = 0
+
+/** @returns How many decklists the last load couldn't fetch; they're tried again next time. */
+export const communityFailed = (): number => failed
 
 /** @returns Whether precons are loading. */
 export const communityLoading = (): boolean => loading !== null
@@ -59,16 +65,17 @@ async function load(): Promise<CommunityDeck[]> {
   }
   const missing = index.filter((fileName) => !known[fileName])
   let added = 0
+  failed = 0
   const next = async (): Promise<void> => {
     const fileName = missing.shift()
     if (!fileName) return
     try {
-      const precon = await getPrecon(fileName)
+      const precon = await fetchPrecon(fileName)
       const of = (board: string) => precon.cards.filter((card) => card.board === board).map((card) => card.name)
       known[fileName] = { id: fileName, name: precon.name, commanders: of('commander'), cards: of('main') }
       added++
     } catch {
-      // Tried again next time.
+      failed++
     }
     return next()
   }

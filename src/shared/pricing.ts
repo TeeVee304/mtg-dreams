@@ -21,6 +21,9 @@ export function isPriceBasis(value: unknown): value is PriceBasis {
   return PRICE_BASES.some((basis) => basis.id === value)
 }
 
+/** "€12.50": for messages written outside the window, which formats prices in the player's own locale. */
+export const eurText = (value: number) => `€${value.toFixed(2)}`
+
 /** @returns UI label of `basis`. */
 export function priceBasisLabel(basis: PriceBasis): string {
   return PRICE_BASES.find((option) => option.id === basis)?.label ?? basis

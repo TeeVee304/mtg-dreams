@@ -4,7 +4,7 @@ import type { Combo } from './combos'
 import { engineChoice, engineOptions, isEngine, STRATEGIES, winconOptions, WINCONS, type Choice, type StrategyId, type WinconId } from './deckBrief'
 import { nameKey } from '../decklist'
 import { engineSignal, isLand, MIN_FIT, PRECON_IDEA, winconSignal, type CandidatePool, type PoolCard } from './deckPool'
-import type { MechanicId } from './mechanics'
+import type { MechanicId } from './vocabulary'
 import type { FocusCard } from './synergy'
 
 /**

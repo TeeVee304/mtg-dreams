@@ -4,7 +4,7 @@ import { nameKey } from '../decklist'
 import { pickReason, type DeckPick, type Draft } from './deckDraft'
 import { slotScore, type CandidatePool, type PoolCard } from './deckPool'
 import type { Slot, SlotId } from './deckTemplate'
-import type { MechanicId, RoleId } from './mechanics'
+import type { MechanicId, RoleId } from './vocabulary'
 
 /**
  * The optimizer: improves a drafted 99 one swap at a time. Each card keeps its place in the plan,

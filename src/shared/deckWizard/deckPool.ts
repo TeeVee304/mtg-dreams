@@ -1,12 +1,13 @@
 import { frontTypeWords, isBasicLand } from '../cards'
 import { nameKey } from '../decklist'
+import { eurText } from '../pricing'
 import { BRACKET_RULES, bracketName } from './brackets'
 import { cardStrength } from './cardStrength'
 import type { CommunityScore, CommunityStats } from './community'
 import type { BracketId, DeckBrief, WinconId } from './deckBrief'
 import type { DeckTemplate, Slot } from './deckTemplate'
 import { BASIC_LANDS, landColors } from './manaBase'
-import { isCreatureType, ROLES, type CardProfile, type MechanicId, type RoleId, type Signal } from './mechanics'
+import { isCreatureType, ROLES, type CardProfile, type MechanicId, type RoleId, type Signal } from './vocabulary'
 import { conflictsWith, linksTo, scoreLinks, type Conflict, type FocusCard, type Link } from './synergy'
 import type { LibraryCard } from './libraryCard'
 
@@ -326,8 +327,6 @@ export interface Exclusion {
   message: string
 }
 
-/** "€12.50". */
-const eur = (value: number) => `€${value.toFixed(2)}`
 
 /**
  * Whether a card may be picked for the deck: not the commander or a key card, legal in Commander,
@@ -369,7 +368,7 @@ export function exclusion(
   const budgeted = brief.budget.total !== null || brief.budget.perCard !== null
   if (price === null && budgeted) return { kind: 'unpriced', message: `${card.name} has no Cardmarket price, so it can't be fitted to the budget.` }
   if (price !== null && brief.budget.perCard !== null && price > brief.budget.perCard) {
-    return { kind: 'over-cap', message: `${card.name} costs ${eur(price)}, over the ${eur(brief.budget.perCard)} limit per card.` }
+    return { kind: 'over-cap', message: `${card.name} costs ${eurText(price)}, over the ${eurText(brief.budget.perCard)} limit per card.` }
   }
   return null
 }

@@ -3,6 +3,7 @@ import type { DeckHelperStatus, DeckPlanSummary } from '@shared/deckWizard/api'
 import type { DeckBrief } from '@shared/deckWizard/deckBrief'
 import type { DeckReport } from '@shared/deckWizard/deckReport'
 import { wishlistText } from '@shared/deckWizard/deckWishlist'
+import { shortName } from '@shared/cards'
 import { preconListName } from '@shared/precons'
 import { useAsyncAction } from '../../hooks/useAsyncAction'
 import { cleanError } from '../../lib/format'
@@ -10,7 +11,7 @@ import { Modal } from '../../components/Modal'
 import { BriefPanel, StepRail } from './BriefPanel'
 import { BuildStep, ReviewStep, type Job } from './BuildSteps'
 import { CommanderStep, type FocusState } from './CommanderStep'
-import { briefKey, clearDraft, loadDraft, newDraft, saveDraft, shortName, STEPS, type StepId, type WizardDraft } from './model'
+import { briefKey, clearDraft, loadDraft, newDraft, saveDraft, STEPS, type StepId, type WizardDraft } from './model'
 import { IdeaStep, PowerStep, TuneStep, type IdeasState } from './QuestionSteps'
 import { WizardHat } from './WizardHat'
 import './wizard.css'
@@ -225,6 +226,11 @@ export function DeckWizard({ onClose, onCreate, wishlistNames }: DeckWizardProps
       <p className="muted small library-note" aria-live="polite">
         <span className="spinner" aria-hidden="true" /> Reading the official precons, to see what decks built by people play. This
         happens once; until then, decks are built from the cards alone.
+      </p>
+    ) : status && !status.precons.loading && status.precons.failed > 0 ? (
+      <p className="muted small library-note">
+        {status.precons.failed === 1 ? '1 official precon' : `${status.precons.failed} official precons`} couldn’t be downloaded; decks are
+        built from the {status.precons.decks} that could. MTG Dreams tries again next time.
       </p>
     ) : null
 
