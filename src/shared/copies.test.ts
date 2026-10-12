@@ -138,16 +138,18 @@ describe('unbuilt decks', () => {
       cards.map((c) => `${c.missing}/${c.wants} ${c.name}, buy ${c.buy}`)
     ])
 
-  it('use every owned copy and reserve none, while their upgrades share them', () => {
+  it('use every owned copy and reserve none, and so do their upgrades', () => {
     expect(needs('3 Sol Ring')).toEqual([
       ['Burn', []],
       ['Elves', ['1/1 Llanowar Elves, buy 1']],
       ['Elves Plus', ['1/4 Sol Ring, buy 1']],
-      ['Other', ['1/1 Sol Ring, buy 0']]
+      ['Other', []]
     ])
+    const plus = { kind: 'wishlist' as const, name: 'Elves Plus' }
     expect(pool.held(elves, 'sol ring', 3)).toBe(0)
-    expect(pool.holders(elves, 'sol ring', 3)).toEqual([])
-    expect(pool.claimed('sol ring', 3)).toBe(4)
+    expect(pool.held(plus, 'sol ring', 3)).toBe(0)
+    expect(pool.holders(plus, 'sol ring', 3)).toEqual([])
+    expect(pool.claimed('sol ring', 3)).toBe(3)
   })
 
   it('cap only at the copies owned when adding cards, and leave other decks uncapped', () => {
@@ -159,7 +161,7 @@ describe('unbuilt decks', () => {
   it('keep the copies they use out of trades, and are named after the lists that reserve', () => {
     expect(pool.inUse('sol ring', 3)).toBe(4)
     expect(copyPool(unbuilt.slice(0, 2)).inUse('sol ring', 9)).toBe(3)
-    expect(pool.usedBy('sol ring', 5).map((held) => `${held.qty} ${held.name}`)).toEqual(['2 Burn', '1 Elves Plus', '1 Other', '1 Elves'])
+    expect(pool.usedBy('sol ring', 5).map((held) => `${held.qty} ${held.name}`)).toEqual(['2 Burn', '1 Other', '2 Elves', '2 Elves Plus'])
   })
 
   it('buy only the copies no purchase ahead covers', () => {
