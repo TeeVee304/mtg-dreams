@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   cardView: 'table',
   tradeName: '',
   sort: DEFAULT_SORT,
+  sortReverse: false,
   priceBasis: DEFAULT_PRICE_BASIS,
   dropAlertPercent: DEFAULT_DROP_ALERT_PERCENT
 }
@@ -30,6 +31,7 @@ const CHECKS: { [K in keyof AppSettings]: [valid: (value: unknown) => value is A
   cardView: [(value): value is AppSettings['cardView'] => value === 'table' || value === 'grid', 'view'],
   tradeName: [(value): value is string => typeof value === 'string' && value.length <= MAX_TRADE_NAME, 'name'],
   sort: [isSortKey, 'sort'],
+  sortReverse: [isBoolean, 'setting'],
   priceBasis: [isPriceBasis, 'price basis'],
   dropAlertPercent: [
     (value): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 90,

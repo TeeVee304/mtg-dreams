@@ -95,7 +95,7 @@ export function CardsTab(props: CardsTabProps) {
             <th>Wanted in</th>
             <th
               className="col-num"
-              title="Copies to buy so every list is covered: each list needs its own, except upgrades and unbuilt decks, which share"
+              title="Copies to buy so every list is covered: each built deck needs its own; wishlists, upgrades and unbuilt decks share"
             >
               To buy
             </th>

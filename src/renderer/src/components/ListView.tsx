@@ -77,6 +77,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const { bundleBasics } = settings
   const sortView = isDeck ? 'deck' : 'wishlist'
   const sort = sortFor(sortView, settings.sort)
+  /** Reversed only when the view has the chosen sort, not a stand-in for it. */
+  const sortReverse = settings.sortReverse && sort === settings.sort
   const sideboardAllowed = !listFormat(list.lines)?.commander
   const rows = listRows(list, inventory, settings, pool).map((row) =>
     row.held > 0 ? { ...row, holders: pool.holders(list, nameKey(row.line.name), row.inventoryQty) } : row
@@ -108,7 +110,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     if (legalityErrors + ownershipErrors === 0) setOnlyProblems(false)
   }, [legalityErrors, ownershipErrors])
 
-  const visibleRows = sortRows(filterRows(rows, list.kind, analysis, { filters, hideOwned, onlyProblems }), sort)
+  const visibleRows = sortRows(filterRows(rows, list.kind, analysis, { filters, hideOwned, onlyProblems }), sort, sortReverse)
   const sections = sectionRows(visibleRows, analysis)
 
   const filtering = filtersActive(filters) || hideOwned || onlyProblems
@@ -294,6 +296,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
           totalCards={summary.cards}
           sortView={sortView}
           sort={sort}
+          sortReverse={sortReverse}
           filters={filters}
           onFilters={setFilters}
           hideOwned={hideOwned}

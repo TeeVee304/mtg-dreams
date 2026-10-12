@@ -8,7 +8,7 @@
  */
 
 import { compareCards, isBasicLand, isCardSort } from './cards'
-import { listId, listNeeds, listWeight, type CardNeed, type CopyPool, type ListKey, type PoolList } from './copies'
+import { listId, listNeeds, listWeights, type CardNeed, type CopyPool, type ListKey, type PoolList } from './copies'
 import { sumOf } from './totals'
 import type { CardInfo, InventoryItem } from './types'
 
@@ -20,11 +20,11 @@ export interface WantingList extends ListKey {
   wants: number
   /** Copies of the card the list lacks. */
   missing: number
-  /** Copies to buy for it once the lists ahead have theirs ({@link CardNeed.buy}). */
+  /** Copies to buy for it once the lists before it have theirs ({@link CardNeed.buy}). */
   buy: number
   /** {@link listId} of the deck it upgrades, whose bought copies it shares; null otherwise. */
   upgrades: string | null
-  /** Most Wanted weight: priority weight; decks as high priority. */
+  /** Most Wanted weight ({@link listWeights}): by the wishlist's place in your order; decks as the top one. */
   weight: number
 }
 
@@ -68,13 +68,14 @@ export type UnitPrice = number | null | undefined
  */
 export function mostWanted(lists: PoolList[], inventory: Map<string, InventoryItem>, pool?: CopyPool): MostWanted {
   const needs = listNeeds(lists, inventory, pool)
+  const weights = listWeights(lists)
   const missing: Record<string, number> = {}
   for (const { list, needs: cards } of needs) missing[listId(list)] = cards.filter((need) => !isBasicLand(need.name)).length
 
   const byKey = new Map<string, WantedCard>()
   for (const { list, upgrades, needs: cards } of needs) {
     const id = listId(list)
-    const weight = listWeight(list)
+    const weight = weights.get(id)!
     for (const need of cards) {
       const basic = isBasicLand(need.name)
       const card = byKey.get(need.key) ?? {
@@ -129,7 +130,7 @@ export const WANTED_SORTS = [
   {
     id: 'value',
     label: 'Best value',
-    hint: 'Lowest cost per list served: decks and high-priority lists count double, low-priority lists half'
+    hint: 'Lowest cost per list served: decks and your top wishlists count most, the bottom ones least'
   },
   { id: 'lists', label: 'Most wanted', hint: 'Wanted by the most lists' },
   { id: 'completion', label: 'Closest to completing', hint: 'Finishes lists that are nearly done' },
@@ -236,8 +237,9 @@ function purchaseSteps(card: WantedCard): Step[] {
 /**
  * Greedy budget plan: repeatedly buys the affordable step with the most benefit per euro, where
  * benefit is Σ list weight × (1 + 1 ÷ cards that list still misses). Each purchase brings its lists
- * closer to completion, raising the benefit of their remaining cards. One step per wanting list,
- * taken in allocation order, since bought copies go to the lists ahead first ({@link purchaseSteps}).
+ * closer to completion, raising the benefit of their remaining cards. One step per list that must
+ * buy copies, taken in allocation order; the lists those copies also serve ride along
+ * ({@link purchaseSteps}).
  * @param cards - Nonbasic Most Wanted cards.
  * @param wanted - Missing cards per list ({@link MostWanted}).
  */

@@ -163,10 +163,21 @@ export function filterRows<R extends ModelRow>(
 }
 
 /**
- * @returns Rows in `sort` order; `file` returns the input as is. Price sorts are descending
- * with unpriced rows last.
+ * @param reverse - The reverse of the usual direction ({@link sortRows}); unpriced rows stay last.
+ * @returns Rows in `sort` order.
  */
-export function sortRows<R extends ModelRow>(rows: R[], sort: SortKey): R[] {
+export function sortRows<R extends ModelRow>(rows: R[], sort: SortKey, reverse = false): R[] {
+  const sorted = sortRowsUsual(rows, sort)
+  if (!reverse) return sorted
+  if (sort !== 'unit' && sort !== 'needed') return [...sorted].reverse()
+  return [...sorted.filter((row) => row.unit !== null).reverse(), ...sorted.filter((row) => row.unit === null)]
+}
+
+/**
+ * @returns Rows in `sort` order, in its usual direction; `file` returns the input as is. Price,
+ * quantity and owned sorts are descending, with unpriced rows last.
+ */
+function sortRowsUsual<R extends ModelRow>(rows: R[], sort: SortKey): R[] {
   const byName = (a: R, b: R) => a.line.name.localeCompare(b.line.name)
   const neededValue = (row: R) => (row.unit ?? -1) * (row.line.qty - row.owned)
   const sortable = (row: R) => ({ name: row.line.name, info: row.info, rarity: row.rarity })
@@ -181,6 +192,8 @@ export function sortRows<R extends ModelRow>(rows: R[], sort: SortKey): R[] {
       return [...rows].sort((a, b) => neededValue(b) - neededValue(a))
     case 'qty':
       return [...rows].sort((a, b) => b.line.qty - a.line.qty || byName(a, b))
+    case 'owned':
+      return [...rows].sort((a, b) => b.owned - a.owned || byName(a, b))
     default:
       return isCardSort(sort) ? [...rows].sort((a, b) => compareCards(sort, sortable(a), sortable(b))) : rows
   }

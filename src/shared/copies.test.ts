@@ -17,31 +17,32 @@ describe('allocationOrder', () => {
 })
 
 describe('copyPool', () => {
-  it('counts the copies lists ahead claim', () => {
+  it('counts the copies built decks hold, which wishlists do not compete for', () => {
     const pool = copyPool(lists)
-    expect(['Burn', 'Zombies', 'Goblins', 'Angels', 'Someday'].map((name) => pool.held(lists.find((l) => l.name === name)!, 'sol ring', 9))).toEqual([0, 1, 2, 3, 4])
-    expect(pool.held({ kind: 'deck', name: 'New' }, 'sol ring', 9)).toBe(6)
+    expect(['Burn', 'Zombies', 'Goblins', 'Angels', 'Someday'].map((name) => pool.held(lists.find((l) => l.name === name)!, 'sol ring', 9))).toEqual([0, 1, 2, 2, 2])
+    expect(pool.held({ kind: 'deck', name: 'New' }, 'sol ring', 9)).toBe(2)
     expect(pool.held({ kind: 'deck', name: 'New' }, 'sol ring', 2)).toBe(2)
     expect(pool.inOtherDecks({ kind: 'deck', name: 'Burn' }, 'sol ring')).toBe(1)
     expect(pool.inOtherDecks({ kind: 'wishlist', name: 'Angels' }, 'sol ring')).toBe(2)
-    expect(pool.claimed('sol ring', 9)).toBe(6)
+    expect(pool.claimed('sol ring', 9)).toBe(2)
   })
 
-  it('says which lists ahead get the owned copies', () => {
+  it('says which decks hold the owned copies', () => {
     const pool = copyPool(lists)
     const angels = { kind: 'wishlist' as const, name: 'Angels' }
     expect(pool.holders(angels, 'sol ring', 2)).toEqual([
       { kind: 'deck', name: 'Burn', qty: 1 },
       { kind: 'deck', name: 'Zombies', qty: 1 }
     ])
-    expect(pool.holders(angels, 'sol ring', 9)).toHaveLength(3)
+    expect(pool.holders(angels, 'sol ring', 9)).toHaveLength(2)
     expect(pool.holders(angels, 'sol ring', 0)).toEqual([])
   })
 
   it('says which lists use the owned copies, and how many the lists keep', () => {
     const pool = copyPool(lists)
-    expect(pool.usedBy('sol ring', 3).map((held) => `${held.qty} ${held.name}`)).toEqual(['1 Burn', '1 Zombies', '1 Goblins'])
-    expect(pool.inUse('sol ring', 3)).toBe(6)
+    expect(pool.usedBy('sol ring', 3).map((held) => `${held.qty} ${held.name}`)).toEqual(['1 Burn', '1 Zombies', '1 Goblins', '1 Angels', '1 Someday'])
+    // The decks' two, plus the most any wishlist wants.
+    expect(pool.inUse('sol ring', 3)).toBe(4)
     expect(pool.inUse('black lotus', 0)).toBe(0)
   })
 })
@@ -54,24 +55,21 @@ describe('copiesToAdd', () => {
   ]
   const inventory = parseInventory('7 Sol Ring\n1 Lightning Bolt')
 
-  it('adds copies beyond the owned copies no list claims', () => {
-    expect(copiesToAdd(cards, inventory, copyPool(lists))).toEqual([
-      { name: 'Sol Ring', qty: 1 },
-      { name: 'Lightning Bolt', qty: 2 }
-    ])
+  it('adds copies beyond the owned copies no built deck holds', () => {
+    expect(copiesToAdd(cards, inventory, copyPool(lists))).toEqual([{ name: 'Lightning Bolt', qty: 2 }])
   })
 })
 
 describe('listNeeds', () => {
-  it('hands owned copies out in allocation order', () => {
+  it('hands owned copies out to decks, and lets each wishlist use what they leave', () => {
     expect(
       listNeeds(lists, parseInventory('3 Sol Ring')).map(({ list, needs: cards }) => [list.name, cards.map((c) => `${c.missing}/${c.wants} ${c.name}`)])
     ).toEqual([
       ['Burn', ['1/1 Lightning Bolt']],
       ['Zombies', []],
       ['Goblins', []],
-      ['Angels', ['1/1 Sol Ring', '1/1 Smothering Tithe']],
-      ['Someday', ['2/2 Sol Ring']]
+      ['Angels', ['1/1 Smothering Tithe']],
+      ['Someday', ['1/2 Sol Ring']]
     ])
   })
 })
@@ -90,21 +88,18 @@ describe('upgrades', () => {
       cards.map((c) => `${c.missing}/${c.wants} ${c.name}`)
     ])
 
-  it('share the copies their deck gets, each on its own, and claim only the rest', () => {
+  it('share the copies their deck holds, each on its own', () => {
     expect(needs('2 Sol Ring\n1 Llanowar Elves')).toEqual([
       ['Elves', []],
       ['Elves Alt', []],
       ['Elves Big', ['1/2 Llanowar Elves', '1/1 Craterhoof Behemoth']],
       ['Orphan', []],
-      ['Other', ['1/1 Sol Ring']]
+      ['Other', []]
     ])
     const pool = copyPool(upgrades)
-    expect(pool.inUse('sol ring', 2)).toBe(3)
+    expect(pool.inUse('sol ring', 2)).toBe(2)
     expect(pool.holders({ kind: 'wishlist', name: 'Elves Big' }, 'sol ring', 2)).toEqual([])
-    expect(pool.holders({ kind: 'wishlist', name: 'Other' }, 'sol ring', 2)).toEqual([
-      { kind: 'deck', name: 'Elves', qty: 1 },
-      { kind: 'wishlist', name: 'Orphan', qty: 1 }
-    ])
+    expect(pool.holders({ kind: 'wishlist', name: 'Other' }, 'sol ring', 2)).toEqual([{ kind: 'deck', name: 'Elves', qty: 1 }])
   })
 
   it('need their own copies of cards their deck lacks too', () => {
@@ -117,7 +112,7 @@ describe('upgrades', () => {
     ])
   })
 
-  it('still use what the lists ahead leave', () => {
+  it('still use what the built decks leave', () => {
     expect(copyPool(upgrades).held({ kind: 'wishlist', name: 'Elves Big' }, 'llanowar elves', 3)).toBe(0)
     expect(needs('3 Llanowar Elves')[2]).toEqual(['Elves Big', ['1/1 Sol Ring', '1/1 Craterhoof Behemoth']])
   })
@@ -149,7 +144,7 @@ describe('unbuilt decks', () => {
     expect(pool.held(elves, 'sol ring', 3)).toBe(0)
     expect(pool.held(plus, 'sol ring', 3)).toBe(0)
     expect(pool.holders(plus, 'sol ring', 3)).toEqual([])
-    expect(pool.claimed('sol ring', 3)).toBe(3)
+    expect(pool.claimed('sol ring', 3)).toBe(2)
   })
 
   it('cap only at the copies owned when adding cards, and leave other decks uncapped', () => {
@@ -158,10 +153,10 @@ describe('unbuilt decks', () => {
     expect(pool.inOtherDecks({ kind: 'deck', name: 'New' }, 'sol ring')).toBe(2)
   })
 
-  it('keep the copies they use out of trades, and are named after the lists that reserve', () => {
+  it('keep the copies they use out of trades, and are named after the decks that hold copies', () => {
     expect(pool.inUse('sol ring', 3)).toBe(4)
     expect(copyPool(unbuilt.slice(0, 2)).inUse('sol ring', 9)).toBe(3)
-    expect(pool.usedBy('sol ring', 5).map((held) => `${held.qty} ${held.name}`)).toEqual(['2 Burn', '1 Other', '2 Elves', '2 Elves Plus'])
+    expect(pool.usedBy('sol ring', 5).map((held) => `${held.qty} ${held.name}`)).toEqual(['2 Burn', '3 Elves', '3 Elves Plus', '1 Other'])
   })
 
   it('buy only the copies no purchase ahead covers', () => {

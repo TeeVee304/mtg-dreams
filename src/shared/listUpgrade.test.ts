@@ -23,8 +23,8 @@ describe('list upgrade', () => {
     expect(upgradeTarget({ kind: 'deck', lines: parseList('// Upgrade of: Elves') }, lists)).toBeNull()
   })
 
-  it('applies to its deck without its wishlist headers, in the deck color', () => {
-    const upgrade = parseList('// Priority: High\n// Upgrade of: Elves\n// Color: Red\n1 Sol Ring')
+  it('applies to its deck without its upgrade header, in the deck color', () => {
+    const upgrade = parseList('// Upgrade of: Elves\n// Color: Red\n1 Sol Ring')
     expect(serializeList(appliedUpgrade(upgrade, parseList('// Color: Green\n1 Llanowar Elves')))).toBe('// Color: Green\n1 Sol Ring\n')
     expect(serializeList(appliedUpgrade(upgrade, parseList('1 Llanowar Elves')))).toBe('// Color: Red\n1 Sol Ring\n')
     expect(serializeList(appliedUpgrade(upgrade, parseList('// Unbuilt: Yes\n1 Llanowar Elves')))).toBe('// Unbuilt: Yes\n// Color: Red\n1 Sol Ring\n')

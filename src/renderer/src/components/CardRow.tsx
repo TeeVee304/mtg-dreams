@@ -101,7 +101,7 @@ export function CardRow(props: CardRowProps) {
               checked={complete}
               onChange={onToggleOwned}
               aria-label={`Own ${line.name}`}
-              title={`${row.inventoryQty} in inventory${row.held > 0 ? `; decks and lists ahead of this one claim ${row.held} first` : ''}`}
+              title={`${row.inventoryQty} in inventory${row.held > 0 ? `; decks hold ${row.held} of them` : ''}`}
             />
             <span className="owned-count">
               {owned}/{line.qty}

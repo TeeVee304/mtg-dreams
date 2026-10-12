@@ -1,6 +1,5 @@
 import { listHeader } from './decklist'
 import { listColor, withColor } from './listColor'
-import { withPriority } from './listPriority'
 import { isUnbuilt, withUnbuilt } from './listUnbuilt'
 import type { ListKind, ListLine } from './types'
 
@@ -43,7 +42,7 @@ export function upgradeTarget<L extends { kind: ListKind; name: string }>(
  * has one, and unbuilt if the deck was.
  */
 export function appliedUpgrade(upgrade: ListLine[], deck: ListLine[]): ListLine[] {
-  const lines = withUnbuilt(withPriority(withUpgradeOf(upgrade, null), 'normal'), isUnbuilt(deck))
+  const lines = withUnbuilt(withUpgradeOf(upgrade, null), isUnbuilt(deck))
   const color = listColor(deck)
   return color ? withColor(lines, color) : lines
 }

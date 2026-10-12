@@ -25,21 +25,21 @@ const deck = { kind: 'deck' as const, name: 'Control', lines: parseList('2 Count
 const unbuilt = { ...deck, lines: parseList('// Unbuilt: Yes\n2 Counterspell\n3 Sol Ring') }
 
 describe('computeWants', () => {
-  it('adds up list shortfalls, decks first', () => {
+  it('adds up what decks lack, and the most any wishlist lacks', () => {
     expect(computeWants([...wishlists, deck], inventory)).toEqual([
       { name: 'Counterspell', qty: 1, lists: [doom] },
-      { name: 'Demonic Tutor', qty: 3, lists: [burn, doom] },
+      { name: 'Demonic Tutor', qty: 2, lists: [burn, doom] },
       { name: 'Lightning Bolt', qty: 4, lists: [burn] },
-      { name: 'Reanimate', qty: 3, lists: [burn, doom] },
+      { name: 'Reanimate', qty: 2, lists: [burn, doom] },
       { name: 'Sol Ring', qty: 1, lists: [doom] }
     ])
   })
 
   it('wants nothing an unbuilt deck uses, since it reserves no copies', () => {
     expect(computeWants([...wishlists, unbuilt], inventory)).toEqual([
-      { name: 'Demonic Tutor', qty: 3, lists: [burn, doom] },
+      { name: 'Demonic Tutor', qty: 2, lists: [burn, doom] },
       { name: 'Lightning Bolt', qty: 4, lists: [burn] },
-      { name: 'Reanimate', qty: 3, lists: [burn, doom] }
+      { name: 'Reanimate', qty: 2, lists: [burn, doom] }
     ])
   })
 })
@@ -126,7 +126,7 @@ describe('matchTrades', () => {
     const friend = parseTradeText('// Have\n1 Demonic Tutor\n9 Lightning Bolt\n5 Island\n// Want\n2 Sol Ring\n1 Thoughtseize\n3 Island', 'Ana')
     const { forMe, forThem } = matchTrades(mine.haves, myWants, friend)
     expect(forMe).toEqual([
-      { name: 'Demonic Tutor', qty: 1, available: 1, needed: 3, lists: [burn, doom] },
+      { name: 'Demonic Tutor', qty: 1, available: 1, needed: 2, lists: [burn, doom] },
       { name: 'Lightning Bolt', qty: 4, available: 9, needed: 4, lists: [burn] }
     ])
     expect(forThem).toEqual([

@@ -207,6 +207,16 @@ describe('sortRows', () => {
     expect(names(sortRows(rows, 'mana'))).toEqual(['Command Tower', 'Llanowar Elves', 'Sol Ring', 'Atraxa'])
     expect(sortRows(rows, 'name')).not.toBe(rows)
   })
+
+  it('sorts by owned copies, then name', () => {
+    expect(names(sortRows(rows, 'owned'))).toEqual(['Atraxa', 'Command Tower', 'Llanowar Elves', 'Sol Ring'])
+  })
+
+  it('reverses the usual direction, keeping unpriced cards last', () => {
+    expect(names(sortRows(rows, 'qty', true))).toEqual(['Sol Ring', 'Command Tower', 'Atraxa', 'Llanowar Elves'])
+    expect(names(sortRows(rows, 'unit', true))).toEqual(['Llanowar Elves', 'Sol Ring', 'Atraxa', 'Command Tower'])
+    expect(names(sortRows(rows, 'file', true))).toEqual(['Command Tower', 'Atraxa', 'Llanowar Elves', 'Sol Ring'])
+  })
 })
 
 describe('sectionRows', () => {

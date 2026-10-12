@@ -24,6 +24,23 @@
   background: var(--panel-2);
 }
 
+/* A sortable column header: the whole label is the button, styled as the header text. */
+.cards-table th .th-sort {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cards-table th .th-sort:hover,
+.cards-table th .th-sort.active {
+  color: var(--text);
+}
+
 .cards-table td {
   padding: 6px 10px;
   border-bottom: 1px solid var(--border);

@@ -122,7 +122,7 @@ export function ListHeader(props: ListHeaderProps) {
               type="button"
               className={`chip priority-chip ${props.priority}`}
               onClick={props.onPriority}
-              title="How much this list counts in Most Wanted, and its turn for your copies"
+              title="How much this list's cards count when deciding what to buy"
             >
               {props.priority === 'high' ? '★ High priority' : 'Low priority'}
             </button>

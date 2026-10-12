@@ -21,6 +21,8 @@ export interface AppSettings {
   tradeName: string
   /** Sort order shared by decks, wishlists and inventory. */
   sort: SortKey
+  /** `sort` in the reverse of its usual direction (A–Z or highest first; list order top to bottom). */
+  sortReverse: boolean
   /** Global price basis for valuation. */
   priceBasis: PriceBasis
   /** Wishlist price-drop alert threshold, in percent below the baseline. */
@@ -57,6 +59,8 @@ export interface LoadedData {
   inventory: string
   /** Friends' trade lists, named after the friend. */
   trades: ListFile[]
+  /** Wishlist names, top first; wishlists not in it come after, by name. */
+  wishlistOrder: string[]
   /** Relative paths of unreadable files that were skipped, e.g. "decks/Burn.txt". */
   unreadable: string[]
 }
@@ -90,6 +94,8 @@ export interface TrackerApi {
    */
   moveList(from: ListKind, to: ListKind, name: string): Promise<string>
   deleteList(kind: ListKind, name: string): Promise<void>
+  /** Saves the wishlist order, top first. */
+  writeWishlistOrder(names: string[]): Promise<void>
   /** @throws `CONFLICT_ERROR` if the file changed externally and `force` is not set. */
   writeInventory(text: string, force?: boolean): Promise<void>
   /** Saves a friend's trade list, replacing any of the same name. */

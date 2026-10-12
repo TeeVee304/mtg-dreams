@@ -128,6 +128,10 @@ describe('sortFor', () => {
     expect(sortFor('wishlist', 'value')).toBe('unit')
     expect(sortFor('inventory', 'file')).toBe('name')
     expect(sortFor('deck', 'type')).toBe('file')
+    expect(sortFor('inventory', 'decks')).toBe('decks')
+    expect(sortFor('wishlist', 'wanted')).toBe('file')
+    expect(sortFor('inventory', 'owned')).toBe('qty')
+    expect(sortFor('deck', 'owned')).toBe('file')
   })
 
   it('recognises saved sort keys', () => {

@@ -34,7 +34,7 @@ interface Settings extends Partial<Record<keyof AppSettings, unknown>> {
 const settingsPath = () => join(env().userData, 'settings.json')
 
 /** Settings the app no longer has, dropped from the file on the next write. */
-const RETIRED_SETTINGS = ['copies']
+const RETIRED_SETTINGS = ['copies', 'inventorySortReverse']
 
 /** In-memory settings, keyed by path; only the app writes the file. */
 let settingsCache: { path: string; settings: Settings } | null = null
@@ -237,6 +237,52 @@ async function readFolder(dir: string, extension: string, unreadable: string[]):
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 }
 
+/** Wishlist order file, beside the wishlists: a JSON array of names, top first. */
+const orderPath = () => join(listsDir('wishlist'), 'order.json')
+
+/** Priority header of wishlists from before they had an order, e.g. `// Priority: High`. */
+const LEGACY_PRIORITY = /^\/\/\s*priority\s*:\s*(\w*)\s*$/i
+
+/**
+ * @returns The stored wishlist order. Without an order file, starts one from the priority headers
+ * wishlists had before (High, then Normal, then Low, by name within each) and removes the headers,
+ * updating `wishlists`. Errors while migrating are ignored: the order then starts by name.
+ */
+async function wishlistOrder(wishlists: ListFile[]): Promise<string[]> {
+  const stored = await readIfExists(orderPath())
+  if (stored !== null) {
+    try {
+      const names: unknown = JSON.parse(stored)
+      if (Array.isArray(names)) return names.filter((name): name is string => typeof name === 'string')
+    } catch {}
+    return []
+  }
+  const rank = (file: ListFile) => {
+    const header = file.text.split('\n').map((line) => LEGACY_PRIORITY.exec(line.trim())).find(Boolean)
+    const priority = header?.[1].toLowerCase()
+    return priority === 'high' ? 0 : priority === 'low' ? 2 : 1
+  }
+  const order = [...wishlists]
+    .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+    .map((file) => file.name)
+  try {
+    for (const file of wishlists) {
+      const lines = file.text.split('\n')
+      const kept = lines.filter((line) => !LEGACY_PRIORITY.test(line.trim()))
+      if (kept.length === lines.length) continue
+      file.text = kept.join('\n')
+      await writeText(listPath('wishlist', file.name), file.text, 'check')
+    }
+    await writeWishlistOrder(order)
+  } catch {}
+  return order
+}
+
+/** Saves the wishlist order, top first. */
+export async function writeWishlistOrder(names: string[]): Promise<void> {
+  await writeText(orderPath(), `${JSON.stringify(names, null, 2)}\n`)
+}
+
 /**
  * Reads all lists, trades and the inventory, creating list directories if needed.
  * @throws If the inventory exists but is unreadable (never skipped, so a save cannot blank it).
@@ -251,7 +297,8 @@ export async function loadData(): Promise<LoadedData> {
   ])
   const inventory = existsSync(inventoryPath()) ? await readFile(inventoryPath(), 'utf8') : ''
   known.set(inventoryPath(), inventory)
-  return { dataDir: dataDir(), decks, wishlists, inventory, trades, unreadable }
+  const order = await wishlistOrder(wishlists)
+  return { dataDir: dataDir(), decks, wishlists, inventory, trades, wishlistOrder: order, unreadable }
 }
 
 /** Writes a friend's trade list, unguarded. */

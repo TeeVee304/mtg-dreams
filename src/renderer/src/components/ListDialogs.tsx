@@ -160,7 +160,7 @@ export function ListDialogs(props: ListDialogsProps) {
           message={
             `You have ${dialog.inventoryQty}× ${dialog.line.name} in your inventory. ` +
             (dialog.target === 0 ? 'Remove all of them?' : `Reduce it to ${dialog.target}?`) +
-            ' Lists after this one lose their copies too.'
+            ' Other wishlists using it lose those copies too.'
           }
           confirmLabel={dialog.target === 0 ? 'Remove all' : `Reduce to ${dialog.target}`}
           danger
@@ -189,8 +189,8 @@ export function ListDialogs(props: ListDialogsProps) {
       return (
         <Modal title="List priority" onClose={onClose}>
           <p className="muted small">
-            How much this list's missing cards count in Most Wanted
-            , and its turn for your copies: decks first, then wishlists from high to low.
+            How much this list's missing cards count when deciding what to buy, in Most Wanted and the budget
+            planner.
           </p>
           <div className="theme-options" role="radiogroup" aria-label="Priority">
             {PRIORITIES.map((option) => (

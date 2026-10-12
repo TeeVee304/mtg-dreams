@@ -28,24 +28,27 @@ describe('mostWanted', () => {
   it('lists basic lands apart and leaves them out of completion', () => {
     const result = mostWanted(lists, parseInventory('1 Sol Ring\n'))
     expect(result.basics.map((c) => [c.name, c.toBuy])).toEqual([['Mountain', 10]])
-    expect(result.missing).toEqual({ 'wishlist/Angels': 1, 'wishlist/Goblins': 2, 'wishlist/Someday': 3 })
+    expect(result.missing).toEqual({ 'wishlist/Angels': 1, 'wishlist/Goblins': 2, 'wishlist/Someday': 2 })
     expect(names(find(result.cards, 'Smothering Tithe').completes)).toEqual(['Angels'])
-    expect(find(result.cards, 'Smothering Tithe').impact).toBe(2 / 1 + 0.5 / 3)
+    expect(find(result.cards, 'Smothering Tithe').impact).toBe(2 / 1 + 0.5 / 2)
   })
 
-  it('buys a copy for every list, handing owned copies out by priority', () => {
+  it('buys the most any wishlist lacks, since wishlists share owned and bought copies', () => {
     const sol = find(mostWanted(lists, parseInventory('1 Sol Ring\n')).cards, 'Sol Ring')
-    expect(sol.toBuy).toBe(3)
-    expect(sol.lists.map((l) => [l.name, l.wants, l.missing])).toEqual([['Goblins', 2, 2], ['Someday', 1, 1]])
+    expect(sol.toBuy).toBe(1)
+    expect(sol.lists.map((l) => [l.name, l.wants, l.missing])).toEqual([['Goblins', 2, 1]])
+    const tithe = find(mostWanted(lists, new Map()).cards, 'Smothering Tithe')
+    expect(tithe.lists.map((l) => [l.name, l.missing, l.buy])).toEqual([['Angels', 1, 1], ['Someday', 1, 0]])
   })
 
-  it('lets decks take owned copies first, and counts their gaps', () => {
+  it('lets decks hold owned copies, and counts their gaps apart from the wishlists', () => {
     const result = mostWanted([...lists, deck('Burn', '1 Sol Ring\n1 Mana Crypt')], parseInventory('1 Sol Ring\n'))
     const sol = find(result.cards, 'Sol Ring')
-    expect(sol.toBuy).toBe(4)
+    expect(sol.toBuy).toBe(2)
     expect(names(sol.lists)).toEqual(['Angels', 'Goblins', 'Someday'])
     const crypt = find(result.cards, 'Mana Crypt')
     expect(crypt.lists.map((l) => [l.kind, l.name, l.weight])).toEqual([['deck', 'Burn', 2], ['wishlist', 'Someday', 0.5]])
+    expect(crypt.toBuy).toBe(2)
     expect(result.missing['deck/Burn']).toBe(1)
   })
 })
@@ -70,8 +73,8 @@ describe('ranking and planning', () => {
   const unitOf = (card: WantedCard) => prices[card.name]
 
   it('measures value as cost per weighted list', () => {
-    expect(costOf(find(cards, 'Pricey Bomb'), 40)).toBe(80)
-    expect(valueOf(find(cards, 'Pricey Bomb'), 40)).toBe(40)
+    expect(costOf(find(cards, 'Pricey Bomb'), 40)).toBe(40)
+    expect(valueOf(find(cards, 'Pricey Bomb'), 40)).toBe(20)
     expect(valueOf(find(cards, 'Other Card'), null)).toBeNull()
   })
 
@@ -84,21 +87,25 @@ describe('ranking and planning', () => {
 
   it('plans the best purchases within a budget and reports completed lists', () => {
     const plan = planPurchases(cards, unitOf, 10, wanted)
-    expect(plan.items.map((item) => [item.card.name, item.copies])).toEqual([['Cheap Staple', 3], ['Lonely Card', 1], ['Last Piece', 1]])
-    expect(plan.total).toBe(8)
+    expect(plan.items.map((item) => [item.card.name, item.copies, names(item.lists)])).toEqual([
+      ['Cheap Staple', 1, ['A', 'B', 'C']],
+      ['Lonely Card', 1, ['C']],
+      ['Last Piece', 1, ['A']]
+    ])
+    expect(plan.total).toBe(6)
     expect(plan.unpriced).toBe(1)
     expect(plan.completes).toEqual([])
     expect(names(planPurchases(cards, unitOf, 100, wanted).completes)).toEqual(['A', 'B'])
   })
 
-  it('buys copies list by list, in allocation order', () => {
+  it('buys copies deck by deck, and once for all wishlists', () => {
     const xy = [list('X', '1 Bolt', 'High'), list('Y', '1 Bolt\n1 Opt')]
-    const separate = mostWanted(xy, new Map())
-    const two = planPurchases(separate.cards, unitOf, 2, separate)
-    expect(two.items.map((item) => [item.card.name, item.copies, names(item.lists), item.cost])).toEqual([['Bolt', 2, ['X', 'Y'], 2]])
-    expect(names(two.completes)).toEqual(['X'])
-    const one = planPurchases(separate.cards, unitOf, 1, separate)
-    expect(one.items.map((item) => [item.card.name, item.copies, names(item.lists)])).toEqual([['Bolt', 1, ['X']]])
+    const wishlists = mostWanted(xy, new Map())
+    const one = planPurchases(wishlists.cards, unitOf, 1, wishlists)
+    expect(one.items.map((item) => [item.card.name, item.copies, names(item.lists), item.cost])).toEqual([['Bolt', 1, ['X', 'Y'], 1]])
+    expect(names(one.completes)).toEqual(['X'])
+    const decks = mostWanted([deck('X', '1 Bolt'), deck('Y', '1 Bolt')], new Map())
+    expect(planPurchases(decks.cards, unitOf, 1, decks).items.map((item) => [item.copies, names(item.lists)])).toEqual([[1, ['X']]])
   })
 })
 

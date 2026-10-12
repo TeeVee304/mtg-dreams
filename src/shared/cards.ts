@@ -182,8 +182,11 @@ export const SORT_OPTIONS = [
   { id: 'recent', label: 'Recently added', views: LISTS },
   { id: 'name', label: 'Name', views: EVERYWHERE },
   { id: 'qty', label: 'Quantity', views: EVERYWHERE },
+  { id: 'owned', label: 'Owned', views: ['wishlist'] },
   { id: 'unit', label: 'Unit price', views: LISTS },
   { id: 'value', label: 'Value', views: ['inventory'] },
+  { id: 'decks', label: 'In decks', views: ['inventory'] },
+  { id: 'wanted', label: 'Wanted in', views: ['inventory'] },
   { id: 'needed', label: 'Cost still needed', views: ['wishlist'] },
   { id: 'mana', label: 'Mana value', views: EVERYWHERE },
   { id: 'color', label: 'Color', views: EVERYWHERE },
@@ -221,6 +224,8 @@ export function sortFor(view: SortView, sort: SortKey): SortKey {
   if (sort === 'needed' && view === 'deck') return 'unit'
   if ((sort === 'unit' || sort === 'needed') && view === 'inventory') return 'value'
   if (sort === 'value' && view !== 'inventory') return 'unit'
+  // The inventory's owned copies are its quantity.
+  if (sort === 'owned' && view === 'inventory') return 'qty'
   return view === 'inventory' ? 'name' : 'file'
 }
 

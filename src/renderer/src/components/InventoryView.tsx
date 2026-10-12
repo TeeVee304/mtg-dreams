@@ -7,7 +7,8 @@ import {
   needsCardData,
   NO_FILTERS,
   sortFor,
-  type CardFilters
+  type CardFilters,
+  type SortKey
 } from '@shared/cards'
 import { cardLines, nameKey } from '@shared/decklist'
 import { hasVersions } from '@shared/inventory'
@@ -25,7 +26,7 @@ import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { ListChip, NameCell, Price } from './CardCells'
 import { CardSearch } from './CardSearch'
-import { CardSortSelect } from './Controls'
+import { CardSortSelect, SortHeader } from './Controls'
 import { TextEditorDialog } from './Dialogs'
 import { copyLabel, InventoryVersionsDialog } from './InventoryVersions'
 import { FilterBar } from './FilterBar'
@@ -39,7 +40,7 @@ import { useToast } from './Toasts'
 interface Usage {
   list: string
   qty: number
-  /** Copies lists ahead of this one claim first. */
+  /** Copies other lists hold first (`CopyPool.held`). */
   held: number
   /** List color; null = app accent. */
   color: ThemeColor | null
@@ -111,12 +112,32 @@ export function InventoryView(props: InventoryViewProps) {
     value: worth.items.get(key)!
   }))
   const visible = items.filter((item) => matchesFilters(item.name, item.info, undefined, filters))
-  visible.sort((a, b) =>
-    isCardSort(sort)
-      ? compareCards(sort, a, b)
-      : sort === 'value'
-        ? valueOrder(b.value) - valueOrder(a.value) || a.name.localeCompare(b.name)
-        : b.qty - a.qty || a.name.localeCompare(b.name)
+  /** Reversed only when the inventory has the chosen sort, not a stand-in for it. */
+  const reverse = settings.sortReverse && sort === settings.sort
+  /** Copies of a card across the lists of `kind`, then how many lists. */
+  const used = (kind: ListKind, name: string) => {
+    const entries = usage[kind].get(nameKey(name)) ?? []
+    return [entries.reduce((sum, entry) => sum + entry.qty, 0), entries.length] as const
+  }
+  /** Usual direction: A–Z for card sorts, highest first otherwise. */
+  const compare = (a: (typeof items)[number], b: (typeof items)[number]): number => {
+    if (isCardSort(sort)) return compareCards(sort, a, b)
+    if (sort === 'decks' || sort === 'wanted') {
+      const kind = sort === 'decks' ? 'deck' : 'wishlist'
+      const [copiesA, listsA] = used(kind, a.name)
+      const [copiesB, listsB] = used(kind, b.name)
+      return copiesB - copiesA || listsB - listsA || a.name.localeCompare(b.name)
+    }
+    if (sort === 'value') return valueOrder(b.value) - valueOrder(a.value) || a.name.localeCompare(b.name)
+    return b.qty - a.qty || a.name.localeCompare(b.name)
+  }
+  visible.sort((a, b) => {
+    // Cards still loading or unpriced stay last either way.
+    if (sort === 'value') return valueTier(a.value) - valueTier(b.value) || (reverse ? -compare(a, b) : compare(a, b))
+    return reverse ? -compare(a, b) : compare(a, b)
+  })
+  const sortHeader = (id: SortKey, label: string, className?: string, title?: string) => (
+    <SortHeader id={id} label={label} sort={sort} reverse={reverse} className={className} title={title} />
   )
 
   const visibleCopies = totalCopies(visible)
@@ -136,7 +157,7 @@ export function InventoryView(props: InventoryViewProps) {
     return entries.map((entry) => {
       const got = Math.min(entry.qty, Math.max(0, item.qty - entry.held))
       const short = got < entry.qty
-      const ahead = entry.held > 0 ? `; ${Math.min(entry.held, item.qty)} of yours go to ${kind === 'deck' ? 'decks' : 'decks and lists'} ahead of it` : ''
+      const ahead = entry.held > 0 ? `; ${Math.min(entry.held, item.qty)} of yours go to ${kind === 'deck' ? 'decks ahead of it' : 'decks'}` : ''
       return (
         <ListChip
           key={entry.list}
@@ -233,13 +254,11 @@ export function InventoryView(props: InventoryViewProps) {
           <table className="cards-table inventory-table">
             <thead>
               <tr>
-                <th className="col-qty">Owned</th>
-                <th>Card</th>
-                <th>In decks</th>
-                <th>Wanted in</th>
-                <th className="col-num" title="Cardmarket's typical price, as in Inventory Value">
-                  Value
-                </th>
+                {sortHeader('qty', 'Owned', 'col-qty')}
+                {sortHeader('name', 'Card')}
+                {sortHeader('decks', 'In decks')}
+                {sortHeader('wanted', 'Wanted in')}
+                {sortHeader('value', 'Value', 'col-num', "Cardmarket's typical price, as in Inventory Value")}
                 <th className="col-actions" aria-label="Actions" />
               </tr>
             </thead>
@@ -344,6 +363,12 @@ export function InventoryView(props: InventoryViewProps) {
 function valueOrder(value: ItemValue): number {
   if (value.status === 'priced' || value.status === 'free') return value.total
   return value.status === 'loading' ? -1 : -2
+}
+
+/** Value sort group: priced first, then loading, then unpriced. */
+function valueTier(value: ItemValue): number {
+  if (value.status === 'priced' || value.status === 'free') return 0
+  return value.status === 'loading' ? 1 : 2
 }
 
 /** Value column cell by {@link ItemValue.status}. */

@@ -5,7 +5,7 @@ import { cardCount, formatEur } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { summarize, type Row, type Summary } from '../lib/summary'
 import { useNarrow } from '../hooks/useNarrow'
-import { CardSortSelect, Segmented } from './Controls'
+import { CardSortSelect, Segmented, SortHeader } from './Controls'
 import { FilterBar } from './FilterBar'
 import { Icon } from './Icon'
 
@@ -37,6 +37,8 @@ interface ListTableProps {
   /** View whose sort options are shown. */
   sortView: 'deck' | 'wishlist'
   sort: SortKey
+  /** `sort` in the reverse of its usual direction. */
+  sortReverse: boolean
   filters: CardFilters
   onFilters: (filters: CardFilters) => void
   /** Wishlists: hide fully owned lines. */
@@ -55,6 +57,7 @@ export function ListTable(props: ListTableProps) {
   const { isDeck, sections, renderRow, visibleSummary, filtering } = props
   const { cardView } = useSettings()
   const narrow = useNarrow()
+  const sortProps = { sort: props.sort, reverse: props.sortReverse }
   const [closed, setClosed] = useState<Set<string>>(() => folded.get(props.listKey) ?? new Set())
   const toggle = (id: string) => {
     const next = new Set(closed)
@@ -114,14 +117,18 @@ export function ListTable(props: ListTableProps) {
           <thead>
             <tr>
               {!isDeck && (
-                <th className="col-owned" title="Owned — shared across all lists through the Inventory">
-                  Owned
-                </th>
+                <SortHeader
+                  id="owned"
+                  label="Owned"
+                  className="col-owned"
+                  title="Owned — shared across all lists through the Inventory"
+                  {...sortProps}
+                />
               )}
-              <th className="col-qty">Qty</th>
-              <th>Card</th>
+              <SortHeader id="qty" label="Qty" className="col-qty" {...sortProps} />
+              <SortHeader id="name" label="Card" {...sortProps} />
               {!narrow && <th className="col-version">Version</th>}
-              <th className="col-num">Price</th>
+              <SortHeader id="unit" label="Price" className="col-num" title="Sorts by unit price" {...sortProps} />
               <th className="col-actions" aria-label="Actions" />
             </tr>
           </thead>

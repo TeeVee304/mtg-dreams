@@ -95,6 +95,10 @@ export function registerIpc(): void {
   ipcMain.handle('list:delete', (_e, kind: unknown, name: unknown) =>
     storage.deleteList(storage.validateKind(kind), storage.validateListName(name))
   )
+  ipcMain.handle('list:order', (_e, names: unknown) => {
+    if (!Array.isArray(names) || !names.every((name) => typeof name === 'string')) throw new Error('Invalid wishlist order.')
+    return storage.writeWishlistOrder(names)
+  })
   ipcMain.handle('inventory:write', (_e, body: unknown, force: unknown) =>
     storage.writeInventory(text(body, 'inventory text'), force === true)
   )

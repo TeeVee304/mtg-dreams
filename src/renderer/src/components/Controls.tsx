@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { sortOptionsFor, type SortKey, type SortView } from '@shared/cards'
+import { isCardSort, sortOptionsFor, type SortKey, type SortView } from '@shared/cards'
 import { FORMATS } from '@shared/formats'
 import { THEME_COLORS, type ThemeColor } from '@shared/themes'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
@@ -84,9 +84,42 @@ export function CardSortSelect({ view, value }: { view: SortView; value: SortKey
     <SortSelect
       value={value}
       options={sortOptionsFor(view)}
-      onChange={(sort) => void updateSettings({ sort })}
+      onChange={(sort) => void updateSettings({ sort, sortReverse: false })}
       title="Applies to all decks, wishlists and the inventory"
     />
+  )
+}
+
+/** Props of {@link SortHeader}. */
+interface SortHeaderProps {
+  /** Sort the column sorts by. */
+  id: SortKey
+  label: string
+  /** Current sort and direction. */
+  sort: SortKey
+  reverse: boolean
+  className?: string
+  title?: string
+}
+
+/**
+ * Table column header sorting by `id`: a click sorts by it in its usual direction (A–Z for card
+ * sorts, highest first otherwise), a second click reverses. Sets the global sort, like {@link CardSortSelect}.
+ */
+export function SortHeader({ id, label, sort, reverse, className, title }: SortHeaderProps) {
+  const active = sort === id
+  const ascending = isCardSort(id) !== (active && reverse)
+  return (
+    <th className={className} title={title} aria-sort={active ? (ascending ? 'ascending' : 'descending') : undefined}>
+      <button
+        type="button"
+        className={`th-sort${active ? ' active' : ''}`}
+        onClick={() => void updateSettings(active ? { sortReverse: !reverse } : { sort: id, sortReverse: false })}
+      >
+        {label}
+        {active && <span aria-hidden="true">{ascending ? ' ▲' : ' ▼'}</span>}
+      </button>
+    </th>
   )
 }
 
