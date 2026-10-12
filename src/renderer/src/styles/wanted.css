@@ -19,10 +19,6 @@
   color: var(--text);
 }
 
-.chip.list-chip.low {
-  opacity: 0.6;
-}
-
 /* Deck marker in list chips. */
 .chip.list-chip svg {
   width: 12px;
@@ -102,13 +98,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* List header priority badge. */
-
-.chip.priority-chip.high {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
 /* The shelf: unfinished wishlists by what they still cost ------------------------------- */
 
 .wishlist-shelf {
@@ -175,10 +164,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.shelf-star {
-  color: var(--accent);
 }
 
 .shelf-progress {

@@ -37,8 +37,22 @@ afterEach(async () => {
 describe('lists on disk', () => {
   it('starts empty, creating the data folders in Documents', async () => {
     const { data, storage } = await setup()
-    expect(await storage.loadData()).toEqual({ dataDir: data, decks: [], wishlists: [], inventory: '', trades: [], unreadable: [] })
+    expect(await storage.loadData()).toEqual({ dataDir: data, decks: [], wishlists: [], inventory: '', trades: [], wishlistOrder: [], unreadable: [] })
     expect(readdirSync(data).sort()).toEqual(['decks', 'lists'])
+  })
+
+  it('starts the wishlist order from the old priority headers, then removes them', async () => {
+    const { data, storage } = await setup()
+    await storage.createList('wishlist', 'Someday', '// Priority: Low\n1 Mana Crypt\n')
+    await storage.createList('wishlist', 'Angels', '1 Smothering Tithe\n')
+    await storage.createList('wishlist', 'Goblins', '// Color: Red\n// Priority: High\n1 Sol Ring\n')
+    const loaded = await storage.loadData()
+    expect(loaded.wishlistOrder).toEqual(['Goblins', 'Angels', 'Someday'])
+    expect(loaded.wishlists.map((file) => file.text)).toEqual(['1 Smothering Tithe\n', '// Color: Red\n1 Sol Ring\n', '1 Mana Crypt\n'])
+    expect(readFileSync(join(data, 'lists', 'Goblins.txt'), 'utf8')).toBe('// Color: Red\n1 Sol Ring\n')
+
+    await storage.writeWishlistOrder(['Someday', 'Goblins', 'Angels'])
+    expect((await storage.loadData()).wishlistOrder).toEqual(['Someday', 'Goblins', 'Angels'])
   })
 
   it('creates, reads back sorted by name, and refuses duplicates', async () => {

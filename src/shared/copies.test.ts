@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import { allocationOrder, copiesToAdd, copyPool, listNeeds } from './copies'
+import { allocationOrder, copiesToAdd, copyPool, listNeeds, listWeights } from './copies'
 import { parseInventory, parseList } from './decklist'
 
+// Wishlists in your order: Goblins, Angels, Someday.
 const lists = [
-  { kind: 'wishlist' as const, name: 'Someday', lines: parseList('// Priority: Low\n2 Sol Ring') },
-  { kind: 'wishlist' as const, name: 'Angels', lines: parseList('1 Sol Ring\n1 Smothering Tithe') },
+  { kind: 'wishlist' as const, name: 'Goblins', lines: parseList('1 Sol Ring') },
   { kind: 'deck' as const, name: 'Zombies', lines: parseList('1 Sol Ring') },
-  { kind: 'wishlist' as const, name: 'Goblins', lines: parseList('// Priority: High\n1 Sol Ring') },
-  { kind: 'deck' as const, name: 'Burn', lines: parseList('1 Sol Ring\n1 Lightning Bolt') }
+  { kind: 'wishlist' as const, name: 'Angels', lines: parseList('1 Sol Ring\n1 Smothering Tithe') },
+  { kind: 'deck' as const, name: 'Burn', lines: parseList('1 Sol Ring\n1 Lightning Bolt') },
+  { kind: 'wishlist' as const, name: 'Someday', lines: parseList('2 Sol Ring') }
 ]
 
 describe('allocationOrder', () => {
-  it('puts decks first by name, then wishlists by priority and name', () => {
+  it('puts decks first by name, then wishlists in your order', () => {
     expect(allocationOrder(lists).map((list) => list.name)).toEqual(['Burn', 'Zombies', 'Goblins', 'Angels', 'Someday'])
   })
 })
@@ -47,6 +48,19 @@ describe('copyPool', () => {
   })
 })
 
+describe('listWeights', () => {
+  it('weighs wishlists by their place in your order, decks as the top one', () => {
+    expect(Object.fromEntries(listWeights(lists))).toEqual({
+      'wishlist/Goblins': 2,
+      'wishlist/Angels': 1.25,
+      'wishlist/Someday': 0.5,
+      'deck/Zombies': 2,
+      'deck/Burn': 2
+    })
+    expect(listWeights([{ kind: 'wishlist', name: 'Only' }]).get('wishlist/Only')).toBe(2)
+  })
+})
+
 describe('copiesToAdd', () => {
   const cards = [
     { name: 'Sol Ring', qty: 1 },
@@ -77,8 +91,8 @@ describe('listNeeds', () => {
 describe('upgrades', () => {
   const upgrades = [
     { kind: 'deck' as const, name: 'Elves', lines: parseList('1 Sol Ring\n1 Llanowar Elves') },
-    { kind: 'wishlist' as const, name: 'Elves Big', lines: parseList('// Upgrade of: elves\n1 Sol Ring\n2 Llanowar Elves\n1 Craterhoof Behemoth') },
     { kind: 'wishlist' as const, name: 'Elves Alt', lines: parseList('// Upgrade of: Elves\n1 Sol Ring') },
+    { kind: 'wishlist' as const, name: 'Elves Big', lines: parseList('// Upgrade of: elves\n1 Sol Ring\n2 Llanowar Elves\n1 Craterhoof Behemoth') },
     { kind: 'wishlist' as const, name: 'Orphan', lines: parseList('// Upgrade of: Gone\n1 Sol Ring') },
     { kind: 'wishlist' as const, name: 'Other', lines: parseList('1 Sol Ring') }
   ]

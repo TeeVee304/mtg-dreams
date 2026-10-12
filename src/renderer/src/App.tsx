@@ -88,6 +88,7 @@ export default function App() {
         view={view}
         onSelect={setView}
         onNew={newList}
+        onMoveWishlist={actions.moveWishlist}
         onSettings={() => setDialog({ kind: 'settings' })}
         pricedAt={pricedAt}
         onRefreshPrices={refreshPrices}

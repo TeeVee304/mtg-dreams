@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState, type CSSProperties, type DragEvent } from 'react'
 import { listColor } from '@shared/listColor'
 import { sumOf, totalCopies } from '@shared/totals'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
@@ -32,6 +32,8 @@ interface SidebarProps {
   view: View | null
   onSelect: (view: View) => void
   onNew: (kind: ListKind) => void
+  /** Moves a wishlist to place `to` in the order (0 is the top). */
+  onMoveWishlist: (list: ListRef, to: number) => void
   onSettings: () => void
   /** Publication time of the Cardmarket price guide in use; null if none yet. */
   pricedAt: number | null
@@ -50,14 +52,17 @@ interface SidebarProps {
 
 /**
  * Navigation: inventory and Most Wanted stay in place; decks and wishlists (collapsible sections with
- * price-drop counts and color symbols on hover) and trades scroll below them. The footer holds the
+ * price-drop counts and color symbols on hover; wishlists in your order, dragged to reorder) and
+ * trades scroll below them. The footer holds the
  * price status and settings. In narrow windows it is an icon rail: icons and list initials, with
  * every list shown and names in tooltips (and for screen readers).
  */
 export function Sidebar(props: SidebarProps) {
-  const { lists, inventory, view, onSelect, onNew, onSettings, pricedAt, onRefreshPrices } = props
+  const { lists, inventory, view, onSelect, onNew, onMoveWishlist, onSettings, pricedAt, onRefreshPrices } = props
   const { trades, myTrade, onShareTrade, onImportTrade, onWizard, wizardOpen } = props
   const [refreshing, setRefreshing] = useState(false)
+  /** Wishlist being dragged, and where it would drop: its new place in the order. */
+  const [drag, setDrag] = useState<{ name: string; from: number; at: number | null } | null>(null)
   const rail = useNarrow()
   const version = usePrintingsVersion()
   const settings = useSettings()
@@ -78,8 +83,33 @@ export function Sidebar(props: SidebarProps) {
     [trades, myTrade]
   )
 
-  const renderList = (list: CardList) => {
+  /** Drag handlers of a wishlist at `index` in the order: drops above or below it by pointer half. */
+  const dragProps = (list: CardList, index: number) => ({
+    draggable: true,
+    onDragStart: (event: DragEvent) => {
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', list.name)
+      setDrag({ name: list.name, from: index, at: null })
+    },
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      if (!drag) return
+      event.preventDefault()
+      const box = event.currentTarget.getBoundingClientRect()
+      const at = index + (event.clientY > box.top + box.height / 2 ? 1 : 0)
+      if (at !== drag.at) setDrag({ ...drag, at })
+    },
+    onDrop: (event: DragEvent) => {
+      event.preventDefault()
+      if (drag?.at != null) onMoveWishlist({ kind: 'wishlist', name: drag.name }, drag.at > drag.from ? drag.at - 1 : drag.at)
+      setDrag(null)
+    },
+    onDragEnd: () => setDrag(null)
+  })
+
+  const renderList = (list: CardList, index: number) => {
     const { format, summary, mainCards, size, cheaper, colors, art } = figures.get(list)!
+    const isWishlist = list.kind === 'wishlist'
+    const dropMark = isWishlist && drag?.at === index ? ' drop-before' : isWishlist && drag?.at === index + 1 ? ' drop-after' : ''
     const active = view?.page === 'list' && sameList(view.list, list)
     const priced = summary.loading === 0 && summary.cards > 0
     const complete = list.kind === 'wishlist' && summary.cards > 0 && summary.ownedCards >= summary.cards
@@ -88,11 +118,12 @@ export function Sidebar(props: SidebarProps) {
       <button
         key={`${list.kind}/${list.name}`}
         type="button"
-        className={`nav-item${active ? ' active' : ''}`}
+        className={`nav-item${active ? ' active' : ''}${drag?.name === list.name && isWishlist ? ' dragging' : ''}${dropMark}`}
         data-color={listColor(list.lines) ?? undefined}
         style={colors.length > 0 ? ({ '--colors': colors.length } as CSSProperties) : undefined}
         title={rail ? list.name : undefined}
         onClick={() => onSelect({ page: 'list', list: { kind: list.kind, name: list.name } })}
+        {...(isWishlist ? dragProps(list, index) : {})}
       >
         <span className="nav-thumb" aria-hidden="true">
           {art && settings.cardImages ? <img src={art} alt="" loading="lazy" draggable={false} /> : <Initials name={list.name} />}

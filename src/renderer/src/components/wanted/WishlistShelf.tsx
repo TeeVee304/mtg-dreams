@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { listColor } from '@shared/listColor'
-import { listPriority } from '@shared/listPriority'
 import type { InventoryItem } from '@shared/types'
 import { useCopyPool } from '../../hooks/useCopyPool'
 import { formatEur } from '../../lib/format'
@@ -44,7 +43,6 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
       <div className="shelf-grid">
         {shelf.map(({ list, figures: { summary, cheaper, art } }) => {
           const collected = Math.round((summary.ownedCards / summary.cards) * 100)
-          const high = listPriority(list.lines) === 'high'
           return (
             <button
               key={list.name}
@@ -59,11 +57,6 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
               </span>
               <span className="shelf-body">
                 <span className="shelf-name">
-                  {high && (
-                    <span className="shelf-star" aria-label="High priority">
-                      ★{' '}
-                    </span>
-                  )}
                   {list.name}
                 </span>
                 <span className="shelf-progress" aria-hidden="true">

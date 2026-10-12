@@ -9,7 +9,6 @@ import {
 } from '@shared/decklist'
 import { listFormat, withCommander, withFormat, withoutMissingCommander } from '@shared/formats'
 import { withColor } from '@shared/listColor'
-import { withPriority, type ListPriority } from '@shared/listPriority'
 import { withUnbuilt } from '@shared/listUnbuilt'
 import { appliedUpgrade, sameDeckName, upgradeOf, upgradeTarget, withUpgradeOf } from '@shared/listUpgrade'
 import { addToBoard, moveToBoard, type BoardEntry } from '@shared/sideboard'
@@ -124,6 +123,23 @@ export function inventoryText(inventory: Map<string, InventoryItem>): string {
 /** Case-insensitive name comparator. */
 const byName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+
+/** @returns `lists` with decks by name, then wishlists in their current order. */
+function arranged(lists: CardList[]): CardList[] {
+  return [...lists.filter((list) => list.kind === 'deck').sort(byName), ...lists.filter((list) => list.kind === 'wishlist')]
+}
+
+/** @returns `lists` with decks by name, then wishlists in `order`; those not in it come after, by name. */
+function inOrder(lists: CardList[], order: string[]): CardList[] {
+  const place = (list: CardList) => {
+    const at = order.indexOf(list.name)
+    return at < 0 ? order.length : at
+  }
+  return arranged([...lists].sort((a, b) => place(a) - place(b) || byName(a, b)))
+}
+
+/** @returns Wishlist names in order, top first. */
+const wishlistNames = (lists: CardList[]) => lists.filter((list) => list.kind === 'wishlist').map((list) => list.name)
 
 /** Parses trade files (name taken from the file), skipping invalid ones; sorted by name. */
 function toTrades(files: ListFile[]): TradeSnapshot[] {
@@ -261,14 +277,16 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
           ...data.decks.map((file) => ({ kind: 'deck' as const, file })),
           ...data.wishlists.map((file) => ({ kind: 'wishlist' as const, file }))
         ]
-        const lists = files.map(({ kind, file }) => {
+        const read = files.map(({ kind, file }) => {
           const fresh = toCardList(kind, file)
           const existing = previous.lists.find((list) => sameList(list, fresh))
           if (existing && existing.text === fresh.text) return existing
           changed = true
           return fresh
         })
-        if (lists.length !== previous.lists.length) changed = true
+        const lists = inOrder(read, data.wishlistOrder)
+        const ids = (all: CardList[]) => all.map((list) => `${list.kind}/${list.name}`).join('\n')
+        if (ids(lists) !== ids(previous.lists)) changed = true
         let inventory = parseInventory(data.inventory)
         if (inventoryText(inventory) === inventoryText(previous.inventory)) inventory = previous.inventory
         else changed = true
@@ -359,6 +377,20 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     })
   }, [])
 
+  /** Commits `lists`, kept in {@link arranged} order, and saves the wishlist order if it changed. */
+  const commitLists = useCallback(
+    (lists: CardList[]) => {
+      const before = wishlistNames(ref.current.lists)
+      const next = arranged(lists)
+      commit({ ...ref.current, lists: next })
+      const after = wishlistNames(next)
+      if (after.join('\n') !== before.join('\n')) {
+        window.api.writeWishlistOrder(after).catch((error) => onError(`Could not save the wishlist order: ${cleanError(error)}`))
+      }
+    },
+    [commit, onError]
+  )
+
   /** Points the upgrades of deck `from` at deck `to`, or makes them plain wishlists (`to` null); not undoable. */
   const relinkUpgrades = useCallback(
     (from: string, to: string | null) => {
@@ -375,10 +407,10 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     async (target: ListRef) => {
       await window.api.deleteList(target.kind, target.name)
       retarget(target, null)
-      commit({ ...ref.current, lists: ref.current.lists.filter((list) => !sameList(list, target)) })
+      commitLists(ref.current.lists.filter((list) => !sameList(list, target)))
       if (target.kind === 'deck') relinkUpgrades(target.name, null)
     },
-    [commit, relinkUpgrades, retarget]
+    [commitLists, relinkUpgrades, retarget]
   )
 
   /** Resolves the conflict: force-write the app's text if `keepMine`, else force-reload from disk. */
@@ -473,9 +505,17 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         updateLines(target, (lines) => withColor(lines, color), { label: 'Changed the color' })
       },
 
-      /** Sets the priority header (`normal` removes it). */
-      setListPriority(target: ListRef, priority: ListPriority) {
-        updateLines(target, (lines) => withPriority(lines, priority), { label: 'Changed the priority' })
+      /**
+       * Moves a wishlist to place `to` in the wishlist order (0 is the top); its cards count more in
+       * Most Wanted the higher it is.
+       */
+      moveWishlist(target: ListRef, to: number) {
+        const wishlists = ref.current.lists.filter((list) => list.kind === 'wishlist')
+        const from = wishlists.findIndex((list) => list.name === target.name)
+        if (from < 0 || from === to) return
+        const [moved] = wishlists.splice(from, 1)
+        wishlists.splice(Math.max(0, Math.min(to, wishlists.length)), 0, moved)
+        commitLists([...ref.current.lists.filter((list) => list.kind === 'deck'), ...wishlists])
       },
 
       /** Makes a deck unbuilt, using every owned copy without reserving any, or built again. */
@@ -521,11 +561,11 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         saveLines(target, parseList(text), { label: `Edited the text of ${target.name}`, announce: true })
       },
 
-      /** Creates a list file. @throws If the name is invalid or taken. */
+      /** Creates a list file; a wishlist goes to the bottom of the order. @throws If the name is invalid or taken. */
       async createList(kind: ListKind, rawName: string, text: string): Promise<ListRef> {
         const list = toCardList(kind, { name: rawName.trim(), text })
         await window.api.createList(kind, list.name, list.text)
-        commit({ ...ref.current, lists: [...ref.current.lists, list].sort(byName) })
+        commitLists([...ref.current.lists, list])
         return { kind, name: list.name }
       },
 
@@ -534,28 +574,23 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         const to = rawTo.trim()
         await window.api.renameList(target.kind, target.name, to)
         retarget(target, { kind: target.kind, name: to })
-        commit({
-          ...ref.current,
-          lists: ref.current.lists.map((list) => (sameList(list, target) ? { ...list, name: to } : list)).sort(byName)
-        })
+        // A renamed wishlist keeps its place in the order.
+        commitLists(ref.current.lists.map((list) => (sameList(list, target) ? { ...list, name: to } : list)))
         if (target.kind === 'deck') relinkUpgrades(target.name, to)
         return { kind: target.kind, name: to }
       },
 
       /**
-       * Moves a list to another kind. A deck's upgrades become plain wishlists, and a wishlist made a
-       * deck is no longer an upgrade.
+       * Moves a list to another kind. A deck made a wishlist goes to the bottom of the order, and its
+       * upgrades become plain wishlists; a wishlist made a deck is no longer an upgrade.
        * @returns New ref; name may be suffixed.
        */
       async moveList(target: ListRef, to: ListKind): Promise<ListRef> {
         const name = await window.api.moveList(target.kind, to, target.name)
         retarget(target, { kind: to, name })
-        commit({
-          ...ref.current,
-          lists: ref.current.lists
-            .map((list) => (sameList(list, target) ? { ...list, kind: to, name } : list))
-            .sort(byName)
-        })
+        const source = ref.current.lists.find((list) => sameList(list, target))
+        const others = ref.current.lists.filter((list) => !sameList(list, target))
+        commitLists(source ? [...others, { ...source, kind: to, name }] : others)
         const moved = { kind: to, name }
         if (target.kind === 'deck' && to !== 'deck') relinkUpgrades(target.name, null)
         const list = ref.current.lists.find((l) => sameList(l, moved))
@@ -659,7 +694,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         return true
       }
     }),
-    [commit, relinkUpgrades, reload, removeList, resolveConflict, retarget, saveInventory, saveLines, undo, updateLines]
+    [commit, commitLists, relinkUpgrades, reload, removeList, resolveConflict, retarget, saveInventory, saveLines, undo, updateLines]
   )
 
   /** @returns Card name of a line for undo labels; `a card` if not found. */

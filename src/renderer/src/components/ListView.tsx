@@ -3,7 +3,6 @@ import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } f
 import { cardLines, nameKey } from '@shared/decklist'
 import type { Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
-import { listPriority } from '@shared/listPriority'
 import { isUnbuilt } from '@shared/listUnbuilt'
 import { upgradeTarget } from '@shared/listUpgrade'
 import { deckSizeCheck, listFormat } from '@shared/formats'
@@ -184,6 +183,10 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
   const complete = !isDeck && summary.cards > 0 && summary.ownedCards >= summary.cards
   const upgrades = upgradeTarget(list, lists)
+  const wishlists = lists.filter((other) => other.kind === 'wishlist')
+  /** Place in the wishlist order (0 is the top); -1 for decks. */
+  const place = isDeck ? -1 : wishlists.findIndex((other) => other.name === list.name)
+  const wishlistCount = wishlists.length
 
   const moveToDecks = async () => {
     try {
@@ -238,8 +241,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         onEditText={() => setDialog({ kind: 'text' })}
         onCopy={() => window.api.copyText(list.text).then(() => toast(`${isDeck ? 'Deck' : 'List'} copied to clipboard`))}
         onColor={() => setDialog({ kind: 'color' })}
-        priority={isDeck ? undefined : listPriority(list.lines)}
-        onPriority={isDeck ? undefined : () => setDialog({ kind: 'priority' })}
+        onMoveUp={place > 0 ? () => actions.moveWishlist(list, place - 1) : undefined}
+        onMoveDown={place >= 0 && place < wishlistCount - 1 ? () => actions.moveWishlist(list, place + 1) : undefined}
         onUpgrade={isDeck ? undefined : () => setDialog({ kind: 'upgrade' })}
         unbuilt={isDeck && isUnbuilt(list.lines)}
         onToggleUnbuilt={isDeck ? toggleUnbuilt : undefined}

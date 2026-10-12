@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { capEntries, type DeckFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
-import { listPriority, PRIORITIES } from '@shared/listPriority'
 import { upgradeTarget } from '@shared/listUpgrade'
 import type { ListAnalysis } from '@shared/listModel'
 import { totalCopies } from '@shared/totals'
@@ -25,7 +24,6 @@ export type ListDialog =
   | { kind: 'card'; lineId: string }
   | { kind: 'precon' }
   | { kind: 'color' }
-  | { kind: 'priority' }
   | { kind: 'upgrade' }
   | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
 
@@ -184,35 +182,6 @@ export function ListDialogs(props: ListDialogsProps) {
           />
         </Modal>
       )
-    case 'priority': {
-      const current = listPriority(list.lines)
-      return (
-        <Modal title="List priority" onClose={onClose}>
-          <p className="muted small">
-            How much this list's missing cards count when deciding what to buy, in Most Wanted and the budget
-            planner.
-          </p>
-          <div className="theme-options" role="radiogroup" aria-label="Priority">
-            {PRIORITIES.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                role="radio"
-                aria-checked={current === option.id}
-                className={`theme-option${current === option.id ? ' selected' : ''}`}
-                onClick={() => {
-                  actions.setListPriority(list, option.id)
-                  onClose()
-                }}
-              >
-                <span className="theme-label">{option.id === 'high' ? `★ ${option.label}` : option.label}</span>
-                <span className="muted tiny">{option.hint}</span>
-              </button>
-            ))}
-          </div>
-        </Modal>
-      )
-    }
     case 'upgrade':
       return <UpgradeDialog list={list} lists={props.lists} actions={actions} onClose={onClose} />
     default:

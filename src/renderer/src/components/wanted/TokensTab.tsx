@@ -1,6 +1,5 @@
-import { listId } from '@shared/copies'
+import { listId, listWeights } from '@shared/copies'
 import { cardLines, nameKey } from '@shared/decklist'
-import { priorityWeight } from '@shared/listPriority'
 import { sumOf } from '@shared/totals'
 import { featuredTokens, tokenLabel } from '@shared/tokens'
 import type { CardList, ListRef } from '../../stores/library'
@@ -23,7 +22,8 @@ export function TokensTab({ wishlists, meta, onOpenList, onCopy }: TokensTabProp
   const names = [...new Set(wishlists.flatMap((list) => cardLines(list.lines).map((line) => line.name)))]
   const data = useDeckTokens(names)
   if (!data) return <Skeleton width={200} />
-  const weightOf = (name: string) => priorityWeight(meta.get(listId({ kind: 'wishlist', name }))?.priority ?? 'normal')
+  const weights = listWeights(wishlists)
+  const weightOf = (name: string) => weights.get(listId({ kind: 'wishlist', name })) ?? 1
   const tokens = featuredTokens(data, names)
     .map((entry) => {
       const lists = perList.filter((list) => entry.makers.some((maker) => list.keys.has(nameKey(maker)))).map((list) => ({ kind: 'wishlist' as const, name: list.name }))

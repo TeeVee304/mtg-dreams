@@ -36,13 +36,14 @@
 - Make a wishlist an **Upgrade of** a deck (⋯ menu, Advanced): it holds the whole deck as you want it to be, and uses
   the deck's copies of the cards they share. Once you own every card, apply it: the deck becomes the upgrade.
 - **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
+- **Order your wishlists** by dragging them in the sidebar (or Move up / Move down in their ⋯ menu), most wanted first.
+  The higher a wishlist, the more its cards count in Most Wanted and the budget planner. New wishlists start at the bottom.
 - A **Statistics** panel shows the mana curve and the colors of the cards besides lands.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers the cards create, with which cards make each one.
-- Give a wishlist a **priority** (High, Normal, Low) from its ⋯ menu: it weights its cards in Most Wanted and the budget planner.
 
 ### Most Wanted
 - Every card your decks and wishlists still miss, merged across lists. Each built deck needs its own copies; for wishlists, one copy you buy serves every wishlist that wants it, and an upgrade shares its deck's.
-- Ranked by **best value** (cost per list served, priority-weighted) by default; also by most wanted, closest to completing, cheapest, or card properties.
+- Ranked by **best value** (cost per list served, weighted by your wishlist order) by default; also by most wanted, closest to completing, cheapest, or card properties.
 - Badges show cards that complete a list, got cheaper, or are on a friend's trade list.
 - A **Budget planner** picks the cards that bring your lists furthest for a budget; it can buy some of a card's copies, for the decks first in line.
 
@@ -94,6 +95,7 @@ Everything is stored per Windows user.
 Documents\MTG Dreams\
 ├── decks\deck.txt
 ├── lists\wishlist.txt
+├── lists\order.json      (your wishlist order)
 ├── trades\friend.mtgtrade
 └── inventory.txt
 ```

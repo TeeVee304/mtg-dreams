@@ -1,6 +1,5 @@
 import { listId, type ListKey } from '@shared/copies'
 import { listColor } from '@shared/listColor'
-import { listPriority, type ListPriority } from '@shared/listPriority'
 import type { ThemeColor } from '@shared/themes'
 import type { WantedCard } from '@shared/wanted'
 import type { CardList, ListRef } from '../../stores/library'
@@ -17,8 +16,6 @@ import { Icon } from '../Icon'
 /** List display data. */
 export interface ListMeta {
   color: ThemeColor | null
-  /** Wishlists only. */
-  priority: ListPriority | null
 }
 
 /** List chip input: a list wanting a card. */
@@ -29,9 +26,9 @@ export interface ChipList extends ListKey {
   missing?: number
 }
 
-/** @returns Color and priority of every list, by {@link listId}. */
+/** @returns Color of every list, by {@link listId}. */
 export function listMetas(lists: CardList[]): Map<string, ListMeta> {
-  return new Map(lists.map((list) => [listId(list), { color: listColor(list.lines), priority: list.kind === 'wishlist' ? listPriority(list.lines) : null }]))
+  return new Map(lists.map((list) => [listId(list), { color: listColor(list.lines) }]))
 }
 
 /** Props of {@link ListChips}. */
@@ -41,7 +38,7 @@ interface ListChipsProps {
   onOpenList: (list: ListRef) => void
 }
 
-/** The lists that want a card, as chips that open them; high priority starred, low dimmed. */
+/** The lists that want a card, as chips that open them. */
 export function ListChips({ lists, meta, onOpenList }: ListChipsProps) {
   return (
     <div className="chips">
@@ -49,16 +46,13 @@ export function ListChips({ lists, meta, onOpenList }: ListChipsProps) {
         const info = meta.get(listId(list))
         const wants = list.wants === undefined ? '' : ` wants ${list.wants}${list.missing !== undefined && list.missing < list.wants ? `, misses ${list.missing}` : ''}`
         const kind = list.kind === 'deck' ? 'Deck ' : ''
-        const priority = info?.priority && info.priority !== 'normal' ? ` · ${info.priority} priority` : ''
         return (
           <ListChip
             key={listId(list)}
             color={info?.color ?? null}
-            className={info?.priority === 'low' ? 'low' : undefined}
             onClick={() => onOpenList(list)}
-            title={`${kind}${list.name}${wants}${priority}`}
+            title={`${kind}${list.name}${wants}`}
           >
-            {info?.priority === 'high' && '★ '}
             {list.kind === 'deck' && <Icon name="deck" />}
             {list.name}
             {list.missing !== undefined && list.missing > 1 && ` · ${list.missing}`}

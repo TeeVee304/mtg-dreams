@@ -14,8 +14,8 @@ import {
 const now = new Date('2026-09-30T10:00:00Z')
 const inventory = parseInventory('3 Sol Ring\n1 Thoughtseize\n12 Island\n2 Counterspell')
 const wishlists = [
-  { kind: 'wishlist' as const, name: 'Doom', lines: parseList('1 Sol Ring\n2 Demonic Tutor\n1 Reanimate\n20 Swamp\n1 Counterspell') },
-  { kind: 'wishlist' as const, name: 'Burn', lines: parseList('4 Lightning Bolt\n1 Demonic Tutor\n1 Reanimate <3> [TMP]\n1 Reanimate') }
+  { kind: 'wishlist' as const, name: 'Burn', lines: parseList('4 Lightning Bolt\n1 Demonic Tutor\n1 Reanimate <3> [TMP]\n1 Reanimate') },
+  { kind: 'wishlist' as const, name: 'Doom', lines: parseList('1 Sol Ring\n2 Demonic Tutor\n1 Reanimate\n20 Swamp\n1 Counterspell') }
 ]
 
 const doom = { kind: 'wishlist', name: 'Doom' }

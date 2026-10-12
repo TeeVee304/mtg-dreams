@@ -2,23 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { parseInventory, parseList } from './decklist'
 import { costOf, mostWanted, planPurchases, sortWanted, valueOf, type WantedCard } from './wanted'
 
-const list = (name: string, text: string, priority?: 'High' | 'Low') => ({
-  kind: 'wishlist' as const,
-  name,
-  lines: parseList(`${priority ? `// Priority: ${priority}\n` : ''}${text}`)
-})
+const list = (name: string, text: string) => ({ kind: 'wishlist' as const, name, lines: parseList(text) })
 const deck = (name: string, text: string) => ({ kind: 'deck' as const, name, lines: parseList(text) })
 const find = (cards: WantedCard[], name: string) => cards.find((card) => card.name === name)!
 const names = (lists: Array<{ name: string }>) => lists.map((l) => l.name)
 
+// In your order: Angels weighs 2, Goblins 1.25, Someday 0.5.
 const lists = [
+  list('Angels', '1 Sol Ring\n1 Smothering Tithe'),
   list('Goblins', '2 Sol Ring\n1 Goblin Bombardment\n10 Mountain'),
-  list('Angels', '1 Sol Ring\n1 Smothering Tithe', 'High'),
-  list('Someday', '1 Sol Ring\n1 Smothering Tithe\n1 Mana Crypt', 'Low')
+  list('Someday', '1 Sol Ring\n1 Smothering Tithe\n1 Mana Crypt')
 ]
 
 describe('mostWanted', () => {
-  it('counts only lists that still need a card, weighted by priority', () => {
+  it('counts only lists that still need a card, weighted by their place in your order', () => {
     const { cards } = mostWanted(lists, parseInventory('1 Sol Ring\n'))
     const tithe = find(cards, 'Smothering Tithe')
     expect(tithe.lists.map((l) => [l.name, l.weight])).toEqual([['Angels', 2], ['Someday', 0.5]])
@@ -74,13 +71,13 @@ describe('ranking and planning', () => {
 
   it('measures value as cost per weighted list', () => {
     expect(costOf(find(cards, 'Pricey Bomb'), 40)).toBe(40)
-    expect(valueOf(find(cards, 'Pricey Bomb'), 40)).toBe(20)
+    expect(valueOf(find(cards, 'Pricey Bomb'), 40)).toBe(40 / (2 + 1.25))
     expect(valueOf(find(cards, 'Other Card'), null)).toBeNull()
   })
 
   it('sorts by best value, most wanted and completion, unpriced last', () => {
     const order = (sort: Parameters<typeof sortWanted>[1]) => sortWanted(cards, sort, unitOf, () => null).map((c) => c.name)
-    expect(order('value')).toEqual(['Cheap Staple', 'Lonely Card', 'Last Piece', 'Pricey Bomb', 'Other Card'])
+    expect(order('value')).toEqual(['Cheap Staple', 'Last Piece', 'Lonely Card', 'Pricey Bomb', 'Other Card'])
     expect(order('lists')[0]).toBe('Cheap Staple')
     expect(order('completion').slice(0, 2)).toEqual(['Cheap Staple', 'Pricey Bomb'])
   })
@@ -89,8 +86,8 @@ describe('ranking and planning', () => {
     const plan = planPurchases(cards, unitOf, 10, wanted)
     expect(plan.items.map((item) => [item.card.name, item.copies, names(item.lists)])).toEqual([
       ['Cheap Staple', 1, ['A', 'B', 'C']],
-      ['Lonely Card', 1, ['C']],
-      ['Last Piece', 1, ['A']]
+      ['Last Piece', 1, ['A']],
+      ['Lonely Card', 1, ['C']]
     ])
     expect(plan.total).toBe(6)
     expect(plan.unpriced).toBe(1)
@@ -99,7 +96,7 @@ describe('ranking and planning', () => {
   })
 
   it('buys copies deck by deck, and once for all wishlists', () => {
-    const xy = [list('X', '1 Bolt', 'High'), list('Y', '1 Bolt\n1 Opt')]
+    const xy = [list('X', '1 Bolt'), list('Y', '1 Bolt\n1 Opt')]
     const wishlists = mostWanted(xy, new Map())
     const one = planPurchases(wishlists.cards, unitOf, 1, wishlists)
     expect(one.items.map((item) => [item.card.name, item.copies, names(item.lists), item.cost])).toEqual([['Bolt', 1, ['X', 'Y'], 1]])
@@ -112,8 +109,8 @@ describe('ranking and planning', () => {
 describe('mostWanted with upgrades', () => {
   const upgradeLists = [
     deck('Elves', '1 Sol Ring\n1 Llanowar Elves'),
-    list('Elves Big', '// Upgrade of: Elves\n1 Sol Ring\n2 Llanowar Elves'),
     list('Elves Alt', '// Upgrade of: Elves\n1 Sol Ring'),
+    list('Elves Big', '// Upgrade of: Elves\n1 Sol Ring\n2 Llanowar Elves'),
     list('Other', '1 Sol Ring')
   ]
 

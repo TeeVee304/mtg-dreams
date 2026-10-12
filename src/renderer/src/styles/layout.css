@@ -156,6 +156,19 @@
   background: var(--accent-soft);
 }
 
+/* Reordering wishlists: the dragged one fades, and a line marks where it would drop. */
+.nav-item.dragging {
+  opacity: 0.5;
+}
+
+.nav-item.drop-before {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+.nav-item.drop-after {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
 .nav-item.active .nav-name {
   color: var(--accent-text);
 }

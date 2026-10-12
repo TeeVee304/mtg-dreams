@@ -97,7 +97,7 @@ interface ListChipProps {
   color: ThemeColor | null
   onClick: () => void
   title?: string
-  /** Extra classes: `low` (low priority), `short` (deck short of copies). */
+  /** Extra classes: `short` (deck short of copies). */
   className?: string
   children: ReactNode
 }

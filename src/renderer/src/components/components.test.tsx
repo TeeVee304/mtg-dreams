@@ -34,16 +34,16 @@ describe('the welcome page', () => {
 
 describe('Most Wanted', () => {
   const lists = [
-    { kind: 'wishlist' as const, name: 'Elves', text: '', lines: parseList('// Priority: High\n2 Llanowar Elves') },
+    { kind: 'wishlist' as const, name: 'Elves', text: '', lines: parseList('2 Llanowar Elves') },
     { kind: 'deck' as const, name: 'Burn', text: '', lines: parseList('4 Lightning Bolt') }
   ]
 
-  it('shows the lists that want a card, high priority starred and decks marked', () => {
+  it('shows the lists that want a card, decks marked', () => {
     const html = renderToStaticMarkup(
       <ListChips lists={[{ kind: 'wishlist', name: 'Elves', wants: 2, missing: 2 }, { kind: 'deck', name: 'Burn' }]} meta={listMetas(lists)} onOpenList={noop} />
     )
-    expect(textOf(html)).toBe('★ Elves · 2 Burn')
-    expect(html).toContain('title="Elves wants 2 · high priority"')
+    expect(textOf(html)).toBe('Elves · 2 Burn')
+    expect(html).toContain('title="Elves wants 2"')
     expect(html).toContain('title="Deck Burn"')
   })
 

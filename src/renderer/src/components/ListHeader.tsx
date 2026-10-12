@@ -1,7 +1,6 @@
 import { COLOR_NAMES, type ColorFilter } from '@shared/cards'
 import { commanderRule, type DeckFormat } from '@shared/formats'
 import { MANA_SYMBOLS } from '../lib/artwork'
-import type { ListPriority } from '@shared/listPriority'
 import { FormatSelect } from './Controls'
 import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
@@ -36,10 +35,10 @@ interface ListHeaderProps {
   onCopy: () => void
   /** Opens the color picker. */
   onColor: () => void
-  /** Wishlists: current priority. */
-  priority?: ListPriority
-  /** Wishlists: opens the priority picker. */
-  onPriority?: () => void
+  /** Wishlists not at the top of the order: moves it up one place. */
+  onMoveUp?: () => void
+  /** Wishlists not at the bottom of the order: moves it down one place. */
+  onMoveDown?: () => void
   /** Wishlists: opens the picker of the deck it upgrades. */
   onUpgrade?: () => void
   /** Decks: whether it is unbuilt, using your cards without reserving them. */
@@ -117,16 +116,6 @@ export function ListHeader(props: ListHeaderProps) {
               {`${ownershipErrors === 1 ? 'card needs' : 'cards need'} more copies`}
             </button>
           )}
-          {props.priority && props.priority !== 'normal' && (
-            <button
-              type="button"
-              className={`chip priority-chip ${props.priority}`}
-              onClick={props.onPriority}
-              title="How much this list's cards count when deciding what to buy"
-            >
-              {props.priority === 'high' ? '★ High priority' : 'Low priority'}
-            </button>
-          )}
         </div>
       </div>
       <div className="header-actions">
@@ -138,7 +127,8 @@ export function ListHeader(props: ListHeaderProps) {
           items={[
             { label: 'Copy as text', onSelect: props.onCopy },
             { label: 'Color…', onSelect: props.onColor },
-            ...(props.onPriority ? [{ label: 'Priority…', onSelect: props.onPriority }] : []),
+            ...(props.onMoveUp ? [{ label: 'Move up', onSelect: props.onMoveUp }] : []),
+            ...(props.onMoveDown ? [{ label: 'Move down', onSelect: props.onMoveDown }] : []),
             ...(props.onUpgrade ? [{ label: 'Advanced', items: [{ label: 'Upgrade of…', onSelect: props.onUpgrade }] }] : []),
             ...(props.onToggleUnbuilt
               ? [{ label: 'Advanced', items: [{ label: 'Unbuilt', checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] }]
