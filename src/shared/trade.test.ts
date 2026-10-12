@@ -22,9 +22,11 @@ const doom = { kind: 'wishlist', name: 'Doom' }
 const burn = { kind: 'wishlist', name: 'Burn' }
 const deck = { kind: 'deck' as const, name: 'Control', lines: parseList('2 Counterspell\n3 Sol Ring') }
 
+const unbuilt = { ...deck, lines: parseList('// Unbuilt: Yes\n2 Counterspell\n3 Sol Ring') }
+
 describe('computeWants', () => {
-  it('adds up list shortfalls with separate copies, decks first', () => {
-    expect(computeWants([...wishlists, deck], inventory, 'separate')).toEqual([
+  it('adds up list shortfalls, decks first', () => {
+    expect(computeWants([...wishlists, deck], inventory)).toEqual([
       { name: 'Counterspell', qty: 1, lists: [doom] },
       { name: 'Demonic Tutor', qty: 3, lists: [burn, doom] },
       { name: 'Lightning Bolt', qty: 4, lists: [burn] },
@@ -33,29 +35,31 @@ describe('computeWants', () => {
     ])
   })
 
-  it('takes the largest wishlist shortfall with shared copies, ignoring decks and basics', () => {
-    expect(computeWants([...wishlists, deck], inventory, 'shared')).toEqual([
-      { name: 'Demonic Tutor', qty: 2, lists: [burn, doom] },
+  it('wants nothing an unbuilt deck uses, since it reserves no copies', () => {
+    expect(computeWants([...wishlists, unbuilt], inventory)).toEqual([
+      { name: 'Demonic Tutor', qty: 3, lists: [burn, doom] },
       { name: 'Lightning Bolt', qty: 4, lists: [burn] },
-      { name: 'Reanimate', qty: 2, lists: [burn, doom] }
+      { name: 'Reanimate', qty: 3, lists: [burn, doom] }
     ])
   })
 })
 
 describe('myTradeSide', () => {
-  it('offers only the copies no list keeps, with separate copies', () => {
-    const side = myTradeSide(inventory, [...wishlists, deck], 'separate')
-    expect(side.haves).toEqual([{ name: 'Thoughtseize', qty: 1 }])
-    expect(side.kept).toEqual([
-      { name: 'Counterspell', qty: 2 },
-      { name: 'Sol Ring', qty: 3 }
-    ])
+  it('offers only the copies no list keeps, unbuilt decks included', () => {
+    for (const control of [deck, unbuilt]) {
+      const side = myTradeSide(inventory, [...wishlists, control])
+      expect(side.haves).toEqual([{ name: 'Thoughtseize', qty: 1 }])
+      expect(side.kept).toEqual([
+        { name: 'Counterspell', qty: 2 },
+        { name: 'Sol Ring', qty: 3 }
+      ])
+    }
   })
 })
 
 describe('buildSnapshot', () => {
   it('shares spare copies except basic lands', () => {
-    const snapshot = buildSnapshot(' Bruno ', myTradeSide(inventory, wishlists, 'shared'), now)
+    const snapshot = buildSnapshot(' Bruno ', myTradeSide(inventory, wishlists), now)
     expect(snapshot.name).toBe('Bruno')
     expect(snapshot.haves).toEqual([
       { name: 'Counterspell', qty: 1 },
@@ -67,7 +71,7 @@ describe('buildSnapshot', () => {
 })
 
 describe('parseTradeText', () => {
-  const snapshot = buildSnapshot('Ana', myTradeSide(inventory, wishlists, 'shared'), now)
+  const snapshot = buildSnapshot('Ana', myTradeSide(inventory, wishlists), now)
 
   it('round-trips the trade file and its text version', () => {
     expect(parseTradeText(serializeSnapshot(snapshot), 'file')).toEqual(snapshot)
@@ -117,12 +121,12 @@ describe('parseTradeText', () => {
 
 describe('matchTrades', () => {
   it('finds cards the friend has that you want, and the reverse', () => {
-    const mine = buildSnapshot('Me', myTradeSide(inventory, wishlists, 'shared'), now)
-    const myWants = computeWants(wishlists, inventory, 'shared')
+    const mine = buildSnapshot('Me', myTradeSide(inventory, wishlists), now)
+    const myWants = computeWants(wishlists, inventory)
     const friend = parseTradeText('// Have\n1 Demonic Tutor\n9 Lightning Bolt\n5 Island\n// Want\n2 Sol Ring\n1 Thoughtseize\n3 Island', 'Ana')
     const { forMe, forThem } = matchTrades(mine.haves, myWants, friend)
     expect(forMe).toEqual([
-      { name: 'Demonic Tutor', qty: 1, available: 1, needed: 2, lists: [burn, doom] },
+      { name: 'Demonic Tutor', qty: 1, available: 1, needed: 3, lists: [burn, doom] },
       { name: 'Lightning Bolt', qty: 4, available: 9, needed: 4, lists: [burn] }
     ])
     expect(forThem).toEqual([
@@ -132,7 +136,7 @@ describe('matchTrades', () => {
   })
 
   it('lists the wants only copies your lists keep could cover', () => {
-    const side = myTradeSide(inventory, [...wishlists, deck], 'separate')
+    const side = myTradeSide(inventory, [...wishlists, deck])
     const friend = parseTradeText('// Want\n2 Sol Ring\n1 Thoughtseize\n3 Island', 'Ana')
     expect(keptMatches(side.haves, side.kept, friend)).toEqual([{ name: 'Sol Ring', qty: 2, available: 3, needed: 2, lists: [] }])
   })

@@ -1,15 +1,14 @@
 /**
- * Most Wanted: cards lists still miss, merged across lists, with purchase metrics and a budget
- * planner. Shared copies: wishlists only; one copy counts for every list, so a card's purchase
- * quantity is the largest list shortfall. Separate copies: decks too; each list needs its own, so
- * it is the sum of the list shortfalls, filled in allocation order. Prices are passed in, keeping
- * this module pure.
+ * Most Wanted: cards decks and wishlists still miss, merged across lists, with purchase metrics and a
+ * budget planner. Each list needs its own copies, so a card's purchase quantity is the sum of the
+ * copies each list must buy, in allocation order, less what lists sharing copies get from others'
+ * purchases ({@link CardNeed.buy}). Prices are passed in, keeping this module pure.
  *
  * @packageDocumentation
  */
 
 import { compareCards, isBasicLand, isCardSort } from './cards'
-import { listId, listNeeds, listWeight, type CopiesMode, type CopyPool, type ListKey, type PoolList } from './copies'
+import { listId, listNeeds, listWeight, type CardNeed, type CopyPool, type ListKey, type PoolList } from './copies'
 import { sumOf } from './totals'
 import type { CardInfo, InventoryItem } from './types'
 
@@ -21,6 +20,10 @@ export interface WantingList extends ListKey {
   wants: number
   /** Copies of the card the list lacks. */
   missing: number
+  /** Copies to buy for it once the lists ahead have theirs ({@link CardNeed.buy}). */
+  buy: number
+  /** {@link listId} of the deck it upgrades, whose bought copies it shares; null otherwise. */
+  upgrades: string | null
   /** Most Wanted weight: priority weight; decks as high priority. */
   weight: number
 }
@@ -33,7 +36,7 @@ export interface WantedCard {
   /** Basic land; listed apart from other cards. */
   basic: boolean
   owned: number
-  /** Copies to buy so every list is covered: largest list shortfall (shared) or their sum (separate). */
+  /** Copies to buy so every list is covered: the sum of the copies each list must buy ({@link CardNeed.buy}). */
   toBuy: number
   /** Lists still needing it, in allocation order. */
   lists: WantingList[]
@@ -47,7 +50,6 @@ export interface WantedCard {
 
 /** Most Wanted cards of all lists. */
 export interface MostWanted {
-  mode: CopiesMode
   /** Nonbasic cards. */
   cards: WantedCard[]
   /** Basic lands. */
@@ -60,22 +62,17 @@ export interface MostWanted {
 export type UnitPrice = number | null | undefined
 
 /**
- * Collects the cards lists still miss ({@link listNeeds}): wishlists, and with separate copies decks
- * too (allocated first, so their gaps absorb purchases before wishlists).
- * @param pool - Copy claims of `lists` in `mode`, if already built.
+ * Collects the cards lists still miss ({@link listNeeds}): decks (allocated first, so their gaps
+ * absorb purchases before wishlists) and wishlists.
+ * @param pool - Copy claims of `lists`, if already built.
  */
-export function mostWanted(
-  lists: PoolList[],
-  inventory: Map<string, InventoryItem>,
-  mode: CopiesMode,
-  pool?: CopyPool
-): MostWanted {
-  const needs = listNeeds(lists, inventory, mode, pool)
+export function mostWanted(lists: PoolList[], inventory: Map<string, InventoryItem>, pool?: CopyPool): MostWanted {
+  const needs = listNeeds(lists, inventory, pool)
   const missing: Record<string, number> = {}
   for (const { list, needs: cards } of needs) missing[listId(list)] = cards.filter((need) => !isBasicLand(need.name)).length
 
   const byKey = new Map<string, WantedCard>()
-  for (const { list, needs: cards } of needs) {
+  for (const { list, upgrades, needs: cards } of needs) {
     const id = listId(list)
     const weight = listWeight(list)
     for (const need of cards) {
@@ -91,10 +88,19 @@ export function mostWanted(
         completes: [],
         impact: 0
       }
-      const wanting: WantingList = { kind: list.kind, name: list.name, id, wants: need.wants, missing: need.missing, weight }
+      const wanting: WantingList = {
+        kind: list.kind,
+        name: list.name,
+        id,
+        wants: need.wants,
+        missing: need.missing,
+        buy: need.buy,
+        upgrades,
+        weight
+      }
       card.lists.push(wanting)
       card.weight += weight
-      card.toBuy = mode === 'shared' ? Math.max(card.toBuy, need.missing) : card.toBuy + need.missing
+      card.toBuy += need.buy
       if (!basic) {
         card.impact += weight / missing[id]
         if (missing[id] === 1) card.completes.push(wanting)
@@ -104,7 +110,7 @@ export function mostWanted(
   }
 
   const all = [...byKey.values()]
-  return { mode, cards: all.filter((card) => !card.basic), basics: all.filter((card) => card.basic), missing }
+  return { cards: all.filter((card) => !card.basic), basics: all.filter((card) => card.basic), missing }
 }
 
 /** @returns Cost of the copies to buy; null if unpriced, undefined while loading. */
@@ -210,28 +216,43 @@ interface Step {
 }
 
 /**
+ * @returns Purchase steps of a card, in allocation order. A list with nothing to buy itself rides
+ * along with the step that covers it: its deck's for an upgrade, else the latest, since steps are
+ * taken in order.
+ */
+function purchaseSteps(card: WantedCard): Step[] {
+  const steps: Step[] = []
+  for (const list of card.lists) {
+    if (list.buy > 0 || steps.length === 0) {
+      steps.push({ copies: list.buy || list.missing, lists: [list] })
+      continue
+    }
+    const step = (list.upgrades && steps.find((s) => s.lists[0].id === list.upgrades)) || steps[steps.length - 1]
+    step.lists.push(list)
+  }
+  return steps
+}
+
+/**
  * Greedy budget plan: repeatedly buys the affordable step with the most benefit per euro, where
  * benefit is Σ list weight × (1 + 1 ÷ cards that list still misses). Each purchase brings its lists
- * closer to completion, raising the benefit of their remaining cards. Shared copies: one step per
- * card, covering every list. Separate copies: one step per wanting list, taken in allocation order,
- * since bought copies go to the lists ahead first.
+ * closer to completion, raising the benefit of their remaining cards. One step per wanting list,
+ * taken in allocation order, since bought copies go to the lists ahead first ({@link purchaseSteps}).
  * @param cards - Nonbasic Most Wanted cards.
- * @param wanted - Mode and missing cards per list ({@link MostWanted}).
+ * @param wanted - Missing cards per list ({@link MostWanted}).
  */
 export function planPurchases(
   cards: WantedCard[],
   unitOf: (card: WantedCard) => UnitPrice,
   budget: number,
-  { mode, missing }: Pick<MostWanted, 'mode' | 'missing'>
+  { missing }: Pick<MostWanted, 'missing'>
 ): PurchasePlan {
   const remaining = { ...missing }
   const queues = cards
     .map((card) => ({
       card,
       unit: unitOf(card),
-      steps: (mode === 'shared'
-        ? [{ copies: card.toBuy, lists: card.lists }]
-        : card.lists.map((list) => ({ copies: list.missing, lists: [list] }))) as Step[]
+      steps: purchaseSteps(card)
     }))
     .filter((queue): queue is { card: WantedCard; unit: number; steps: Step[] } => typeof queue.unit === 'number')
   const items = new Map<string, PlannedCard>()

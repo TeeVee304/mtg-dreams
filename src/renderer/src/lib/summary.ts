@@ -22,7 +22,7 @@ export interface Row {
   owned: number
   /** Copies of the same card claimed ahead of this line: by lists ahead, then earlier lines. */
   before: number
-  /** Copies of the same card claimed by lists ahead of this one (separate copies). */
+  /** Copies of the same card claimed by lists ahead of this one. */
   held: number
   /** Lists ahead that get the owned copies, with how many each gets; set by list pages. */
   holders?: HeldCopies[]
@@ -131,7 +131,7 @@ export function listRows(list: CardList, inventory: Map<string, InventoryItem>, 
         items,
         { bundleBasics, priceBasis },
         sideboardIds(list.lines, !listFormat(list.lines)?.commander),
-        (key) => claims.held(list, key)
+        (key) => claims.held(list, key, items.get(key)?.qty ?? 0)
       )
     )
     listRowsCache.set(list, rows)

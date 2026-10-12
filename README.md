@@ -29,19 +29,22 @@
 
 ### Decks and Wishlists
 - **Decks** are built from your inventory: you can only add cards you own, up to the copies you have.
-- **Owned copies** (Settings) are *separate per list* by default: each deck and wishlist needs its own copies, as when
-  decks stay built. Decks get your copies first (by name), then wishlists by priority. Choose *shared between lists*
-  if you move cards between decks: then one copy counts for every list.
+- **Owned copies** are separate per list: each deck and wishlist needs its own copies, as when decks stay built. Decks
+  get your copies first (by name), then wishlists by priority.
+- Mark a deck you put together only when you play it **Unbuilt** (⋯ menu, Advanced): it uses every copy you own without
+  reserving any, so other lists keep theirs. Its copies still stay off your trade list.
+- Make a wishlist an **Upgrade of** a deck (⋯ menu, Advanced): it holds the whole deck as you want it to be, and uses
+  the deck's copies of the cards they share. Once you own every card, apply it: the deck becomes the upgrade.
 - **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
 - A **Statistics** panel shows the mana curve and the colors of the cards besides lands.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers the cards create, with which cards make each one.
-- Give a wishlist a **priority** (High, Normal, Low) from its ⋯ menu: it weights its cards in Most Wanted and, with separate copies, decides which wishlists get your copies first.
+- Give a wishlist a **priority** (High, Normal, Low) from its ⋯ menu: it weights its cards in Most Wanted and decides which wishlists get your copies first.
 
 ### Most Wanted
-- Every card your wishlists still miss, merged across lists. With separate copies, it buys a copy for each list; with shared copies, one copy you buy counts for every list that wants it.
+- Every card your decks and wishlists still miss, merged across lists. It buys a copy for each list, except where one copy serves several: an upgrade and its deck, or an unbuilt deck and the lists after it.
 - Ranked by **best value** (cost per list served, priority-weighted) by default; also by most wanted, closest to completing, cheapest, or card properties.
 - Badges show cards that complete a list, got cheaper, or are on a friend's trade list.
-- A **Budget planner** picks the cards that bring your lists furthest for a budget; with separate copies it can buy some of a card's copies, for the lists first in line.
+- A **Budget planner** picks the cards that bring your lists furthest for a budget; it can buy some of a card's copies, for the lists first in line.
 
 ### Precons
 - Pick from about 3 000 official products: Commander decks, Challenger decks, Secret Lair drops and more.

@@ -39,7 +39,7 @@ import { useToast } from './Toasts'
 interface Usage {
   list: string
   qty: number
-  /** Copies lists ahead of this one claim first (separate copies). */
+  /** Copies lists ahead of this one claim first. */
   held: number
   /** List color; null = app accent. */
   color: ThemeColor | null
@@ -90,12 +90,12 @@ export function InventoryView(props: InventoryViewProps) {
         const entries = map.get(key) ?? []
         const existing = entries.find((e) => e.list === list.name)
         if (existing) existing.qty += line.qty
-        else entries.push({ list: list.name, qty: line.qty, held: pool.held(list, key), color })
+        else entries.push({ list: list.name, qty: line.qty, held: pool.held(list, key, inventory.get(key)?.qty ?? 0), color })
         map.set(key, entries)
       }
     }
     return byKind
-  }, [lists, pool])
+  }, [inventory, lists, pool])
 
   useEffect(() => {
     requestCardInfos(

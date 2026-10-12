@@ -18,9 +18,7 @@ interface CardsTabProps {
   overview: WantedOverview
   /** The cards shown, filtered and sorted. */
   visible: WantedCard[]
-  /** Decks count, with separate copies. */
-  separate: boolean
-  /** Neither decks (with separate copies) nor wishlists exist. */
+  /** Neither decks nor wishlists exist. */
   noLists: boolean
   filters: CardFilters
   onFilters: (filters: CardFilters) => void
@@ -44,18 +42,16 @@ interface CardsTabProps {
 
 /** Cards tab: the cards lists still miss, with price drops, friends who have them, and Bought. */
 export function CardsTab(props: CardsTabProps) {
-  const { overview, visible, separate, noLists, filters, friends, drops, pool, meta } = props
+  const { overview, visible, noLists, filters, friends, drops, pool, meta } = props
   if (noLists) {
     return (
       <div className="empty">
-        <p>{separate ? 'No decks or wishlists yet.' : 'No wishlists yet.'}</p>
-        <p className="muted">Most Wanted gathers the cards your {separate ? 'decks and wishlists' : 'wishlists'} still miss.</p>
+        <p>No decks or wishlists yet.</p>
+        <p className="muted">Most Wanted gathers the cards your decks and wishlists still miss.</p>
         <div className="welcome-actions">
-          {separate && (
-            <button type="button" onClick={() => props.onNew('deck')}>
-              New deck
-            </button>
-          )}
+          <button type="button" onClick={() => props.onNew('deck')}>
+            New deck
+          </button>
           <button type="button" onClick={() => props.onNew('wishlist')}>
             New wishlist
           </button>
@@ -67,7 +63,7 @@ export function CardsTab(props: CardsTabProps) {
     return (
       <div className="empty">
         <p>Nothing to buy.</p>
-        <p className="muted">Every {separate ? 'deck and wishlist' : 'wishlist'} card is in your inventory, basic lands aside.</p>
+        <p className="muted">Every deck and wishlist card is in your inventory, basic lands aside.</p>
       </div>
     )
   }
@@ -99,11 +95,7 @@ export function CardsTab(props: CardsTabProps) {
             <th>Wanted in</th>
             <th
               className="col-num"
-              title={
-                separate
-                  ? 'Copies to buy so every list is covered: each list needs its own (Settings)'
-                  : 'Copies to buy so every list is covered: one copy counts for all lists (Settings)'
-              }
+              title="Copies to buy so every list is covered: each list needs its own, except upgrades and unbuilt decks, which share"
             >
               To buy
             </th>
@@ -146,7 +138,7 @@ export function CardsTab(props: CardsTabProps) {
                   )}
                   {card.owned > 0 && (
                     <span className="muted small owned-note">
-                      {card.owned} owned{separate && usedBy.length > 0 && ` · ${heldWhere(usedBy, card.owned)}`}
+                      {card.owned} owned{usedBy.length > 0 && ` · ${heldWhere(usedBy, card.owned)}`}
                     </span>
                   )}
                 </NameCell>

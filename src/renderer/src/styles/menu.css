@@ -61,6 +61,17 @@
   background: var(--bad-soft);
 }
 
+/* An entry opening a submenu or showing a check mark, and the way back from a submenu. */
+.menu-list button.menu-sub {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.menu-list button.menu-back {
+  color: var(--muted);
+}
+
 .menu-separator {
   height: 1px;
   margin: 4px 2px;

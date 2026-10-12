@@ -34,7 +34,7 @@ const isTab = (value: string): value is WantedTab => value === 'cards' || value 
 
 /** Props of {@link WantedView}. */
 interface WantedViewProps {
-  /** All lists; decks count with separate copies only. */
+  /** All decks and wishlists. */
   lists: CardList[]
   inventory: Map<string, InventoryItem>
   /** Friends' trade lists, for "a friend has it" hints. */
@@ -78,7 +78,7 @@ function friendHaves(trades: TradeSnapshot[]): FriendHaves {
 }
 
 /**
- * Most Wanted page: cards still missing from wishlists (and decks, with separate copies), merged
+ * Most Wanted page: cards still missing from decks and wishlists, merged
  * across lists and ranked for buying (best value by default), with a budget planner. Basic lands
  * and the tokens wishlist cards create have their own tabs, shown when they have something to show.
  */
@@ -96,7 +96,6 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   const pool = useCopyPool(lists)
   const wishlists = lists.filter((list) => list.kind === 'wishlist')
   const overview = wantedOverview(lists, inventory, settings, pool)
-  const separate = overview.mode === 'separate'
   const meta = listMetas(lists)
   const infoOf = (card: WantedCard) => getCardInfo(card.name, settings.bundleBasics)
   const withDecks = [...overview.cards, ...overview.basics].some((card) => card.lists.some((list) => list.kind === 'deck'))
@@ -109,8 +108,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
     infoOf
   )
   const basics = [...overview.basics].sort((a, b) => b.toBuy - a.toBuy || a.name.localeCompare(b.name))
-  /** Lists Most Wanted draws from: decks count with separate copies only. */
-  const noLists = (separate ? lists : wishlists).length === 0
+  const noLists = lists.length === 0
   const toBuy = (cards: WantedCard[]) => sumOf(cards, (card) => card.toBuy)
   const tabs = (
     [
@@ -165,7 +163,6 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
         <CardsTab
           overview={overview}
           visible={visible}
-          separate={separate}
           noLists={noLists}
           filters={filters}
           onFilters={setFilters}
@@ -189,7 +186,6 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
         <BasicsTab
           overview={overview}
           basics={basics}
-          separate={separate}
           bundleBasics={settings.bundleBasics}
           meta={meta}
           onBought={markBought}

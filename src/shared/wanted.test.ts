@@ -17,40 +17,30 @@ const lists = [
   list('Someday', '1 Sol Ring\n1 Smothering Tithe\n1 Mana Crypt', 'Low')
 ]
 
-describe('mostWanted with shared copies', () => {
-  it('buys the largest missing quantity once, counting only lists that still need the card', () => {
-    const { cards } = mostWanted(lists, parseInventory('1 Sol Ring\n'), 'shared')
-    const sol = find(cards, 'Sol Ring')
-    expect(sol).toMatchObject({ owned: 1, toBuy: 1, weight: 1 })
-    expect(names(sol.lists)).toEqual(['Goblins'])
+describe('mostWanted', () => {
+  it('counts only lists that still need a card, weighted by priority', () => {
+    const { cards } = mostWanted(lists, parseInventory('1 Sol Ring\n'))
     const tithe = find(cards, 'Smothering Tithe')
     expect(tithe.lists.map((l) => [l.name, l.weight])).toEqual([['Angels', 2], ['Someday', 0.5]])
     expect(tithe.weight).toBe(2.5)
   })
 
   it('lists basic lands apart and leaves them out of completion', () => {
-    const result = mostWanted(lists, parseInventory('1 Sol Ring\n'), 'shared')
+    const result = mostWanted(lists, parseInventory('1 Sol Ring\n'))
     expect(result.basics.map((c) => [c.name, c.toBuy])).toEqual([['Mountain', 10]])
-    expect(result.missing).toEqual({ 'wishlist/Goblins': 2, 'wishlist/Angels': 1, 'wishlist/Someday': 2 })
+    expect(result.missing).toEqual({ 'wishlist/Angels': 1, 'wishlist/Goblins': 2, 'wishlist/Someday': 3 })
     expect(names(find(result.cards, 'Smothering Tithe').completes)).toEqual(['Angels'])
-    expect(find(result.cards, 'Smothering Tithe').impact).toBe(2 / 1 + 0.5 / 2)
+    expect(find(result.cards, 'Smothering Tithe').impact).toBe(2 / 1 + 0.5 / 3)
   })
 
-  it('ignores decks', () => {
-    const { cards } = mostWanted([...lists, deck('Burn', '1 Lightning Bolt')], new Map(), 'shared')
-    expect(cards.some((card) => card.name === 'Lightning Bolt')).toBe(false)
-  })
-})
-
-describe('mostWanted with separate copies', () => {
   it('buys a copy for every list, handing owned copies out by priority', () => {
-    const sol = find(mostWanted(lists, parseInventory('1 Sol Ring\n'), 'separate').cards, 'Sol Ring')
+    const sol = find(mostWanted(lists, parseInventory('1 Sol Ring\n')).cards, 'Sol Ring')
     expect(sol.toBuy).toBe(3)
     expect(sol.lists.map((l) => [l.name, l.wants, l.missing])).toEqual([['Goblins', 2, 2], ['Someday', 1, 1]])
   })
 
   it('lets decks take owned copies first, and counts their gaps', () => {
-    const result = mostWanted([...lists, deck('Burn', '1 Sol Ring\n1 Mana Crypt')], parseInventory('1 Sol Ring\n'), 'separate')
+    const result = mostWanted([...lists, deck('Burn', '1 Sol Ring\n1 Mana Crypt')], parseInventory('1 Sol Ring\n'))
     const sol = find(result.cards, 'Sol Ring')
     expect(sol.toBuy).toBe(4)
     expect(names(sol.lists)).toEqual(['Angels', 'Goblins', 'Someday'])
@@ -66,7 +56,7 @@ describe('ranking and planning', () => {
     list('B', '1 Cheap Staple\n1 Pricey Bomb'),
     list('C', '1 Cheap Staple\n1 Lonely Card\n1 Other Card')
   ]
-  const wanted = mostWanted(abc, new Map(), 'shared')
+  const wanted = mostWanted(abc, new Map())
   const { cards } = wanted
   const prices: Record<string, number | null | undefined> = {
     'Cheap Staple': 1,
@@ -80,8 +70,8 @@ describe('ranking and planning', () => {
   const unitOf = (card: WantedCard) => prices[card.name]
 
   it('measures value as cost per weighted list', () => {
-    expect(costOf(find(cards, 'Pricey Bomb'), 40)).toBe(40)
-    expect(valueOf(find(cards, 'Pricey Bomb'), 40)).toBe(20)
+    expect(costOf(find(cards, 'Pricey Bomb'), 40)).toBe(80)
+    expect(valueOf(find(cards, 'Pricey Bomb'), 40)).toBe(40)
     expect(valueOf(find(cards, 'Other Card'), null)).toBeNull()
   })
 
@@ -94,23 +84,61 @@ describe('ranking and planning', () => {
 
   it('plans the best purchases within a budget and reports completed lists', () => {
     const plan = planPurchases(cards, unitOf, 10, wanted)
-    expect(plan.items.map((item) => item.card.name)).toEqual(['Cheap Staple', 'Lonely Card', 'Last Piece'])
-    expect(plan.total).toBe(6)
+    expect(plan.items.map((item) => [item.card.name, item.copies])).toEqual([['Cheap Staple', 3], ['Lonely Card', 1], ['Last Piece', 1]])
+    expect(plan.total).toBe(8)
     expect(plan.unpriced).toBe(1)
     expect(plan.completes).toEqual([])
     expect(names(planPurchases(cards, unitOf, 100, wanted).completes)).toEqual(['A', 'B'])
   })
 
-  it('buys copies list by list with separate copies, in allocation order', () => {
+  it('buys copies list by list, in allocation order', () => {
     const xy = [list('X', '1 Bolt', 'High'), list('Y', '1 Bolt\n1 Opt')]
-    const separate = mostWanted(xy, new Map(), 'separate')
+    const separate = mostWanted(xy, new Map())
     const two = planPurchases(separate.cards, unitOf, 2, separate)
     expect(two.items.map((item) => [item.card.name, item.copies, names(item.lists), item.cost])).toEqual([['Bolt', 2, ['X', 'Y'], 2]])
     expect(names(two.completes)).toEqual(['X'])
     const one = planPurchases(separate.cards, unitOf, 1, separate)
     expect(one.items.map((item) => [item.card.name, item.copies, names(item.lists)])).toEqual([['Bolt', 1, ['X']]])
+  })
+})
 
-    const shared = mostWanted(xy, new Map(), 'shared')
-    expect(planPurchases(shared.cards, unitOf, 1, shared).items.map((item) => [item.copies, names(item.lists)])).toEqual([[1, ['X', 'Y']]])
+describe('mostWanted with upgrades', () => {
+  const upgradeLists = [
+    deck('Elves', '1 Sol Ring\n1 Llanowar Elves'),
+    list('Elves Big', '// Upgrade of: Elves\n1 Sol Ring\n2 Llanowar Elves'),
+    list('Elves Alt', '// Upgrade of: Elves\n1 Sol Ring'),
+    list('Other', '1 Sol Ring')
+  ]
+
+  it('counts a card missing from a deck and its upgrades once', () => {
+    const { cards } = mostWanted(upgradeLists, new Map())
+    const sol = find(cards, 'Sol Ring')
+    expect(sol.toBuy).toBe(2)
+    expect(sol.lists.map((l) => [l.name, l.missing, l.buy])).toEqual([
+      ['Elves', 1, 1],
+      ['Elves Alt', 1, 0],
+      ['Elves Big', 1, 0],
+      ['Other', 1, 1]
+    ])
+    expect(find(cards, 'Llanowar Elves').toBuy).toBe(2)
+  })
+
+  it('plans the deck copies for its upgrades too', () => {
+    const { cards, ...wanted } = mostWanted(upgradeLists, new Map())
+    const sol = find(cards, 'Sol Ring')
+    const plan = planPurchases([sol], () => 1, 1, wanted)
+    expect(plan.items.map((item) => [item.copies, names(item.lists)])).toEqual([[1, ['Elves', 'Elves Alt', 'Elves Big']]])
+    expect(names(plan.completes)).toEqual(['Elves Alt'])
+  })
+})
+
+describe('mostWanted with unbuilt decks', () => {
+  it('lets every list use the copies bought for an unbuilt deck', () => {
+    const wanted = mostWanted([deck('Elves', '// Unbuilt: Yes\n1 Sol Ring'), list('Other', '1 Sol Ring')], new Map())
+    const sol = find(wanted.cards, 'Sol Ring')
+    expect(sol.toBuy).toBe(1)
+    const plan = planPurchases(wanted.cards, () => 1, 1, wanted)
+    expect(plan.items.map((item) => [item.copies, names(item.lists)])).toEqual([[1, ['Elves', 'Other']]])
+    expect(names(plan.completes)).toEqual(['Elves', 'Other'])
   })
 })

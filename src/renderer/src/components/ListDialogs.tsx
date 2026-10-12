@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { capEntries, type DeckFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
 import { listPriority, PRIORITIES } from '@shared/listPriority'
+import { upgradeTarget } from '@shared/listUpgrade'
 import type { ListAnalysis } from '@shared/listModel'
 import { totalCopies } from '@shared/totals'
 import type { CardLine } from '@shared/types'
@@ -24,6 +26,7 @@ export type ListDialog =
   | { kind: 'precon' }
   | { kind: 'color' }
   | { kind: 'priority' }
+  | { kind: 'upgrade' }
   | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
 
 /** Props of {@link ListDialogs}. */
@@ -31,6 +34,8 @@ interface ListDialogsProps {
   dialog: ListDialog | null
   onClose: () => void
   list: CardList
+  /** All decks and wishlists. */
+  lists: CardList[]
   format: DeckFormat | null
   analysis: ListAnalysis<Row>
   rows: Row[]
@@ -155,7 +160,7 @@ export function ListDialogs(props: ListDialogsProps) {
           message={
             `You have ${dialog.inventoryQty}× ${dialog.line.name} in your inventory. ` +
             (dialog.target === 0 ? 'Remove all of them?' : `Reduce it to ${dialog.target}?`) +
-            (settings.copies === 'separate' ? ' Lists after this one lose their copies too.' : ' This applies to every list.')
+            ' Lists after this one lose their copies too.'
           }
           confirmLabel={dialog.target === 0 ? 'Remove all' : `Reduce to ${dialog.target}`}
           danger
@@ -185,7 +190,7 @@ export function ListDialogs(props: ListDialogsProps) {
         <Modal title="List priority" onClose={onClose}>
           <p className="muted small">
             How much this list's missing cards count in Most Wanted
-            {settings.copies === 'separate' ? ', and its turn for your copies: decks first, then wishlists from high to low.' : '.'}
+            , and its turn for your copies: decks first, then wishlists from high to low.
           </p>
           <div className="theme-options" role="radiogroup" aria-label="Priority">
             {PRIORITIES.map((option) => (
@@ -208,7 +213,67 @@ export function ListDialogs(props: ListDialogsProps) {
         </Modal>
       )
     }
+    case 'upgrade':
+      return <UpgradeDialog list={list} lists={props.lists} actions={actions} onClose={onClose} />
     default:
       return null
   }
+}
+
+/** Props of {@link UpgradeDialog}. */
+interface UpgradeDialogProps {
+  list: CardList
+  lists: CardList[]
+  actions: LibraryActions
+  onClose: () => void
+}
+
+/** Picks the deck a wishlist upgrades, or none. */
+function UpgradeDialog({ list, lists, actions, onClose }: UpgradeDialogProps) {
+  const toast = useToast()
+  const current = upgradeTarget(list, lists)?.name ?? ''
+  const [deck, setDeck] = useState(current)
+  const decks = lists.filter((other) => other.kind === 'deck')
+  const save = () => {
+    if (deck !== current) {
+      actions.setUpgradeOf(list, deck || null)
+      toast(deck ? `“${list.name}” is now an upgrade of ${deck}` : `“${list.name}” is a plain wishlist again`)
+    }
+    onClose()
+  }
+  return (
+    <Modal
+      title="Upgrade of…"
+      onClose={onClose}
+      footer={
+        <>
+          <span className="spacer" />
+          <button type="button" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="primary" onClick={save}>
+            Save
+          </button>
+        </>
+      }
+    >
+      <p className="muted small">
+        Make this list the whole deck as you want it to be after an upgrade. It uses the deck’s copies of the
+        cards they share, so it only needs copies of its own for the rest. Once you own every card, you can apply
+        it to the deck.
+      </p>
+      <label className="field">
+        <span>Deck</span>
+        <select autoFocus value={deck} onChange={(event) => setDeck(event.target.value)}>
+          <option value="">None: a plain wishlist</option>
+          {decks.map((other) => (
+            <option key={other.name} value={other.name}>
+              {other.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      {decks.length === 0 && <p className="muted small">You have no decks yet.</p>}
+    </Modal>
+  )
 }

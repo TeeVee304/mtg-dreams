@@ -10,7 +10,6 @@ interface BasicsTabProps {
   overview: WantedOverview
   /** Basic lands to buy, most first. */
   basics: WantedCard[]
-  separate: boolean
   bundleBasics: boolean
   meta: Map<string, ListMeta>
   onBought: (card: WantedCard) => void
@@ -18,7 +17,7 @@ interface BasicsTabProps {
 }
 
 /** Basic lands tab: the basic lands lists still need, kept out of the Cards tab and of completion. */
-export function BasicsTab({ overview, basics, separate, bundleBasics, meta, onBought, onOpenList }: BasicsTabProps) {
+export function BasicsTab({ overview, basics, bundleBasics, meta, onBought, onOpenList }: BasicsTabProps) {
   if (basics.length === 0) {
     return (
       <div className="empty">
@@ -29,7 +28,7 @@ export function BasicsTab({ overview, basics, separate, bundleBasics, meta, onBo
   return (
     <>
       <p className="muted small wanted-note">
-        Basic lands your {separate ? 'lists' : 'wishlists'} still need. They're left out of Cards and of list completion
+        Basic lands your lists still need. They're left out of Cards and of list completion
         {bundleBasics ? '; bundled basic lands count as free (Settings).' : '.'}
       </p>
       <table className="cards-table wanted-table">

@@ -17,7 +17,6 @@ import { usePrices } from './hooks/usePrices'
 import { useScrollMemory } from './hooks/useScrollMemory'
 import { useShortcuts } from './hooks/useShortcuts'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
-import { useSettings } from './stores/settings'
 
 /** @returns Identity of a page, for remembering its scroll position. */
 function pageKey(view: View | null): string {
@@ -62,10 +61,9 @@ export default function App() {
   const openList = (list: ListRef) => setView({ page: 'list', list })
   const openTrade = (friend: string) => setView({ page: 'trade', friend })
   const scroll = useScrollMemory<HTMLElement>(pageKey(view))
-  const { copies } = useSettings()
   const pool = useCopyPool(state.lists)
   const { pricedAt, refreshPrices } = usePrices(state.lists, state.inventory, view?.page === 'list' ? view.list : null)
-  const myTrade = useMemo(() => myTradeSide(state.inventory, state.lists, copies, pool), [state.inventory, state.lists, copies, pool])
+  const myTrade = useMemo(() => myTradeSide(state.inventory, state.lists, pool), [state.inventory, state.lists, pool])
   useShortcuts(useCallback(() => showUndone(actions.undo()), [actions, showUndone]))
 
   if (state.status === 'loading') return <div className="splash">Loading…</div>
@@ -124,7 +122,7 @@ export default function App() {
             onNew={newList}
           />
         )}
-        {list && <ListView key={`${list.kind}/${list.name}`} list={list} inventory={state.inventory} pool={pool} actions={actions} onOpenList={openList} />}
+        {list && <ListView key={`${list.kind}/${list.name}`} list={list} lists={state.lists} inventory={state.inventory} pool={pool} actions={actions} onOpenList={openList} />}
         {trade && (
           <TradeView
             key={trade.name}

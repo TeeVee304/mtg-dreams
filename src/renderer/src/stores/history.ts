@@ -53,7 +53,7 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
   const now = Date.now()
   for (const list of wishlists) {
     const lines = cardLines(list.lines)
-    const allocations = allocateOwned(lines, inventory, (key) => pool.held(list, key))
+    const allocations = allocateOwned(lines, inventory, (key) => pool.held(list, key, inventory.get(key)?.qty ?? 0))
     lines.forEach((line, index) => {
       const key = lineKey(line)
       onWishlists.add(key)

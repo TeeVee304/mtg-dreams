@@ -1,6 +1,5 @@
 import type { AppSettings, Theme } from './api'
 import { DEFAULT_SORT, isSortKey } from './cards'
-import { DEFAULT_COPIES, isCopiesMode } from './copies'
 import { DEFAULT_DROP_ALERT_PERCENT, DEFAULT_PRICE_BASIS, isPriceBasis } from './pricing'
 import { DEFAULT_THEME_COLOR, isThemeColor } from './themes'
 
@@ -9,7 +8,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   theme: 'system',
   color: DEFAULT_THEME_COLOR,
   bundleBasics: true,
-  copies: DEFAULT_COPIES,
   cardImages: true,
   cardView: 'table',
   tradeName: '',
@@ -28,7 +26,6 @@ const CHECKS: { [K in keyof AppSettings]: [valid: (value: unknown) => value is A
   theme: [(value): value is Theme => value === 'system' || value === 'light' || value === 'dark', 'theme'],
   color: [isThemeColor, 'color'],
   bundleBasics: [isBoolean, 'setting'],
-  copies: [isCopiesMode, 'setting'],
   cardImages: [isBoolean, 'setting'],
   cardView: [(value): value is AppSettings['cardView'] => value === 'table' || value === 'grid', 'view'],
   tradeName: [(value): value is string => typeof value === 'string' && value.length <= MAX_TRADE_NAME, 'name'],

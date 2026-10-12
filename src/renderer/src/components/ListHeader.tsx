@@ -26,8 +26,6 @@ interface ListHeaderProps {
   canPickCommander: boolean
   legalityErrors: number
   ownershipErrors: number
-  /** Copies are separate per list: shortfalls may be copies other decks use. */
-  separateCopies: boolean
   /** Problem-only filter active. */
   onlyProblems: boolean
   onToggleProblems: () => void
@@ -42,6 +40,12 @@ interface ListHeaderProps {
   priority?: ListPriority
   /** Wishlists: opens the priority picker. */
   onPriority?: () => void
+  /** Wishlists: opens the picker of the deck it upgrades. */
+  onUpgrade?: () => void
+  /** Decks: whether it is unbuilt, using your cards without reserving them. */
+  unbuilt?: boolean
+  /** Decks: toggles unbuilt. */
+  onToggleUnbuilt?: () => void
   onRename: () => void
   onDelete: () => void
 }
@@ -110,9 +114,7 @@ export function ListHeader(props: ListHeaderProps) {
               title={problemsTitle}
             >
               {ownershipErrors}{' '}
-              {props.separateCopies
-                ? `${ownershipErrors === 1 ? 'card needs' : 'cards need'} more copies`
-                : `${ownershipErrors === 1 ? 'card is' : 'cards are'} not in your inventory`}
+              {`${ownershipErrors === 1 ? 'card needs' : 'cards need'} more copies`}
             </button>
           )}
           {props.priority && props.priority !== 'normal' && (
@@ -120,7 +122,7 @@ export function ListHeader(props: ListHeaderProps) {
               type="button"
               className={`chip priority-chip ${props.priority}`}
               onClick={props.onPriority}
-              title={props.separateCopies ? 'How much this list counts in Most Wanted, and its turn for your copies' : 'How much this list counts in Most Wanted'}
+              title="How much this list counts in Most Wanted, and its turn for your copies"
             >
               {props.priority === 'high' ? '★ High priority' : 'Low priority'}
             </button>
@@ -137,6 +139,10 @@ export function ListHeader(props: ListHeaderProps) {
             { label: 'Copy as text', onSelect: props.onCopy },
             { label: 'Color…', onSelect: props.onColor },
             ...(props.onPriority ? [{ label: 'Priority…', onSelect: props.onPriority }] : []),
+            ...(props.onUpgrade ? [{ label: 'Advanced', items: [{ label: 'Upgrade of…', onSelect: props.onUpgrade }] }] : []),
+            ...(props.onToggleUnbuilt
+              ? [{ label: 'Advanced', items: [{ label: 'Unbuilt', checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] }]
+              : []),
             { label: 'Rename…', onSelect: props.onRename },
             { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
           ]}

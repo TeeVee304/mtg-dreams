@@ -10,6 +10,8 @@ import {
 import { listFormat, withCommander, withFormat, withoutMissingCommander } from '@shared/formats'
 import { withColor } from '@shared/listColor'
 import { withPriority, type ListPriority } from '@shared/listPriority'
+import { withUnbuilt } from '@shared/listUnbuilt'
+import { appliedUpgrade, sameDeckName, upgradeOf, upgradeTarget, withUpgradeOf } from '@shared/listUpgrade'
 import { addToBoard, moveToBoard, type BoardEntry } from '@shared/sideboard'
 import type { ThemeColor } from '@shared/themes'
 import { parseTradeText, serializeSnapshot, tradeName, type TradeSnapshot } from '@shared/trade'
@@ -357,6 +359,28 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     })
   }, [])
 
+  /** Points the upgrades of deck `from` at deck `to`, or makes them plain wishlists (`to` null); not undoable. */
+  const relinkUpgrades = useCallback(
+    (from: string, to: string | null) => {
+      for (const list of ref.current.lists) {
+        const deck = list.kind === 'wishlist' ? upgradeOf(list.lines) : null
+        if (deck !== null && sameDeckName(deck, from)) saveLines(list, withUpgradeOf(list.lines, to))
+      }
+    },
+    [saveLines]
+  )
+
+  /** Moves a list to the Recycle Bin and drops its undo steps; upgrades of a deck become plain wishlists. */
+  const removeList = useCallback(
+    async (target: ListRef) => {
+      await window.api.deleteList(target.kind, target.name)
+      retarget(target, null)
+      commit({ ...ref.current, lists: ref.current.lists.filter((list) => !sameList(list, target)) })
+      if (target.kind === 'deck') relinkUpgrades(target.name, null)
+    },
+    [commit, relinkUpgrades, retarget]
+  )
+
   /** Resolves the conflict: force-write the app's text if `keepMine`, else force-reload from disk. */
   const resolveConflict = useCallback(
     async (keepMine: boolean) => {
@@ -454,6 +478,37 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         updateLines(target, (lines) => withPriority(lines, priority), { label: 'Changed the priority' })
       },
 
+      /** Makes a deck unbuilt, using every owned copy without reserving any, or built again. */
+      setUnbuilt(target: ListRef, unbuilt: boolean) {
+        updateLines(target, (lines) => withUnbuilt(lines, unbuilt), {
+          label: unbuilt ? `Made ${target.name} unbuilt` : `Made ${target.name} built`
+        })
+      },
+
+      /** Makes a wishlist an upgrade of a deck, sharing its copies, or a plain wishlist again (`null`). */
+      setUpgradeOf(target: ListRef, deck: string | null) {
+        updateLines(target, (lines) => withUpgradeOf(lines, deck), {
+          label: deck ? `Made ${target.name} an upgrade of ${deck}` : `Made ${target.name} a plain wishlist`
+        })
+      },
+
+      /**
+       * Applies an upgrade: its deck becomes the upgrade's list ({@link appliedUpgrade}) and the
+       * upgrade moves to the Recycle Bin.
+       * @returns The deck.
+       * @throws If the deck no longer exists or the upgrade cannot be deleted.
+       */
+      async applyUpgrade(target: ListRef): Promise<ListRef> {
+        const upgrade = ref.current.lists.find((list) => sameList(list, target))
+        const deck = upgrade ? upgradeTarget(upgrade, ref.current.lists) : null
+        if (!upgrade || !deck) throw new Error('The deck it upgrades no longer exists.')
+        // Deleted first: if that fails, nothing has changed.
+        await removeList(target)
+        const current = ref.current.lists.find((list) => sameList(list, deck)) ?? deck
+        saveLines(deck, appliedUpgrade(upgrade.lines, current.lines), { label: `Applied ${upgrade.name} to ${deck.name}` })
+        return { kind: deck.kind, name: deck.name }
+      },
+
       /** Sets or clears (`null`) the commander header. */
       setListCommander(target: ListRef, name: string | null) {
         updateLines(target, (lines) => withCommander(lines, name), {
@@ -483,10 +538,15 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
           ...ref.current,
           lists: ref.current.lists.map((list) => (sameList(list, target) ? { ...list, name: to } : list)).sort(byName)
         })
+        if (target.kind === 'deck') relinkUpgrades(target.name, to)
         return { kind: target.kind, name: to }
       },
 
-      /** Moves a list to another kind. @returns New ref; name may be suffixed. */
+      /**
+       * Moves a list to another kind. A deck's upgrades become plain wishlists, and a wishlist made a
+       * deck is no longer an upgrade.
+       * @returns New ref; name may be suffixed.
+       */
       async moveList(target: ListRef, to: ListKind): Promise<ListRef> {
         const name = await window.api.moveList(target.kind, to, target.name)
         retarget(target, { kind: to, name })
@@ -496,15 +556,15 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
             .map((list) => (sameList(list, target) ? { ...list, kind: to, name } : list))
             .sort(byName)
         })
-        return { kind: to, name }
+        const moved = { kind: to, name }
+        if (target.kind === 'deck' && to !== 'deck') relinkUpgrades(target.name, null)
+        const list = ref.current.lists.find((l) => sameList(l, moved))
+        if (to === 'deck' && list) saveLines(moved, withUpgradeOf(list.lines, null))
+        return moved
       },
 
-      /** Moves a list to the Recycle Bin and drops its undo steps. */
-      async deleteList(target: ListRef): Promise<void> {
-        await window.api.deleteList(target.kind, target.name)
-        retarget(target, null)
-        commit({ ...ref.current, lists: ref.current.lists.filter((list) => !sameList(list, target)) })
-      },
+      /** Moves a list to the Recycle Bin and drops its undo steps; upgrades of a deck become plain wishlists. */
+      deleteList: removeList,
 
       /** Sets total owned copies (see {@link withTotal}); 0 removes the item (announced). */
       setOwned(name: string, qty: number, version?: Version) {
@@ -599,7 +659,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         return true
       }
     }),
-    [commit, reload, resolveConflict, retarget, saveInventory, saveLines, undo, updateLines]
+    [commit, relinkUpgrades, reload, removeList, resolveConflict, retarget, saveInventory, saveLines, undo, updateLines]
   )
 
   /** @returns Card name of a line for undo labels; `a card` if not found. */

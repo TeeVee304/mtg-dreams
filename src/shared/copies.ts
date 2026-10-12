@@ -1,40 +1,19 @@
 /**
- * How owned copies count toward lists. Shared: every list counts every owned copy, as if cards move
- * between decks. Separate: each copy belongs to one list, handed out in allocation order (decks by
- * name, then wishlists by priority, then name); a list owns what the lists ahead of it leave.
+ * How owned copies count toward lists. Each copy belongs to one list, handed out in allocation order
+ * (decks by name, then wishlists by priority, then name); a list owns what the lists ahead of it
+ * leave. Two kinds of list share instead: an unbuilt deck (see {@link isUnbuilt}) uses every owned
+ * copy and reserves none, and an upgrade of a deck (see {@link upgradeTarget}) also uses the copies
+ * that deck gets, claiming only the rest.
  *
  * @packageDocumentation
  */
 
 import { cardLines, nameKey } from './decklist'
 import { listPriority, priorityWeight } from './listPriority'
+import { isUnbuilt } from './listUnbuilt'
+import { upgradeTarget } from './listUpgrade'
 import { sumOf } from './totals'
 import type { InventoryItem, ListKind, ListLine } from './types'
-
-/** Owned copies mode. */
-export type CopiesMode = 'separate' | 'shared'
-
-/** Copies mode options with UI label and hint. */
-export const COPIES_MODES: Array<{ id: CopiesMode; label: string; hint: string }> = [
-  {
-    id: 'separate',
-    label: 'Separate per list',
-    hint: 'Each deck and wishlist needs its own copies, as when decks stay built. Decks get your copies first, then wishlists by priority.'
-  },
-  {
-    id: 'shared',
-    label: 'Shared between lists',
-    hint: 'One copy counts for every list, as when you move cards between decks.'
-  }
-]
-
-/** Default mode. */
-export const DEFAULT_COPIES: CopiesMode = 'separate'
-
-/** Type guard for {@link CopiesMode}. */
-export function isCopiesMode(value: unknown): value is CopiesMode {
-  return value === 'separate' || value === 'shared'
-}
 
 /** List identity; names are unique per kind only. */
 export interface ListKey {
@@ -83,25 +62,31 @@ export interface HeldCopies extends ListKey {
 
 /** Copy claims of all lists, from {@link copyPool}. */
 export interface CopyPool {
-  mode: CopiesMode
-  /** Copies of a card that lists ahead of `list` take first; 0 with shared copies. Unknown lists come last. */
-  held(list: ListKey, key: string): number
+  /**
+   * Copies of a card that lists ahead of `list` take first, of the `owned` copies, at most `owned`:
+   * none for an unbuilt deck. An upgrade does not count the copies its deck gets, since it uses them
+   * too. Unknown lists come last.
+   */
+  held(list: ListKey, key: string, owned: number): number
   /**
    * Lists ahead of `list` that get some of the `owned` copies of a card, with the copies each gets,
-   * in allocation order; none with shared copies.
+   * in allocation order; none for an unbuilt deck. An upgrade's deck is left out, as in {@link held}.
    */
   holders(list: ListKey, key: string, owned: number): HeldCopies[]
   /**
-   * Lists that get some of the `owned` copies of a card, with the copies each gets: handed out in
-   * allocation order with separate copies; with shared copies, every list using it, each with all it uses.
+   * Lists that get some of the `owned` copies of a card, with the copies each gets, in allocation
+   * order; then the unbuilt decks using the copies the others leave.
    */
   usedBy(key: string, owned: number): HeldCopies[]
-  /** Copies of a card the lists keep, owned or not: all their claims with separate copies, the largest one with shared copies. */
-  inUse(key: string): number
-  /** Copies of a card in decks other than `list`; 0 with shared copies. */
+  /**
+   * Copies of a card the lists keep, of the `owned` copies or not: all their claims, or the most an
+   * unbuilt deck or one of its upgrades uses, if more. Kept copies are never offered in trades.
+   */
+  inUse(key: string, owned: number): number
+  /** Copies of a card in built decks other than `list`; none for an unbuilt deck, which may use any. */
   inOtherDecks(list: ListKey, key: string): number
-  /** Copies of a card claimed by all lists together; 0 with shared copies, where lists claim none. */
-  claimed(key: string): number
+  /** Copies of a card claimed by all lists together, given `owned` copies; unbuilt decks claim none. */
+  claimed(key: string, owned: number): number
 }
 
 /** A list's claim on a card's copies. */
@@ -111,59 +96,118 @@ interface Claim {
   list: ListKey
   /** {@link listId} of a deck; null for wishlists. */
   deck: string | null
+  /** An unbuilt deck's: it uses copies without reserving them. */
+  unbuilt: boolean
+  /** {@link listId} of the deck an upgrade shares copies with; null for other lists. */
+  upgrades: string | null
   qty: number
 }
 
-/** @returns Copy claims of `lists` in `mode`; recompute when lists change. */
-export function copyPool(lists: PoolList[], mode: CopiesMode): CopyPool {
+/** @returns Copy claims of `lists`; recompute when lists change. */
+export function copyPool(lists: PoolList[]): CopyPool {
   const order = allocationOrder(lists)
   const index = new Map(order.map((list, i) => [listId(list), i]))
+  /** Deck each upgrade shares copies with, by {@link listId}. */
+  const decks = new Map<string, string>()
+  /** Unbuilt decks by {@link listId}. */
+  const unbuilt = new Set<string>()
   const claims = new Map<string, Claim[]>()
   order.forEach((list, at) => {
+    const target = upgradeTarget(list, lists)
+    if (target) decks.set(listId(list), listId(target))
+    const isDeck = list.kind === 'deck'
+    if (isDeck && isUnbuilt(list.lines)) unbuilt.add(listId(list))
     for (const [key, total] of cardTotals(list.lines)) {
-      const claim = { at, list: { kind: list.kind, name: list.name }, deck: list.kind === 'deck' ? listId(list) : null, qty: total.qty }
+      const claim = {
+        at,
+        list: { kind: list.kind, name: list.name },
+        deck: isDeck ? listId(list) : null,
+        unbuilt: unbuilt.has(listId(list)),
+        upgrades: target ? listId(target) : null,
+        qty: total.qty
+      }
       const entries = claims.get(key)
       if (entries) entries.push(claim)
       else claims.set(key, [claim])
     }
   })
-  const sum = (key: string, keep: (claim: Claim) => boolean) =>
-    mode === 'shared' ? 0 : sumOf(claims.get(key) ?? [], (claim) => (keep(claim) ? claim.qty : 0))
+  /**
+   * Claims on a card's `owned` copies, in allocation order: unbuilt decks claim none. Decks come
+   * first, so the copies each deck gets are known before its upgrades, which claim only what they
+   * want beyond those.
+   * @returns The claims, and the copies each deck gets by {@link listId}.
+   */
+  const allocate = (key: string, owned: number): { claims: Claim[]; got: Map<string, number> } => {
+    const entries = claims.get(key) ?? []
+    const got = new Map<string, number>()
+    let left = owned
+    const adjusted = entries.map((claim) => {
+      if (claim.unbuilt) {
+        got.set(claim.deck!, Math.min(claim.qty, owned))
+        return { ...claim, qty: 0 }
+      }
+      const qty = claim.upgrades ? Math.max(0, claim.qty - (got.get(claim.upgrades) ?? 0)) : claim.qty
+      if (claim.deck) got.set(claim.deck, Math.min(qty, Math.max(0, left)))
+      left -= qty
+      return qty === claim.qty ? claim : { ...claim, qty }
+    })
+    return { claims: adjusted, got }
+  }
+  const sum = (key: string, owned: number, keep: (claim: Claim) => boolean) =>
+    sumOf(allocate(key, owned).claims, (claim) => (keep(claim) ? claim.qty : 0))
   /** Hands `owned` copies out to the claims before position `before`, in allocation order. */
   const handOut = (key: string, owned: number, before: number): HeldCopies[] => {
     const given: HeldCopies[] = []
     let left = owned
-    for (const claim of claims.get(key) ?? []) {
+    for (const claim of allocate(key, owned).claims) {
       if (claim.at >= before || left <= 0) break
       const qty = Math.min(claim.qty, left)
-      given.push({ ...claim.list, qty })
+      if (qty > 0) given.push({ ...claim.list, qty })
       left -= qty
     }
     return given
   }
   return {
-    mode,
-    held: (list, key) => {
-      const at = index.get(listId(list)) ?? Infinity
-      return sum(key, (claim) => claim.at < at)
+    held: (list, key, owned) => {
+      const id = listId(list)
+      if (unbuilt.has(id)) return 0
+      const at = index.get(id) ?? Infinity
+      const { claims: entries, got } = allocate(key, owned)
+      const held = sumOf(entries, (claim) => (claim.at < at ? claim.qty : 0))
+      // An upgrade uses the copies its deck gets, then what all the lists ahead leave.
+      const deck = decks.get(id)
+      return Math.max(0, Math.min(owned, held) - (deck ? (got.get(deck) ?? 0) : 0))
     },
-    holders: (list, key, owned) => (mode === 'shared' ? [] : handOut(key, owned, index.get(listId(list)) ?? Infinity)),
-    usedBy: (key, owned) =>
-      mode === 'separate'
-        ? handOut(key, owned, Infinity)
-        : owned > 0
-          ? (claims.get(key) ?? []).map((claim) => ({ ...claim.list, qty: Math.min(claim.qty, owned) }))
-          : [],
-    inUse: (key) =>
-      mode === 'shared' ? Math.max(0, ...(claims.get(key) ?? []).map((claim) => claim.qty)) : sum(key, () => true),
-    inOtherDecks: (list, key) => sum(key, (claim) => claim.deck !== null && claim.deck !== listId(list)),
-    claimed: (key) => sum(key, () => true)
+    holders: (list, key, owned) => {
+      const id = listId(list)
+      if (unbuilt.has(id)) return []
+      const deck = decks.get(id)
+      const given = handOut(key, owned, index.get(id) ?? Infinity)
+      return deck ? given.filter((held) => listId(held) !== deck) : given
+    },
+    usedBy: (key, owned) => {
+      const given = handOut(key, owned, Infinity)
+      const left = owned - sumOf(given, (held) => held.qty)
+      for (const claim of claims.get(key) ?? []) {
+        if (claim.unbuilt && left > 0) given.push({ ...claim.list, qty: Math.min(claim.qty, left) })
+      }
+      return given
+    },
+    inUse: (key, owned) => {
+      const sharing = (claim: Claim) => claim.unbuilt || (claim.upgrades !== null && unbuilt.has(claim.upgrades))
+      const peak = Math.max(0, ...(claims.get(key) ?? []).filter(sharing).map((claim) => claim.qty))
+      return Math.max(sum(key, owned, () => true), peak)
+    },
+    inOtherDecks: (list, key) =>
+      // Built deck claims do not depend on the copies owned.
+      unbuilt.has(listId(list)) ? 0 : sum(key, 0, (claim) => claim.deck !== null && claim.deck !== listId(list)),
+    claimed: (key, owned) => sum(key, owned, () => true)
   }
 }
 
 /**
  * Copies to add to the inventory so `cards` (e.g. a new deck) are covered by owned copies no list
- * claims; with shared copies, by any owned copies.
+ * claims.
  * @returns Cards merged by nameKey with the copies to add; covered cards omitted.
  */
 export function copiesToAdd(
@@ -179,7 +223,10 @@ export function copiesToAdd(
     else merged.set(key, { name: card.name, qty: card.qty })
   }
   return [...merged]
-    .map(([key, card]) => ({ name: card.name, qty: card.qty - Math.max(0, (inventory.get(key)?.qty ?? 0) - pool.claimed(key)) }))
+    .map(([key, card]) => {
+      const owned = inventory.get(key)?.qty ?? 0
+      return { name: card.name, qty: card.qty - Math.max(0, owned - pool.claimed(key, owned)) }
+    })
     .filter((card) => card.qty > 0)
 }
 
@@ -192,28 +239,42 @@ export interface CardNeed {
   wants: number
   /** Copies not covered by owned copies; at least 1. */
   missing: number
+  /**
+   * Copies to buy for this list once the lists ahead have theirs; possibly 0. Fewer than `missing`
+   * where copies bought for others serve this list too: an upgrade shares its deck's, an unbuilt deck
+   * uses any, and every list may use an unbuilt deck's, which it does not reserve.
+   */
+  buy: number
 }
 
 /**
- * Copies each list still lacks, in allocation order. Shared: wishlists only, each against the whole
- * inventory. Separate: decks and wishlists, each against the copies the lists ahead leave.
+ * Copies each list still lacks, in allocation order, each against the copies the lists ahead leave.
  * @param inventory - Items by nameKey.
- * @param pool - Copy claims of `lists` in `mode`, if already built.
- * @returns Every considered list with its needs (possibly none).
+ * @param pool - Copy claims of `lists`, if already built.
+ * @returns Every list with its needs (possibly none), and the {@link listId} of the deck it
+ * upgrades, if any.
  */
 export function listNeeds<L extends PoolList>(
   lists: L[],
   inventory: Map<string, InventoryItem>,
-  mode: CopiesMode,
-  pool: CopyPool = copyPool(lists, mode)
-): Array<{ list: L; needs: CardNeed[] }> {
-  const considered = mode === 'shared' ? lists.filter((list) => list.kind === 'wishlist') : lists
-  return allocationOrder(considered).map((list) => {
+  pool: CopyPool = copyPool(lists)
+): Array<{ list: L; upgrades: string | null; needs: CardNeed[] }> {
+  /** Copies bought so far by nameKey, for the lists ahead. */
+  const bought = new Map<string, number>()
+  const freeFor = (list: L, key: string, owned: number) => Math.max(0, owned - pool.held(list, key, owned))
+  return allocationOrder(lists).map((list) => {
     const needs: CardNeed[] = []
     for (const [key, total] of cardTotals(list.lines)) {
-      const free = Math.max(0, (inventory.get(key)?.qty ?? 0) - pool.held(list, key))
-      if (total.qty > free) needs.push({ key, name: total.name, wants: total.qty, missing: total.qty - free })
+      const owned = inventory.get(key)?.qty ?? 0
+      const free = freeFor(list, key, owned)
+      if (total.qty <= free) continue
+      const missing = total.qty - free
+      const extra = bought.get(key) ?? 0
+      const buy = extra > 0 ? Math.max(0, total.qty - freeFor(list, key, owned + extra)) : missing
+      bought.set(key, extra + buy)
+      needs.push({ key, name: total.name, wants: total.qty, missing, buy })
     }
-    return { list, needs }
+    const target = upgradeTarget(list, lists)
+    return { list, upgrades: target ? listId(target) : null, needs }
   })
 }

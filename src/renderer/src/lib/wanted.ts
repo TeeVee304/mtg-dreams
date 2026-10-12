@@ -41,15 +41,15 @@ const sharedPricing = memoLast(
 )
 
 /**
- * Most Wanted cards of `lists` in the chosen copies mode, priced on the chosen basis; shared by the
- * sidebar and the Most Wanted page. Callers re-render on printings changes ({@link usePrintingsVersion}).
+ * Most Wanted cards of `lists`, priced on the chosen basis; shared by the sidebar and the Most Wanted
+ * page. Callers re-render on printings changes ({@link usePrintingsVersion}).
  * @param pool - Copy claims of `lists` ({@link useCopyPool}).
  */
 export function wantedOverview(
   lists: CardList[],
   inventory: Map<string, InventoryItem>,
-  { bundleBasics, priceBasis, copies }: Pick<AppSettings, 'bundleBasics' | 'priceBasis' | 'copies'>,
+  { bundleBasics, priceBasis }: Pick<AppSettings, 'bundleBasics' | 'priceBasis'>,
   pool: CopyPool
 ): WantedOverview {
-  return sharedPricing(sharedWanted(lists, inventory, copies, pool), bundleBasics, priceBasis, getPrintingsVersion())
+  return sharedPricing(sharedWanted(lists, inventory, pool), bundleBasics, priceBasis, getPrintingsVersion())
 }

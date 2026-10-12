@@ -4,6 +4,8 @@ import { cardLines, nameKey } from '@shared/decklist'
 import type { Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import { listPriority } from '@shared/listPriority'
+import { isUnbuilt } from '@shared/listUnbuilt'
+import { upgradeTarget } from '@shared/listUpgrade'
 import { deckSizeCheck, listFormat } from '@shared/formats'
 import {
   analyzeList,
@@ -43,6 +45,8 @@ import { useToast } from './Toasts'
 /** Props of {@link ListView}. */
 interface ListViewProps {
   list: CardList
+  /** All decks and wishlists. */
+  lists: CardList[]
   inventory: Map<string, InventoryItem>
   /** Copy claims of all lists. */
   pool: CopyPool
@@ -57,7 +61,7 @@ interface ListViewProps {
  * {@link useCommanderPicking}. Rules come from {@link analyzeList}. Lines pinned to
  * printings missing from a partial (basic land) result trigger a `full` fetch.
  */
-export function ListView({ list, inventory, pool, actions, onOpenList }: ListViewProps) {
+export function ListView({ list, lists, inventory, pool, actions, onOpenList }: ListViewProps) {
   const toast = useToast()
   usePrintingsVersion()
   const isDeck = list.kind === 'deck'
@@ -177,6 +181,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
   }, [needAllVersions])
 
   const complete = !isDeck && summary.cards > 0 && summary.ownedCards >= summary.cards
+  const upgrades = upgradeTarget(list, lists)
 
   const moveToDecks = async () => {
     try {
@@ -185,6 +190,27 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
       toast(`“${moved.name}” is now a deck`)
     } catch (error) {
       toast(`Could not move the list: ${cleanError(error)}`, 'error')
+      throw error
+    }
+  }
+
+  const toggleUnbuilt = () => {
+    const unbuilt = !isUnbuilt(list.lines)
+    actions.setUnbuilt(list, unbuilt)
+    toast(
+      unbuilt
+        ? `“${list.name}” is now unbuilt: it uses your cards without reserving them`
+        : `“${list.name}” is built again: it reserves its cards`
+    )
+  }
+
+  const applyUpgrade = async () => {
+    try {
+      const deck = await actions.applyUpgrade(list)
+      onOpenList(deck)
+      toast(`Upgraded “${deck.name}”; “${list.name}” went to the Recycle Bin`)
+    } catch (error) {
+      toast(`Could not apply the upgrade: ${cleanError(error)}`, 'error')
       throw error
     }
   }
@@ -203,7 +229,6 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         canPickCommander={canPickCommander}
         legalityErrors={legalityErrors}
         ownershipErrors={ownershipErrors}
-        separateCopies={pool.mode === 'separate'}
         onlyProblems={onlyProblems}
         onToggleProblems={() => setOnlyProblems(!onlyProblems)}
         onTogglePicking={togglePicking}
@@ -213,11 +238,16 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         onColor={() => setDialog({ kind: 'color' })}
         priority={isDeck ? undefined : listPriority(list.lines)}
         onPriority={isDeck ? undefined : () => setDialog({ kind: 'priority' })}
+        onUpgrade={isDeck ? undefined : () => setDialog({ kind: 'upgrade' })}
+        unbuilt={isDeck && isUnbuilt(list.lines)}
+        onToggleUnbuilt={isDeck ? toggleUnbuilt : undefined}
         onRename={() => setDialog({ kind: 'rename' })}
         onDelete={() => setDialog({ kind: 'delete' })}
       />
 
-      {complete && <CompleteBanner cards={summary.cards} onMove={moveToDecks} />}
+      {complete && (
+        <CompleteBanner cards={summary.cards} upgrades={upgrades?.name ?? null} onMove={upgrades ? applyUpgrade : moveToDecks} />
+      )}
 
       <div className="facts-row">
       <ListValueCards
@@ -291,6 +321,7 @@ export function ListView({ list, inventory, pool, actions, onOpenList }: ListVie
         dialog={dialog}
         onClose={() => setDialog(null)}
         list={list}
+        lists={lists}
         format={format}
         analysis={analysis}
         rows={rows}

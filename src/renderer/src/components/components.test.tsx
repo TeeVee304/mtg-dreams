@@ -49,7 +49,7 @@ describe('Most Wanted', () => {
 
   it('says when no basic lands are needed', () => {
     const overview = { cards: [], basics: [], unitOf: () => null, printingOf: () => undefined } as unknown as WantedOverview
-    const html = renderToStaticMarkup(<BasicsTab overview={overview} basics={[] as WantedCard[]} separate={false} bundleBasics meta={new Map()} onBought={noop} onOpenList={noop} />)
+    const html = renderToStaticMarkup(<BasicsTab overview={overview} basics={[] as WantedCard[]} bundleBasics meta={new Map()} onBought={noop} onOpenList={noop} />)
     expect(textOf(html)).toBe('No basic lands needed.')
   })
 })

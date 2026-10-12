@@ -33,6 +33,9 @@ interface Settings extends Partial<Record<keyof AppSettings, unknown>> {
 /** Settings file path. */
 const settingsPath = () => join(env().userData, 'settings.json')
 
+/** Settings the app no longer has, dropped from the file on the next write. */
+const RETIRED_SETTINGS = ['copies']
+
 /** In-memory settings, keyed by path; only the app writes the file. */
 let settingsCache: { path: string; settings: Settings } | null = null
 
@@ -53,7 +56,8 @@ function readSettings(): Settings {
  * lose a custom data directory). Falls back to a direct write if the target is locked.
  */
 function writeSettings(patch: Partial<Settings>): void {
-  const settings = { ...readSettings(), ...patch }
+  const settings: Settings = { ...readSettings(), ...patch }
+  for (const key of RETIRED_SETTINGS) delete (settings as Record<string, unknown>)[key]
   const path = settingsPath()
   const tmp = `${path}.tmp`
   writeFileSync(tmp, JSON.stringify(settings, null, 2))

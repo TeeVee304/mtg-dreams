@@ -1,5 +1,5 @@
 import { genericBasic } from './basics'
-import { copyPool, listNeeds, type CopiesMode, type CopyPool, type ListKey, type PoolList } from './copies'
+import { copyPool, listNeeds, type CopyPool, type ListKey, type PoolList } from './copies'
 import { countLines, nameKey, parseInventory } from './decklist'
 import { safeFileName } from './filenames'
 import type { InventoryItem } from './types'
@@ -54,29 +54,27 @@ const byName = (a: TradeCard, b: TradeCard) => a.name.localeCompare(b.name)
 const tradable = (name: string) => !genericBasic(name)
 
 /**
- * @param lists - Decks and wishlists; decks count with separate copies only.
+ * @param lists - Decks and wishlists.
  * @param inventory - Items by nameKey.
- * @param pool - Copy claims of `lists` in `mode`, if already built.
- * @returns Wants sorted by name. Each card's qty is its largest list shortfall with shared copies,
- * or the sum of the list shortfalls with separate copies ({@link listNeeds}).
+ * @param pool - Copy claims of `lists`, if already built.
+ * @returns Wants sorted by name. Each card's qty is the sum of the copies to buy per list ({@link listNeeds}).
  */
 export function computeWants(
   lists: PoolList[],
   inventory: Map<string, InventoryItem>,
-  mode: CopiesMode,
-  pool: CopyPool = copyPool(lists, mode)
+  pool: CopyPool = copyPool(lists)
 ): Want[] {
   const wants = new Map<string, Want>()
-  for (const { list, needs } of listNeeds(lists, inventory, mode, pool)) {
+  for (const { list, needs } of listNeeds(lists, inventory, pool)) {
     for (const need of needs) {
       if (!tradable(need.name)) continue
       const ref = { kind: list.kind, name: list.name }
       const want = wants.get(need.key)
       if (want) {
-        want.qty = mode === 'shared' ? Math.max(want.qty, need.missing) : want.qty + need.missing
+        want.qty += need.buy
         want.lists.push(ref)
       } else {
-        wants.set(need.key, { name: need.name, qty: need.missing, lists: [ref] })
+        wants.set(need.key, { name: need.name, qty: need.buy, lists: [ref] })
       }
     }
   }
@@ -93,25 +91,24 @@ export interface MyTradeSide {
 }
 
 /**
- * @param pool - Copy claims of `lists` in `mode`, if already built.
+ * @param pool - Copy claims of `lists`, if already built.
  * @returns Own spare haves and kept copies (regular basics aside), and wants ({@link computeWants}),
  * sorted by name.
  */
 export function myTradeSide(
   inventory: Map<string, InventoryItem>,
   lists: PoolList[],
-  mode: CopiesMode,
-  pool: CopyPool = copyPool(lists, mode)
+  pool: CopyPool = copyPool(lists)
 ): MyTradeSide {
   const haves: TradeCard[] = []
   const kept: TradeCard[] = []
   for (const [key, item] of inventory) {
     if (item.qty <= 0 || !tradable(item.name)) continue
-    const inUse = Math.min(item.qty, pool.inUse(key))
+    const inUse = Math.min(item.qty, pool.inUse(key, item.qty))
     if (item.qty > inUse) haves.push({ name: item.name, qty: item.qty - inUse })
     if (inUse > 0) kept.push({ name: item.name, qty: inUse })
   }
-  return { haves: haves.sort(byName), kept: kept.sort(byName), wants: computeWants(lists, inventory, mode, pool) }
+  return { haves: haves.sort(byName), kept: kept.sort(byName), wants: computeWants(lists, inventory, pool) }
 }
 
 /** @returns Shareable snapshot of a trade side's spare haves and wants ({@link myTradeSide}); wants omit list names. */

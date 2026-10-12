@@ -1,5 +1,4 @@
 import type { SortKey } from './cards'
-import type { CopiesMode } from './copies'
 import type { DeckTokenData } from './tokens'
 import type { ThemeColor } from './themes'
 import type { CardInfo, ListKind, PreconDeck, PreconSummary, PriceBasis, PrintingsResult } from './types'
@@ -14,8 +13,6 @@ export interface AppSettings {
   color: ThemeColor
   /** Treat all printings of the five basic lands as one generic, zero-cost card. */
   bundleBasics: boolean
-  /** How owned copies count toward lists. */
-  copies: CopiesMode
   /** Show card thumbnails in lists and search. */
   cardImages: boolean
   /** List layout for decks and wishlists. */
