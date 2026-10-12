@@ -75,7 +75,6 @@ describe('getDeckTokens', () => {
 
   it('serves the cache without requests, and offline', async () => {
     const tokens = await setup()
-    await new Promise((resolve) => setTimeout(resolve, 50))
     requests.length = 0
     online = false
     const data = await tokens.getDeckTokens(['Smothering Tithe'])

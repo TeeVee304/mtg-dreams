@@ -96,7 +96,8 @@ async function refresh(names: string[]): Promise<void> {
     for (const card of await fetchCollection(missing.map((id) => ({ id })))) store.tokens[card.id] = toTokenInfo(card)
     changed = true
   }
-  if (changed) void writeCacheFile(FILE, store)
+  // Awaited inside the queue, so writes never overlap and a resolved lookup is on disk.
+  if (changed) await writeCacheFile(FILE, store)
 }
 
 /**
