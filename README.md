@@ -36,7 +36,7 @@
 - Make a wishlist an **Upgrade of** a deck (⋯ menu, Advanced): it holds the whole deck as you want it to be, and uses
   the deck's copies of the cards they share. Once you own every card, apply it: the deck becomes the upgrade.
 - **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
-- **Order your wishlists** by dragging them in the sidebar (or Move up / Move down in their ⋯ menu), most wanted first.
+- **Order your wishlists** by dragging them in the sidebar, most wanted first.
   The higher a wishlist, the more its cards count in Most Wanted and the budget planner. New wishlists start at the bottom.
 - A **Statistics** panel shows the mana curve and the colors of the cards besides lands.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers the cards create, with which cards make each one.

@@ -35,10 +35,6 @@ interface ListHeaderProps {
   onCopy: () => void
   /** Opens the color picker. */
   onColor: () => void
-  /** Wishlists not at the top of the order: moves it up one place. */
-  onMoveUp?: () => void
-  /** Wishlists not at the bottom of the order: moves it down one place. */
-  onMoveDown?: () => void
   /** Wishlists: opens the picker of the deck it upgrades. */
   onUpgrade?: () => void
   /** Decks: whether it is unbuilt, using your cards without reserving them. */
@@ -127,8 +123,6 @@ export function ListHeader(props: ListHeaderProps) {
           items={[
             { label: 'Copy as text', onSelect: props.onCopy },
             { label: 'Color…', onSelect: props.onColor },
-            ...(props.onMoveUp ? [{ label: 'Move up', onSelect: props.onMoveUp }] : []),
-            ...(props.onMoveDown ? [{ label: 'Move down', onSelect: props.onMoveDown }] : []),
             ...(props.onUpgrade ? [{ label: 'Advanced', items: [{ label: 'Upgrade of…', onSelect: props.onUpgrade }] }] : []),
             ...(props.onToggleUnbuilt
               ? [{ label: 'Advanced', items: [{ label: 'Unbuilt', checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] }]

@@ -366,8 +366,8 @@
   isolation: isolate;
   min-height: 270px;
   padding: 18px 20px 22px 26px;
+  /* Not clipped (overflow), so the ⋯ menu can open past the banner: the art and its shade round their own corners. */
   border-radius: 16px;
-  overflow: hidden;
   background: var(--panel);
   color: var(--text);
 }
@@ -376,6 +376,7 @@
   position: absolute;
   inset: 0;
   z-index: -2;
+  border-radius: inherit;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -388,6 +389,7 @@
   position: absolute;
   inset: 0;
   z-index: -1;
+  border-radius: inherit;
   background:
     linear-gradient(to top, #0c0e1a 0%, rgba(12, 14, 26, 0.88) 28%, rgba(12, 14, 26, 0.35) 62%, rgba(12, 14, 26, 0.15) 100%),
     linear-gradient(to right, rgba(12, 14, 26, 0.75) 0%, rgba(12, 14, 26, 0) 55%);
@@ -402,14 +404,16 @@
   font-size: 46px;
 }
 
-.art-hero .header-actions button,
+.art-hero .header-actions > button,
+.art-hero .header-actions .menu-trigger,
 .art-hero .header-meta select {
   background: rgba(12, 14, 26, 0.55);
   border-color: rgba(255, 255, 255, 0.16);
   backdrop-filter: blur(8px);
 }
 
-.art-hero .header-actions button:hover:not(:disabled) {
+.art-hero .header-actions > button:hover:not(:disabled),
+.art-hero .header-actions .menu-trigger:hover {
   background: rgba(12, 14, 26, 0.75);
 }
 
