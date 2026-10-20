@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promise
 import { basename, dirname, join } from 'node:path'
 import { CONFLICT_ERROR, type AppSettings, type ListFile, type LoadedData, type Theme } from '@shared/api'
 import { fileNameProblem } from '@shared/filenames'
+import { joinMeta, sameMeta, splitMeta, validMeta, type ListMeta } from '@shared/listMeta'
 import { validSettings } from '@shared/settings'
 import { TRADE_EXTENSION } from '@shared/trade'
 import type { ListKind } from '@shared/types'
@@ -10,8 +11,9 @@ import { env } from './environment'
 
 /**
  * File storage. Lists, inventory and trades are plain text files in a user-visible data directory
- * (default `Documents/MTG Dreams`): `decks/*.txt`, `lists/*.txt`, `inventory.txt`, `trades/*.mtgtrade`.
- * Settings are in `userData/settings.json`. Writes are atomic, serialized per file, and guarded
+ * (default `Documents/MTG Dreams`): `decks/*.txt`, `lists/*.txt` (wishlists), `brews/*.txt`,
+ * `inventory.txt`, `trades/*.mtgtrade`, and `lists.json`: the wishlist order and each list's personal
+ * settings (see {@link splitMeta}), kept out of the list files. Settings are in `userData/settings.json`. Writes are atomic, serialized per file, and guarded
  * against external modification.
  *
  * @packageDocumentation
@@ -124,8 +126,12 @@ export function updateAppSettings(patch: Partial<AppSettings>): void {
   writeSettings(patch)
 }
 
-/** Directory of a list kind: `decks` or `lists`. */
-const listsDir = (kind: ListKind) => join(dataDir(), kind === 'deck' ? 'decks' : 'lists')
+/** Folder of each list kind. */
+const LIST_FOLDERS: Record<ListKind, string> = { deck: 'decks', wishlist: 'lists', brew: 'brews' }
+/** List kinds. */
+const LIST_KINDS = Object.keys(LIST_FOLDERS) as ListKind[]
+/** Directory of a list kind: `decks`, `lists` or `brews`. */
+const listsDir = (kind: ListKind) => join(dataDir(), LIST_FOLDERS[kind])
 /** Inventory file path. */
 const inventoryPath = () => join(dataDir(), 'inventory.txt')
 /** Trades directory. */
@@ -148,8 +154,8 @@ export function validateListName(raw: unknown): string {
 
 /** @throws Error if `raw` is not a {@link ListKind}. */
 export function validateKind(raw: unknown): ListKind {
-  if (raw !== 'deck' && raw !== 'wishlist') throw new Error('Invalid list kind.')
-  return raw
+  if (!LIST_KINDS.includes(raw as ListKind)) throw new Error('Invalid list kind.')
+  return raw as ListKind
 }
 
 /** List file path; validates the name. */
@@ -237,26 +243,99 @@ async function readFolder(dir: string, extension: string, unreadable: string[]):
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
 }
 
-/** Wishlist order file, beside the wishlists: a JSON array of names, top first. */
-const orderPath = () => join(listsDir('wishlist'), 'order.json')
+/** `lists.json`, as the app keeps it. */
+interface ListsIndex {
+  /** Wishlist names, top first; null until known (no `lists.json` nor legacy order file yet). */
+  wishlistOrder: string[] | null
+  /** Personal settings by {@link metaKey}; lists without any have no entry. */
+  lists: Record<string, ListMeta>
+}
+
+/** `lists.json` path. */
+const indexPath = () => join(dataDir(), 'lists.json')
+/** Wishlist order file from before `lists.json`, beside the wishlists. */
+const legacyOrderPath = () => join(listsDir('wishlist'), 'order.json')
+/** Key of a list in {@link ListsIndex.lists}. */
+const metaKey = (kind: ListKind, name: string) => `${kind}/${name}`
+
+/** `lists.json` of the data directory it was read from; read again by {@link loadData}. */
+let indexCache: { dir: string; index: ListsIndex } | null = null
+
+/**
+ * Text the app last had for each list file (by path), with the file text it was split into: given back
+ * as is while the file and its settings are unchanged, so reloading never reorders its headers.
+ */
+const appTexts = new Map<string, { file: string; text: string }>()
+
+/** @returns `lists.json` from disk, else the legacy order file's order; empty if neither is readable. */
+async function readIndex(): Promise<ListsIndex> {
+  const parse = (raw: string | null): unknown => {
+    try {
+      return raw === null ? null : JSON.parse(raw)
+    } catch {
+      return null
+    }
+  }
+  const names = (raw: unknown) => (Array.isArray(raw) ? raw.filter((name): name is string => typeof name === 'string') : null)
+  const stored = parse(await readIfExists(indexPath()))
+  if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+    const { wishlistOrder, lists: rawLists } = stored as { wishlistOrder?: unknown; lists?: unknown }
+    const lists: Record<string, ListMeta> = {}
+    if (rawLists && typeof rawLists === 'object') {
+      for (const [key, raw] of Object.entries(rawLists)) {
+        const meta = validMeta(raw)
+        if (Object.keys(meta).length > 0) lists[key] = meta
+      }
+    }
+    return { wishlistOrder: names(wishlistOrder) ?? names(parse(await readIfExists(legacyOrderPath()))), lists }
+  }
+  return { wishlistOrder: names(parse(await readIfExists(legacyOrderPath()))), lists: {} }
+}
+
+/** @returns The data directory's `lists.json`, read once. */
+async function listsIndex(): Promise<ListsIndex> {
+  if (indexCache?.dir !== dataDir()) indexCache = { dir: dataDir(), index: await readIndex() }
+  return indexCache.index
+}
+
+/** Saves `lists.json` (without an order while none is known), then removes the legacy order file it replaces. */
+async function saveIndex(index: ListsIndex): Promise<void> {
+  const lists = Object.fromEntries(Object.entries(index.lists).sort(([a], [b]) => a.localeCompare(b)))
+  const order = index.wishlistOrder ? { wishlistOrder: index.wishlistOrder } : {}
+  await writeText(indexPath(), `${JSON.stringify({ ...order, lists }, null, 2)}\n`)
+  if (index.wishlistOrder) await rm(legacyOrderPath(), { force: true })
+}
+
+/** Sets a list's personal settings in `index`. @returns Whether they changed. */
+function setMeta(index: ListsIndex, key: string, meta: ListMeta): boolean {
+  if (sameMeta(index.lists[key] ?? {}, meta)) return false
+  if (Object.keys(meta).length > 0) index.lists[key] = meta
+  else delete index.lists[key]
+  return true
+}
+
+/**
+ * Writes a list's file without its personal settings, which go to `lists.json`.
+ * @param text - The list as the app has it, personal headers included.
+ */
+async function writeListText(kind: ListKind, name: string, text: string, guard: 'check' | 'force' | 'none'): Promise<void> {
+  const path = listPath(kind, name)
+  const split = splitMeta(text)
+  await writeText(path, split.text, guard)
+  appTexts.set(path, { file: split.text, text })
+  const index = await listsIndex()
+  if (setMeta(index, metaKey(kind, validateListName(name)), split.meta)) await saveIndex(index)
+}
 
 /** Priority header of wishlists from before they had an order, e.g. `// Priority: High`. */
 const LEGACY_PRIORITY = /^\/\/\s*priority\s*:\s*(\w*)\s*$/i
 
 /**
- * @returns The stored wishlist order. Without an order file, starts one from the priority headers
- * wishlists had before (High, then Normal, then Low, by name within each) and removes the headers,
- * updating `wishlists`. Errors while migrating are ignored: the order then starts by name.
+ * @returns A first wishlist order from the priority headers wishlists had before (High, then Normal,
+ * then Low, by name within each), removing the headers and updating `wishlists`. Errors while
+ * migrating are ignored.
  */
-async function wishlistOrder(wishlists: ListFile[]): Promise<string[]> {
-  const stored = await readIfExists(orderPath())
-  if (stored !== null) {
-    try {
-      const names: unknown = JSON.parse(stored)
-      if (Array.isArray(names)) return names.filter((name): name is string => typeof name === 'string')
-    } catch {}
-    return []
-  }
+async function orderFromPriorities(wishlists: ListFile[]): Promise<string[]> {
   const rank = (file: ListFile) => {
     const header = file.text.split('\n').map((line) => LEGACY_PRIORITY.exec(line.trim())).find(Boolean)
     const priority = header?.[1].toLowerCase()
@@ -273,32 +352,78 @@ async function wishlistOrder(wishlists: ListFile[]): Promise<string[]> {
       file.text = kept.join('\n')
       await writeText(listPath('wishlist', file.name), file.text, 'check')
     }
-    await writeWishlistOrder(order)
   } catch {}
   return order
 }
 
 /** Saves the wishlist order, top first. */
 export async function writeWishlistOrder(names: string[]): Promise<void> {
-  await writeText(orderPath(), `${JSON.stringify(names, null, 2)}\n`)
+  const index = await listsIndex()
+  index.wishlistOrder = names
+  await saveIndex(index)
 }
 
 /**
- * Reads all lists, trades and the inventory, creating list directories if needed.
+ * Reads all lists, trades and the inventory, creating list directories if needed. Each list comes
+ * with its personal settings from `lists.json` as headers; personal headers found in a file (an old
+ * file, or one edited elsewhere) move to `lists.json`, overriding what it had.
  * @throws If the inventory exists but is unreadable (never skipped, so a save cannot blank it).
  */
 export async function loadData(): Promise<LoadedData> {
   const unreadable: string[] = []
-  await Promise.all([mkdir(listsDir('deck'), { recursive: true }), mkdir(listsDir('wishlist'), { recursive: true })])
-  const [decks, wishlists, trades] = await Promise.all([
-    readFolder(listsDir('deck'), '.txt', unreadable),
-    readFolder(listsDir('wishlist'), '.txt', unreadable),
+  await Promise.all(LIST_KINDS.map((kind) => mkdir(listsDir(kind), { recursive: true })))
+  const [folders, trades] = await Promise.all([
+    Promise.all(LIST_KINDS.map((kind) => readFolder(listsDir(kind), '.txt', unreadable))),
     readFolder(tradesDir(), `.${TRADE_EXTENSION}`, unreadable)
   ])
+  const files = Object.fromEntries(LIST_KINDS.map((kind, i) => [kind, folders[i]])) as Record<ListKind, ListFile[]>
   const inventory = existsSync(inventoryPath()) ? await readFile(inventoryPath(), 'utf8') : ''
   known.set(inventoryPath(), inventory)
-  const order = await wishlistOrder(wishlists)
-  return { dataDir: dataDir(), decks, wishlists, inventory, trades, wishlistOrder: order, unreadable }
+
+  indexCache = null
+  const index = await listsIndex()
+  let changed = !existsSync(indexPath()) && LIST_KINDS.some((kind) => files[kind].length > 0)
+  if (index.wishlistOrder === null) index.wishlistOrder = await orderFromPriorities(files.wishlist)
+  const present = new Set<string>()
+  for (const kind of LIST_KINDS) {
+    for (const file of files[kind]) {
+      const key = metaKey(kind, file.name)
+      const path = listPath(kind, file.name)
+      present.add(key)
+      const split = splitMeta(file.text)
+      let meta = index.lists[key] ?? {}
+      if (Object.keys(split.meta).length > 0) {
+        meta = { ...meta, ...split.meta }
+        try {
+          await writeText(path, split.text, 'check')
+          changed = setMeta(index, key, meta) || changed
+        } catch {}
+      }
+      const cached = appTexts.get(path)
+      const same = cached !== undefined && cached.file === split.text && sameMeta(splitMeta(cached.text).meta, meta)
+      file.text = same ? cached.text : joinMeta(split.text, meta)
+    }
+  }
+  // Settings of lists gone from their folder go too, unless a file there could not be read.
+  for (const key of Object.keys(index.lists)) {
+    const kind = key.slice(0, key.indexOf('/')) as ListKind
+    const skipped = unreadable.some((path) => path.startsWith(`${LIST_FOLDERS[kind]}/`))
+    if (!present.has(key) && !skipped) {
+      delete index.lists[key]
+      changed = true
+    }
+  }
+  if (changed) await saveIndex(index).catch(() => undefined)
+  return {
+    dataDir: dataDir(),
+    decks: files.deck,
+    wishlists: files.wishlist,
+    brews: files.brew,
+    inventory,
+    trades,
+    wishlistOrder: index.wishlistOrder,
+    unreadable
+  }
 }
 
 /** Writes a friend's trade list, unguarded. */
@@ -319,12 +444,12 @@ export async function createList(kind: ListKind, name: string, text: string): Pr
   await mkdir(listsDir(kind), { recursive: true })
   const path = listPath(kind, name)
   if (existsSync(path)) throw new Error(`A ${kind} called "${name.trim()}" already exists.`)
-  await writeText(path, text)
+  await writeListText(kind, name, text, 'none')
 }
 
 /** Writes a list, guarded unless `force`. @throws `CONFLICT_ERROR` on external modification. */
 export async function writeList(kind: ListKind, name: string, text: string, force = false): Promise<void> {
-  await writeText(listPath(kind, name), text, force ? 'force' : 'check')
+  await writeListText(kind, name, text, force ? 'force' : 'check')
 }
 
 /** Renames a list after pending writes; case-only renames allowed. @throws Error if the target exists. */
@@ -336,6 +461,21 @@ export async function renameList(kind: ListKind, from: string, to: string): Prom
   await writeChains.get(source)?.catch(() => undefined)
   await rename(source, target)
   moveKnown(source, target)
+  await moveMeta(kind, from, kind, validateListName(to), source, target)
+}
+
+/** Moves a list's personal settings, and the app's text of it, to its new name or kind. */
+async function moveMeta(fromKind: ListKind, from: string, toKind: ListKind, to: string, source: string, target: string): Promise<void> {
+  const text = appTexts.get(source)
+  appTexts.delete(source)
+  if (text) appTexts.set(target, text)
+  const index = await listsIndex()
+  const key = metaKey(fromKind, validateListName(from))
+  const meta = index.lists[key]
+  if (!meta) return
+  delete index.lists[key]
+  index.lists[metaKey(toKind, to)] = meta
+  await saveIndex(index)
 }
 
 /** Moves a list to another kind after pending writes. @returns Final name, suffixed ` (n)` if taken. */
@@ -348,6 +488,7 @@ export async function moveList(from: ListKind, to: ListKind, name: string): Prom
   await writeChains.get(source)?.catch(() => undefined)
   await rename(source, listPath(to, target))
   moveKnown(source, listPath(to, target))
+  await moveMeta(from, name, to, target, source, listPath(to, target))
   return target
 }
 
@@ -357,6 +498,9 @@ export async function deleteList(kind: ListKind, name: string): Promise<void> {
   await writeChains.get(path)?.catch(() => undefined)
   await env().trash(path)
   known.delete(path)
+  appTexts.delete(path)
+  const index = await listsIndex()
+  if (setMeta(index, metaKey(kind, validateListName(name)), {})) await saveIndex(index)
 }
 
 /** Writes the inventory, guarded unless `force`. @throws `CONFLICT_ERROR` on external modification. */

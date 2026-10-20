@@ -7,13 +7,13 @@ import { deckSizeCheck, listCommander, listFormat } from '@shared/formats'
 import { sumOf } from '@shared/totals'
 import type { InventoryItem, Printing } from '@shared/types'
 import type { CardList } from '../stores/library'
-import { priceDrop } from '../stores/history'
+import { priceChange } from '../stores/history'
 import { artCrop } from './artwork'
 import { listRows, summarize, type Row } from './summary'
 
 /**
  * @returns A list's figures for the sidebar and the Most Wanted shelf: totals, deck size, price
- * drops, color identity and the art that stands for it.
+ * changes, color identity and the art that stands for it.
  */
 export function listFigures(
   list: CardList,
@@ -25,21 +25,25 @@ export function listFigures(
   const format = listFormat(list.lines)
   const rows = listRows(list, inventory, settings, pool)
   const mainCards = sumOf(rows, (row) => (row.side ? 0 : row.line.qty))
-  const cheaper =
+  // Wishlist cards still needed whose price moved past the alert threshold since they were added.
+  const changes =
     list.kind === 'wishlist'
-      ? rows.filter(
-          (row) =>
-            !row.bundledIds &&
-            priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
-        ).length
-      : 0
+      ? rows.flatMap((row) => {
+          if (row.bundledIds) return []
+          const change = priceChange(row.line, row.unit, row.owned, settings, baselines)
+          return change ? [change.direction] : []
+        })
+      : []
   const commander = format?.commander ? listCommander(list.lines) : null
   return {
     format,
     summary: summarize(rows),
     mainCards,
     size: list.kind === 'deck' && format ? deckSizeCheck(format, mainCards) : null,
-    cheaper,
+    /** Still-needed wishlist cards cheaper than when added. */
+    cheaper: changes.filter((direction) => direction === 'down').length,
+    /** Still-needed wishlist cards pricier than when added. */
+    pricier: changes.filter((direction) => direction === 'up').length,
     colors: listColors(rows, commander),
     art: artCrop(listPrinting(rows, commander))
   }
@@ -71,7 +75,7 @@ function listPrinting(rows: Row[], commander: string | null): Printing | null {
  * @returns Color identity in WUBRG order: the commander's, else the union of the cards'. `C` when that
  * identity is empty: a colorless commander, or a list whose cards are all colorless (once all have loaded).
  */
-function listColors(rows: Array<{ line: { name: string }; info?: { colorIdentity: string[] } | null }>, commander: string | null): ColorFilter[] {
+export function listColors(rows: Array<{ line: { name: string }; info?: { colorIdentity: string[] } | null }>, commander: string | null): ColorFilter[] {
   if (commander) {
     const info = rows.find((row) => nameKey(row.line.name) === nameKey(commander))?.info
     if (!info) return []

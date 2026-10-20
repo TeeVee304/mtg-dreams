@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { totalCopies } from '@shared/totals'
 import { myTradeSide } from '@shared/trade'
+import type { ListKind } from '@shared/types'
 import { AppDialogs, type AppDialog } from './components/AppDialogs'
 import { HistorySync } from './components/HistorySync'
 import { HoverPreview } from './components/HoverPreview'
@@ -12,7 +13,8 @@ import { useToast } from './components/Toasts'
 import { TradeView } from './components/TradeView'
 import { WantedView } from './components/wanted/WantedView'
 import { Welcome } from './components/Welcome'
-import { useCopyPool } from './hooks/useCopyPool'
+import { plannedLists, useCopyPool } from './hooks/useCopyPool'
+import { cleanError } from './lib/format'
 import { usePrices } from './hooks/usePrices'
 import { useScrollMemory } from './hooks/useScrollMemory'
 import { useShortcuts } from './hooks/useShortcuts'
@@ -63,7 +65,9 @@ export default function App() {
   const scroll = useScrollMemory<HTMLElement>(pageKey(view))
   const pool = useCopyPool(state.lists)
   const { pricedAt, refreshPrices } = usePrices(state.lists, state.inventory, view?.page === 'list' ? view.list : null)
-  const myTrade = useMemo(() => myTradeSide(state.inventory, state.lists, pool), [state.inventory, state.lists, pool])
+  // Brews are only ideas: Most Wanted, trades and price alerts see decks and wishlists.
+  const planned = plannedLists(state.lists)
+  const myTrade = useMemo(() => myTradeSide(state.inventory, planned, pool), [state.inventory, planned, pool])
   useShortcuts(useCallback(() => showUndone(actions.undo()), [actions, showUndone]))
 
   if (state.status === 'loading') return <div className="splash">Loading…</div>
@@ -78,7 +82,18 @@ export default function App() {
 
   const list = view?.page === 'list' ? state.lists.find((l) => sameList(l, view.list)) : undefined
   const trade = view?.page === 'trade' ? state.trades.find((t) => t.name === view.friend) : undefined
-  const newList = (kind: 'deck' | 'wishlist') => setDialog({ kind: 'new-list', list: kind })
+  const newList = (kind: ListKind) => setDialog({ kind: 'new-list', list: kind })
+  /** Moves a list dragged between Wishlists and Brews; an open one stays open. */
+  const moveKind = async (target: ListRef, to: 'wishlist' | 'brew', at?: number) => {
+    try {
+      const moved = await actions.moveList(target, to)
+      if (to === 'wishlist' && at !== undefined) actions.moveWishlist(moved, at)
+      if (view?.page === 'list' && sameList(view.list, target)) setView({ page: 'list', list: moved })
+      toast(to === 'brew' ? `“${moved.name}” is now a brew: it no longer counts in Most Wanted` : `“${moved.name}” is now a wishlist`)
+    } catch (error) {
+      toast(`Could not move the list: ${cleanError(error)}`, 'error')
+    }
+  }
 
   return (
     <div className="app">
@@ -89,6 +104,7 @@ export default function App() {
         onSelect={setView}
         onNew={newList}
         onMoveWishlist={actions.moveWishlist}
+        onMoveKind={(target, to, at) => void moveKind(target, to, at)}
         onSettings={() => setDialog({ kind: 'settings' })}
         pricedAt={pricedAt}
         onRefreshPrices={refreshPrices}
@@ -114,7 +130,7 @@ export default function App() {
         )}
         {view?.page === 'wanted' && (
           <WantedView
-            lists={state.lists}
+            lists={planned}
             inventory={state.inventory}
             trades={state.trades}
             actions={actions}
@@ -130,7 +146,7 @@ export default function App() {
             trade={trade}
             myTrade={myTrade}
             pool={pool}
-            lists={state.lists}
+            lists={planned}
             actions={actions}
             onOpenList={openList}
             onUpdate={() => setDialog({ kind: 'import-trade', replaceName: trade.name })}
@@ -148,7 +164,7 @@ export default function App() {
         )}
       </main>
       <HoverPreview />
-      <HistorySync ready={state.status === 'ready'} lists={state.lists} inventory={state.inventory} />
+      <HistorySync ready={state.status === 'ready'} lists={planned} inventory={state.inventory} />
       <AppDialogs
         dialog={dialog}
         setDialog={setDialog}

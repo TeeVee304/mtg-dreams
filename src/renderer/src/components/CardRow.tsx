@@ -4,7 +4,7 @@ import type { LegalityIssue } from '@shared/formats'
 import { heldWhere, shortfallNote } from '@shared/listModel'
 import { formatDate, formatEur } from '../lib/format'
 import { useNarrow } from '../hooks/useNarrow'
-import type { PriceDrop } from '../stores/history'
+import type { PriceChange } from '../stores/history'
 import type { Row } from '../lib/summary'
 import { CardmarketButton, NameCell, Price } from './CardCells'
 import { Icon } from './Icon'
@@ -25,8 +25,14 @@ interface CardRowProps {
   issue: LegalityIssue | null
   /** Deck copies not covered by the inventory copies left by lists ahead. */
   shortfall: number
-  /** Wishlist price drop past the alert threshold. */
-  drop?: PriceDrop | null
+  /** Wishlist price change past the alert threshold, either way. */
+  change?: PriceChange | null
+  /** A card only the list's other version plays, in that version's view. */
+  swapTag?: 'only' | null
+  /** Name of that version: `Duel`, `EDH`. */
+  swapLabel?: string
+  /** The versions you own instead of the one the line names, e.g. `SLD #1 · Foil`; shown on hover over the version. */
+  otherVersions?: string | null
   maxQty?: number
   /** Tooltip when `maxQty` is reached. */
   maxTitle?: string
@@ -47,7 +53,7 @@ interface CardRowProps {
  * since inventory matching is by name) and flavor names.
  */
 export function CardRow(props: CardRowProps) {
-  const { row, pick, onPick, leader, crowned, isDeck, issue, shortfall, drop, maxQty, maxTitle } = props
+  const { row, pick, onPick, leader, crowned, isDeck, issue, shortfall, change, swapTag, swapLabel, maxQty, maxTitle, otherVersions } = props
   const { onQty, onToggleOwned, onOwnedDelta, onOpen, onRemove, onRename } = props
   const { line, entry, resolution, owned, unit } = row
   const narrow = useNarrow()
@@ -148,17 +154,22 @@ export function CardRow(props: CardRowProps) {
           </span>
         )}
         {line.foil && <span className="chip foil">Foil</span>}
+        {swapTag === 'only' && (
+          <span className="chip duel-only" title={`Only in the ${swapLabel} version`}>
+            {swapLabel} only
+          </span>
+        )}
         {issue && (
           <span className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`} title={issue.message}>
             {issue.message}
           </span>
         )}
-        {drop && (
+        {change && (
           <span
-            className="chip cheaper"
-            title={`${formatEur(drop.was)} when added on ${formatDate(drop.since)}, now ${formatEur(row.unit)}`}
+            className={`chip ${change.direction === 'down' ? 'cheaper' : 'pricier'}`}
+            title={`${formatEur(change.was)} when added on ${formatDate(change.since)}, now ${formatEur(row.unit)}`}
           >
-            ↓ {drop.percent}% cheaper
+            {change.direction === 'down' ? `↓ ${change.percent}% cheaper` : `↑ ${change.percent}% pricier`}
           </span>
         )}
         {shortfall > 0 && (
@@ -187,13 +198,13 @@ export function CardRow(props: CardRowProps) {
         )}
         {narrow && (
           <span className="name-version">
-            <VersionCell row={row} />
+            <VersionCell row={row} otherVersions={otherVersions} />
           </span>
         )}
       </NameCell>
       {!narrow && (
         <td className="col-version">
-          <VersionCell row={row} />
+          <VersionCell row={row} otherVersions={otherVersions} />
         </td>
       )}
       <td className="col-num">
@@ -226,8 +237,12 @@ export function CardRow(props: CardRowProps) {
   )
 }
 
-/** Version cell: plain for the cheapest printing; highlights pinned, owned and missing printings. */
-function VersionCell({ row }: { row: Row }) {
+/**
+ * Version cell: plain for the cheapest printing; highlights pinned, owned and missing printings. A
+ * pinned printing you own only other versions of says so on hover.
+ */
+function VersionCell({ row, otherVersions }: { row: Row; otherVersions?: string | null }) {
+  const yours = otherVersions ? `. You own another version: ${otherVersions}` : ''
   const { line, entry, resolution } = row
   if (row.bundledIds) {
     return (
@@ -256,7 +271,7 @@ function VersionCell({ row }: { row: Row }) {
   const where = `${printing.set.toUpperCase()} #${printing.collectorNumber}`
   if (resolution.collectorMissing) {
     return (
-      <span className="version" title={`#${line.collector} is not in ${printing.setName}; using the cheapest copy in that set.`}>
+      <span className="version" title={`#${line.collector} is not in ${printing.setName}; using the cheapest copy in that set${yours || '.'}`}>
         <span className="set-code">{where}</span>
         <span className="warn small">#{line.collector} not found</span>
       </span>
@@ -279,7 +294,7 @@ function VersionCell({ row }: { row: Row }) {
     )
   }
   return (
-    <span className="version" title={`${printing.setName}${labels}`}>
+    <span className={`version${yours ? ' owns-other' : ''}`} title={`${printing.setName}${labels}${yours}`}>
       <span className="set-code">{where}</span>
       <span className="muted">{printing.setName}</span>
     </span>

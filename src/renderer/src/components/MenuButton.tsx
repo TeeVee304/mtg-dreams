@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
 
 /** Menu entry: an action, or a submenu of more entries. */
@@ -13,11 +13,19 @@ export type MenuItem =
     }
   | { label: string; items: MenuItem[]; danger?: undefined; checked?: undefined }
 
+/** Props of {@link MenuButton}. */
+interface MenuButtonProps {
+  label: string
+  items: MenuItem[]
+  /** Content of the button opening the menu, with its classes; the ⋯ icon by default. */
+  trigger?: { content: ReactNode; className: string }
+}
+
 /**
  * Overflow (⋯) menu. Closes on selection, outside click or Escape (without closing an enclosing
  * dialog); arrow keys navigate. A submenu replaces the entries, with a way back.
  */
-export function MenuButton({ label, items }: { label: string; items: MenuItem[] }) {
+export function MenuButton({ label, items, trigger }: MenuButtonProps) {
   const [open, setOpen] = useState(false)
   /** Open submenu entry; null for the top level. */
   const [sub, setSub] = useState<Extract<MenuItem, { items: MenuItem[] }> | null>(null)
@@ -69,14 +77,14 @@ export function MenuButton({ label, items }: { label: string; items: MenuItem[] 
     <div className="menu" ref={root} onKeyDown={onKey}>
       <button
         type="button"
-        className={`icon-btn menu-trigger${open ? ' open' : ''}`}
+        className={`${trigger?.className ?? 'icon-btn'} menu-trigger${open ? ' open' : ''}`}
         aria-label={label}
         title={label}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <Icon name="more" />
+        {trigger?.content ?? <Icon name="more" />}
       </button>
       {open && (
         <div className="menu-list" role="menu" ref={menu}>

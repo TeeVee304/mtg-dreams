@@ -13,6 +13,11 @@ export interface AppSettings {
   color: ThemeColor
   /** Treat all printings of the five basic lands as one generic, zero-cost card. */
   bundleBasics: boolean
+  /**
+   * Wishlists reserve the copies they use, after built decks, from the top of the wishlist order
+   * down; otherwise each wishlist sees every copy built decks don't hold.
+   */
+  wishlistsReserve: boolean
   /** Show card thumbnails in lists and search. */
   cardImages: boolean
   /** List layout for decks and wishlists. */
@@ -25,8 +30,12 @@ export interface AppSettings {
   sortReverse: boolean
   /** Global price basis for valuation. */
   priceBasis: PriceBasis
-  /** Wishlist price-drop alert threshold, in percent below the baseline. */
+  /** Wishlist price-change alert threshold, in percent of the baseline (either way). */
   dropAlertPercent: number
+  /** Smallest drop in euros that also counts for an alert, so cent moves of cheap cards don't. */
+  dropAlertMinEur: number
+  /** Smallest rise in euros that also counts for an alert. */
+  riseAlertMinEur: number
 }
 
 /** Daily price snapshot keyed by Cardmarket product id. */
@@ -55,6 +64,8 @@ export interface LoadedData {
   dataDir: string
   decks: ListFile[]
   wishlists: ListFile[]
+  /** Lists kept as ideas: they count toward nothing (Most Wanted, budget planner, trades). */
+  brews: ListFile[]
   /** Inventory file contents. */
   inventory: string
   /** Friends' trade lists, named after the friend. */

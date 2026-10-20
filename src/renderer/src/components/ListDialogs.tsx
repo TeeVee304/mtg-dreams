@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { capEntries, type DeckFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
-import { upgradeTarget } from '@shared/listUpgrade'
+import { stripMeta, withMetaOf } from '@shared/listMeta'
+import { upgradeTarget, upgradeVersion } from '@shared/listUpgrade'
+import { activeVariant, baseText, variantText, withBaseText, type Variant } from '@shared/listVersion'
+import { serializeList } from '@shared/decklist'
 import type { ListAnalysis } from '@shared/listModel'
 import { totalCopies } from '@shared/totals'
 import type { CardLine } from '@shared/types'
@@ -26,6 +29,10 @@ export type ListDialog =
   | { kind: 'color' }
   | { kind: 'upgrade' }
   | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
+  /** Confirms removing the list's other version (Duel, EDH), deleting its `swaps`. */
+  | { kind: 'variant-off'; variant: Variant; swaps: number }
+  /** Confirms a new format (named `label`), which deletes the list's other version and its `swaps`. */
+  | { kind: 'variant-format'; formatId: string | null; label: string; variant: Variant; swaps: number }
 
 /** Props of {@link ListDialogs}. */
 interface ListDialogsProps {
@@ -46,6 +53,8 @@ interface ListDialogsProps {
   limitFor: (name: string) => string
   /** Called with the new ref after a rename. */
   onOpenList: (list: ListRef) => void
+  /** The list's other version (Duel, EDH), when the page shows it; null for the list itself. */
+  shownVariant?: Variant | null
 }
 
 /** Renders the active list page dialog. Precon imports into a formatted list are capped to format limits. */
@@ -86,16 +95,37 @@ export function ListDialogs(props: ListDialogsProps) {
           }}
         />
       )
-    case 'text':
-      return (
+    case 'text': {
+      // In the other version's view, the editor holds that version's cards; saving turns them into its swaps.
+      const shown = props.shownVariant
+      return shown ? (
         <TextEditorDialog
-          title={`Edit “${list.name}” as text`}
-          initial={list.text}
+          title={`Edit the ${shown.label} version of “${list.name}” as text`}
+          initial={variantText(list.lines)}
           mode="list"
           onClose={onClose}
-          onSave={(text) => actions.replaceListText(list, text)}
+          onSave={(text) => actions.replaceVariantText(list, text)}
+        />
+      ) : activeVariant(list.lines) ? (
+        // The list itself, without its other version, which comes back on save.
+        <TextEditorDialog
+          title={`Edit “${list.name}” as text`}
+          initial={stripMeta(baseText(list.lines))}
+          mode="list"
+          onClose={onClose}
+          onSave={(text) => actions.replaceListText(list, serializeList(withBaseText(list.lines, withMetaOf(text, list.text))))}
+        />
+      ) : (
+        // The deck only: personal settings (color, upgrade…) stay, unless the text sets its own.
+        <TextEditorDialog
+          title={`Edit “${list.name}” as text`}
+          initial={stripMeta(list.text)}
+          mode="list"
+          onClose={onClose}
+          onSave={(text) => actions.replaceListText(list, withMetaOf(text, list.text))}
         />
       )
+    }
     case 'card':
       return cardRow ? (
         <CardDialog
@@ -184,6 +214,34 @@ export function ListDialogs(props: ListDialogsProps) {
       )
     case 'upgrade':
       return <UpgradeDialog list={list} lists={props.lists} actions={actions} onClose={onClose} />
+    case 'variant-off':
+      return (
+        <ConfirmDialog
+          title={`Remove the ${dialog.variant.label} version?`}
+          message={`Its ${swapCount(dialog.swaps)} will be deleted. The ${dialog.variant.baseLabel} version stays as it is.`}
+          confirmLabel="Remove and delete"
+          danger
+          onClose={onClose}
+          onConfirm={() => {
+            actions.setVariant(list, false)
+            onClose()
+          }}
+        />
+      )
+    case 'variant-format':
+      return (
+        <ConfirmDialog
+          title={`Change the format to ${dialog.label}?`}
+          message={`${dialog.variant.label} versions belong to ${dialog.variant.baseLabel} ${noun}s. This ${noun}’s ${dialog.variant.label} version and its ${swapCount(dialog.swaps)} will be deleted.`}
+          confirmLabel="Change and delete"
+          danger
+          onClose={onClose}
+          onConfirm={() => {
+            actions.setListFormat(list, dialog.formatId)
+            onClose()
+          }}
+        />
+      )
     default:
       return null
   }
@@ -197,16 +255,31 @@ interface UpgradeDialogProps {
   onClose: () => void
 }
 
-/** Picks the deck a wishlist upgrades, or none. */
+/** @returns `1 swap` / `8 swaps`. */
+const swapCount = (n: number) => `${n} ${n === 1 ? 'swap' : 'swaps'}`
+
+/** Separates a deck name from its version in the picker's option values. */
+const VERSION_MARK = '\u0000'
+
+/** Picks the deck a wishlist upgrades (or its other version: Duel, EDH), or none. */
 function UpgradeDialog({ list, lists, actions, onClose }: UpgradeDialogProps) {
   const toast = useToast()
-  const current = upgradeTarget(list, lists)?.name ?? ''
-  const [deck, setDeck] = useState(current)
+  const target = upgradeTarget(list, lists)
+  const targetVariant = target ? activeVariant(target.lines) : null
+  const current = target
+    ? target.name + (upgradeVersion(list.lines) === 'variant' && targetVariant ? VERSION_MARK + targetVariant.label : '')
+    : ''
+  const [choice, setChoice] = useState(current)
   const decks = lists.filter((other) => other.kind === 'deck')
   const save = () => {
-    if (deck !== current) {
-      actions.setUpgradeOf(list, deck || null)
-      toast(deck ? `“${list.name}” is now an upgrade of ${deck}` : `“${list.name}” is a plain wishlist again`)
+    if (choice !== current) {
+      const [deck, variant] = choice.split(VERSION_MARK)
+      actions.setUpgradeOf(list, deck || null, variant || null)
+      toast(
+        deck
+          ? `“${list.name}” is now an upgrade of ${deck}${variant ? `’s ${variant} version` : ''}`
+          : `“${list.name}” is a plain wishlist again`
+      )
     }
     onClose()
   }
@@ -233,13 +306,23 @@ function UpgradeDialog({ list, lists, actions, onClose }: UpgradeDialogProps) {
       </p>
       <label className="field">
         <span>Deck</span>
-        <select autoFocus value={deck} onChange={(event) => setDeck(event.target.value)}>
+        <select autoFocus value={choice} onChange={(event) => setChoice(event.target.value)}>
           <option value="">None: a plain wishlist</option>
-          {decks.map((other) => (
-            <option key={other.name} value={other.name}>
-              {other.name}
-            </option>
-          ))}
+          {decks.flatMap((other) => {
+            const variant = activeVariant(other.lines)
+            return [
+              <option key={other.name} value={other.name}>
+                {other.name}
+              </option>,
+              ...(variant
+                ? [
+                    <option key={`${other.name} ${variant.label}`} value={other.name + VERSION_MARK + variant.label}>
+                      {other.name} · {variant.label}
+                    </option>
+                  ]
+                : [])
+            ]
+          })}
         </select>
       </label>
       {decks.length === 0 && <p className="muted small">You have no decks yet.</p>}

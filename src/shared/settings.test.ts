@@ -17,5 +17,7 @@ describe('settings', () => {
     expect(() => settingsPatch({ theme: 'neon' })).toThrow('Invalid theme.')
     expect(() => settingsPatch({ tradeName: 'x'.repeat(101) })).toThrow('Invalid name.')
     expect(() => settingsPatch({ dropAlertPercent: 95 })).toThrow('Invalid alert threshold.')
+    expect(settingsPatch({ dropAlertMinEur: 0.25 })).toEqual({ dropAlertMinEur: 0.25 })
+    expect(() => settingsPatch({ dropAlertMinEur: -1 })).toThrow('Invalid alert amount.')
   })
 })

@@ -1,7 +1,8 @@
 import { genericBasic } from './basics'
 import { copyPool, listNeeds, type CopyPool, type ListKey, type PoolList } from './copies'
-import { countLines, nameKey, parseInventory } from './decklist'
+import { nameKey, parseInventory } from './decklist'
 import { safeFileName } from './filenames'
+import { worthlessCopies } from './inventory'
 import type { InventoryItem } from './types'
 
 /**
@@ -24,6 +25,8 @@ const MAX_CARDS = 20_000
 export interface TradeCard {
   name: string
   qty: number
+  /** Haves: how many of the copies are worthless (damaged, or not counted); offered, but left out of the balance. */
+  worthless?: number
 }
 
 /** Trade file contents (JSON). */
@@ -105,7 +108,10 @@ export function myTradeSide(
   for (const [key, item] of inventory) {
     if (item.qty <= 0 || !tradable(item.name)) continue
     const inUse = Math.min(item.qty, pool.inUse(key, item.qty))
-    if (item.qty > inUse) haves.push({ name: item.name, qty: item.qty - inUse })
+    // Decks and wishlists use the worthless copies first, so the spare ones are the valued ones.
+    const spare = item.qty - inUse
+    const worthless = Math.min(spare, Math.max(0, worthlessCopies(item) - inUse))
+    if (spare > 0) haves.push({ name: item.name, qty: spare, ...(worthless > 0 && { worthless }) })
     if (inUse > 0) kept.push({ name: item.name, qty: inUse })
   }
   return { haves: haves.sort(byName), kept: kept.sort(byName), wants: computeWants(lists, inventory, pool) }
@@ -134,12 +140,20 @@ export function snapshotToText(snapshot: TradeSnapshot): string {
   return [
     `// MTG Dreams trade list: ${snapshot.name} (${snapshot.createdAt.slice(0, 10)})`,
     '// Have',
-    ...countLines(snapshot.haves),
+    ...tradeLines(snapshot.haves),
     '',
     '// Want',
-    ...countLines(snapshot.wants),
+    ...tradeLines(snapshot.wants),
     ''
   ].join('\n')
+}
+
+/** @returns `N Name` lines, with the worthless copies apart: `1 Name {Worthless}`. */
+export function tradeLines(cards: TradeCard[]): string[] {
+  return cards.flatMap(({ name, qty, worthless = 0 }) => [
+    ...(qty > worthless ? [`${qty - worthless} ${name}`] : []),
+    ...(worthless > 0 ? [`${worthless} ${name} {Worthless}`] : [])
+  ])
 }
 
 /** @returns Sanitized file name for a friend's trade list, or `fallback` if empty. */
@@ -155,10 +169,14 @@ function cleanCards(value: unknown): TradeCard[] {
     const name = typeof item?.name === 'string' ? item.name.trim().slice(0, 200) : ''
     const qty = Number(item?.qty)
     if (!name || !Number.isSafeInteger(qty) || qty <= 0) continue
+    const raw = Number(item?.worthless)
+    const worthless = Number.isSafeInteger(raw) && raw > 0 ? Math.min(raw, qty) : 0
     const key = nameKey(name)
     const card = cards.get(key)
-    if (card) card.qty += qty
-    else cards.set(key, { name, qty })
+    if (card) {
+      card.qty += qty
+      if (worthless > 0) card.worthless = (card.worthless ?? 0) + worthless
+    } else cards.set(key, { name, qty, ...(worthless > 0 && { worthless }) })
   }
   return [...cards.values()].sort(byName)
 }
@@ -204,7 +222,12 @@ function parseCsvCards(text: string): TradeCard[] | null {
 
 /** Parses card lines into merged, sorted trade cards. */
 const listCards = (lines: string[]) =>
-  [...parseInventory(lines.join('\n')).values()].map(({ name, qty }) => ({ name, qty })).sort(byName)
+  [...parseInventory(lines.join('\n')).values()]
+    .map((item): TradeCard => {
+      const worthless = worthlessCopies(item)
+      return { name: item.name, qty: item.qty, ...(worthless > 0 && { worthless }) }
+    })
+    .sort(byName)
 
 /**
  * Parses a friend's trade list: JSON trade file, its text form, a collection CSV, or a plain card
@@ -275,10 +298,18 @@ export interface TradeMatch {
   needed: number
   /** Own lists wanting it; empty for cards going to the friend. */
   lists: ListKey[]
+  /** Of `qty`, worthless copies (the giver's valued copies go first); left out of the balance. */
+  worthless: number
 }
 
 /** @returns Cards by nameKey. */
 const index = (cards: TradeCard[]) => new Map(cards.map((card) => [nameKey(card.name), card]))
+
+/** @returns Copies of `have` going to a want of `needed`: valued ones first, then the worthless ones. */
+function matched(have: TradeCard, needed: number): Pick<TradeMatch, 'qty' | 'available' | 'worthless'> {
+  const qty = Math.min(have.qty, needed)
+  return { qty, available: have.qty, worthless: Math.max(0, qty - (have.qty - (have.worthless ?? 0))) }
+}
 
 /** @returns `forMe`: friend's haves matching own wants. `forThem`: own haves matching friend's wants. */
 export function matchTrades(
@@ -291,13 +322,13 @@ export function matchTrades(
   const forMe: TradeMatch[] = []
   for (const want of myWants) {
     const have = theirHaves.get(nameKey(want.name))
-    if (have) forMe.push({ name: want.name, qty: Math.min(have.qty, want.qty), available: have.qty, needed: want.qty, lists: want.lists })
+    if (have) forMe.push({ ...matched(have, want.qty), name: want.name, needed: want.qty, lists: want.lists })
   }
   const forThem: TradeMatch[] = []
   for (const want of friend.wants) {
     const have = mine.get(nameKey(want.name))
     if (have && tradable(have.name)) {
-      forThem.push({ name: have.name, qty: Math.min(have.qty, want.qty), available: have.qty, needed: want.qty, lists: [] })
+      forThem.push({ ...matched(have, want.qty), name: have.name, needed: want.qty, lists: [] })
     }
   }
   return { forMe, forThem }
@@ -319,7 +350,7 @@ export function keptMatches(myHaves: TradeCard[], myKept: TradeCard[], friend: P
     const mine = kept.get(key)
     const short = want.qty - (spare.get(key)?.qty ?? 0)
     if (mine && short > 0 && tradable(mine.name)) {
-      matches.push({ name: mine.name, qty: Math.min(mine.qty, short), available: mine.qty, needed: want.qty, lists: [] })
+      matches.push({ name: mine.name, qty: Math.min(mine.qty, short), available: mine.qty, needed: want.qty, lists: [], worthless: 0 })
     }
   }
   return matches

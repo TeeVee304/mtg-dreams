@@ -99,29 +99,65 @@ export function SettingsDialog(props: SettingsDialogProps) {
           <br />
           Inventory Value always uses the typical price.
         </p>
-        <label className="setting-toggle">
+        <div className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Price drop alerts</span>
+            <span className="setting-label">Price change alerts</span>
             <span className="muted small">
-              Flags wishlist cards you still need once they&apos;re this much cheaper than when you added them.
+              Flags wishlist cards you still need once their price moved since you added them by both this
+              percentage and the amount for that direction, so cent moves of cheap cards don&apos;t count.
             </span>
           </span>
-          <span className="percent-field">
-            <input
-              type="number"
-              min={1}
-              max={90}
-              step={1}
-              value={settings.dropAlertPercent}
-              aria-label="Price drop alert threshold in percent"
-              onChange={(event) => {
-                const percent = Math.round(Number(event.target.value))
-                if (percent >= 1 && percent <= 90) change({ dropAlertPercent: percent })
-              }}
-            />
-            %
+          <span className="alert-fields">
+            <span className="percent-field">
+              At least
+              <input
+                type="number"
+                min={1}
+                max={90}
+                step={1}
+                value={settings.dropAlertPercent}
+                aria-label="Price change alert threshold in percent"
+                onChange={(event) => {
+                  const percent = Math.round(Number(event.target.value))
+                  if (percent >= 1 && percent <= 90) change({ dropAlertPercent: percent })
+                }}
+              />
+              %
+            </span>
+            <span className="percent-field">
+              <span className="move-down">↓ cheaper</span> by
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.05}
+                value={settings.dropAlertMinEur}
+                aria-label="Smallest price drop for an alert, in euros"
+                onChange={(event) => {
+                  const euros = Math.round(Number(event.target.value) * 100) / 100
+                  if (euros >= 0 && euros <= 100) change({ dropAlertMinEur: euros })
+                }}
+              />
+              €
+            </span>
+            <span className="percent-field">
+              <span className="move-up">↑ pricier</span> by
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.05}
+                value={settings.riseAlertMinEur}
+                aria-label="Smallest price rise for an alert, in euros"
+                onChange={(event) => {
+                  const euros = Math.round(Number(event.target.value) * 100) / 100
+                  if (euros >= 0 && euros <= 100) change({ riseAlertMinEur: euros })
+                }}
+              />
+              €
+            </span>
           </span>
-        </label>
+        </div>
       </section>
 
       <section className="settings-section">
@@ -156,6 +192,27 @@ export function SettingsDialog(props: SettingsDialogProps) {
             className="switch"
             checked={settings.bundleBasics}
             onChange={(event) => change({ bundleBasics: event.target.checked })}
+          />
+        </label>
+      </section>
+
+      <section className="settings-section">
+        <h3>Copies</h3>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">Wishlists reserve copies</span>
+            <span className="muted small">
+              Your copies go to built decks first, then to wishlists from the top of your order down. A card a higher
+              wishlist holds counts as missing for the ones below, and Most Wanted buys a copy for each. Off: every
+              wishlist uses every copy your built decks don&apos;t hold.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.wishlistsReserve}
+            onChange={(event) => change({ wishlistsReserve: event.target.checked })}
           />
         </label>
       </section>

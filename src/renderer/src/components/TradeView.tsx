@@ -31,12 +31,15 @@ function price(match: TradeMatch, basis: PriceBasis): PricedMatch {
   return { ...match, unit: cheapest?.unit, printing: cheapest?.printing ?? null }
 }
 
+/** Copies of a match that count in the balance: those with a value. */
+const valued = (match: TradeMatch) => match.qty - match.worthless
+
 /** Sort by total value, descending. */
 const byValue = (a: PricedMatch, b: PricedMatch) =>
-  (b.unit ?? -1) * b.qty - (a.unit ?? -1) * a.qty || a.name.localeCompare(b.name)
+  (b.unit ?? -1) * valued(b) - (a.unit ?? -1) * valued(a) || a.name.localeCompare(b.name)
 
-/** EUR total of priced matches. */
-const totalOf = (matches: PricedMatch[]) => sumOf(matches, (m) => (m.unit ?? 0) * m.qty)
+/** EUR total of priced matches, worthless copies aside. */
+const totalOf = (matches: PricedMatch[]) => sumOf(matches, (m) => (m.unit ?? 0) * valued(m))
 /** Matched copy count label. */
 const matchedCards = (matches: TradeMatch[]) => cardCount(totalCopies(matches))
 
@@ -270,10 +273,15 @@ function MatchTable({ matches, detail, detailLabel, qtyNote }: MatchTableProps) 
             <td className="col-name" {...previewHandlers({ src: match.printing?.imageNormal, back: match.printing?.imageBack, name: match.name })}>
               <span className="card-name">{match.name}</span>
               {qtyNote(match) && <span className="muted tiny trade-qty-note">{qtyNote(match)}</span>}
+              {match.worthless > 0 && (
+                <span className="chip worthless" title="Marked worthless (damaged, or not counted): left out of the balance">
+                  {match.worthless === match.qty ? 'Worthless' : `${match.worthless} worthless`}
+                </span>
+              )}
             </td>
             <td>{detail(match)}</td>
             <td className="col-num">
-              <Price unit={match.unit} qty={match.qty} />
+              {match.worthless === match.qty ? <span className="muted">—</span> : <Price unit={match.unit} qty={valued(match)} />}
             </td>
           </tr>
         ))}

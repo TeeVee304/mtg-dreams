@@ -99,4 +99,17 @@ describe('inventory', () => {
       '2 Delver of Secrets // Insectile Aberration\n1 Lightning Bolt (F)\n2 Lightning Bolt [M11]\n'
     )
   })
+
+  it('reads and writes languages and worthless marks, and leaves them out on request', () => {
+    expect(parseCardLine('1 Sol Ring <472> [CMR] (F) {DE} {Worthless}')).toEqual({
+      qty: 1, name: 'Sol Ring', set: 'cmr', collector: '472', foil: true, lang: 'de', worthless: true
+    })
+    expect(parseCardLine('1 Opt {EN}')).toEqual({ qty: 1, name: 'Opt', set: undefined, collector: undefined, foil: false })
+    expect(parseCardLine('1 Opt {XX}')?.name).toBe('Opt {XX}')
+    // Its first name still reads.
+    expect(parseCardLine('1 Opt {No value}')).toMatchObject({ name: 'Opt', worthless: true })
+    const inventory = parseInventory(['2 Sol Ring [CMR]', '1 Sol Ring [CMR] {ZHS} {Worthless}', '1 Opt'].join('\n'))
+    expect(serializeInventory(inventory)).toBe(['1 Opt', '2 Sol Ring [CMR]', '1 Sol Ring [CMR] {ZHS} {Worthless}', ''].join('\n'))
+    expect(serializeInventory(inventory, true)).toBe(['1 Opt', '3 Sol Ring [CMR]', ''].join('\n'))
+  })
 })

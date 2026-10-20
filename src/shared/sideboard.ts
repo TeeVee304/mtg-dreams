@@ -27,6 +27,12 @@ const SIDEBOARD_HEADER = /^(?:\/\/\s*)?side(?:board)?\s*:?$/i
 /** Other section headers; each ends a sideboard section. */
 const OTHER_HEADER = /^(?:\/\/\s*)?(?:deck|main|mainboard|maindeck|commander|companion|maybeboard|about)\s*:?$/i
 
+/**
+ * Header of a version's swap section, `// Duel in`, `// EDH out`… (see listVersion). Its cards are no
+ * part of the main deck; the app writes these sections last.
+ */
+export const VERSION_SECTION = /^\/\/\s*(duel|edh)\s+(in|out)\s*:?$/i
+
 /** Text line matching `re`. */
 const isHeader = (line: ListLine, re: RegExp) => line.kind === 'text' && re.test(line.text.trim())
 
@@ -54,7 +60,9 @@ function boardEnd(lines: ListLine[], board: Board): number {
   const header = lines.findIndex((line) => isHeader(line, SIDEBOARD_HEADER))
   let end: number
   if (board === 'main') {
-    end = header < 0 ? lines.length : header
+    // The main deck ends at the sideboard, or at the version swaps.
+    const swaps = lines.findIndex((line) => isHeader(line, VERSION_SECTION))
+    end = Math.min(header < 0 ? lines.length : header, swaps < 0 ? lines.length : swaps)
   } else {
     if (header < 0) return -1
     const next = lines.findIndex((line, i) => i > header && isHeader(line, OTHER_HEADER))

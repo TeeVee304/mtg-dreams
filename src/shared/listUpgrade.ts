@@ -1,22 +1,38 @@
 import { listHeader } from './decklist'
 import { listColor, withColor } from './listColor'
 import { isUnbuilt, withUnbuilt } from './listUnbuilt'
+import { baseCardLines, hasVariant, withVariantCards, withVariantOf, type ListVersion } from './listVersion'
 import type { ListKind, ListLine } from './types'
 
 /** Upgrade header line stored in a wishlist file: `// Upgrade of: <deck name>`. */
 const UPGRADE = listHeader('Upgrade of', 'upgrade\\s+of')
+
+/** Version an upgrade plans, when not the deck itself: `// Upgrade version: Duel` (or EDH). */
+const UPGRADE_VERSION = listHeader('Upgrade version', 'upgrade\\s+version')
 
 /** @returns Deck name of the first upgrade header; null if none. */
 export function upgradeOf(lines: ListLine[]): string | null {
   return UPGRADE.read(lines)
 }
 
+/** @returns Name of the deck's other version an upgrade plans (`Duel`, `EDH`); null for the deck itself. */
+export function upgradeVariant(lines: ListLine[]): string | null {
+  return UPGRADE_VERSION.read(lines)
+}
+
+/** @returns The version of its deck an upgrade plans: its other version (Duel, EDH), or the deck itself (`base`). */
+export function upgradeVersion(lines: ListLine[]): ListVersion {
+  return upgradeVariant(lines) ? 'variant' : 'base'
+}
+
 /**
- * Replaces the upgrade header, placing it first.
- * @param deck - Deck name; null removes the header.
+ * Replaces the upgrade headers, placing them first.
+ * @param deck - Deck name; null removes the headers.
+ * @param variant - Name of the deck's other version the upgrade plans (`Duel`, `EDH`); null for the deck itself.
  */
-export function withUpgradeOf(lines: ListLine[], deck: string | null): ListLine[] {
-  return UPGRADE.write(lines, deck)
+export function withUpgradeOf(lines: ListLine[], deck: string | null, variant: string | null = null): ListLine[] {
+  const versioned = UPGRADE_VERSION.write(lines, deck ? variant : null)
+  return UPGRADE.write(versioned, deck)
 }
 
 /** Deck names match case-insensitively, as list file names do. */
@@ -38,11 +54,15 @@ export function upgradeTarget<L extends { kind: ListKind; name: string }>(
 /**
  * @param upgrade - Lines of a complete upgrade.
  * @param deck - Lines of the deck it upgrades.
- * @returns The deck's new lines: the upgrade's, without its wishlist headers, in the deck's color if it
- * has one, and unbuilt if the deck was.
+ * @returns The deck's new lines. An upgrade of the deck's other version (while it has one) becomes
+ * that version's swaps, the deck itself unchanged. Otherwise the deck becomes the upgrade's list,
+ * without its wishlist headers, in the deck's color if it has one, unbuilt if the deck was, and with
+ * the deck's other version.
  */
 export function appliedUpgrade(upgrade: ListLine[], deck: ListLine[]): ListLine[] {
-  const lines = withUnbuilt(withUpgradeOf(upgrade, null), isUnbuilt(deck))
+  const own = withUpgradeOf(upgrade, null)
+  if (upgradeVersion(upgrade) === 'variant' && hasVariant(deck)) return withVariantCards(deck, baseCardLines(own))
+  const lines = withUnbuilt(own, isUnbuilt(deck))
   const color = listColor(deck)
-  return color ? withColor(lines, color) : lines
+  return withVariantOf(color ? withColor(lines, color) : lines, deck)
 }

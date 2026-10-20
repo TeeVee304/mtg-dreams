@@ -18,14 +18,16 @@ const CELEBRATION_MS = 750
 interface CompleteBannerProps {
   /** Total copies in the list. */
   cards: number
+  /** A brew, not a wishlist. */
+  brew?: boolean
   /** Deck the wishlist upgrades; null for a plain wishlist. */
   upgrades: string | null
   /** Moves the wishlist to decks, or applies the upgrade to its deck. */
   onMove: () => Promise<void>
 }
 
-/** Banner on a fully owned wishlist offering to move it to decks, or apply it to the deck it upgrades, with confetti. */
-export function CompleteBanner({ cards, upgrades, onMove }: CompleteBannerProps) {
+/** Banner on a fully owned wishlist or brew offering to move it to decks, or apply it to the deck it upgrades, with confetti. */
+export function CompleteBanner({ cards, brew, upgrades, onMove }: CompleteBannerProps) {
   const [moving, setMoving] = useState(false)
 
   const move = async () => {
@@ -45,7 +47,7 @@ export function CompleteBanner({ cards, upgrades, onMove }: CompleteBannerProps)
         <Icon name="check" />
       </span>
       <div className="complete-text">
-        <strong>{upgrades ? 'Upgrade complete!' : 'Wishlist complete!'}</strong>
+        <strong>{upgrades ? 'Upgrade complete!' : brew ? 'Brew complete!' : 'Wishlist complete!'}</strong>
         <span className="muted">
           You own all {cards} {cards === 1 ? 'card' : 'cards'}.{' '}
           {upgrades ? `Ready to apply it to “${upgrades}”?` : 'Ready to become a deck?'}

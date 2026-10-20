@@ -10,7 +10,8 @@ import {
 import { listFormat, withCommander, withFormat, withoutMissingCommander } from '@shared/formats'
 import { withColor } from '@shared/listColor'
 import { withUnbuilt } from '@shared/listUnbuilt'
-import { appliedUpgrade, sameDeckName, upgradeOf, upgradeTarget, withUpgradeOf } from '@shared/listUpgrade'
+import { appliedUpgrade, sameDeckName, upgradeOf, upgradeTarget, upgradeVariant, withUpgradeOf } from '@shared/listUpgrade'
+import { variantFor, withVariant, withVariantCount, withVariantText, withoutSwapPair, type CardPick } from '@shared/listVersion'
 import { addToBoard, moveToBoard, type BoardEntry } from '@shared/sideboard'
 import type { ThemeColor } from '@shared/themes'
 import { parseTradeText, serializeSnapshot, tradeName, type TradeSnapshot } from '@shared/trade'
@@ -18,7 +19,10 @@ import { addCopies, itemFromCopies, withTotal, type Version } from '@shared/inve
 import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
 import { cardCount, cleanError } from '../lib/format'
 
-/** Deck or wishlist backed by one text file. */
+/** What each kind of list is called in labels. */
+export const KIND_NOUN: Record<ListKind, string> = { deck: 'deck', wishlist: 'wishlist', brew: 'brew' }
+
+/** Deck, wishlist or brew backed by one text file. */
 export interface CardList {
   kind: ListKind
   name: string
@@ -124,9 +128,13 @@ export function inventoryText(inventory: Map<string, InventoryItem>): string {
 const byName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
 
-/** @returns `lists` with decks by name, then wishlists in their current order. */
+/** @returns `lists` with decks by name, then wishlists in their current order, then brews by name. */
 function arranged(lists: CardList[]): CardList[] {
-  return [...lists.filter((list) => list.kind === 'deck').sort(byName), ...lists.filter((list) => list.kind === 'wishlist')]
+  return [
+    ...lists.filter((list) => list.kind === 'deck').sort(byName),
+    ...lists.filter((list) => list.kind === 'wishlist'),
+    ...lists.filter((list) => list.kind === 'brew').sort(byName)
+  ]
 }
 
 /** @returns `lists` with decks by name, then wishlists in `order`; those not in it come after, by name. */
@@ -275,7 +283,8 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         let changed = force || previous.status !== 'ready' || previous.dataDir !== data.dataDir
         const files = [
           ...data.decks.map((file) => ({ kind: 'deck' as const, file })),
-          ...data.wishlists.map((file) => ({ kind: 'wishlist' as const, file }))
+          ...data.wishlists.map((file) => ({ kind: 'wishlist' as const, file })),
+          ...data.brews.map((file) => ({ kind: 'brew' as const, file }))
         ]
         const read = files.map(({ kind, file }) => {
           const fresh = toCardList(kind, file)
@@ -396,7 +405,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     (from: string, to: string | null) => {
       for (const list of ref.current.lists) {
         const deck = list.kind === 'wishlist' ? upgradeOf(list.lines) : null
-        if (deck !== null && sameDeckName(deck, from)) saveLines(list, withUpgradeOf(list.lines, to))
+        if (deck !== null && sameDeckName(deck, from)) saveLines(list, withUpgradeOf(list.lines, to, upgradeVariant(list.lines)))
       }
     },
     [saveLines]
@@ -495,9 +504,45 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         )
       },
 
-      /** Sets or clears (`null`) the format header. */
+      /**
+       * Sets or clears (`null`) the format header. A new format deletes the list's other version (Duel,
+       * EDH), which belongs to the format it had.
+       */
       setListFormat(target: ListRef, formatId: string | null) {
-        updateLines(target, (lines) => withFormat(lines, formatId), { label: 'Changed the format' })
+        updateLines(
+          target,
+          (lines) => (listFormat(lines)?.id === formatId ? lines : withVariant(withFormat(lines, formatId), false)),
+          { label: 'Changed the format' }
+        )
+      },
+
+      /** Turns a list's other version (Duel, EDH) on, as a copy of the list, or off, deleting its swaps. */
+      setVariant(target: ListRef, on: boolean) {
+        updateLines(target, (lines) => withVariant(lines, on), {
+          label: `${on ? 'Added' : 'Removed'} the ${variantName(target)} version of ${target.name}`
+        })
+      },
+
+      /** Replaces the list's other version with an edited decklist, as swaps against the list; announced. */
+      replaceVariantText(target: ListRef, text: string) {
+        updateLines(target, (lines) => withVariantText(lines, text), {
+          label: `Edited ${target.name}`,
+          announce: true
+        })
+      },
+
+      /** Sets a card's copies in the list's other version, as swaps against the list ({@link withVariantCount}). */
+      setVariantCount(target: ListRef, card: CardPick, qty: number) {
+        updateLines(target, (lines) => withVariantCount(lines, card, qty), {
+          label: `Changed ${card.name} in the ${variantName(target)} version`
+        })
+      },
+
+      /** Undoes a pair of swaps of the list's other version ({@link withoutSwapPair}). */
+      removeSwapPair(target: ListRef, index: number) {
+        updateLines(target, (lines) => withoutSwapPair(lines, index), {
+          label: `Undid a ${variantName(target)} swap in ${target.name}`
+        })
       },
 
       /** Sets or clears (`null`) the color header. */
@@ -515,7 +560,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         if (from < 0 || from === to) return
         const [moved] = wishlists.splice(from, 1)
         wishlists.splice(Math.max(0, Math.min(to, wishlists.length)), 0, moved)
-        commitLists([...ref.current.lists.filter((list) => list.kind === 'deck'), ...wishlists])
+        commitLists([...ref.current.lists.filter((list) => list.kind !== 'wishlist'), ...wishlists])
       },
 
       /** Makes a deck unbuilt, using every owned copy without reserving any, or built again. */
@@ -525,9 +570,12 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         })
       },
 
-      /** Makes a wishlist an upgrade of a deck, sharing its copies, or a plain wishlist again (`null`). */
-      setUpgradeOf(target: ListRef, deck: string | null) {
-        updateLines(target, (lines) => withUpgradeOf(lines, deck), {
+      /**
+       * Makes a wishlist an upgrade of a deck (or of its other version, named `variant`: Duel, EDH),
+       * sharing its copies, or a plain wishlist again (`null`).
+       */
+      setUpgradeOf(target: ListRef, deck: string | null, variant: string | null = null) {
+        updateLines(target, (lines) => withUpgradeOf(lines, deck, variant), {
           label: deck ? `Made ${target.name} an upgrade of ${deck}` : `Made ${target.name} a plain wishlist`
         })
       },
@@ -558,7 +606,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
 
       /** Replaces a list's content from raw text; announced. */
       replaceListText(target: ListRef, text: string) {
-        saveLines(target, parseList(text), { label: `Edited the text of ${target.name}`, announce: true })
+        saveLines(target, parseList(text), { label: `Edited ${target.name}`, announce: true })
       },
 
       /** Creates a list file; a wishlist goes to the bottom of the order. @throws If the name is invalid or taken. */
@@ -582,7 +630,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
 
       /**
        * Moves a list to another kind. A deck made a wishlist goes to the bottom of the order, and its
-       * upgrades become plain wishlists; a wishlist made a deck is no longer an upgrade.
+       * upgrades become plain wishlists; a wishlist made a deck or a brew is no longer an upgrade.
        * @returns New ref; name may be suffixed.
        */
       async moveList(target: ListRef, to: ListKind): Promise<ListRef> {
@@ -594,7 +642,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
         const moved = { kind: to, name }
         if (target.kind === 'deck' && to !== 'deck') relinkUpgrades(target.name, null)
         const list = ref.current.lists.find((l) => sameList(l, moved))
-        if (to === 'deck' && list) saveLines(moved, withUpgradeOf(list.lines, null))
+        if (to !== 'wishlist' && list && upgradeOf(list.lines) !== null) saveLines(moved, withUpgradeOf(list.lines, null))
         return moved
       },
 
@@ -682,7 +730,7 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
 
       /** Replaces the inventory from raw text; announced. */
       replaceInventoryText(text: string) {
-        saveInventory(parseInventory(text), { label: 'Edited the inventory text', announce: true })
+        saveInventory(parseInventory(text), { label: 'Edited the inventory', announce: true })
       },
 
       /** Prompts for a data directory; on change, clears undo and reloads. @returns Whether it changed. */
@@ -696,6 +744,12 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
     }),
     [commit, commitLists, relinkUpgrades, reload, removeList, resolveConflict, retarget, saveInventory, saveLines, undo, updateLines]
   )
+
+  /** @returns Name of a list's other version for undo labels (`Duel`, `EDH`); `other` if it has none. */
+  function variantName(target: ListRef): string {
+    const list = ref.current.lists.find((l) => sameList(l, target))
+    return (list && variantFor(list.lines)?.label) ?? 'other'
+  }
 
   /** @returns Card name of a line for undo labels; `a card` if not found. */
   function cardName(target: ListRef, id: string): string {

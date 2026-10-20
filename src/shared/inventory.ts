@@ -8,23 +8,29 @@ import type { InventoryItem, OwnedCopy } from './types'
  * @packageDocumentation
  */
 
-/** Printing and finish of owned copies; no `set` means unspecified. */
-export type Version = Pick<OwnedCopy, 'set' | 'collector' | 'foil'>
+/** Printing, finish and language of owned copies, and whether they count in the value; no `set` means unspecified. */
+export type Version = Pick<OwnedCopy, 'set' | 'collector' | 'foil' | 'lang' | 'worthless'>
 
 /** Unversioned, non-foil. */
 const ANY_VERSION: Version = { foil: false }
 
 /** Version equality; missing fields compare as empty. */
 export const sameVersion = (a: Version, b: Version) =>
-  (a.set ?? '') === (b.set ?? '') && (a.collector ?? '') === (b.collector ?? '') && a.foil === b.foil
+  (a.set ?? '') === (b.set ?? '') &&
+  (a.collector ?? '') === (b.collector ?? '') &&
+  a.foil === b.foil &&
+  (a.lang ?? '') === (b.lang ?? '') &&
+  !a.worthless === !b.worthless
 
-/** Copy order: unversioned first, then by set, collector number (numeric), non-foil before foil. */
+/** Copy order: unversioned first, then by set, collector number (numeric), non-foil before foil, English first, valued first. */
 function compareCopies(a: OwnedCopy, b: OwnedCopy): number {
   if (!a.set !== !b.set) return a.set ? 1 : -1
   return (
     (a.set ?? '').localeCompare(b.set ?? '') ||
     (a.collector ?? '').localeCompare(b.collector ?? '', undefined, { numeric: true }) ||
-    Number(a.foil) - Number(b.foil)
+    Number(a.foil) - Number(b.foil) ||
+    (a.lang ?? '').localeCompare(b.lang ?? '') ||
+    Number(!!a.worthless) - Number(!!b.worthless)
   )
 }
 
@@ -33,7 +39,13 @@ export function normalizeCopies(copies: OwnedCopy[]): OwnedCopy[] {
   const merged: OwnedCopy[] = []
   for (const copy of copies) {
     if (!(copy.qty > 0)) continue
-    const version: Version = { set: copy.set || undefined, collector: copy.set ? copy.collector || undefined : undefined, foil: copy.foil }
+    const version: Version = {
+      set: copy.set || undefined,
+      collector: copy.set ? copy.collector || undefined : undefined,
+      foil: copy.foil,
+      ...(copy.lang && { lang: copy.lang }),
+      ...(copy.worthless && { worthless: true as const })
+    }
     const same = merged.find((other) => sameVersion(other, version))
     if (same) same.qty += copy.qty
     else merged.push({ qty: copy.qty, ...version })
@@ -54,8 +66,26 @@ export function addCopies(item: InventoryItem | undefined, name: string, qty: nu
 }
 
 /**
- * Sets the total owned. Increases add copies of `version`; decreases remove unversioned copies
- * first, then versioned copies from the end of the sorted list.
+ * @returns Whether a copy is of the printing and finish `version` names; a version without a
+ * collector number takes any in its set.
+ */
+export const isVersionOf = (copy: OwnedCopy, version: Version) =>
+  copy.set === version.set && (!version.collector || copy.collector === version.collector) && copy.foil === version.foil
+
+/**
+ * @returns An item's copies when each records a printing and none is the one a line names, in
+ * either finish ("you own another version"). Empty when the line names no printing, that printing
+ * is owned, or a copy records no printing: it may well be that one.
+ */
+export function otherVersions(item: InventoryItem | undefined, version: Version | undefined): OwnedCopy[] {
+  if (!item || !version?.set) return []
+  const owns = item.copies.some((copy) => !copy.set || isVersionOf(copy, { ...version, foil: copy.foil }))
+  return owns ? [] : item.copies
+}
+
+/**
+ * Sets the total owned. Increases add copies of `version`; decreases remove copies of `version`
+ * first, then unversioned copies, then versioned copies from the end of the sorted list.
  * @returns Updated item; null if total becomes 0.
  */
 export function withTotal(item: InventoryItem | undefined, name: string, qty: number, version: Version = ANY_VERSION) {
@@ -63,10 +93,13 @@ export function withTotal(item: InventoryItem | undefined, name: string, qty: nu
   if (qty >= owned) return addCopies(item, name, qty - owned, version)
   let toRemove = owned - qty
   const copies = item?.copies ?? []
-  const plain = copies.filter((copy) => !copy.set)
-  const versioned = copies.filter((copy) => copy.set).reverse()
+  // Copies of the version asked for go first, so lowering undoes what raising with it added.
+  const asked = version.set ? copies.filter((copy) => isVersionOf(copy, version)) : []
+  const rest = copies.filter((copy) => !asked.includes(copy))
+  const plain = rest.filter((copy) => !copy.set)
+  const versioned = rest.filter((copy) => copy.set).reverse()
   const kept = new Map<OwnedCopy, number>()
-  for (const copy of [...plain, ...versioned]) {
+  for (const copy of [...asked, ...plain, ...versioned]) {
     const taken = Math.min(copy.qty, toRemove)
     toRemove -= taken
     kept.set(copy, copy.qty - taken)
@@ -83,5 +116,9 @@ export function ownedVersion(item: InventoryItem | undefined, foil: boolean): Ow
   return best
 }
 
-/** @returns Whether any copy has a set or is foil. */
-export const hasVersions = (item: InventoryItem) => item.copies.some((copy) => copy.set || copy.foil)
+/** @returns Whether any copy has a set, is foil, is in another language or is worthless. */
+export const hasVersions = (item: InventoryItem) => item.copies.some((copy) => copy.set || copy.foil || copy.lang || copy.worthless)
+
+/** @returns Copies of an item left out of its value. */
+export const worthlessCopies = (item: InventoryItem | undefined) =>
+  (item?.copies ?? []).reduce((sum, copy) => sum + (copy.worthless ? copy.qty : 0), 0)

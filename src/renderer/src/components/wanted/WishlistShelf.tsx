@@ -8,6 +8,7 @@ import { useBaselines } from '../../stores/history'
 import type { CardList, ListRef } from '../../stores/library'
 import { usePrintingsVersion } from '../../stores/printings'
 import { useSettings } from '../../stores/settings'
+import { PriceMoves } from '../PriceMoves'
 
 /** Props of {@link WishlistShelf}. */
 interface WishlistShelfProps {
@@ -18,7 +19,7 @@ interface WishlistShelfProps {
 
 /**
  * Most Wanted's shelf: the unfinished wishlists by what they still cost, cheapest to finish first,
- * each with its art, progress and price drops. Opens the list on click.
+ * each with its art, progress and price changes. Opens the list on click.
  */
 export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfProps) {
   const settings = useSettings()
@@ -41,7 +42,7 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
     <section className="wishlist-shelf" aria-labelledby="shelf-title">
       <h2 id="shelf-title">Wishlists by cost to finish</h2>
       <div className="shelf-grid">
-        {shelf.map(({ list, figures: { summary, cheaper, art } }) => {
+        {shelf.map(({ list, figures: { summary, cheaper, pricier, art } }) => {
           const collected = Math.round((summary.ownedCards / summary.cards) * 100)
           return (
             <button
@@ -64,7 +65,7 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
                 </span>
                 <span className="shelf-figures">
                   <span className="shelf-cost">{summary.loading > 0 ? '…' : formatEur(summary.neededValue)}</span>
-                  {cheaper > 0 && <span className="shelf-cheaper">↓ {cheaper}</span>}
+                  <PriceMoves cheaper={cheaper} pricier={pricier} className="shelf-moves" />
                 </span>
               </span>
             </button>

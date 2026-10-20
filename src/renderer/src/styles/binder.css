@@ -139,3 +139,366 @@
 .collapsible {
   border-radius: var(--radius-lg);
 }
+
+/* Duel version ------------------------------------------------------------------------ */
+
+/* Duel's own color, so its view never reads as the Commander one: blue on ink, darker on white. */
+:root,
+.art-hero {
+  --duel: #7fb2ea;
+  --duel-ink: #0b1a2e;
+  --duel-soft: rgba(127, 178, 234, 0.14);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --duel: #285a9c;
+    --duel-ink: #ffffff;
+    --duel-soft: rgba(40, 90, 156, 0.1);
+  }
+
+  .art-hero {
+    --duel: #7fb2ea;
+    --duel-ink: #0b1a2e;
+    --duel-soft: rgba(127, 178, 234, 0.14);
+  }
+}
+
+/* Commander | Duel: Commander raised plainly, Duel in its own color, whatever the list's color. */
+.version-toggle button {
+  font-weight: 600;
+}
+
+.version-toggle button.selected:last-child {
+  background: var(--duel);
+  color: var(--duel-ink);
+}
+
+.art-hero .version-toggle {
+  background: rgba(12, 14, 26, 0.55);
+  border-color: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+}
+
+.duel-badge {
+  align-self: flex-start;
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--duel);
+  color: var(--duel-ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+/* In place of the format select: the Duel version always plays Duel Commander. */
+.duel-rules {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--duel) 45%, transparent);
+  background: var(--duel-soft);
+  color: var(--text);
+}
+
+.duel-rules svg {
+  width: 13px;
+  height: 13px;
+  color: var(--duel);
+}
+
+.chip.duel-only {
+  background: var(--duel);
+  color: var(--duel-ink);
+}
+
+/* The title side takes the room, even when the banner's art comes first in the header. */
+.view-header > .header-title {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Swaps: what the Duel version changes, each card out beside the card in instead. */
+.swaps {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+}
+
+.swaps-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 18px 4px;
+}
+
+.swaps-head h2 {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 500;
+}
+
+/* Out | arrow | In | undo, the same columns on every row. */
+.swap-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 0 4px;
+  padding: 6px 18px;
+}
+
+.swap-labels {
+  padding-block: 8px 6px;
+  font-size: var(--fs-sm);
+  color: var(--faint);
+}
+
+.swap-labels strong {
+  margin-right: 6px;
+  color: var(--muted);
+}
+
+.swap-labels strong.swap-in {
+  color: var(--duel);
+}
+
+.swap-row,
+.swap-add,
+.swap-totals {
+  border-top: 1px solid var(--border);
+}
+
+.swap-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+.swap-card.in {
+  background: var(--duel-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--duel) 30%, transparent);
+}
+
+.swap-card.out .thumb {
+  opacity: 0.55;
+  filter: grayscale(0.5);
+}
+
+.swap-card.out strong {
+  color: var(--muted);
+}
+
+.swap-card.empty-side {
+  justify-content: center;
+  border: 1px dashed var(--border);
+  background: none;
+  box-shadow: none;
+  color: var(--faint);
+  font-size: var(--fs-sm);
+}
+
+.swap-card-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.swap-card-name > * {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.swap-qty {
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.swap-price {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.swap-arrow {
+  display: grid;
+  place-items: center;
+  color: var(--duel);
+}
+
+.swap-arrow svg {
+  width: 20px;
+  height: 20px;
+}
+
+.swap-add .swap-arrow {
+  color: var(--faint);
+}
+
+.swap-row .swap-undo {
+  opacity: 0;
+}
+
+.swap-row:hover .swap-undo,
+.swap-row .swap-undo:focus-visible {
+  opacity: 1;
+}
+
+.swaps-empty {
+  margin: 0;
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.swap-panel {
+  padding: 0 18px 12px;
+}
+
+.swap-totals {
+  padding-block: 10px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.swap-totals > span:not(:empty) {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding-inline: 10px;
+}
+
+.swap-totals strong {
+  color: var(--text);
+}
+
+/* The whole Duel list, folded under its swaps. */
+.version-list.open {
+  padding-bottom: 8px;
+}
+
+.version-list > :not(.collapsible-toggle) {
+  margin: 0 8px;
+}
+
+/* Brews ------------------------------------------------------------------------------- */
+
+/* Ideas, not plans: smaller and quieter than decks and wishlists. */
+.nav-item.brew {
+  padding-block: 4px;
+}
+
+.nav-item.brew .nav-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+}
+
+.nav-item.brew:not(.active) .nav-thumb img {
+  opacity: 0.7;
+  filter: saturate(0.6);
+}
+
+.nav-item.brew:not(.active) .nav-name {
+  color: var(--muted);
+}
+
+/* A section's title and lists, one drop target for lists dragged between Wishlists and Brews. */
+.nav-group {
+  display: contents;
+}
+
+.nav-section.drop-into {
+  border-radius: 8px;
+  box-shadow: 0 0 0 2px var(--accent);
+  color: var(--accent-text);
+}
+
+.nav-filter {
+  margin: 2px 8px 6px;
+  width: calc(100% - 16px);
+  height: 30px;
+  padding: 0 10px;
+  font-size: var(--fs-md);
+  border-radius: 8px;
+}
+
+.nav-more {
+  align-self: flex-start;
+  margin: 2px 10px 0;
+  font-size: var(--fs-md);
+}
+
+.brew-badge {
+  align-self: flex-start;
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 1px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px dashed color-mix(in srgb, var(--text) 45%, transparent);
+  background: color-mix(in srgb, var(--bg) 40%, transparent);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
+/* On the art banner the badge sits on dark art, whatever the theme. */
+.art-hero .brew-badge {
+  border-color: rgba(236, 235, 243, 0.45);
+  background: rgba(12, 14, 26, 0.4);
+  color: #ecebf3;
+}
+
+.facts-row .brew-note {
+  order: 5;
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+
+.brew-note svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* Inventory: how many brews have a card, quieter than the wishlists that want it. */
+.chips .menu {
+  display: inline-block;
+}
+
+.chip.link.brew-chip {
+  background: transparent;
+  color: var(--muted);
+  outline: 1px dashed var(--border);
+  outline-offset: -1px;
+}
+
+/* "Make it a wishlist": the brew page's main action, in the accent even on the art banner. */
+.art-hero .header-actions > button.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+
+.art-hero .header-actions > button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 88%, white);
+}
+
+.chip.link.brew-chip:hover {
+  color: var(--text);
+}

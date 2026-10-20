@@ -5,6 +5,7 @@ import type { InventoryItem, PriceBasis, Printing } from '@shared/types'
 import { costOf, mostWanted, type MostWanted, type UnitPrice, type WantedCard } from '@shared/wanted'
 import type { CardList } from '../stores/library'
 import { cheapestVersion, getPrintingsVersion } from '../stores/printings'
+import { plannedLists } from '../hooks/useCopyPool'
 import { memoLast } from './memo'
 
 /** {@link MostWanted} with prices from the printings store. */
@@ -51,5 +52,5 @@ export function wantedOverview(
   { bundleBasics, priceBasis }: Pick<AppSettings, 'bundleBasics' | 'priceBasis'>,
   pool: CopyPool
 ): WantedOverview {
-  return sharedPricing(sharedWanted(lists, inventory, pool), bundleBasics, priceBasis, getPrintingsVersion())
+  return sharedPricing(sharedWanted(plannedLists(lists), inventory, pool), bundleBasics, priceBasis, getPrintingsVersion())
 }

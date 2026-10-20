@@ -193,8 +193,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.shelf-cheaper {
+.shelf-moves {
   font-size: var(--fs-xs);
-  font-weight: 600;
-  color: var(--good);
 }

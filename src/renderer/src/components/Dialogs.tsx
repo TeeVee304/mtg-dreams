@@ -3,6 +3,7 @@ import { cardLines, parseInventory, parseList, unrecognizedLines } from '@shared
 import { totalCopies } from '@shared/totals'
 import type { ListKind } from '@shared/types'
 import { cardCount } from '../lib/format'
+import { KIND_NOUN } from '../stores/library'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { FormatSelect } from './Controls'
 import { Modal } from './Modal'
@@ -234,9 +235,10 @@ interface NewListDialogProps {
   onClose: () => void
 }
 
-/** New deck or wishlist dialog: name, optional format and pasted list. */
+/** New deck, wishlist or brew dialog: name, optional format and pasted list. */
 export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose }: NewListDialogProps) {
   const isDeck = kind === 'deck'
+  const noun = KIND_NOUN[kind]
   const [name, setName] = useState('')
   const [format, setFormat] = useState('')
   const [text, setText] = useState('')
@@ -245,7 +247,7 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
   const submit = () => run(() => onCreate(name, text, format || null, isDeck && addToInventory))
   return (
     <Modal
-      title={isDeck ? 'New deck' : 'New wishlist'}
+      title={`New ${noun}`}
       onClose={onClose}
       size="wide"
       footer={
@@ -256,7 +258,7 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
             Cancel
           </button>
           <button type="button" className="primary" disabled={busy || !name.trim()} onClick={submit}>
-            {isDeck ? 'Create deck' : 'Create wishlist'}
+            {`Create ${noun}`}
           </button>
         </>
       }
@@ -266,7 +268,7 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
         <input
           autoFocus
           value={name}
-          placeholder={isDeck ? 'e.g. Atraxa superfriends' : 'e.g. Atraxa upgrades'}
+          placeholder={isDeck ? 'e.g. Atraxa superfriends' : kind === 'brew' ? 'e.g. Atraxa infect, someday' : 'e.g. Atraxa upgrades'}
           onChange={(event) => setName(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && name.trim()) void submit()

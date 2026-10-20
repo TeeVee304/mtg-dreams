@@ -5,10 +5,14 @@
  * not hold, without competing with other wishlists. An upgrade (see {@link upgradeTarget}) follows
  * its deck: it also uses the copies a built deck holds, or every copy for an unbuilt deck.
  *
+ * With {@link PoolOptions.wishlistsReserve}, wishlists reserve copies too, after every built deck,
+ * from the top of the wishlist order down; an upgrade reserves only what it needs beyond its deck.
+ *
  * @packageDocumentation
  */
 
-import { cardLines, nameKey } from './decklist'
+import { nameKey } from './decklist'
+import { unionCardLines } from './listVersion'
 import { isUnbuilt } from './listUnbuilt'
 import { upgradeTarget } from './listUpgrade'
 import { sumOf } from './totals'
@@ -49,7 +53,7 @@ export function listWeights(lists: ListKey[]): Map<string, number> {
 /** @returns Copies per card across a list's lines, by nameKey, named after the first line. */
 export function cardTotals(lines: ListLine[]): Map<string, { name: string; qty: number }> {
   const totals = new Map<string, { name: string; qty: number }>()
-  for (const line of cardLines(lines)) {
+  for (const line of unionCardLines(lines)) {
     const key = nameKey(line.name)
     const total = totals.get(key)
     if (total) total.qty += line.qty
@@ -96,8 +100,14 @@ export interface CopyPool {
   inUse(key: string, owned: number): number
   /** Copies of a card in built decks other than `list`; none for an unbuilt deck, which may use any. */
   inOtherDecks(list: ListKey, key: string): number
-  /** Copies of a card the built decks hold together; unbuilt decks and wishlists reserve none. */
+  /** Copies of a card the built decks hold together; unbuilt decks reserve none, nor do wishlists for this. */
   claimed(key: string, owned: number): number
+}
+
+/** How a {@link copyPool} hands copies out. */
+export interface PoolOptions {
+  /** Wishlists reserve the copies they use, after built decks, in their order (the setting). */
+  wishlistsReserve?: boolean
 }
 
 /** A list's claim on a card's copies. */
@@ -107,7 +117,7 @@ interface Claim {
   list: ListKey
   /** {@link listId} of a deck; null for wishlists. */
   deck: string | null
-  /** A built deck's: it holds its copies. Other lists use copies without reserving them. */
+  /** A built deck's, or a wishlist's when wishlists reserve: it holds its copies. Other lists use copies without reserving them. */
   reserves: boolean
   /** An unbuilt deck's or its upgrade's: it may use every owned copy. */
   unbuilt: boolean
@@ -116,8 +126,8 @@ interface Claim {
   qty: number
 }
 
-/** @returns Copy claims of `lists`; recompute when lists change. */
-export function copyPool(lists: PoolList[]): CopyPool {
+/** @returns Copy claims of `lists`; recompute when lists or options change. */
+export function copyPool(lists: PoolList[], { wishlistsReserve = false }: PoolOptions = {}): CopyPool {
   const order = allocationOrder(lists)
   const index = new Map(order.map((list, i) => [listId(list), i]))
   /** Deck each upgrade shares copies with, by {@link listId}. */
@@ -136,7 +146,7 @@ export function copyPool(lists: PoolList[]): CopyPool {
         at,
         list: { kind: list.kind, name: list.name },
         deck: isDeck ? listId(list) : null,
-        reserves: isDeck && !unbuilt.has(listId(list)),
+        reserves: (isDeck || (wishlistsReserve && list.kind === 'wishlist')) && !unbuilt.has(listId(list)),
         unbuilt: unbuilt.has(listId(list)),
         upgrades: target ? listId(target) : null,
         qty: total.qty
@@ -147,18 +157,24 @@ export function copyPool(lists: PoolList[]): CopyPool {
     }
   })
   /**
-   * Claims on a card's `owned` copies, in allocation order: only built decks claim any.
-   * @returns The claims, and the copies each built deck holds by {@link listId}.
+   * Claims on a card's `owned` copies, in allocation order: built decks, then, when they reserve,
+   * wishlists. An upgrade claims only the copies it wants beyond its deck's.
+   * @returns The claims, and the copies each reserving list holds by {@link listId}.
    */
   const allocate = (key: string, owned: number): { claims: Claim[]; got: Map<string, number> } => {
     const entries = claims.get(key) ?? []
     const got = new Map<string, number>()
+    /** Copies each reserving list wants, by {@link listId}. */
+    const wanted = new Map<string, number>()
     let left = owned
     const adjusted = entries.map((claim) => {
       if (!claim.reserves) return { ...claim, qty: 0 }
-      got.set(claim.deck!, Math.min(claim.qty, Math.max(0, left)))
-      left -= claim.qty
-      return claim
+      const id = listId(claim.list)
+      const qty = claim.upgrades ? Math.max(0, claim.qty - (wanted.get(claim.upgrades) ?? 0)) : claim.qty
+      wanted.set(id, claim.qty)
+      got.set(id, Math.min(qty, Math.max(0, left)))
+      left -= qty
+      return qty === claim.qty ? claim : { ...claim, qty }
     })
     return { claims: adjusted, got }
   }
@@ -216,7 +232,7 @@ export function copyPool(lists: PoolList[]): CopyPool {
     inOtherDecks: (list, key) =>
       // Built deck claims do not depend on the copies owned.
       unbuilt.has(listId(list)) ? 0 : sum(key, 0, (claim) => claim.deck !== null && claim.deck !== listId(list)),
-    claimed: (key, owned) => sum(key, owned, () => true)
+    claimed: (key, owned) => sum(key, owned, (claim) => claim.deck !== null)
   }
 }
 

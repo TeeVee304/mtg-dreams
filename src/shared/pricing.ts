@@ -13,8 +13,14 @@ export const PRICE_BASES: Array<{ id: PriceBasis; label: string; hint: string }>
 /** Default price basis. */
 export const DEFAULT_PRICE_BASIS: PriceBasis = 'trend'
 
-/** Default wishlist price-drop alert threshold, in percent. */
-export const DEFAULT_DROP_ALERT_PERCENT = 15
+/** Default wishlist price-change alert threshold, in percent. */
+export const DEFAULT_DROP_ALERT_PERCENT = 10
+
+/** Default smallest price drop worth an alert, in euros: cent moves of cheap cards are noise. */
+export const DEFAULT_DROP_ALERT_EUR = 0.1
+
+/** Default smallest price rise worth an alert, in euros; higher, since small rises matter less. */
+export const DEFAULT_RISE_ALERT_EUR = 0.5
 
 /** Type guard for {@link PriceBasis}. */
 export function isPriceBasis(value: unknown): value is PriceBasis {

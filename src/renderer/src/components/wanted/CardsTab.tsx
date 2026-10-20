@@ -4,6 +4,7 @@ import { heldWhere } from '@shared/listModel'
 import type { CardInfo, ListKind } from '@shared/types'
 import { WANTED_SORTS, type WantedCard, type WantedSort } from '@shared/wanted'
 import type { WantedOverview } from '../../lib/wanted'
+import type { PriceChange } from '../../stores/history'
 import type { ListRef } from '../../stores/library'
 import { CardmarketButton, NameCell, Price } from '../CardCells'
 import { SortSelect } from '../Controls'
@@ -12,6 +13,9 @@ import { BoughtButton, ListChips, type ListMeta } from './parts'
 
 /** Friends who have a card on their trade lists, with how many. */
 export type FriendHaves = Map<string, Array<{ friend: string; qty: number }>>
+
+/** How much a wanted card's price moved since it was added to a wishlist. */
+export type CardPriceChange = Pick<PriceChange, 'direction' | 'percent'>
 
 /** Props of {@link CardsTab}. */
 interface CardsTabProps {
@@ -29,8 +33,8 @@ interface CardsTabProps {
   friendsOnly: boolean
   onFriendsOnly: (on: boolean) => void
   friends: FriendHaves
-  /** Percent cheaper than when added to a wishlist, by card key. */
-  drops: Map<string, number>
+  /** Price change since added to a wishlist, by card key. */
+  changes: Map<string, CardPriceChange>
   pool: CopyPool
   meta: Map<string, ListMeta>
   infoOf: (card: WantedCard) => CardInfo | null | undefined
@@ -40,9 +44,9 @@ interface CardsTabProps {
   onNew: (kind: ListKind) => void
 }
 
-/** Cards tab: the cards lists still miss, with price drops, friends who have them, and Bought. */
+/** Cards tab: the cards lists still miss, with price changes, friends who have them, and Bought. */
 export function CardsTab(props: CardsTabProps) {
-  const { overview, visible, noLists, filters, friends, drops, pool, meta } = props
+  const { overview, visible, noLists, filters, friends, changes, pool, meta } = props
   if (noLists) {
     return (
       <div className="empty">
@@ -107,7 +111,7 @@ export function CardsTab(props: CardsTabProps) {
           {visible.map((card) => {
             const unit = overview.unitOf(card)
             const printing = overview.printingOf(card)
-            const drop = drops.get(card.key)
+            const change = changes.get(card.key)
             const haves = friends.get(card.key)
             const usedBy = card.owned > 0 ? pool.usedBy(card.key, card.owned) : []
             return (
@@ -121,11 +125,16 @@ export function CardsTab(props: CardsTabProps) {
                       ✓ Completes {card.completes.map((list) => list.name).join(', ')}
                     </span>
                   )}
-                  {drop !== undefined && (
-                    <span className="chip cheaper" title="Cheaper than when it was added to a wishlist">
-                      ↓ {drop}% cheaper
-                    </span>
-                  )}
+                  {change &&
+                    (change.direction === 'down' ? (
+                      <span className="chip cheaper" title="Cheaper than when it was added to a wishlist">
+                        ↓ {change.percent}% cheaper
+                      </span>
+                    ) : (
+                      <span className="chip pricier" title="More expensive than when it was added to a wishlist">
+                        ↑ {change.percent}% pricier
+                      </span>
+                    ))}
                   {haves && (
                     <button
                       type="button"

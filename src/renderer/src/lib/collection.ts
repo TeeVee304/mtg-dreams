@@ -1,4 +1,5 @@
 import { bundledBasic } from '@shared/basics'
+import { worthlessCopies } from '@shared/inventory'
 import { resolveLine } from '@shared/pricing'
 import type { InventoryItem, OwnedCopy, PriceBasis, Printing } from '@shared/types'
 import { getPrintingsEntry, getPrintingsVersion } from '../stores/printings'
@@ -27,8 +28,8 @@ export interface ValuedCopy {
 
 /** Valuation of one inventory item. */
 export interface ItemValue {
-  /** `free`: bundled basic. `unpriced`: no copy priced. `loading`: printings pending. */
-  status: 'priced' | 'loading' | 'unpriced' | 'free'
+  /** `free`: bundled basic. `unpriced`: no copy priced. `loading`: printings pending. `none`: every copy is worthless. */
+  status: 'priced' | 'loading' | 'unpriced' | 'free' | 'none'
   /** EUR total of priced copies. */
   total: number
   /** Shared unit price if all copies are priced equally; else null. */
@@ -38,18 +39,28 @@ export interface ItemValue {
   unpriced: number
   /** Display printing: first versioned copy's, else the cheapest. */
   printing: Printing | null
+  /** Copies marked worthless, left out of `total`. */
+  worthless: number
 }
 
 /** Values one item from loaded printings. */
 export function valueItem(item: InventoryItem, basis: PriceBasis, bundleBasics: boolean): ItemValue {
-  const value: ItemValue = { status: 'priced', total: 0, unit: null, valued: [], unpriced: 0, printing: null }
+  const worthless = worthlessCopies(item)
+  const value: ItemValue = { status: 'priced', total: 0, unit: null, valued: [], unpriced: 0, printing: null, worthless }
   const generic = bundledBasic(item.name, bundleBasics)
   if (generic) return { ...value, status: 'free', unit: 0, printing: generic.printing }
   const entry = getPrintingsEntry(item.name)
   const data = entry?.data
   if (!data) return { ...value, status: entry?.error ? 'unpriced' : 'loading', unpriced: entry?.error ? 1 : 0 }
   if (data.notFound) return { ...value, status: 'unpriced', unpriced: 1 }
+  if (worthless >= item.qty) {
+    // Worthless, but still pictured: by a recorded version, else the cheapest.
+    const pinned = item.copies.find((copy) => copy.set)
+    const printing = (pinned && resolveLine(pinned, data.printings, basis).printing) || resolveLine({ foil: false }, data.printings, basis).printing
+    return { ...value, status: 'none', printing: printing ?? data.printings[0] ?? null }
+  }
   for (const copy of item.copies) {
+    if (copy.worthless) continue
     const { unitPrice, printing } = resolveLine(copy.set ? copy : { foil: copy.foil }, data.printings, basis)
     if (unitPrice === null) {
       value.unpriced += 1

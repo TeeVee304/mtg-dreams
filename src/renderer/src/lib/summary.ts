@@ -1,5 +1,6 @@
 import { bundleBasicLines, genericBasic } from '@shared/basics'
-import { allocateOwned, cardLines, nameKey } from '@shared/decklist'
+import { allocateOwned, nameKey, serializeList } from '@shared/decklist'
+import { baseCardLines, versionLines, type ListVersion } from '@shared/listVersion'
 import { listFormat } from '@shared/formats'
 import { ownedVersion } from '@shared/inventory'
 import { resolveLine, type Resolution } from '@shared/pricing'
@@ -127,7 +128,7 @@ export function listRows(list: CardList, inventory: Map<string, InventoryItem>, 
   if (!rows) {
     rows = memoLast((items, bundleBasics, priceBasis, claims, _version) =>
       buildRows(
-        cardLines(list.lines),
+        baseCardLines(list.lines),
         items,
         { bundleBasics, priceBasis },
         sideboardIds(list.lines, !listFormat(list.lines)?.commander),
@@ -182,4 +183,22 @@ export function summarize(rows: Row[]): Summary {
     summary.neededValue += row.unit * (row.line.qty - row.owned)
   }
   return summary
+}
+
+/** Per list: its Duel version as a list, kept while the list is unchanged. */
+const versionLists: Record<ListVersion, WeakMap<CardList, CardList>> = { base: new WeakMap(), variant: new WeakMap() }
+
+/**
+ * @returns A version of a list as a list of its own ({@link versionLines}), same kind and name, so
+ * copy claims and edits find the list: for `base`, the list without its swaps; for `variant`, its
+ * other version (Duel, EDH). A list without swap sections is its own base.
+ */
+export function versionList(list: CardList, version: ListVersion): CardList {
+  let shown = versionLists[version].get(list)
+  if (!shown) {
+    const lines = versionLines(list.lines, version)
+    shown = lines.length === list.lines.length && version === 'base' ? list : { ...list, lines, text: serializeList(lines) }
+    versionLists[version].set(list, shown)
+  }
+  return shown
 }

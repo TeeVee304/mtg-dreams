@@ -56,3 +56,58 @@
   vertical-align: middle;
   margin-left: 4px;
 }
+
+/* A copy's language: a small flag beside its version, no border of its own. */
+.lang-flag {
+  display: inline-block;
+  flex: none;
+  width: 15px;
+  height: 10px;
+  margin-left: 5px;
+  border-radius: 2px;
+  vertical-align: -1px;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25);
+}
+
+.versions-lang {
+  white-space: nowrap;
+}
+
+.versions-lang .lang-flag {
+  margin: 0 6px 0 0;
+}
+
+.versions-lang select {
+  padding: 4px 8px;
+  font-size: var(--fs-md);
+}
+
+.versions-table .check {
+  white-space: nowrap;
+}
+
+/* The set's name under its code, so language and value fit beside them. */
+.versions-table .version {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+/* Copies left out of the value: quieter. */
+.chip.worthless {
+  opacity: 0.7;
+}
+
+.trade-table .chip.worthless {
+  margin-left: 6px;
+}
+
+/* A line's printing you own only other versions of: hover says which. */
+.version.owns-other {
+  cursor: help;
+}
+
+.version.owns-other .set-code {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}

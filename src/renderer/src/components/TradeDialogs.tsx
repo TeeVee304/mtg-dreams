@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
-import { countLines } from '@shared/decklist'
 import { totalCopies } from '@shared/totals'
 import {
   buildSnapshot,
   parseTradeText,
   serializeSnapshot,
   snapshotToText,
+  tradeLines,
   tradeName,
   type MyTradeSide,
   type TradeCard,
@@ -19,8 +19,8 @@ import { useToast } from './Toasts'
 
 /** Total copies label, e.g. `5 cards`. */
 const copies = (cards: TradeCard[]) => cardCount(totalCopies(cards))
-/** Plain `N Name` lines. */
-const cardsToText = (cards: TradeCard[]) => countLines(cards).join('\n')
+/** `N Name` lines, worthless copies apart ({@link tradeLines}). */
+const cardsToText = (cards: TradeCard[]) => tradeLines(cards).join('\n')
 
 /** Props of {@link ShareTradeDialog}. */
 interface ShareTradeDialogProps {

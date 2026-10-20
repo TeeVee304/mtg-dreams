@@ -8,6 +8,8 @@ import { SummaryItem as Item } from './SummaryItem'
 /** Props of {@link ListValueCards}. */
 interface ListValueCardsProps {
   isDeck: boolean
+  /** A brew: what building it would take, not what is wanted. */
+  brew?: boolean
   summary: Summary
   /** Main deck copies (sideboard aside). */
   mainCards: number
@@ -24,9 +26,10 @@ interface ListValueCardsProps {
 
 /**
  * One-line value summary above a list: deck value and size, or a wishlist's remaining cost and
- * collected share (with the owned value once something is owned).
+ * collected share (with the owned value once something is owned); for a brew, what building it would
+ * cost and how much of it you own.
  */
-export function ListValueCards({ isDeck, summary, mainCards, size, target, lands, sideboard, basis }: ListValueCardsProps) {
+export function ListValueCards({ isDeck, brew, summary, mainCards, size, target, lands, sideboard, basis }: ListValueCardsProps) {
   if (isDeck) {
     const makeup = [size?.note, `${lands} lands · ${mainCards - lands} nonland`, sideboard > 0 && `${sideboard} sideboard`]
     const filled = target ? Math.min(100, Math.round((mainCards / target) * 100)) : 0
@@ -51,9 +54,9 @@ export function ListValueCards({ isDeck, summary, mainCards, size, target, lands
   const progress = summary.cards ? Math.round((summary.ownedCards / summary.cards) * 100) : 0
   return (
     <section className="summary-strip">
-      <Item label="Still needed" value={formatEur(summary.neededValue)} accent note={priceNote(summary, basis)} />
+      <Item label={brew ? 'To build it' : 'Still needed'} value={formatEur(summary.neededValue)} accent note={priceNote(summary, basis)} />
       <Item
-        label="Collected"
+        label={brew ? 'You own' : 'Collected'}
         value={`${summary.ownedCards} / ${summary.cards}`}
         note={summary.ownedCards > 0 ? `${formatEur(summary.ownedValue)} owned of ${formatEur(summary.total)}` : undefined}
       >

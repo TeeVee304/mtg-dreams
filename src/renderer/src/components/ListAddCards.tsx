@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { bundledBasic } from '@shared/basics'
 import type { CopyPool } from '@shared/copies'
 import { nameKey } from '@shared/decklist'
@@ -30,12 +30,21 @@ interface ListAddCardsProps {
   onAdding: (adding: boolean) => void
 }
 
+/** What {@link useCardAdder} gives: the search options and its pick, and the panel a pick opens. */
+interface CardAdder {
+  /** Decks: the inventory, to search instead of Scryfall; undefined for wishlists. */
+  choices: SearchChoice[] | undefined
+  pickCard: (name: string) => void
+  /** Copies, printing and sideboard of the card picked; null when none is. */
+  panel: ReactNode
+}
+
 /**
- * Adding cards to a list: search (decks search the inventory), then a panel for copies, printing
- * and sideboard, within the copies the format and inventory allow. Bundled basic lands go in at
- * once.
+ * Adding cards to a list: a search pick (decks search the inventory) opens a panel for copies,
+ * printing and sideboard, within the copies the format and inventory allow. Bundled basic lands go
+ * in at once.
  */
-export function ListAddCards(props: ListAddCardsProps) {
+export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): CardAdder {
   const { list, inventory, pool, actions, format, copiesOf, capsFor, limitFor } = props
   const toast = useToast()
   const { bundleBasics } = useSettings()
@@ -82,11 +91,34 @@ export function ListAddCards(props: ListAddCardsProps) {
     .filter(Boolean)
     .join(' · ')
 
+  const panel = adding && (
+    <AddCardPanel
+      key={adding}
+      name={adding}
+      maxQty={Number.isFinite(addRoom) ? addRoom : undefined}
+      maxTitle={limitFor(adding)}
+      note={addNote || undefined}
+      actionLabel={isDeck ? 'Add to deck' : 'Add to list'}
+      sideboardChoice={props.sideboardAllowed}
+      onCancel={() => setAdding(null)}
+      onAdd={(card, side) => {
+        actions.addCards(list, [{ ...card, side }])
+        setAdding(null)
+        toast(`Added ${card.qty}× ${card.name}${side ? ' to the sideboard' : ''}`)
+      }}
+    />
+  )
+  return { choices: isDeck ? inventoryChoices : undefined, pickCard, panel }
+}
+
+/** Adding cards to a list ({@link useCardAdder}): the search, and wishlists' precon button. */
+export function ListAddCards(props: ListAddCardsProps) {
+  const { choices, pickCard, panel } = useCardAdder(props)
   return (
     <>
       <div className="search-row">
-        {isDeck ? (
-          <CardSearch placeholder="Add a card from your inventory…  (Ctrl+K)" choices={inventoryChoices} onPick={pickCard} />
+        {choices ? (
+          <CardSearch placeholder="Add a card from your inventory…  (Ctrl+K)" choices={choices} onPick={pickCard} />
         ) : (
           <>
             <CardSearch placeholder="Add a card to this list…  (Ctrl+K)" onPick={pickCard} />
@@ -96,23 +128,7 @@ export function ListAddCards(props: ListAddCardsProps) {
           </>
         )}
       </div>
-      {adding && (
-        <AddCardPanel
-          key={adding}
-          name={adding}
-          maxQty={Number.isFinite(addRoom) ? addRoom : undefined}
-          maxTitle={limitFor(adding)}
-          note={addNote || undefined}
-          actionLabel={isDeck ? 'Add to deck' : 'Add to list'}
-          sideboardChoice={props.sideboardAllowed}
-          onCancel={() => setAdding(null)}
-          onAdd={(card, side) => {
-            actions.addCards(list, [{ ...card, side }])
-            setAdding(null)
-            toast(`Added ${card.qty}× ${card.name}${side ? ' to the sideboard' : ''}`)
-          }}
-        />
-      )}
+      {panel}
     </>
   )
 }

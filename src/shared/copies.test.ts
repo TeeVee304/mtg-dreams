@@ -88,6 +88,64 @@ describe('listNeeds', () => {
   })
 })
 
+describe('wishlists reserving copies (the setting)', () => {
+  const reserving = { wishlistsReserve: true }
+  const name = (list: { name: string }) => list.name
+  const needs = (inventory: string) =>
+    listNeeds(lists, parseInventory(inventory), copyPool(lists, reserving)).map(({ list, needs: cards }) => [
+      list.name,
+      cards.map((c) => `${c.missing}/${c.wants} ${c.name} (buy ${c.buy})`)
+    ])
+
+  it('hand copies to built decks, then to wishlists from the top of the order down', () => {
+    const pool = copyPool(lists, reserving)
+    const order = allocationOrder(lists)
+    expect(order.map((list) => [name(list), pool.held(list, 'sol ring', 3)])).toEqual([
+      ['Burn', 0],
+      ['Zombies', 1],
+      ['Goblins', 2],
+      ['Angels', 3],
+      ['Someday', 3]
+    ])
+    expect(pool.usedBy('sol ring', 3)).toEqual([
+      { kind: 'deck', name: 'Burn', qty: 1 },
+      { kind: 'deck', name: 'Zombies', qty: 1 },
+      { kind: 'wishlist', name: 'Goblins', qty: 1 }
+    ])
+    // New decks still count only what built decks hold.
+    expect(pool.claimed('sol ring', 3)).toBe(2)
+    expect(pool.inOtherDecks({ kind: 'deck', name: 'Burn' }, 'sol ring')).toBe(1)
+  })
+
+  it('keep what every wishlist wants out of trades', () => {
+    expect(copyPool(lists).inUse('sol ring', 9)).toBe(4)
+    expect(copyPool(lists, reserving).inUse('sol ring', 9)).toBe(6)
+  })
+
+  it('make each wishlist buy its own copies', () => {
+    expect(needs('3 Sol Ring')).toEqual([
+      ['Burn', ['1/1 Lightning Bolt (buy 1)']],
+      ['Zombies', []],
+      ['Goblins', []],
+      ['Angels', ['1/1 Sol Ring (buy 1)', '1/1 Smothering Tithe (buy 1)']],
+      ['Someday', ['2/2 Sol Ring (buy 2)']]
+    ])
+  })
+
+  it('let an upgrade use its deck\'s copies and reserve only what it needs beyond them', () => {
+    const upgraded = [
+      { kind: 'deck' as const, name: 'Burn', lines: parseList('1 Sol Ring\n1 Lightning Bolt') },
+      { kind: 'wishlist' as const, name: 'Burn Plus', lines: parseList('// Upgrade of: Burn\n2 Sol Ring\n1 Lightning Bolt') },
+      { kind: 'wishlist' as const, name: 'Goblins', lines: parseList('1 Sol Ring\n1 Lightning Bolt') }
+    ]
+    const pool = copyPool(upgraded, reserving)
+    expect(pool.held(upgraded[1], 'sol ring', 2)).toBe(0)
+    expect(pool.held(upgraded[2], 'sol ring', 2)).toBe(2)
+    // The upgrade wants no Lightning Bolt beyond its deck's, so Goblins gets the second one.
+    expect(pool.held(upgraded[2], 'lightning bolt', 2)).toBe(1)
+  })
+})
+
 describe('upgrades', () => {
   const upgrades = [
     { kind: 'deck' as const, name: 'Elves', lines: parseList('1 Sol Ring\n1 Llanowar Elves') },

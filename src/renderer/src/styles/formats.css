@@ -20,8 +20,27 @@
   cursor: help;
 }
 
-.nav-cheaper {
+/* A card still needed that got more expensive since it was added. */
+.chip.pricier {
+  background: var(--bad-soft);
+  color: var(--bad);
+  cursor: help;
+}
+
+/* A wishlist's price moves, compactly: green ↓ cheaper cards, red ↑ pricier ones. */
+.price-moves {
+  display: inline-flex;
+  gap: 8px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.move-down {
   color: var(--good);
+}
+
+.move-up {
+  color: var(--bad);
 }
 
 .percent-field {
@@ -34,6 +53,20 @@
 .percent-field input {
   width: 64px;
   text-align: right;
+}
+
+/* The price change alert: a percentage, and a euro amount per direction; one per line, right-aligned. */
+.alert-fields {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex: none;
+}
+
+.alert-fields .move-down,
+.alert-fields .move-up {
+  font-weight: 600;
 }
 
 .chip.illegal {

@@ -5,7 +5,7 @@
 <h1 align="center">MTG Dreams</h1>
 
 <p align="center">
-  Organize the *Magic: The Gathering* decks you own and plan wishlists, with Cardmarket prices in EUR.
+  Organize the *Magic: The Gathering* decks you own and plan new ones, with Cardmarket prices in EUR. Built for Commander.
 </p>
 
 <p align="center">
@@ -22,8 +22,9 @@
 
 ### Collection
 - **Inventory**: the cards you own, by name and quantity.
-- Optionally record which versions and foils you own; decks and wishlists then
+- Optionally record which versions and foils you own, and their language; decks and wishlists then
   show your version for lines that don't ask for one. Owning any version of a card still counts as owning it.
+- Mark damaged copies **Worthless**: still yours for decks, but left out of your inventory's value.
 - Each card shows which decks use it and which wishlists want it.
 - **Inventory Value** estimates what your inventory is worth and ranks your most valuable cards. It also shows how the value changed this week or this month.
 
@@ -31,18 +32,27 @@
 - **Decks** are built from your inventory: you can only add cards you own, up to the copies you have.
 - **Owned copies** belong to decks: each built deck holds its own copies, handed out by deck name. Wishlists are plans,
   so they hold none: each one counts every copy no deck holds, without competing with other wishlists.
+  **Settings → Copies → Wishlists reserve copies** makes them hold copies too, from the top of your order down.
 - Mark a deck you put together only when you play it **Unbuilt** (⋯ menu, Advanced): it uses every copy you own without
   reserving any, so other decks keep theirs. Its copies still stay off your trade list.
 - Make a wishlist an **Upgrade of** a deck (⋯ menu, Advanced): it holds the whole deck as you want it to be, and uses
   the deck's copies of the cards they share. Once you own every card, apply it: the deck becomes the upgrade.
+- Give a Commander deck a **Duel version** (⋯ menu, Advanced), or a Duel Commander deck an **EDH version**: the same
+  deck with a few cards swapped, shown as cards out and cards in. Both versions share your copies.
 - **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
+- **Brews** are decks you're only toying with: they count toward nothing (Most Wanted, trades, copies). Drag a list
+  between Wishlists and Brews to switch.
 - **Order your wishlists** by dragging them in the sidebar, most wanted first.
   The higher a wishlist, the more its cards count in Most Wanted and the budget planner. New wishlists start at the bottom.
 - A **Statistics** panel shows the mana curve and the colors of the cards besides lands.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers the cards create, with which cards make each one.
 
+### Deck Wizard
+- Pick a commander to see EDHREC's average deck for it, by theme, power bracket and budget, with the cards you own
+  ticked and what the rest would cost. Save it as a brew or a wishlist.
+
 ### Most Wanted
-- Every card your decks and wishlists still miss, merged across lists. Each built deck needs its own copies; for wishlists, one copy you buy serves every wishlist that wants it, and an upgrade shares its deck's.
+- Every card your decks and wishlists still miss, merged across lists. Each built deck needs its own copies; for wishlists, one copy you buy serves every wishlist that wants it (unless wishlists reserve copies), and an upgrade shares its deck's.
 - Ranked by **best value** (cost per list served, weighted by your wishlist order) by default; also by most wanted, closest to completing, cheapest, or card properties.
 - Badges show cards that complete a list, got cheaper, or are on a friend's trade list.
 - A **Budget planner** picks the cards that bring your lists furthest for a budget; it can buy some of a card's copies, for the decks first in line.
@@ -54,7 +64,7 @@
 ### Trades with friends
 - **Share my trade list** saves a small `.mtgtrade` file, or copies it as text for a chat. It holds your spare cards (copies your decks and wishlists don't use) and what your lists need (the cards Most Wanted lists).
 - Import a friend's list to see what each of you can give the other, and what each side is worth. Cards they want that
-  your lists use are shown apart, and left out of the balance.
+  your lists use are shown apart, and left out of the balance, as are worthless copies.
 - Friends without the app can send a plain card list or a Moxfield export instead.
 
 ## Getting started
@@ -95,10 +105,13 @@ Everything is stored per Windows user.
 Documents\MTG Dreams\
 ├── decks\deck.txt
 ├── lists\wishlist.txt
-├── lists\order.json      (your wishlist order)
+├── brews\brew.txt
 ├── trades\friend.mtgtrade
-└── inventory.txt
+├── inventory.txt
+└── lists.json            (wishlist order, and each list's color, upgrade and unbuilt settings)
 ```
+
+- List files hold only the deck, so you can copy or share them as they are.
 
 - If Windows backs up Documents to OneDrive, your data syncs too. 
 - **Data folder → Change…** in the sidebar moves it anywhere.
@@ -172,9 +185,10 @@ e2e/            End-to-end tests, against local stand-ins for Scryfall, MTGJSON 
 
 Card data, images and mana symbols come from [Scryfall](https://scryfall.com). Prices come from
 [Cardmarket](https://www.cardmarket.com)'s price guide. Official decklists come from [MTGJSON](https://mtgjson.com).
+Average decks come from [EDHREC](https://edhrec.com).
 
 *Magic: The Gathering* is © Wizards of the Coast. This project is not affiliated with or endorsed by Scryfall,
-MTGJSON, Cardmarket or Wizards of the Coast.
+MTGJSON, Cardmarket, EDHREC or Wizards of the Coast.
 
 ## License
 

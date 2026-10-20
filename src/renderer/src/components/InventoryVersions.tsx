@@ -1,17 +1,19 @@
 import { useState } from 'react'
+import { languageOf, LANGUAGES } from '@shared/languages'
 import { finishFor, resolveLine, singleFinish } from '@shared/pricing'
 import type { InventoryItem, OwnedCopy } from '@shared/types'
 import { cardCount } from '../lib/format'
 import { PickerBody, usePrintingsFor } from './CardEditors'
 import { Icon } from './Icon'
+import { LanguageFlag } from './LanguageFlag'
 import { Modal } from './Modal'
 import { Stepper } from './Stepper'
 import { AUTO, VersionPicker } from './VersionPicker'
 
-/** @returns Copy label, e.g. `A25 #141`, `Any version`, with `Foil` appended if foil. */
+/** @returns Copy label, e.g. `A25 #141`, `Any version`, with `Foil` and `Worthless` appended; the language is a flag beside it. */
 export function copyLabel(copy: OwnedCopy): string {
   const where = copy.set ? `${copy.set.toUpperCase()}${copy.collector ? ` #${copy.collector}` : ''}` : 'Any version'
-  return copy.foil ? `${where} · Foil` : where
+  return [where, copy.foil && 'Foil', copy.worthless && 'Worthless'].filter(Boolean).join(' · ')
 }
 
 /** Props of {@link InventoryVersionsDialog}. */
@@ -37,6 +39,12 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
   const printingOf = (copy: OwnedCopy) => (copy.set ? resolveLine(copy, printings, 'trend').printing : null)
   const update = (index: number, patch: Partial<OwnedCopy>) =>
     onChange(item.copies.map((copy, i) => (i === index ? { ...copy, ...patch } : copy)))
+  /** Changes one copy of a group (its language, or whether it has a value), moving it to a group of its own. */
+  const changeOne = (index: number, patch: Partial<OwnedCopy>) => {
+    const copy = item.copies[index]
+    if (copy.qty === 1) return update(index, patch)
+    onChange([...item.copies.map((other, i) => (i === index ? { ...other, qty: other.qty - 1 } : other)), { ...copy, qty: 1, ...patch }])
+  }
 
 
   const choose = (id: string) => {
@@ -68,14 +76,15 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
     <Modal title={`Your ${item.name}`} onClose={onClose} size="wide">
       <p className="muted small">
         {cardCount(item.qty)} owned. Recording versions values your copies at their own price, and decks and wishlists
-        show the version you own when they don&apos;t ask for one.
+        show the version you own when they don&apos;t ask for one. A language is only a note; worthless copies
+        (damaged, say) stay out of your inventory&apos;s value. Changing either moves one copy at a time.
       </p>
       <table className="cards-table versions-table">
         <tbody>
           {item.copies.map((copy, index) => {
             const printing = printingOf(copy)
             return (
-              <tr key={`${copy.set ?? ''}|${copy.collector ?? ''}|${copy.foil}`}>
+              <tr key={`${copy.set ?? ''}|${copy.collector ?? ''}|${copy.foil}|${copy.lang ?? ''}|${!!copy.worthless}`}>
                 <td className="col-qty">
                   <Stepper
                     value={copy.qty}
@@ -109,6 +118,31 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
                       onChange={(event) => update(index, { foil: event.target.checked })}
                     />
                     Foil
+                  </label>
+                </td>
+                <td className="versions-lang">
+                  {copy.lang && <LanguageFlag code={copy.lang} />}
+                  <select
+                    aria-label={`Language of one copy of ${copyLabel(copy)}`}
+                    value={copy.lang ?? ''}
+                    onChange={(event) => changeOne(index, { lang: languageOf(event.target.value) })}
+                  >
+                    <option value="">English</option>
+                    {LANGUAGES.map((language) => (
+                      <option key={language.code} value={language.code}>
+                        {language.label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <label className="check" title="Left out of your inventory's value: damaged, or not counted">
+                    <input
+                      type="checkbox"
+                      checked={!!copy.worthless}
+                      onChange={(event) => changeOne(index, { worthless: event.target.checked ? true : undefined })}
+                    />
+                    Worthless
                   </label>
                 </td>
                 <td className="col-actions">

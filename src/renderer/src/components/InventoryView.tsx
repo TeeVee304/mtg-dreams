@@ -10,7 +10,8 @@ import {
   type CardFilters,
   type SortKey
 } from '@shared/cards'
-import { cardLines, nameKey } from '@shared/decklist'
+import { nameKey, serializeInventory } from '@shared/decklist'
+import { unionCardLines } from '@shared/listVersion'
 import { hasVersions } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import type { ThemeColor } from '@shared/themes'
@@ -29,6 +30,7 @@ import { CardSearch } from './CardSearch'
 import { CardSortSelect, SortHeader } from './Controls'
 import { TextEditorDialog } from './Dialogs'
 import { copyLabel, InventoryVersionsDialog } from './InventoryVersions'
+import { LanguageFlag } from './LanguageFlag'
 import { FilterBar } from './FilterBar'
 import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
@@ -82,11 +84,11 @@ export function InventoryView(props: InventoryViewProps) {
   const pool = useCopyPool(lists)
   /** Per nameKey: decks using and wishlists wanting the card. */
   const usage = useMemo(() => {
-    const byKind: Record<ListKind, Map<string, Usage[]>> = { deck: new Map(), wishlist: new Map() }
+    const byKind: Record<ListKind, Map<string, Usage[]>> = { deck: new Map(), wishlist: new Map(), brew: new Map() }
     for (const list of lists) {
       const map = byKind[list.kind]
       const color = listColor(list.lines)
-      for (const line of cardLines(list.lines)) {
+      for (const line of unionCardLines(list.lines)) {
         const key = nameKey(line.name)
         const entries = map.get(key) ?? []
         const existing = entries.find((e) => e.list === list.name)
@@ -151,9 +153,23 @@ export function InventoryView(props: InventoryViewProps) {
     : []
   const dataLoading = needsCardData(filters) && items.some((item) => item.info === undefined)
 
+  /** A quiet chip naming how many brews have the card, opening a menu of them; null for none. */
+  const brewsChip = (item: InventoryItem) => {
+    const brews = usage.brew.get(nameKey(item.name)) ?? []
+    if (brews.length === 0) return null
+    const label = brews.length === 1 ? '1 brew' : `${brews.length} brews`
+    return (
+      <MenuButton
+        label={`In ${label}`}
+        trigger={{ content: label, className: 'chip link brew-chip' }}
+        items={brews.map((entry) => ({ label: entry.list, onSelect: () => onOpenList({ kind: 'brew', name: entry.list }) }))}
+      />
+    )
+  }
+
   const usageChips = (item: InventoryItem, kind: ListKind) => {
     const entries = usage[kind].get(nameKey(item.name)) ?? []
-    if (entries.length === 0) return <span className="muted">—</span>
+    if (entries.length === 0) return kind === 'wishlist' && usage.brew.has(nameKey(item.name)) ? null : <span className="muted">—</span>
     return entries.map((entry) => {
       const got = Math.min(entry.qty, Math.max(0, item.qty - entry.held))
       const short = got < entry.qty
@@ -195,7 +211,9 @@ export function InventoryView(props: InventoryViewProps) {
             items={[
               {
                 label: 'Copy as text',
-                onSelect: () => void window.api.copyText(inventoryText(inventory)).then(() => toast('Inventory copied to clipboard'))
+                // Other apps don't know languages or worthless marks: the copy leaves them out.
+                onSelect: () =>
+                  void window.api.copyText(serializeInventory(inventory, true)).then(() => toast('Inventory copied to clipboard'))
               }
             ]}
           />
@@ -279,16 +297,17 @@ export function InventoryView(props: InventoryViewProps) {
                     </span>
                     {hasVersions(item) &&
                       item.copies
-                        .filter((copy) => copy.set || copy.foil)
+                        .filter((copy) => copy.set || copy.foil || copy.lang || copy.worthless)
                         .map((copy) => (
                           <button
-                            key={copyLabel(copy)}
+                            key={`${copyLabel(copy)}|${copy.lang ?? ''}`}
                             type="button"
-                            className={`chip link${copy.foil ? ' foil' : ''}`}
+                            className={`chip link${copy.foil ? ' foil' : ''}${copy.worthless ? ' worthless' : ''}`}
                             onClick={() => setVersionsOf(nameKey(item.name))}
                             title="Your versions of this card"
                           >
                             {copy.qty}× {copyLabel(copy)}
+                            {copy.lang && <LanguageFlag code={copy.lang} />}
                           </button>
                         ))}
                   </NameCell>
@@ -296,7 +315,10 @@ export function InventoryView(props: InventoryViewProps) {
                     <div className="chips">{usageChips(item, 'deck')}</div>
                   </td>
                   <td>
-                    <div className="chips">{usageChips(item, 'wishlist')}</div>
+                    <div className="chips">
+                      {usageChips(item, 'wishlist')}
+                      {brewsChip(item)}
+                    </div>
                   </td>
                   <td className="col-num">
                     <ValuePrice value={item.value} qty={item.qty} />
@@ -361,13 +383,13 @@ export function InventoryView(props: InventoryViewProps) {
 
 /** Value sort rank: priced by total, then loading, then unpriced. */
 function valueOrder(value: ItemValue): number {
-  if (value.status === 'priced' || value.status === 'free') return value.total
+  if (value.status === 'priced' || value.status === 'free' || value.status === 'none') return value.total
   return value.status === 'loading' ? -1 : -2
 }
 
 /** Value sort group: priced first, then loading, then unpriced. */
 function valueTier(value: ItemValue): number {
-  if (value.status === 'priced' || value.status === 'free') return 0
+  if (value.status === 'priced' || value.status === 'free' || value.status === 'none') return 0
   return value.status === 'loading' ? 1 : 2
 }
 
@@ -379,8 +401,22 @@ function ValuePrice({ value, qty }: { value: ItemValue; qty: number }) {
         unit={value.unit}
         qty={qty}
         total={value.total}
-        title={value.unpriced > 0 ? 'Some versions have no price and are left out' : undefined}
+        title={
+          [
+            value.unpriced > 0 && 'Some versions have no price and are left out',
+            value.worthless > 0 && `${value.worthless} marked worthless, left out`
+          ]
+            .filter(Boolean)
+            .join('. ') || undefined
+        }
       />
+    )
+  }
+  if (value.status === 'none') {
+    return (
+      <span className="muted" title="Marked worthless: left out of the inventory value">
+        Worthless
+      </span>
     )
   }
   return <Price unit={value.status === 'loading' ? undefined : value.status === 'free' ? 0 : null} free={value.status === 'free'} />

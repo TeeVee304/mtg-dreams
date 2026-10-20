@@ -16,6 +16,8 @@ interface CardSearchProps {
   placeholder: string
   /** Restricts search to these options instead of Scryfall. Must be memoized. */
   choices?: SearchChoice[]
+  /** DOM id of the input; the Ctrl+K target by default. */
+  id?: string
 }
 
 /** DOM id of the search input (Ctrl+K target). */
@@ -26,7 +28,7 @@ export const CARD_SEARCH_ID = 'card-search'
  * suggestion submits the raw text (fuzzy-matched later). Suggestion thumbnails load in one batch per
  * suggestion set, skipping known names.
  */
-export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
+export function CardSearch({ onPick, placeholder, choices, id = CARD_SEARCH_ID }: CardSearchProps) {
   const [query, setQuery] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [open, setOpen] = useState(false)
@@ -108,11 +110,11 @@ export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
   return (
     <div className="card-search">
       <input
-        id={CARD_SEARCH_ID}
+        id={id}
         type="search"
         role="combobox"
         aria-expanded={showList}
-        aria-controls="card-search-list"
+        aria-controls={`${id}-list`}
         aria-autocomplete="list"
         autoComplete="off"
         spellCheck={false}
@@ -144,7 +146,7 @@ export function CardSearch({ onPick, placeholder, choices }: CardSearchProps) {
       />
       {loading && <span className="search-spinner" aria-hidden="true" />}
       {showList && (
-        <ul className="suggestions" id="card-search-list" role="listbox">
+        <ul className="suggestions" id={`${id}-list`} role="listbox">
           {suggestions.map((name, index) => (
             <li
               key={name}

@@ -157,7 +157,7 @@ export function filterRows<R extends ModelRow>(
   return rows.filter(
     (row) =>
       matchesFilters(`${row.line.name} ${row.flavorName ?? ''}`, row.info, row.rarity, filters) &&
-      !(hideOwned && kind === 'wishlist' && row.owned >= row.line.qty) &&
+      !(hideOwned && kind !== 'deck' && row.owned >= row.line.qty) &&
       !(onlyProblems && !analysis.hasProblem(row))
   )
 }

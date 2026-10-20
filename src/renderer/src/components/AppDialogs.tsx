@@ -84,7 +84,7 @@ export function AppDialogs(props: AppDialogsProps) {
           kind={dialog.list}
           onClose={close}
           onFromPrecon={() => setDialog({ kind: 'precon', list: dialog.list })}
-          onWizard={dialog.list === 'wishlist' ? () => setDialog({ kind: 'wizard' }) : undefined}
+          onWizard={dialog.list !== 'deck' ? () => setDialog({ kind: 'wizard' }) : undefined}
           onCreate={async (name, text, formatId, addToInventory) => {
             const lines = withFormat(parseList(text), formatId)
             const created = await actions.createList(dialog.list, name, serializeList(lines))
@@ -97,7 +97,7 @@ export function AppDialogs(props: AppDialogsProps) {
       )}
       {dialog?.kind === 'precon' && (
         <PreconDialog
-          target={{ kind: dialog.list === 'deck' ? 'new-deck' : 'new-list' }}
+          target={{ kind: dialog.list === 'deck' ? 'new-deck' : dialog.list === 'brew' ? 'new-brew' : 'new-list' }}
           onClose={close}
           onAdd={(deck, entries) => createFromPrecon(dialog.list, deck, entries)}
         />
@@ -116,12 +116,18 @@ export function AppDialogs(props: AppDialogsProps) {
       {dialog?.kind === 'wizard' && (
         <DeckWizardDialog
           onClose={close}
-          wishlistNames={state.lists.filter((l) => l.kind === 'wishlist').map((l) => l.name)}
-          onCreate={async (name, text, cards) => {
-            const created = await actions.createList('wishlist', name, text)
+          lists={state.lists}
+          inventory={state.inventory}
+          pool={pool}
+          onCreate={async (kind, name, text, cards) => {
+            const created = await actions.createList(kind, name, text)
             close()
             onOpenList(created)
-            toast(`Created wishlist “${created.name}” with ${cardCount(cards)}`)
+            toast(
+              kind === 'brew'
+                ? `Created brew “${created.name}” with ${cardCount(cards)}: make it a wishlist once you want it`
+                : `Created ${kind} “${created.name}” with ${cardCount(cards)}`
+            )
           }}
         />
       )}

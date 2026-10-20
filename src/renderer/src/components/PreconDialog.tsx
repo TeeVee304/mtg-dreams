@@ -9,7 +9,7 @@ import { previewHandlers } from './HoverPreview'
 import { Modal } from './Modal'
 
 /** Precon import target: existing wishlist, new wishlist, or new owned deck (cards join the inventory). */
-export type PreconTarget = { kind: 'list'; listName: string } | { kind: 'new-list' } | { kind: 'new-deck' }
+export type PreconTarget = { kind: 'list'; listName: string } | { kind: 'new-list' } | { kind: 'new-deck' } | { kind: 'new-brew' }
 
 /** Props of {@link PreconDialog}. */
 interface PreconDialogProps {
@@ -87,9 +87,9 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
       ? `Add ${cards(cardCount)} to “${target.listName}”`
       : target.kind === 'new-deck'
         ? `Create deck with ${cards(cardCount)}`
-        : `Create wishlist with ${cards(cardCount)}`
+        : `Create ${target.kind === 'new-brew' ? 'brew' : 'wishlist'} with ${cards(cardCount)}`
   const title =
-    target.kind === 'new-deck' ? 'New deck from a precon' : target.kind === 'new-list' ? 'New wishlist from a precon' : 'Add a precon'
+    target.kind === 'new-deck' ? 'New deck from a precon' : target.kind === 'new-list' ? 'New wishlist from a precon' : target.kind === 'new-brew' ? 'New brew from a precon' : 'Add a precon'
 
   return (
     <Modal

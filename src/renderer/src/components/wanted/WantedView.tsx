@@ -13,7 +13,7 @@ import { cardCount, formatEur } from '../../lib/format'
 import { listRows } from '../../lib/summary'
 import { wantedOverview } from '../../lib/wanted'
 import { getCardInfo, useCardInfoVersion } from '../../stores/cardinfo'
-import { priceDrop, useBaselines } from '../../stores/history'
+import { priceChange, useBaselines } from '../../stores/history'
 import type { CardList, LibraryActions, ListRef } from '../../stores/library'
 import { usePrintingsVersion } from '../../stores/printings'
 import { useSettings } from '../../stores/settings'
@@ -22,7 +22,7 @@ import { useToast } from '../Toasts'
 import { BasicsTab } from './BasicsTab'
 import { BudgetPlanner } from './BudgetPlanner'
 import { WishlistShelf } from './WishlistShelf'
-import { CardsTab, type FriendHaves } from './CardsTab'
+import { CardsTab, type CardPriceChange, type FriendHaves } from './CardsTab'
 import { listMetas } from './parts'
 import { TokensTab } from './TokensTab'
 
@@ -46,23 +46,33 @@ interface WantedViewProps {
   onNew: (kind: ListKind) => void
 }
 
-/** Biggest price drop per wanted card, in percent, by name key. */
-function priceDrops(
+/**
+ * Price change per wanted card since it was added to a wishlist, by name key. A card on several
+ * wishlists shows its biggest drop if any line got cheaper, else its biggest rise.
+ */
+function priceChanges(
   wishlists: CardList[],
   inventory: Map<string, InventoryItem>,
   settings: AppSettings,
   pool: CopyPool,
   baselines: Record<string, PriceBaseline>
-): Map<string, number> {
-  const drops = new Map<string, number>()
+): Map<string, CardPriceChange> {
+  const changes = new Map<string, CardPriceChange>()
   for (const list of wishlists) {
     for (const row of listRows(list, inventory, settings, pool)) {
       if (row.bundledIds) continue
-      const drop = priceDrop(row.line, row.unit, row.owned, settings.priceBasis, settings.dropAlertPercent, baselines)
-      if (drop) drops.set(nameKey(row.line.name), Math.max(drops.get(nameKey(row.line.name)) ?? 0, drop.percent))
+      const change = priceChange(row.line, row.unit, row.owned, settings, baselines)
+      if (!change) continue
+      const key = nameKey(row.line.name)
+      const known = changes.get(key)
+      const better =
+        !known ||
+        (change.direction === 'down' && known.direction === 'up') ||
+        (change.direction === known.direction && change.percent > known.percent)
+      if (better) changes.set(key, { direction: change.direction, percent: change.percent })
     }
   }
-  return drops
+  return changes
 }
 
 /** Friends who have each card on their trade lists, by name key. */
@@ -172,7 +182,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
           friendsOnly={friendsOnly}
           onFriendsOnly={setFriendsOnly}
           friends={friends}
-          drops={priceDrops(wishlists, inventory, settings, pool, baselines)}
+          changes={priceChanges(wishlists, inventory, settings, pool, baselines)}
           pool={pool}
           meta={meta}
           infoOf={infoOf}

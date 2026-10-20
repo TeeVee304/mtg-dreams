@@ -1,7 +1,9 @@
 import { COLOR_NAMES, type ColorFilter } from '@shared/cards'
+import { colorIdentityName } from '@shared/colorIdentity'
 import { commanderRule, type DeckFormat } from '@shared/formats'
+import type { ListVersion, Variant } from '@shared/listVersion'
 import { MANA_SYMBOLS } from '../lib/artwork'
-import { FormatSelect } from './Controls'
+import { FormatSelect, Segmented } from './Controls'
 import { Icon } from './Icon'
 import { MenuButton } from './MenuButton'
 
@@ -12,7 +14,7 @@ interface ListHeaderProps {
   art: string | null
   /** The commander, named under the title. */
   leader: string | null
-  /** The commander's color identity, as mana symbols. */
+  /** Color identity, as mana symbols named on hover: the commander's, else the cards'. */
   colors: ColorFilter[]
   /** Noun used in labels. */
   noun: 'deck' | 'list'
@@ -41,6 +43,18 @@ interface ListHeaderProps {
   unbuilt?: boolean
   /** Decks: toggles unbuilt. */
   onToggleUnbuilt?: () => void
+  /** The other version the list's format allows (Duel for Commander, EDH for Duel); null for none. */
+  variant: Variant | null
+  /** Whether the list has that version. */
+  variantOn: boolean
+  /** The version shown, when the list has its other version; null without one. */
+  version: ListVersion | null
+  /** Shows a version. */
+  onVersion: (version: ListVersion) => void
+  /** Adds the other version, or removes it. */
+  onToggleVariant?: () => void
+  /** Brews: makes it a wishlist; the header then shows it is a brew. */
+  onMakeWishlist?: () => void
   onRename: () => void
   onDelete: () => void
 }
@@ -51,12 +65,28 @@ interface ListHeaderProps {
  */
 export function ListHeader(props: ListHeaderProps) {
   const { name, noun, format, legalityErrors, ownershipErrors, onlyProblems, art, leader, colors } = props
+  const colorName = colorIdentityName(colors)
   const { picking, hasCommander, canPickCommander } = props
   const problemsTitle = onlyProblems ? 'Show all cards' : 'Show only cards with problems'
+  const { variant } = props
+  const other = props.version === 'variant' && variant ? variant : null
+  const advanced = [
+    ...(props.onUpgrade ? [{ label: 'Upgrade of…', onSelect: props.onUpgrade }] : []),
+    ...(props.onToggleUnbuilt ? [{ label: 'Unbuilt', checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] : []),
+    ...(props.onToggleVariant && variant
+      ? [{ label: `${props.variantOn ? 'Remove' : 'Add'} ${variant.label} Version`, onSelect: props.onToggleVariant }]
+      : [])
+  ]
   return (
-    <header className={`view-header${art ? ' art-hero' : ''}`}>
+    <header className={`view-header${art ? ' art-hero' : ''}${other ? ' variant-view' : ''}`}>
       {art && <img className="hero-art" src={art} alt="" draggable={false} />}
       <div className="header-title">
+        {other && <span className="duel-badge">{other.label} version</span>}
+        {props.onMakeWishlist && (
+          <span className="brew-badge" title="An idea: it counts toward nothing, not even Most Wanted">
+            Brew
+          </span>
+        )}
         <h1>{name}</h1>
         {leader && (
           <p className="hero-leader">
@@ -64,17 +94,44 @@ export function ListHeader(props: ListHeaderProps) {
           </p>
         )}
         <div className="header-meta">
+          {props.version && variant && (
+            <Segmented
+              label="Version"
+              className="version-toggle"
+              options={[
+                { id: 'base', label: variant.baseLabel, title: `The ${noun} itself, for ${variant.baseLabel} games` },
+                { id: 'variant', label: variant.label, title: `Its ${variant.label} version: the same ${noun} with its ${variant.label} swaps` }
+              ]}
+              value={props.version}
+              onChange={props.onVersion}
+            />
+          )}
           {colors.length > 0 && (
-            <span className="header-colors" aria-label={`Colors: ${colors.map((color) => COLOR_NAMES[color]).join(', ')}`}>
+            <span
+              className="header-colors"
+              tabIndex={0}
+              aria-label={`${colorName ?? 'Colors'}: ${colors.map((color) => COLOR_NAMES[color]).join(', ')}`}
+            >
               {colors.map((color) => (
                 <img key={color} src={MANA_SYMBOLS[color]} alt="" draggable={false} />
               ))}
+              {colorName && (
+                <span className="tip" role="tooltip" aria-hidden="true">
+                  {colorName}
+                </span>
+              )}
             </span>
           )}
-          <label className="field-inline format-field">
-            Format
-            <FormatSelect value={format?.id ?? ''} onChange={(id) => props.onFormat(id || null)} label="Deck format" />
-          </label>
+          {other ? (
+            <span className="duel-rules">
+              <Icon name="lock" /> {other.formatLabel}
+            </span>
+          ) : (
+            <label className="field-inline format-field">
+              Format
+              <FormatSelect value={format?.id ?? ''} onChange={(id) => props.onFormat(id || null)} label="Deck format" />
+            </label>
+          )}
           {format?.commander && (picking || canPickCommander) && (
             <button
               type="button"
@@ -115,6 +172,11 @@ export function ListHeader(props: ListHeaderProps) {
         </div>
       </div>
       <div className="header-actions">
+        {props.onMakeWishlist && (
+          <button type="button" className="primary" onClick={props.onMakeWishlist}>
+            Make it a Wishlist
+          </button>
+        )}
         <button type="button" onClick={props.onEditText}>
           Edit as text
         </button>
@@ -123,10 +185,7 @@ export function ListHeader(props: ListHeaderProps) {
           items={[
             { label: 'Copy as text', onSelect: props.onCopy },
             { label: 'Color…', onSelect: props.onColor },
-            ...(props.onUpgrade ? [{ label: 'Advanced', items: [{ label: 'Upgrade of…', onSelect: props.onUpgrade }] }] : []),
-            ...(props.onToggleUnbuilt
-              ? [{ label: 'Advanced', items: [{ label: 'Unbuilt', checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] }]
-              : []),
+            ...(advanced.length > 0 ? [{ label: 'Advanced', items: advanced }] : []),
             { label: 'Rename…', onSelect: props.onRename },
             { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
           ]}

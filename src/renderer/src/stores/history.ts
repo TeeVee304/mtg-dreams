@@ -1,16 +1,17 @@
-import type { PriceBaseline, PriceSnapshot, TrackerApi } from '@shared/api'
+import type { AppSettings, PriceBaseline, PriceSnapshot, TrackerApi } from '@shared/api'
 import { bundledBasic } from '@shared/basics'
 import type { CopyPool } from '@shared/copies'
-import { allocateOwned, cardLines, nameKey } from '@shared/decklist'
+import { allocateOwned, nameKey } from '@shared/decklist'
+import { unionCardLines } from '@shared/listVersion'
 import { hasNonfoil, PRICE_BASES, resolveLine } from '@shared/pricing'
-import type { CardLine, InventoryItem, PriceBasis } from '@shared/types'
+import type { CardLine, InventoryItem } from '@shared/types'
 import { inventoryValue, type ValuedCopy } from '../lib/collection'
 import { createSignal } from '../lib/signal'
 import type { CardList } from './library'
 import { getPrintingsEntry } from './printings'
 
 /**
- * Renderer side of price history: wishlist baselines and price-drop detection, tracked product ids,
+ * Renderer side of price history: wishlist baselines and price-change detection, tracked product ids,
  * and inventory value changes between snapshots. Snapshots are stored by the main process.
  *
  * @packageDocumentation
@@ -52,7 +53,7 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
   const set: Record<string, PriceBaseline> = {}
   const now = Date.now()
   for (const list of wishlists) {
-    const lines = cardLines(list.lines)
+    const lines = unionCardLines(list.lines)
     const allocations = allocateOwned(lines, inventory, (key) => pool.held(list, key, inventory.get(key)?.qty ?? 0))
     lines.forEach((line, index) => {
       const key = lineKey(line)
@@ -77,9 +78,11 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
   void window.api.updateBaselines(set, remove).catch(() => undefined)
 }
 
-/** Detected price drop. */
-export interface PriceDrop {
-  /** Drop in percent of the baseline, rounded. */
+/** Detected price change of a still-needed wishlist card. */
+export interface PriceChange {
+  /** 'down': cheaper than when added; 'up': more expensive. */
+  direction: 'down' | 'up'
+  /** Change in percent of the baseline, rounded; always positive. */
   percent: number
   /** Baseline unit price. */
   was: number
@@ -87,25 +90,33 @@ export interface PriceDrop {
   since: number
 }
 
+/** Settings deciding which price changes alert. */
+export type PriceAlert = Pick<AppSettings, 'priceBasis' | 'dropAlertPercent' | 'dropAlertMinEur' | 'riseAlertMinEur'>
+
 /**
- * @param unit - Current unit price on `basis`.
+ * @param unit - Current unit price on the alert's price basis.
  * @param owned - Owned copies allocated to the line.
- * @returns Drop if the line is still needed and its price fell at least `thresholdPercent`; else null.
+ * @returns Change if the line is still needed and its price fell or rose since it was added by at
+ * least the alert's percentage and its euro amount for that direction (both, so neither cent moves of
+ * cheap cards nor small drifts of expensive ones count); else null.
  */
-export function priceDrop(
+export function priceChange(
   line: CardLine,
   unit: number | null,
   owned: number,
-  basis: PriceBasis,
-  thresholdPercent: number,
+  { priceBasis, dropAlertPercent, dropAlertMinEur, riseAlertMinEur }: PriceAlert,
   known: Record<string, PriceBaseline>
-): PriceDrop | null {
+): PriceChange | null {
   if (unit === null || owned >= line.qty) return null
   const baseline = known[lineKey(line)]
-  const was = baseline?.prices[basis]
+  const was = baseline?.prices[priceBasis]
   if (!baseline || !was) return null
-  const percent = ((was - unit) / was) * 100
-  return percent >= thresholdPercent ? { percent: Math.round(percent), was, since: baseline.at } : null
+  const percent = ((unit - was) / was) * 100
+  if (Math.abs(percent) < dropAlertPercent) return null
+  // Compared in whole cents, so 1,00 € → 1,10 € counts as exactly 0,10 €.
+  const minimum = unit < was ? dropAlertMinEur : riseAlertMinEur
+  if (Math.round(Math.abs(unit - was) * 100) < Math.round(minimum * 100)) return null
+  return { direction: percent < 0 ? 'down' : 'up', percent: Math.round(Math.abs(percent)), was, since: baseline.at }
 }
 
 /** Last tracked id set sent, comma-joined; reset on failure to retry. */

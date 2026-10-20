@@ -1,5 +1,7 @@
+import type { Language } from './languages'
+
 /** List category: decks draw from the inventory; wishlists track cards to acquire. */
-export type ListKind = 'deck' | 'wishlist'
+export type ListKind = 'deck' | 'wishlist' | 'brew'
 
 /** Parsed card line of a list file, e.g. `4 Lightning Bolt <141> [A25] (F)`. */
 export interface CardLine {
@@ -13,6 +15,10 @@ export interface CardLine {
   /** Goldfish-style `<...>` tag; normally a collector number within `set`. */
   collector?: string
   foil: boolean
+  /** `{DE}`: Scryfall language code of the copies; absent for English. Never changes the price. */
+  lang?: Language
+  /** `{Worthless}`: owned copies left out of the inventory's value (damaged, or not counted). */
+  worthless?: true
 }
 
 /** Non-card line (blank, comment, section header). Stored verbatim for lossless round-trips. */
@@ -26,12 +32,16 @@ export interface TextLine {
 /** Any line of a list file. */
 export type ListLine = CardLine | TextLine
 
-/** Owned copies of one printing and finish. No `set`: unspecified printing. */
+/** Owned copies of one printing, finish and language. No `set`: unspecified printing. */
 export interface OwnedCopy {
   qty: number
   set?: string
   collector?: string
   foil: boolean
+  /** Scryfall language code; absent for English. A note only: it never changes the price. */
+  lang?: Language
+  /** Left out of the inventory's value (damaged, or not counted); still owned for decks and wishlists. */
+  worthless?: true
 }
 
 /** Inventory entry for one card name. */

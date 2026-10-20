@@ -37,8 +37,17 @@ afterEach(async () => {
 describe('lists on disk', () => {
   it('starts empty, creating the data folders in Documents', async () => {
     const { data, storage } = await setup()
-    expect(await storage.loadData()).toEqual({ dataDir: data, decks: [], wishlists: [], inventory: '', trades: [], wishlistOrder: [], unreadable: [] })
-    expect(readdirSync(data).sort()).toEqual(['decks', 'lists'])
+    expect(await storage.loadData()).toEqual({
+      dataDir: data,
+      decks: [],
+      wishlists: [],
+      brews: [],
+      inventory: '',
+      trades: [],
+      wishlistOrder: [],
+      unreadable: []
+    })
+    expect(readdirSync(data).sort()).toEqual(['brews', 'decks', 'lists'])
   })
 
   it('starts the wishlist order from the old priority headers, then removes them', async () => {
@@ -49,10 +58,61 @@ describe('lists on disk', () => {
     const loaded = await storage.loadData()
     expect(loaded.wishlistOrder).toEqual(['Goblins', 'Angels', 'Someday'])
     expect(loaded.wishlists.map((file) => file.text)).toEqual(['1 Smothering Tithe\n', '// Color: Red\n1 Sol Ring\n', '1 Mana Crypt\n'])
-    expect(readFileSync(join(data, 'lists', 'Goblins.txt'), 'utf8')).toBe('// Color: Red\n1 Sol Ring\n')
+    expect(readFileSync(join(data, 'lists', 'Goblins.txt'), 'utf8')).toBe('1 Sol Ring\n')
 
     await storage.writeWishlistOrder(['Someday', 'Goblins', 'Angels'])
     expect((await storage.loadData()).wishlistOrder).toEqual(['Someday', 'Goblins', 'Angels'])
+  })
+
+  it('keeps personal settings in lists.json, and gives them back as headers', async () => {
+    const { base, data, storage } = await setup()
+    const text = '// Format: Modern\n// Color: Red\n// Unbuilt: Yes\n4 Lightning Bolt\n'
+    await storage.createList('deck', 'Burn', text)
+    expect(readFileSync(join(data, 'decks', 'Burn.txt'), 'utf8')).toBe('// Format: Modern\n4 Lightning Bolt\n')
+    expect(JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).lists).toEqual({ 'deck/Burn': { color: 'Red', unbuilt: 'Yes' } })
+    // The app gets its own text back, headers where it put them.
+    expect((await storage.loadData()).decks).toEqual([{ name: 'Burn', text }])
+
+    // After a restart, the settings come first.
+    const restarted = await setup(base)
+    expect((await restarted.storage.loadData()).decks[0].text).toBe('// Color: Red\n// Unbuilt: Yes\n// Format: Modern\n4 Lightning Bolt\n')
+  })
+
+  it('moves personal headers found in a file to lists.json', async () => {
+    const { data, storage } = await setup()
+    await storage.loadData()
+    writeFileSync(join(data, 'lists', 'Upgrade.txt'), '// Upgrade of: Burn\n// Color: Blue\n1 Sol Ring\n')
+    const loaded = await storage.loadData()
+    expect(loaded.wishlists[0].text).toBe('// Color: Blue\n// Upgrade of: Burn\n1 Sol Ring\n')
+    expect(readFileSync(join(data, 'lists', 'Upgrade.txt'), 'utf8')).toBe('1 Sol Ring\n')
+    expect(JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).lists).toEqual({
+      'wishlist/Upgrade': { color: 'Blue', upgradeOf: 'Burn' }
+    })
+  })
+
+  it('keeps settings with a list through renames and moves, and drops them with it', async () => {
+    const { data, storage } = await setup()
+    const settings = () => JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).lists
+    await storage.createList('wishlist', 'Wants', '// Color: Green\n1 A\n')
+    await storage.renameList('wishlist', 'Wants', 'Needs')
+    expect(settings()).toEqual({ 'wishlist/Needs': { color: 'Green' } })
+    expect(await storage.moveList('wishlist', 'brew', 'Needs')).toBe('Needs')
+    expect(settings()).toEqual({ 'brew/Needs': { color: 'Green' } })
+    expect((await storage.loadData()).brews).toEqual([{ name: 'Needs', text: '// Color: Green\n1 A\n' }])
+    expect(readdirSync(join(data, 'brews'))).toEqual(['Needs.txt'])
+    await storage.deleteList('brew', 'Needs')
+    expect(settings()).toEqual({})
+  })
+
+  it('folds the old wishlist order file into lists.json', async () => {
+    const { data, storage } = await setup()
+    mkdirSync(join(data, 'lists'), { recursive: true })
+    writeFileSync(join(data, 'lists', 'A.txt'), '1 A\n')
+    writeFileSync(join(data, 'lists', 'B.txt'), '1 B\n')
+    writeFileSync(join(data, 'lists', 'order.json'), '["B", "A"]')
+    expect((await storage.loadData()).wishlistOrder).toEqual(['B', 'A'])
+    expect(existsSync(join(data, 'lists', 'order.json'))).toBe(false)
+    expect(JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).wishlistOrder).toEqual(['B', 'A'])
   })
 
   it('creates, reads back sorted by name, and refuses duplicates', async () => {
@@ -174,14 +234,14 @@ describe('lists on disk', () => {
 describe('settings', () => {
   it('defaults, saves, and survives a restart; bad values fall back', async () => {
     const first = await setup()
-    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 15 })
+    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, wishlistsReserve: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     first.storage.updateAppSettings({ theme: 'dark', color: 'G', sort: 'mana' })
     const settingsFile = join(first.base, 'userData', 'settings.json')
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).toMatchObject({ theme: 'dark', color: 'G', sort: 'mana' })
 
     writeFileSync(settingsFile, JSON.stringify({ theme: 'neon', color: 'teal', sort: 'price', bundleBasics: false, copies: 'some' }))
     const restarted = await setup(first.base)
-    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 15 })
+    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, wishlistsReserve: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     restarted.storage.updateAppSettings({ theme: 'light' })
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).not.toHaveProperty('copies')
   })

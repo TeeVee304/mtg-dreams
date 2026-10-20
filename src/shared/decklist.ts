@@ -1,4 +1,5 @@
 import { itemFromCopies } from './inventory'
+import { languageOf, type Language } from './languages'
 import type { CardLine, InventoryItem, ListLine, OwnedCopy } from './types'
 
 /** Source of {@link newLineId}. */
@@ -36,9 +37,14 @@ const GOLDFISH_SET_RE = /\s*\[([A-Za-z0-9]{2,8})\]$/
 const GOLDFISH_TAG_RE = /\s*<([^<>]+)>$/
 /** Arena/Moxfield suffix: `Lightning Bolt (2XM) 141`. */
 const ARENA_SET_RE = /\s+\(([A-Za-z0-9]{2,8})\)(?:\s+(\S+))?$/
+/** Language suffix: `{DE}`. */
+const LANGUAGE_RE = /\s*\{([A-Za-z]{2,3})\}$/
+/** Worthless suffix: `{Worthless}` (or `{No value}`, as it was first called). */
+const WORTHLESS_RE = /\s*\{(?:worthless|no value)\}$/i
 
 /**
- * Parses `N[x] Name` with optional suffixes in any order: `<tag>`, `[SET]`, `(F)`/`*F*`, `(SET) num`.
+ * Parses `N[x] Name` with optional suffixes in any order: `<tag>`, `[SET]`, `(F)`/`*F*`, `(SET) num`,
+ * `{DE}` (a language besides English), `{Worthless}`.
  * @returns Card fields; null if not a card line.
  */
 export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | null {
@@ -51,11 +57,17 @@ export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | nul
   let foil = false
   let set: string | undefined
   let collector: string | undefined
+  let lang: Language | undefined
+  let worthless = false
 
   for (;;) {
     let m: RegExpExecArray | null
     if ((m = FOIL_RE.exec(rest))) {
       foil = true
+    } else if (!worthless && (m = WORTHLESS_RE.exec(rest))) {
+      worthless = true
+    } else if (!lang && (m = LANGUAGE_RE.exec(rest)) && (languageOf(m[1]) || m[1].toLowerCase() === 'en')) {
+      lang = languageOf(m[1])
     } else if (!set && (m = GOLDFISH_SET_RE.exec(rest))) {
       set = m[1].toLowerCase()
     } else if (!collector && (m = GOLDFISH_TAG_RE.exec(rest))) {
@@ -71,7 +83,7 @@ export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | nul
 
   const name = rest.replace(/\s+/g, ' ').trim()
   if (!name) return null
-  return { qty, name, set, collector: collector || undefined, foil }
+  return { qty, name, set, collector: collector || undefined, foil, ...(lang && { lang }), ...(worthless && { worthless: true as const }) }
 }
 
 /** Parses a list file (BOM-tolerant, trailing blank lines dropped); non-card lines become {@link TextLine}s. */
@@ -85,12 +97,14 @@ export function parseList(text: string): ListLine[] {
   })
 }
 
-/** @returns Canonical line: `N Name <collector> [SET] (F)`. */
+/** @returns Canonical line: `N Name <collector> [SET] (F) {DE} {Worthless}`. */
 export function serializeCard(card: Omit<CardLine, 'id' | 'kind'>): string {
   let line = `${card.qty} ${card.name}`
   if (card.collector) line += ` <${card.collector}>`
   if (card.set) line += ` [${card.set.toUpperCase()}]`
   if (card.foil) line += ' (F)'
+  if (card.lang) line += ` {${card.lang.toUpperCase()}}`
+  if (card.worthless) line += ' {Worthless}'
   return line
 }
 
@@ -195,7 +209,7 @@ export function parseInventory(text: string): Map<string, InventoryItem> {
   const cards = new Map<string, { name: string; copies: OwnedCopy[] }>()
   for (const card of cardLines(parseList(text))) {
     const key = nameKey(card.name)
-    const copy: OwnedCopy = { qty: card.qty, set: card.set, collector: card.collector, foil: card.foil }
+    const copy: OwnedCopy = { qty: card.qty, set: card.set, collector: card.collector, foil: card.foil, lang: card.lang, worthless: card.worthless }
     const existing = cards.get(key)
     if (existing) existing.copies.push(copy)
     else cards.set(key, { name: card.name, copies: [copy] })
@@ -208,13 +222,19 @@ export function parseInventory(text: string): Map<string, InventoryItem> {
   return items
 }
 
-/** @returns Inventory file text: one line per copy group, sorted by name; empty items omitted. */
-export function serializeInventory(items: Map<string, InventoryItem>): string {
+/**
+ * @param plain - Leaves out languages and worthless marks, merging the copies they told apart: for
+ * copying to other apps, which don't know them.
+ * @returns Inventory file text: one line per copy group, sorted by name; empty items omitted.
+ */
+export function serializeInventory(items: Map<string, InventoryItem>, plain = false): string {
   const sorted = [...items.values()]
     .filter((item) => item.qty > 0)
     .sort((a, b) => a.name.localeCompare(b.name))
+  const copiesOf = (item: InventoryItem) =>
+    plain ? (itemFromCopies(item.name, item.copies.map(({ lang: _lang, worthless: _worthless, ...copy }) => copy))?.copies ?? []) : item.copies
   return sorted
-    .flatMap((item) => item.copies.map((copy) => `${serializeCard({ ...copy, name: item.name })}\n`))
+    .flatMap((item) => copiesOf(item).map((copy) => `${serializeCard({ ...copy, name: item.name })}\n`))
     .join('')
 }
 
