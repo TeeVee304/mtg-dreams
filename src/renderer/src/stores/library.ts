@@ -518,8 +518,10 @@ export function useLibrary({ onError, onUndoable }: LibraryCallbacks) {
 
       /** Turns a list's other version (Duel, EDH) on, as a copy of the list, or off, deleting its swaps. */
       setVariant(target: ListRef, on: boolean) {
+        // Deleting a version is announced, with Undo.
         updateLines(target, (lines) => withVariant(lines, on), {
-          label: `${on ? 'Added' : 'Removed'} the ${variantName(target)} version of ${target.name}`
+          label: `${on ? 'Added' : 'Deleted'} the ${variantName(target)} version of ${target.name}`,
+          announce: !on
         })
       },
 

@@ -217,9 +217,9 @@ export function ListDialogs(props: ListDialogsProps) {
     case 'variant-off':
       return (
         <ConfirmDialog
-          title={`Remove the ${dialog.variant.label} version?`}
+          title={`Delete the ${dialog.variant.label} version?`}
           message={`Its ${swapCount(dialog.swaps)} will be deleted. The ${dialog.variant.baseLabel} version stays as it is.`}
-          confirmLabel="Remove and delete"
+          confirmLabel={`Delete ${dialog.variant.label} version`}
           danger
           onClose={onClose}
           onConfirm={() => {

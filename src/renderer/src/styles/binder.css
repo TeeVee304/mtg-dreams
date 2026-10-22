@@ -142,29 +142,17 @@
 
 /* Duel version ------------------------------------------------------------------------ */
 
-/* Duel's own color, so its view never reads as the Commander one: blue on ink, darker on white. */
+/* The other version (Duel, EDH) takes the list's own color: declared wherever a color is set, so
+   it follows the list's color inside its page and the app's elsewhere, and glows on art banners. */
 :root,
+[data-color],
 .art-hero {
-  --duel: #7fb2ea;
-  --duel-ink: #0b1a2e;
-  --duel-soft: rgba(127, 178, 234, 0.14);
+  --duel: var(--accent);
+  --duel-ink: var(--accent-ink);
+  --duel-soft: var(--accent-soft);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --duel: #285a9c;
-    --duel-ink: #ffffff;
-    --duel-soft: rgba(40, 90, 156, 0.1);
-  }
-
-  .art-hero {
-    --duel: #7fb2ea;
-    --duel-ink: #0b1a2e;
-    --duel-soft: rgba(127, 178, 234, 0.14);
-  }
-}
-
-/* Commander | Duel: Commander raised plainly, Duel in its own color, whatever the list's color. */
+/* Commander | Duel: Commander raised plainly, the other version in the list's color. */
 .version-toggle button {
   font-weight: 600;
 }

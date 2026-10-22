@@ -187,7 +187,10 @@ export function ListHeader(props: ListHeaderProps) {
             { label: 'Color…', onSelect: props.onColor },
             ...(advanced.length > 0 ? [{ label: 'Advanced', items: advanced }] : []),
             { label: 'Rename…', onSelect: props.onRename },
-            { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
+            // In the other version's view, deleting deletes that version only; the list stays.
+            other && props.onToggleVariant
+              ? { label: `Delete ${other.label} Version…`, onSelect: props.onToggleVariant, danger: true }
+              : { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
           ]}
         />
       </div>
