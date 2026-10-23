@@ -147,7 +147,21 @@ export interface CardInfo {
   deckLimit?: 'any' | number
   /** Rules text allows this noncreature card as commander. */
   canBeCommander?: true
+  /** Ability letting a second commander lead with this one. */
+  partner?: PartnerAbility
 }
+
+/**
+ * Ability to share command: `any` (Partner), `with` (Partner with a named card), `group` (Friends
+ * forever, or a `Partner—<group>` kind: any two of the group), `background` (Choose a Background)
+ * or `companion` (Doctor's companion, with a Time Lord Doctor).
+ */
+export type PartnerAbility =
+  | { kind: 'any' }
+  | { kind: 'with'; name: string }
+  | { kind: 'group'; group: string }
+  | { kind: 'background' }
+  | { kind: 'companion' }
 
 /** Response of a printings lookup. */
 export interface PrintingsResult {

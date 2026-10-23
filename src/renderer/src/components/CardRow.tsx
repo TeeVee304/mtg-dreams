@@ -1,9 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { nameKey } from '@shared/decklist'
 import type { LegalityIssue } from '@shared/formats'
 import { heldWhere, shortfallNote } from '@shared/listModel'
 import { formatDate, formatEur } from '../lib/format'
-import { useNarrow } from '../hooks/useNarrow'
+import { useNarrowTables } from '../hooks/useNarrow'
 import type { PriceChange } from '../stores/history'
 import type { Row } from '../lib/summary'
 import { CardmarketButton, NameCell, Price } from './CardCells'
@@ -16,7 +16,6 @@ interface CardRowProps {
   row: Row
   /** Commander picking mode: whether this card is eligible. Row clicks pick instead of editing. */
   pick?: 'ok' | 'no'
-  onPick: () => void
   /** Row is the commander. */
   leader: boolean
   /** Just chosen as commander (animation). */
@@ -27,7 +26,7 @@ interface CardRowProps {
   shortfall: number
   /** Wishlist price change past the alert threshold, either way. */
   change?: PriceChange | null
-  /** A card only the list's other version plays, in that version's view. */
+  /** A card only the version shown plays, in that version's view. */
   swapTag?: 'only' | null
   /** Name of that version: `Duel`, `EDH`. */
   swapLabel?: string
@@ -36,27 +35,58 @@ interface CardRowProps {
   maxQty?: number
   /** Tooltip when `maxQty` is reached. */
   maxTitle?: string
-  onQty: (qty: number) => void
+  /** What the row's controls do; the same object every render, so the row re-renders only when its data changes. */
+  handlers: RowHandlers
+}
+
+/** What a {@link CardRow}'s controls do, given its row. */
+export interface RowHandlers {
+  /** Picks the card as commander (picking mode). */
+  pick: (row: Row) => void
+  qty: (row: Row, qty: number) => void
   /** Toggles a wishlist line's owned state. */
-  onToggleOwned: () => void
+  toggleOwned: (row: Row) => void
   /** Adjusts owned copies by `delta`. */
-  onOwnedDelta: (delta: number) => void
+  ownedDelta: (row: Row, delta: number) => void
   /** Opens the card dialog. */
-  onOpen: () => void
-  onRemove: () => void
+  open: (row: Row) => void
+  remove: (row: Row) => void
   /** Renames the line to `name` (e.g. Scryfall's matched name). */
-  onRename: (name: string) => void
+  rename: (row: Row, name: string) => void
 }
 
 /**
  * Deck or wishlist table row. Flags fuzzy-matched names (offering a rename to the canonical name,
  * since inventory matching is by name) and flavor names.
  */
-export function CardRow(props: CardRowProps) {
-  const { row, pick, onPick, leader, crowned, isDeck, issue, shortfall, change, swapTag, swapLabel, maxQty, maxTitle, otherVersions } = props
-  const { onQty, onToggleOwned, onOwnedDelta, onOpen, onRemove, onRename } = props
+export const CardRow = memo(CardRowView, sameRowProps)
+
+/**
+ * @returns Whether a row's props are the same: its row and handlers by identity, other values by
+ * content (the page computes small objects like the legality issue afresh each render).
+ */
+function sameRowProps(a: CardRowProps, b: CardRowProps): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof CardRowProps)[])
+  for (const key of keys) {
+    const [x, y] = [a[key], b[key]]
+    if (x === y) continue
+    if (key === 'row' || key === 'handlers' || typeof x === 'function' || typeof y === 'function') return false
+    if (JSON.stringify(x) !== JSON.stringify(y)) return false
+  }
+  return true
+}
+
+function CardRowView(props: CardRowProps) {
+  const { row, pick, leader, crowned, isDeck, issue, shortfall, change, swapTag, swapLabel, maxQty, maxTitle, otherVersions, handlers } = props
+  const onPick = () => handlers.pick(row)
+  const onQty = (qty: number) => handlers.qty(row, qty)
+  const onToggleOwned = () => handlers.toggleOwned(row)
+  const onOwnedDelta = (delta: number) => handlers.ownedDelta(row, delta)
+  const onOpen = () => handlers.open(row)
+  const onRemove = () => handlers.remove(row)
+  const onRename = (name: string) => handlers.rename(row, name)
   const { line, entry, resolution, owned, unit } = row
-  const narrow = useNarrow()
+  const narrow = useNarrowTables()
   const printing = resolution?.printing ?? null
   const data = entry?.data
   const matchedName = data && !data.notFound && nameKey(data.name) !== nameKey(line.name) ? data.name : null
@@ -107,7 +137,7 @@ export function CardRow(props: CardRowProps) {
               checked={complete}
               onChange={onToggleOwned}
               aria-label={`Own ${line.name}`}
-              title={`${row.inventoryQty} in inventory${row.held > 0 ? `; decks hold ${row.held} of them` : ''}`}
+              title={`${complete ? 'Owned; unchecking takes them out of your inventory.' : 'Check once you own them: adds them to your inventory.'} ${row.inventoryQty} in inventory${row.held > 0 ? `; decks hold ${row.held} of them` : ''}.`}
             />
             <span className="owned-count">
               {owned}/{line.qty}
@@ -277,7 +307,7 @@ function VersionCell({ row, otherVersions }: { row: Row; otherVersions?: string 
       </span>
     )
   }
-  const labels = printing.labels.length ? ` — ${printing.labels.join(', ')}` : ''
+  const labels = printing.labels.length ? ` · ${printing.labels.join(', ')}` : ''
   if (resolution.fromInventory) {
     return (
       <span className="version" title={`The version in your inventory: ${printing.setName}${labels}`}>
@@ -288,7 +318,8 @@ function VersionCell({ row, otherVersions }: { row: Row; otherVersions?: string 
   }
   if (!resolution.pinned) {
     return (
-      <span className="version" title={`Cheapest version: ${printing.setName}${labels}`}>
+      <span className="version" title={`Cheapest version: ${printing.setName}${labels}. Pick a version to keep it.`}>
+        <span className="auto-badge cheapest">Cheapest</span>
         <span className="muted">{where}</span>
       </span>
     )

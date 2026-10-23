@@ -105,7 +105,7 @@ describe('the cache file', () => {
     first.cache.scryfallCache.entries['sol ring'] = result([printing('aaa'), printing('bbb')])
     first.cache.scryfallCacheChanged()
     first.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(8)
+    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(9)
 
     const restarted = await setup(first.userData)
     await restarted.cache.loadScryfallCache()
@@ -121,7 +121,7 @@ describe('the cache file', () => {
     expect(v5.cache.scryfallCache.entries['sol ring'].printings).toEqual(entry.printings)
     expect(Date.now() - v5.cache.scryfallCache.entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
     v5.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(8)
+    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(9)
 
     const v6Printing = { ...v5.cache.packPrinting(printing('aaa')), eurFoil: null }
     writeFileSync(file, JSON.stringify({ version: 6, entries: { 'sol ring': { ...entry, printings: [v6Printing] } }, cards: {} }))
@@ -133,6 +133,20 @@ describe('the cache file', () => {
     const v4 = await setup(userData)
     await v4.cache.loadScryfallCache()
     expect(Date.now() - v4.cache.scryfallCache.entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
+  })
+
+  it('refreshes legendary cards cached before partner abilities (version 9)', async () => {
+    const { userData, file } = await setup()
+    const card = (name: string, typeLine: string) => ({ name, colors: [], colorIdentity: [], typeLine, manaValue: 1, rarity: 'rare', legalities: {} })
+    const tymna = { ...result([]), card: card('Tymna the Weaver', 'Legendary Creature — Human Cleric'), printings: [] }
+    const ring = { ...result([]), card: card('Sol Ring', 'Artifact'), printings: [] }
+    const cards = { kraum: { fetchedAt: Date.now(), card: card("Kraum, Ludevic's Opus", 'Legendary Creature — Zombie Horror') } }
+    writeFileSync(file, JSON.stringify({ version: 8, entries: { tymna, 'sol ring': ring }, cards }))
+    const v8 = await setup(userData)
+    await v8.cache.loadScryfallCache()
+    expect(Date.now() - v8.cache.scryfallCache.entries.tymna.fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
+    expect(v8.cache.scryfallCache.entries['sol ring'].fetchedAt).toBe(ring.fetchedAt)
+    expect(v8.cache.scryfallCache.cards.kraum).toBeUndefined()
   })
 
   it('drops month-old entries, and ignores files it does not understand', async () => {

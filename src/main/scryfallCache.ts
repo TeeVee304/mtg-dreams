@@ -19,7 +19,7 @@ const SAVE_DELAY_MS = 2_000
 /** Max time changes stay unsaved under continuous updates. */
 const MAX_SAVE_DELAY_MS = 60_000
 /** Cache schema version. */
-const VERSION = 8
+const VERSION = 9
 
 /** Cached card data with fetch time. */
 export interface CachedCardInfo {
@@ -104,7 +104,7 @@ function fromOldFormat(stored: unknown): Printing {
 
 /** On-disk cache. */
 interface CacheFile {
-  /** 8: compact. 7: compact, no back images. 6: as 7, null prices. 3–5: full printings (3–4 lack newer card data). */
+  /** 9: as 8, with partner abilities. 8: compact. 7: compact, no back images. 6: as 7, null prices. 3–5: full printings (3–4 lack newer card data). */
   version: number
   /** Printings results by nameKey. */
   entries: Record<string, Omit<PrintingsResult, 'printings'> & { printings: StoredPrinting[] }>
@@ -138,17 +138,20 @@ export function loadScryfallCache(): Promise<void> {
       upgrade = file.version < VERSION
       if (file.version < 3 || file.version > VERSION) return
       const cutoff = Date.now() - CACHE_MAX_AGE_MS
-      const stale = file.version < 8 ? Date.now() - PRINTINGS_MAX_AGE_MS - 60_000 : Infinity
+      const stale = Date.now() - PRINTINGS_MAX_AGE_MS - 60_000
+      // Before v9, card data had no partner abilities: legendary cards (the only ones with one) refresh.
+      const outdated = (card: CardInfo | undefined) => file.version < 9 && !!card?.typeLine.includes('Legendary')
       for (const [key, entry] of Object.entries(file.entries)) {
         if (!(entry?.fetchedAt > cutoff)) continue
         try {
           const printings = file.version >= 6 ? entry.printings.map(unpackPrinting) : entry.printings.map(fromOldFormat)
           if (!Array.isArray(printings)) continue
-          scryfallCache.entries[key] = { ...entry, printings, fetchedAt: Math.min(entry.fetchedAt, stale) }
+          const fetchedAt = file.version < 8 || outdated(entry.card) ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
+          scryfallCache.entries[key] = { ...entry, printings, fetchedAt }
         } catch {}
       }
       for (const [key, info] of Object.entries(file.cards ?? {})) {
-        if (info.fetchedAt > cutoff) scryfallCache.cards[key] = info
+        if (info.fetchedAt > cutoff && !outdated(info.card)) scryfallCache.cards[key] = info
       }
     } catch {
     } finally {

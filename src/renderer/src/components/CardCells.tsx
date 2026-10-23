@@ -5,6 +5,7 @@ import { formatEur } from '../lib/format'
 import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
 import { CardThumb, Skeleton } from './Placeholders'
+import { openExternal } from '../lib/desktop'
 
 /**
  * Building blocks of the card tables (lists, inventory, Most Wanted, trades).
@@ -76,7 +77,7 @@ export function NameCell({ images, name, loading, children }: NameCellProps) {
 
 /** Button opening a card's Cardmarket page: an icon, or `labeled` with its text; disabled without a page. */
 export function CardmarketButton({ url, labeled }: { url: string | null | undefined; labeled?: boolean }) {
-  const open = () => url && window.api.openExternal(url)
+  const open = () => url && openExternal(url)
   if (labeled) {
     return (
       <button type="button" disabled={!url} onClick={open}>

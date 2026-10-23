@@ -1,6 +1,6 @@
 import { simplifyCardName } from '@shared/precons'
 import type { PreconCard, PreconDeck, PreconSummary } from '@shared/types'
-import { cachedFetch } from './cacheFiles'
+import { cacheEntries, cachedFetch } from './cacheFiles'
 import { env } from './environment'
 import { fetchJson } from './http'
 
@@ -48,6 +48,13 @@ async function getJson(url: string): Promise<any> {
   const res = await fetchJson(url, 'MTGJSON')
   if (res.status >= 400 || res.data === null) throw new Error(`MTGJSON responded with HTTP ${res.status}.`)
   return res.data
+}
+
+/** @returns Cached decklists of earlier cache versions, which nothing reads any more. */
+export async function outdatedPreconCaches(): Promise<string[]> {
+  return (await cacheEntries('precons'))
+    .filter((name) => /^deck-v\d+-/.test(name) && !name.startsWith(`deck-v${DECK_CACHE_VERSION}-`))
+    .map((name) => `precons/${name}`)
 }
 
 /** @returns Paper precons, newest first. Cached for {@link INDEX_TTL_MS}. */

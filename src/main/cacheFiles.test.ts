@@ -3,7 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { cachedFetch, clearCacheMemory, readCacheFile, writeCacheFile, writeCacheFileNow } from './cacheFiles'
+import { cacheEntries, cachedFetch, clearCacheMemory, readCacheFile, removeCacheEntries, writeCacheFile, writeCacheFileNow } from './cacheFiles'
 import { setEnvironment, SERVICES } from './environment'
 
 let dir = ''
@@ -33,6 +33,17 @@ describe('cache files', () => {
     await expect(writeCacheFile('blocker/inside.json', {})).resolves.toBeUndefined()
     expect(() => writeCacheFileNow('blocker/inside.json', {})).not.toThrow()
     expect(existsSync(join(dir, 'blocker', 'inside.json'))).toBe(false)
+  })
+
+  it('list a folder and remove files and folders with what they hold', async () => {
+    await writeCacheFile('old/a.json', 1)
+    await writeCacheFile('old/b.json', 2)
+    await writeCacheFile('old-file.json', 3)
+    expect((await cacheEntries('old')).sort()).toEqual(['a.json', 'b.json'])
+    expect(await cacheEntries('missing')).toEqual([])
+    await removeCacheEntries(['old', 'old-file.json', 'never-there.json'])
+    expect(existsSync(join(dir, 'old'))).toBe(false)
+    expect(existsSync(join(dir, 'old-file.json'))).toBe(false)
   })
 })
 

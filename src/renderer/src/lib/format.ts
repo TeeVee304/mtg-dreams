@@ -1,3 +1,5 @@
+import { counted } from '@shared/plural'
+
 /** Locale EUR currency formatter; always groups thousands, so 1 234 and 12 345 read alike. */
 const eur = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR', useGrouping: 'always' })
 
@@ -8,7 +10,7 @@ export function formatEur(value: number | null | undefined): string {
 
 /** @returns Pluralized count, e.g. `1 card`, `2 cards`. */
 export function cardCount(n: number): string {
-  return `${n} ${n === 1 ? 'card' : 'cards'}`
+  return counted(n, 'card')
 }
 
 /** @returns Local date as `dd-mm-yyyy`, the app's date format. */

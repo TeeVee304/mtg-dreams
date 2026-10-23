@@ -39,10 +39,10 @@ describe('the app’s IPC handlers', () => {
   })
 
   it('open only https links on the allowed sites', async () => {
-    for (const url of ['https://scryfall.com/card/x', 'https://www.cardmarket.com/en', 'http://scryfall.com', 'https://evil.example', 'not a url', 'https://scryfall.com.evil.example']) {
+    for (const url of ['https://scryfall.com/card/x', 'https://www.cardmarket.com/en', 'https://edhrec.com/average-decks/atraxa', 'http://scryfall.com', 'https://evil.example', 'not a url', 'https://scryfall.com.evil.example']) {
       await invoke('shell:openExternal', url)
     }
-    expect(electron.opened).toEqual(['https://scryfall.com/card/x', 'https://www.cardmarket.com/en'])
+    expect(electron.opened).toEqual(['https://scryfall.com/card/x', 'https://www.cardmarket.com/en', 'https://edhrec.com/average-decks/atraxa'])
   })
 
   it('copy text to the clipboard', async () => {

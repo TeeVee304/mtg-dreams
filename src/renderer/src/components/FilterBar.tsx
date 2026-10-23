@@ -57,9 +57,6 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
           onChange={(event) => set({ name: event.target.value })}
         />
         <div className="filter-group">
-          <span className="filter-label" aria-hidden="true">
-            Color
-          </span>
           <div className="toggle-group" role="group" aria-label="Colors" title="Colors use color identity, so lands count too">
             {COLOR_LETTERS.map((color) => {
               const on = filters.colors.includes(color)
@@ -102,10 +99,7 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
           ))}
         </select>
         <div className="filter-group">
-          <span className="filter-label" aria-hidden="true">
-            Rarity
-          </span>
-          <div className="toggle-group" role="group" aria-label="Rarity">
+          <div className="toggle-group" role="group" aria-label="Rarity" title="Rarity">
             {RARITY_BUTTONS.map((rarity) => {
               const on = filters.rarities.includes(rarity.id)
               return (

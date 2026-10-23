@@ -1,9 +1,11 @@
 import { app, BrowserWindow, clipboard, ClipboardItem, Menu, nativeImage, session, shell } from 'electron'
 import { join } from 'node:path'
+import { RETIRED_CACHES, removeCacheEntries } from './cacheFiles'
 import { contextMenuItems } from './contextMenu'
-import { registerDeckWizard } from './deckWizard'
+import { outdatedWizardCaches, registerDeckWizard } from './deckWizard'
 import { env, SERVICES, setEnvironment } from './environment'
 import { applyTheme, notifyPricesUpdated, openExternalSafe, registerIpc, windowBackground } from './ipc'
+import { outdatedPreconCaches } from './precons'
 import { startPriceGuide } from './priceGuide'
 import { recordCurrentPrices } from './priceHistory'
 import { flushScryfallCache, loadScryfallCache } from './scryfallCache'
@@ -93,6 +95,11 @@ async function copyImageFrom(url: string): Promise<void> {
   await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' }) })])
 }
 
+/** Deletes the caches nothing reads any more: retired files and outdated cache versions. */
+async function removeOutdatedCaches(): Promise<void> {
+  await removeCacheEntries([...RETIRED_CACHES, ...(await outdatedPreconCaches()), ...(await outdatedWizardCaches())])
+}
+
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
@@ -119,6 +126,7 @@ if (!app.requestSingleInstanceLock()) {
     migrateFromOldName()
     applyTheme(getTheme())
     void loadScryfallCache()
+    void removeOutdatedCaches()
     registerIpc()
     registerDeckWizard()
     createWindow()

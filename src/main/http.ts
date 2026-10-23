@@ -43,7 +43,7 @@ async function request<T>(
     throw new Error(
       (error as Error).name === 'TimeoutError'
         ? `${service} took too long to answer. Try again in a moment.`
-        : `Could not reach ${service} — are you offline?`
+        : `Could not reach ${service}. Are you offline?`
     )
   }
 }
@@ -120,7 +120,7 @@ export async function* fetchLines(
   } catch (error) {
     if (error instanceof HttpError) throw error
     if (controller.signal.aborted) throw new Error(`${service} stopped sending data. Try again in a moment.`)
-    throw new Error(received > 0 ? `The download from ${service} broke off. Try again in a moment.` : `Could not reach ${service} — are you offline?`)
+    throw new Error(received > 0 ? `The download from ${service} broke off. Try again in a moment.` : `Could not reach ${service}. Are you offline?`)
   } finally {
     clearTimeout(timer)
     controller.abort()

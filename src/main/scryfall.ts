@@ -1,6 +1,7 @@
 import type { PrintingsOptions } from '@shared/api'
 import { isBasicLand } from '@shared/cards'
 import { nameKey } from '@shared/decklist'
+import { partnerAbility } from '@shared/formats'
 import { hasNamedCard, printingsOfNamedCard } from '@shared/matching'
 import type { CardInfo, Prices, Printing, PrintingsResult } from '@shared/types'
 import { env } from './environment'
@@ -215,7 +216,8 @@ export function toCardInfo(card: any): CardInfo {
     rarity: card.rarity ?? 'common',
     legalities: card.legalities ?? {},
     ...(deckLimit !== undefined && { deckLimit }),
-    ...(LEADS_RE.test(text) && { canBeCommander: true as const })
+    ...(LEADS_RE.test(text) && { canBeCommander: true as const }),
+    ...(partnerAbility(text) && { partner: partnerAbility(text) })
   }
 }
 
@@ -392,10 +394,17 @@ export async function getCardInfos(names: string[]): Promise<Record<string, Card
   return result
 }
 
-/** Session cache of small image URLs by nameKey; null = none. Cleared past {@link MAX_IMAGE_CACHE}. */
+/** Session cache of small image URLs by nameKey; null = none. Keeps the {@link MAX_IMAGE_CACHE} most recently used. */
 const imageCache = new Map<string, string | null>()
 /** Max {@link imageCache} entries. */
 const MAX_IMAGE_CACHE = 2000
+
+/** Caches an image URL as the most recently used, dropping the least recently used past {@link MAX_IMAGE_CACHE}. */
+function cacheImage(key: string, url: string | null): void {
+  imageCache.delete(key)
+  imageCache.set(key, url)
+  while (imageCache.size > MAX_IMAGE_CACHE) imageCache.delete(imageCache.keys().next().value!)
+}
 
 /** Small image URL of the card or its first face, without query. */
 function smallImageOf(card: any): string | null {
@@ -417,24 +426,26 @@ export async function getCardImages(names: string[]): Promise<Record<string, str
     if (!key || key in result) continue
     const cached = scryfallCache.entries[key]?.printings.find((p) => p.imageSmall)?.imageSmall
     if (cached) result[key] = cached
-    else if (imageCache.has(key)) result[key] = imageCache.get(key) ?? null
+    else if (imageCache.has(key)) {
+      result[key] = imageCache.get(key) ?? null
+      cacheImage(key, result[key])
+    }
     else missing.set(key, name)
   }
   const pending = [...missing.values()].slice(0, COLLECTION_BATCH)
   if (pending.length > 0) {
     const identifiers = pending.map((name) => ({ name: name.split(' // ')[0] }))
     const body = await searchQueue.run(() => getJson(`${env().scryfallApi}/cards/collection`, { identifiers }), 'high').promise
-    if (imageCache.size > MAX_IMAGE_CACHE) imageCache.clear()
     for (const card of body?.data ?? []) {
       const key = nameKey(card.name)
       if (!missing.has(key)) continue
       result[key] = smallImageOf(card)
-      imageCache.set(key, result[key])
+      cacheImage(key, result[key])
     }
     for (const key of pending.map(nameKey)) {
       if (key in result) continue
       result[key] = null
-      imageCache.set(key, null)
+      cacheImage(key, null)
     }
   }
   return result

@@ -1,6 +1,7 @@
 import { frontTypeWords, isBasicLand } from './cards'
-import { cardLines, listHeader, nameKey } from './decklist'
-import type { CardInfo, ListLine, Printing } from './types'
+import { cardLines, listHeader, nameKey, newLineId } from './decklist'
+import { counted } from './plural'
+import type { CardInfo, ListLine, PartnerAbility, Printing } from './types'
 
 /** Constructed format definition. */
 export interface DeckFormat {
@@ -74,46 +75,64 @@ export function listFormat(lines: ListLine[]): DeckFormat | null {
 /**
  * Replaces the format header, placing it first.
  * @param formatId - Format id; null removes the header.
- * @returns New lines; the commander header is removed unless the format is a commander format.
+ * @returns New lines; the commander headers are removed unless the format is a commander format.
  */
 export function withFormat(lines: ListLine[], formatId: string | null): ListLine[] {
   const format = findFormat(formatId)
-  return FORMAT.write(format?.commander ? lines : withCommander(lines, null), format?.label ?? null)
+  return FORMAT.write(format?.commander ? lines : withCommanders(lines, []), format?.label ?? null)
 }
 
-/** Commander header line: `// Commander: <name>`. */
+/** Commander header line: `// Commander: <name>`, one per commander (two for partners). */
 const COMMANDER = listHeader('Commander')
-/** Arena/Moxfield `Commander` section heading; the following card line is the commander. */
+/** Arena/Moxfield `Commander` section heading; the card lines that follow are the commanders. */
 const COMMANDER_HEADING = /^(?:\/\/\s*)?commander\s*:?$/i
+/** Most commanders a list has: two, for partners. */
+const MAX_COMMANDERS = 2
 
 /** Text line whose trimmed text is a `Commander` heading. */
 const isHeading = (line: ListLine) => line.kind === 'text' && COMMANDER_HEADING.test(line.text.trim())
 
-/** @returns Commander name from the commander header, else the card after a `Commander` heading; null if none. */
-export function listCommander(lines: ListLine[]): string | null {
-  const named = COMMANDER.read(lines)
-  if (named) return named
-  const heading = lines.findIndex(isHeading)
-  if (heading < 0) return null
-  const next = lines.slice(heading + 1).find((line) => line.kind === 'card' || line.text.trim() !== '')
-  return next?.kind === 'card' ? next.name : null
+/**
+ * @returns Commander names from the commander headers, else the cards right after a `Commander`
+ * heading; at most two, without repeats; none if unset.
+ */
+export function listCommanders(lines: ListLine[]): string[] {
+  const named = lines.flatMap((line) => (COMMANDER.is(line) && line.kind === 'text' ? [COMMANDER.read([line])] : []))
+  const names = named.filter((name): name is string => !!name)
+  if (names.length === 0) {
+    const heading = lines.findIndex(isHeading)
+    if (heading >= 0) {
+      const after = lines.slice(heading + 1)
+      const start = after.findIndex((line) => line.kind === 'card' || line.text.trim() !== '')
+      for (const line of start < 0 ? [] : after.slice(start)) {
+        if (line.kind !== 'card') break
+        names.push(line.name)
+      }
+    }
+  }
+  const unique = names.filter((name, index) => names.findIndex((other) => nameKey(other) === nameKey(name)) === index)
+  return unique.slice(0, MAX_COMMANDERS)
 }
 
 /**
- * Replaces the commander, inserting the header right after the format header (or first).
- * @param name - Commander name; null removes it.
+ * Replaces the commanders, inserting their headers right after the format header (or first).
+ * @param names - Commander names; none removes them.
  */
-export function withCommander(lines: ListLine[], name: string | null): ListLine[] {
-  const afterFormat = (rest: ListLine[]) => rest.findIndex(FORMAT.is) + 1
-  return COMMANDER.write(lines.filter((line) => !isHeading(line)), name, afterFormat)
+export function withCommanders(lines: ListLine[], names: string[]): ListLine[] {
+  const rest = COMMANDER.write(lines.filter((line) => !isHeading(line)), null)
+  const index = rest.findIndex(FORMAT.is) + 1
+  const headers = names
+    .slice(0, MAX_COMMANDERS)
+    .map((name): ListLine => ({ kind: 'text', id: newLineId(), text: `// Commander: ${name}` }))
+  return [...rest.slice(0, index), ...headers, ...rest.slice(index)]
 }
 
-/** @returns Lines without the commander header if no card line matches the commander. */
-export function withoutMissingCommander(lines: ListLine[]): ListLine[] {
-  const commander = listCommander(lines)
-  if (!commander) return lines
-  const key = nameKey(commander)
-  return cardLines(lines).some((line) => nameKey(line.name) === key) ? lines : withCommander(lines, null)
+/** @returns Lines without the commanders no card line matches. */
+export function withoutMissingCommanders(lines: ListLine[]): ListLine[] {
+  const commanders = listCommanders(lines)
+  const keys = new Set(cardLines(lines).map((line) => nameKey(line.name)))
+  const kept = commanders.filter((name) => keys.has(nameKey(name)))
+  return kept.length === commanders.length ? lines : withCommanders(lines, kept)
 }
 
 /** @returns Commander eligibility rule phrase for messages, e.g. `a planeswalker`. */
@@ -124,7 +143,7 @@ export function commanderRule(format: DeckFormat): string {
 }
 
 /**
- * Whether the card can be a sole commander. Oathbreaker: planeswalker. Pauper Commander: creature
+ * Whether the card can be a commander on its own. Oathbreaker: planeswalker. Pauper Commander: creature
  * printed at uncommon. Others: legendary creature, Vehicle or Spacecraft, or `canBeCommander`.
  * Backgrounds are excluded.
  * @param printings - Required for Pauper Commander to check uncommon printings.
@@ -140,14 +159,89 @@ export function canLead(format: DeckFormat, card: CardInfo, printings: Printing[
   return (words.includes('Legendary') && body) || card.canBeCommander === true
 }
 
-/** @returns Commander eligibility error, else the card's {@link legalityIssue} as commander; null if fine. */
+/** @returns The partner ability in rules text (an ability starts a line); undefined if none. */
+export function partnerAbility(text: string): PartnerAbility | undefined {
+  // Reminder text, in parentheses, is no part of the ability.
+  const lines = text.split('\n').map((line) => line.replace(/\s*\(.*$/, '').trim())
+  for (const line of lines) {
+    const withName = /^Partner with (.+)$/i.exec(line)
+    if (withName) return { kind: 'with', name: withName[1] }
+    const group = /^Partner\s*[—-]\s*(.+)$/i.exec(line)
+    if (group) return { kind: 'group', group: group[1] }
+    if (/^Partner$/i.test(line)) return { kind: 'any' }
+    if (/^Friends forever$/i.test(line)) return { kind: 'group', group: 'Friends forever' }
+    if (/^Choose a Background$/i.test(line)) return { kind: 'background' }
+    if (/^Doctor's companion$/i.test(line)) return { kind: 'companion' }
+  }
+  return undefined
+}
+
+/** @returns Whether the format lets two commanders share command: all commander formats but Oathbreaker. */
+export function allowsPartners(format: DeckFormat): boolean {
+  return !!format.commander && format.id !== 'oathbreaker'
+}
+
+/** @returns The front face's subtypes, e.g. `Time`, `Lord`, `Doctor`. */
+const subtypesOf = (card: CardInfo) => card.typeLine.split('//')[0].split('—')[1]?.trim().split(/\s+/) ?? []
+
+/** @returns Whether the card is a Background. */
+const isBackground = (card: CardInfo) => subtypesOf(card).includes('Background')
+
+/** @returns Whether `a`'s partner ability lets `b` share command with it. */
+function partnersWith(a: CardInfo, b: CardInfo): boolean {
+  const ability = a.partner
+  switch (ability?.kind) {
+    case 'any':
+      return b.partner?.kind === 'any'
+    case 'with':
+      return nameKey(ability.name) === nameKey(b.name.split(' // ')[0])
+    case 'group':
+      return b.partner?.kind === 'group' && b.partner.group.toLowerCase() === ability.group.toLowerCase()
+    case 'background':
+      return isBackground(b)
+    case 'companion':
+      return ['Time', 'Lord', 'Doctor'].every((word) => subtypesOf(b).includes(word))
+    default:
+      return false
+  }
+}
+
+/**
+ * @returns Whether two cards can share command: both with Partner, partners with each other, of the
+ * same Friends forever or `Partner—` group, a commander that chooses a Background with one, or a
+ * Doctor's companion with a Time Lord Doctor.
+ */
+export function canPartner(a: CardInfo, b: CardInfo): boolean {
+  return nameKey(a.name) !== nameKey(b.name) && (partnersWith(a, b) || partnersWith(b, a))
+}
+
+/**
+ * Whether the card can join `leader` as its partner, a second commander. A Background never leads
+ * alone, only beside a commander that chooses one; in Pauper Commander, it must be printed at uncommon.
+ * @param printings - Required for Pauper Commander to check uncommon printings.
+ */
+export function canJoin(format: DeckFormat, leader: CardInfo, card: CardInfo, printings: Printing[] = []): boolean {
+  if (!allowsPartners(format) || !canPartner(leader, card)) return false
+  if (canLead(format, card, printings)) return true
+  const uncommon = card.rarity === 'uncommon' || printings.some((p) => p.rarity === 'uncommon')
+  return leader.partner?.kind === 'background' && isBackground(card) && (format.id !== 'paupercommander' || uncommon)
+}
+
+/**
+ * @param partner - The other commander, when two share command.
+ * @returns Commander eligibility error (as partner of `partner`, if given), else the card's
+ * {@link legalityIssue} as commander; null if fine.
+ */
 export function commanderIssue(
   format: DeckFormat,
   card: CardInfo,
   printings: Printing[],
-  copies: number
+  copies: number,
+  partner: CardInfo | null = null
 ): LegalityIssue | null {
-  if (!canLead(format, card, printings)) {
+  if (partner && !allowsPartners(format)) return { severity: 'error', message: `${format.label} has one commander` }
+  if (partner && !canPartner(card, partner)) return { severity: 'error', message: `Can't share command with ${partner.name}` }
+  if (!canLead(format, card, printings) && !(partner && canJoin(format, partner, card, printings))) {
     return { severity: 'error', message: `Can't be your commander in ${format.label}` }
   }
   return legalityIssue(format, card, copies, true)
@@ -175,17 +269,18 @@ export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number
       : { severity: 'warning', message: `Restricted in ${format.label}` }
   }
   const max = copyLimit(format, card, card.name)
-  if (copies > max) return { severity: 'error', message: `Max ${max} ${max === 1 ? 'copy' : 'copies'} in ${format.label}` }
+  if (copies > max) return { severity: 'error', message: `Max ${counted(max, 'copy', 'copies')} in ${format.label}` }
   return null
 }
 
 /**
- * @param identity - The commander's color identity.
+ * @param identity - The commanders' color identity.
+ * @param partners - Two commanders share it.
  * @returns Error if the card's color identity has a color outside `identity`; colorless cards always pass.
  */
-export function colorIdentityIssue(card: CardInfo, identity: string[]): LegalityIssue | null {
+export function colorIdentityIssue(card: CardInfo, identity: string[], partners = false): LegalityIssue | null {
   return card.colorIdentity.some((color) => !identity.includes(color))
-    ? { severity: 'error', message: "Outside your commander's colors" }
+    ? { severity: 'error', message: partners ? "Outside your commanders' colors" : "Outside your commander's colors" }
     : null
 }
 

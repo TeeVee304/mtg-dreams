@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { env } from './environment'
 
@@ -42,6 +42,26 @@ export function writeCacheFileNow(name: string, data: unknown): void {
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, JSON.stringify(data))
   } catch {}
+}
+
+/** Cache files and folders of earlier versions of the app, which nothing reads any more. */
+export const RETIRED_CACHES = ['card-library.json', 'deckWizard', 'spellbook']
+
+/**
+ * @param folder - Path relative to userData.
+ * @returns Names of the files and folders in a cache folder; none if it is missing.
+ */
+export async function cacheEntries(folder: string): Promise<string[]> {
+  try {
+    return await readdir(pathOf(folder))
+  } catch {
+    return []
+  }
+}
+
+/** Deletes cache files and folders, with what they hold. Errors are ignored. */
+export async function removeCacheEntries(names: string[]): Promise<void> {
+  await Promise.all(names.map((name) => rm(pathOf(name), { recursive: true, force: true }).catch(() => undefined)))
 }
 
 /** A cached answer from a service, with when it was fetched. */

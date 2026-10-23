@@ -6,9 +6,9 @@ import { listColor } from '@shared/listColor'
 import { stripMeta } from '@shared/listMeta'
 import { isUnbuilt } from '@shared/listUnbuilt'
 import { upgradeTarget } from '@shared/listUpgrade'
-import { hasVariant, swapPairs, variantFor, variantSwaps, versionCardLines, type ListVersion } from '@shared/listVersion'
+import { activeVariant, BASE, baseLabel, swapPairs, variantSwaps, versionFormatLabel } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
-import { deckSizeCheck, FORMATS, listCommander, listFormat } from '@shared/formats'
+import { deckSizeCheck, FORMATS, listFormat } from '@shared/formats'
 import {
   analyzeList,
   copyCaps,
@@ -31,11 +31,13 @@ import { priceChange, useBaselines } from '../stores/history'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { useCommanderPicking } from '../hooks/useCommanderPicking'
+import { useListMover } from '../hooks/useListMover'
 import { useStoredToggle } from '../hooks/useStoredToggle'
-import { useStoredValue } from '../hooks/useStoredValue'
-import { listRows, summarize, versionList, type Row } from '../lib/summary'
-import { CardRow } from './CardRow'
-import type { SearchChoice } from './CardSearch'
+import { useListVersion } from '../hooks/useListVersion'
+import { useStableHandlers } from '../hooks/useStableHandlers'
+import { versionActions } from '../lib/versionActions'
+import { listRows, summarize, type Row } from '../lib/summary'
+import { CardRow, type RowHandlers } from './CardRow'
 import { CardTile } from './CardTile'
 import { Collapsible } from './Collapsible'
 import { CompleteBanner } from './CompleteBanner'
@@ -50,6 +52,7 @@ import { ListTable } from './ListTable'
 import { ListValueCards } from './ListValueCards'
 import { SwapTable } from './SwapTable'
 import { useToast } from './Toasts'
+import { useCopy } from '../hooks/useCopy'
 
 /** Props of {@link ListView}. */
 interface ListViewProps {
@@ -72,6 +75,8 @@ interface ListViewProps {
  */
 export function ListView({ list, lists, inventory, pool, actions, onOpenList }: ListViewProps) {
   const toast = useToast()
+  const moveListTo = useListMover(actions)
+  const copy = useCopy()
   usePrintingsVersion()
   const isDeck = list.kind === 'deck'
   const isBrew = list.kind === 'brew'
@@ -85,40 +90,24 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const settings = useSettings()
   const { bundleBasics } = settings
 
-  // A list's other version (Duel for Commander, EDH for Duel): the page shows one version at a time,
-  // remembered per list.
-  const variantOn = hasVariant(list.lines)
-  const [storedVersion, setVersion] = useStoredValue<ListVersion>(`mtg-dreams.version.${list.kind}/${list.name}`, 'base', isVersion)
-  const version: ListVersion = variantOn ? storedVersion : 'base'
-  const variant = variantFor(list.lines)
-  const other = version === 'variant' && variant ? variant : null
-  /** The version shown, as a list: rows, rules, stats and copying all follow it. */
-  const shown = versionList(list, version)
-  const swaps = variantOn ? variantSwaps(list.lines) : { ins: [], outs: [] }
-  const insQty = sumOf(swaps.ins, (line) => line.qty)
-  const outsQty = sumOf(swaps.outs, (line) => line.qty)
-  /** Cards the other version can cut: the list's it still plays, but the commander and its own cards in. */
-  const outChoices = useMemo<SearchChoice[]>(() => {
-    if (!variantOn) return []
-    const ins = new Set(variantSwaps(list.lines).ins.map((line) => nameKey(line.name)))
-    const leader = listCommander(list.lines)
-    const copies = new Map<string, number>()
-    for (const line of versionCardLines(list.lines, 'variant')) {
-      if (ins.has(nameKey(line.name)) || (leader && nameKey(line.name) === nameKey(leader))) continue
-      copies.set(line.name, (copies.get(line.name) ?? 0) + line.qty)
-    }
-    return [...copies].map(([name, qty]) => ({ name, hint: qty > 1 ? `${qty} in the deck` : undefined }))
-  }, [list.lines, variantOn])
+  const { variants, other, version, setVersion, formatVariant, shown, swaps, swapsQty, outChoices } = useListVersion(list)
   const [fullListOpen, toggleFullList] = useStoredToggle('mtg-dreams.fullVersionList', false)
 
   const cards = cardLines(shown.lines)
-  const sortView = isDeck ? 'deck' : 'wishlist'
+  /** A brew that ignores your collection: shown like a deck, with no copies owned. */
+  const plain = isBrew && settings.plainBrews
+  /** Shown without owned copies: decks (whose cards are all yours) and plain brews. */
+  const asDeck = isDeck || plain
+  const sortView = asDeck ? 'deck' : 'wishlist'
   const sort = sortFor(sortView, settings.sort)
   /** Reversed only when the view has the chosen sort, not a stand-in for it. */
   const sortReverse = settings.sortReverse && sort === settings.sort
   const sideboardAllowed = !listFormat(shown.lines)?.commander
-  const rows = listRows(shown, inventory, settings, pool).map((row) =>
-    row.held > 0 ? { ...row, holders: pool.holders(list, nameKey(row.line.name), row.inventoryQty) } : row
+  // Kept while the list, prices and copies are unchanged, so unchanged table rows skip re-rendering.
+  const listedRows = listRows(shown, inventory, settings, pool)
+  const rows = useMemo(
+    () => listedRows.map((row) => (row.held > 0 ? { ...row, holders: pool.holders(list, nameKey(row.line.name), row.inventoryQty) } : row)),
+    [listedRows, pool, list]
   )
   const mainRows = rows.filter((row) => !row.side)
   const summary = summarize(rows)
@@ -128,17 +117,21 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       ? null
       : priceChange(row.line, row.unit, row.owned, settings, baselines)
 
-  const analysis = analyzeList(list.kind, shown.lines, rows)
+  const analysis = useMemo(() => analyzeList(list.kind, shown.lines, rows), [list.kind, shown.lines, rows])
   const { format, copiesOf, isCommander, hasCommander, legalityErrors, ownershipErrors } = analysis
   const mainCards = summary.cards - analysis.sideboardCards
+  // A plain brew shows its card count alone, without a target size.
   const size = isDeck && format ? deckSizeCheck(format, mainCards) : null
 
-  const { picking, canPickCommander, togglePicking, pickOf, isCrowned, chooseCommander } = useCommanderPicking(list, rows, analysis, actions)
+  const { picking, canPickCommander, partnerKind, canPickPartner, leaderName, togglePicking, pickOf, isCrowned, chooseCommander } =
+    useCommanderPicking(list, rows, analysis, actions)
 
-  const leaderRow = rows.find(isCommander)
-  const leaderArt = settings.cardImages ? artCrop(leaderRow?.resolution?.printing) : null
-  // The commander's color identity, else the colors of all the cards.
-  const colors = listColors(rows, leaderRow ? leaderRow.line.name : null)
+  const leaderRows = rows.filter(isCommander)
+  const crops = settings.cardImages ? leaderRows.flatMap((row) => artCrop(row.resolution?.printing) ?? []) : []
+  // Both partners' art, or none until both load: one alone would picture half the pair.
+  const leaderArts = crops.length === leaderRows.length ? crops : []
+  // The commanders' color identity, else the colors of all the cards.
+  const colors = listColors(rows, leaderRows.map((row) => row.line.name))
 
   useEffect(() => {
     if (legalityErrors + ownershipErrors === 0) setOnlyProblems(false)
@@ -162,67 +155,45 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const limitFor = (name: string) => limitReason(format, name, capsFor(name))
   const maxFor = (line: CardLine) => lineMax(line, capsFor(line.name), copiesOf(line.name))
 
-  /** Sets a card's copies in the other version, as swaps. */
-  const setVariantCopies = (line: Omit<CardLine, 'id' | 'kind'>, qty: number) => {
-    const { qty: _qty, ...card } = line
-    actions.setVariantCount(list, card, Math.max(0, qty))
-  }
-  /** Takes a row's copies out of the other version; the commander leads both versions, so it stays. */
-  const cutFromVariant = (row: Row | undefined) => {
-    if (!row) return
-    if (isCommander(row)) {
-      toast('The commander leads both versions. Change it with “Change commander”.', 'error')
-      return
-    }
-    setVariantCopies(row.line, copiesOf(row.line.name) - row.line.qty)
-  }
-  const rowOf = (id: string) => rows.find((row) => row.line.id === id || row.bundledIds?.includes(id))
-  /**
-   * Edits as the page shows them: the list's own in its own view; in the other version's view (Duel,
-   * EDH), quantities, additions and removals become that version's swaps, while other changes
-   * (printing, name) apply to the card in both versions.
-   */
-  const viewActions: LibraryActions = other
-    ? {
-        ...actions,
-        addCards: (_target, entries) => {
-          for (const { side: _side, ...entry } of entries) setVariantCopies(entry, copiesOf(entry.name) + entry.qty)
-        },
-        updateCard: (target, id, patch) => {
-          const { qty, ...rest } = patch
-          const row = rowOf(id)
-          if (row && qty !== undefined) setVariantCopies(row.line, copiesOf(row.line.name) - row.line.qty + qty)
-          if (Object.keys(rest).length > 0) actions.updateCard(target, id, rest)
-        },
-        removeCard: (_target, id) => cutFromVariant(rowOf(id)),
-        removeCards: (_target, ids) => cutFromVariant(rowOf(ids[0])),
-        setBundledQty: (_target, ids, qty) => {
-          const row = rowOf(ids[0])
-          if (row) setVariantCopies(row.line, copiesOf(row.line.name) - row.line.qty + qty)
-        }
-      }
-    : actions
-  /** Swap tag of a row in the other version's view: a card only it plays. */
+  // In a version's view (Duel, Counters…), edits become that version's swaps.
+  const versionEdits = other
+    ? versionActions(actions, {
+        list,
+        version,
+        rows,
+        copiesOf,
+        isCommander,
+        onCommanderCut: () => toast('Commanders lead every version. Change them with “Change Commander”.', 'error')
+      })
+    : null
+  const viewActions = versionEdits?.actions ?? actions
+  /** Swap tag of a row in a version's view: a card only it plays. */
   const insIds = new Set(swaps.ins.map((line) => line.id))
   const swapTag = (row: Row) => (other && insIds.has(row.line.id) ? 'only' : null)
 
-  const toggleVariant = () => {
-    if (!variant) return
-    if (!variantOn) {
-      actions.setVariant(list, true)
-      setVersion('variant')
-      toast(`“${list.name}” has a ${variant.label} version, identical until you change it`)
-    } else if (insQty + outsQty === 0) {
-      actions.setVariant(list, false)
-      setVersion('base')
+  const addFormatVersion = () => {
+    if (!formatVariant) return
+    actions.addFormatVersion(list)
+    setVersion(formatVariant.label)
+    toast(`“${list.name}” has a ${formatVariant.label} version, identical until you change it`)
+  }
+  /** Deletes the version shown: at once while it has no swaps, else once confirmed. */
+  const deleteVersion = () => {
+    if (!other) return
+    if (swapsQty === 0) {
+      actions.deleteVersion(list, other.label)
+      setVersion(BASE)
     } else {
-      setDialog({ kind: 'variant-off', variant, swaps: insQty + outsQty })
+      setDialog({ kind: 'variant-off', variant: other, swaps: swapsQty })
     }
   }
   const changeFormat = (formatId: string | null) => {
-    if (variant && variantOn && insQty + outsQty > 0) {
+    // A new format deletes the other-format version (Duel, EDH); named versions stay.
+    const lost = activeVariant(list.lines)
+    const lostSwaps = lost ? sumOf(Object.values(variantSwaps(list.lines, lost.label)).flat(), (line) => line.qty) : 0
+    if (lost && lostSwaps > 0) {
       const label = FORMATS.find((format) => format.id === formatId)?.label ?? 'No format'
-      setDialog({ kind: 'variant-format', formatId, label, variant, swaps: insQty + outsQty })
+      setDialog({ kind: 'variant-format', formatId, label, variant: lost, swaps: lostSwaps })
     } else {
       actions.setListFormat(list, formatId)
     }
@@ -236,35 +207,39 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
   /** The versions you own instead of the printing a row names, for its version's tooltip; null if none. */
   const otherVersionsOf = (row: Row) => {
+    if (plain) return null
     const copies = otherVersions(inventory.get(nameKey(row.line.name)), lineVersion(row.line))
     return copies.length > 0 ? copies.map(copyLabel).join(', ') : null
   }
+
+  const rowHandlers = useStableHandlers<RowHandlers>({
+    pick: (row) => chooseCommander(row),
+    qty: (row, qty) =>
+      row.bundledIds ? viewActions.setBundledQty(list, row.bundledIds, qty) : viewActions.updateCard(list, row.line.id, { qty }),
+    toggleOwned: (row) => toggleOwned(row),
+    ownedDelta: (row, delta) => actions.setOwned(row.line.name, Math.max(0, row.inventoryQty + delta), lineVersion(row.line)),
+    open: (row) => setDialog({ kind: 'card', lineId: row.line.id }),
+    remove: (row) => (row.bundledIds ? viewActions.removeCards(list, row.bundledIds) : viewActions.removeCard(list, row.line.id)),
+    rename: (row, name) => actions.updateCard(list, row.line.id, { name })
+  })
 
   const renderRow = (row: Row) => (
     <CardRow
       key={row.line.id}
       row={row}
       pick={pickOf(row)}
-      onPick={() => chooseCommander(row)}
       leader={isCommander(row)}
       crowned={isCrowned(row)}
-      isDeck={isDeck}
+      isDeck={asDeck}
       issue={analysis.issueOf(row)}
       shortfall={analysis.shortfallOf(row)}
       change={changeOf(row)}
       swapTag={swapTag(row)}
-      swapLabel={variant?.label}
+      swapLabel={other?.label}
       otherVersions={otherVersionsOf(row)}
       maxQty={maxFor(row.line)}
       maxTitle={limitFor(row.line.name)}
-      onQty={(qty) =>
-        row.bundledIds ? viewActions.setBundledQty(list, row.bundledIds, qty) : viewActions.updateCard(list, row.line.id, { qty })
-      }
-      onToggleOwned={() => toggleOwned(row)}
-      onOwnedDelta={(delta) => actions.setOwned(row.line.name, Math.max(0, row.inventoryQty + delta), lineVersion(row.line))}
-      onOpen={() => setDialog({ kind: 'card', lineId: row.line.id })}
-      onRemove={() => (row.bundledIds ? viewActions.removeCards(list, row.bundledIds) : viewActions.removeCard(list, row.line.id))}
-      onRename={(name) => actions.updateCard(list, row.line.id, { name })}
+      handlers={rowHandlers}
     />
   )
 
@@ -272,7 +247,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     <CardTile
       key={row.line.id}
       row={row}
-      isDeck={isDeck}
+      isDeck={asDeck}
       pick={pickOf(row)}
       leader={isCommander(row)}
       crowned={isCrowned(row)}
@@ -291,30 +266,21 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     for (const name of needAllVersions.split('\n')) if (name) requestPrintings(name, { full: true })
   }, [needAllVersions])
 
-  // Completing (and applying) belongs to the list itself, not its other version.
+  // Completing (and applying) belongs to the list itself, not its versions.
   const complete = !isDeck && !other && summary.cards > 0 && summary.ownedCards >= summary.cards
   const upgrades = upgradeTarget(list, lists)
 
+  /** Makes a completed wishlist a deck; fails (so the banner stays) if it could not move. */
   const moveToDecks = async () => {
-    try {
-      const moved = await actions.moveList(list, 'deck')
-      onOpenList(moved)
-      toast(`“${moved.name}” is now a deck`)
-    } catch (error) {
-      toast(`Could not move the list: ${cleanError(error)}`, 'error')
-      throw error
-    }
+    const moved = await moveListTo(list, 'deck', (moved) => `“${moved.name}” is now a deck`)
+    if (!moved) throw new Error('Not moved')
+    onOpenList(moved)
   }
 
   /** Makes a brew a wishlist, at the bottom of the order. */
   const makeWishlist = async () => {
-    try {
-      const moved = await actions.moveList(list, 'wishlist')
-      onOpenList(moved)
-      toast(`“${moved.name}” is now a wishlist, at the bottom of your wishlists`)
-    } catch (error) {
-      toast(`Could not move the list: ${cleanError(error)}`, 'error')
-    }
+    const moved = await moveListTo(list, 'wishlist', (moved) => `“${moved.name}” is now a wishlist, at the bottom of your wishlists`)
+    if (moved) onOpenList(moved)
   }
 
   const toggleUnbuilt = () => {
@@ -341,7 +307,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const table = (
     <ListTable
       listKey={`${list.kind}/${list.name}`}
-      isDeck={isDeck}
+      isDeck={asDeck}
       sections={sections}
       renderRow={renderRow}
       renderTile={renderTile}
@@ -357,7 +323,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       onHideOwned={setHideOwned}
       filtering={filtering}
       dataLoading={dataLoading}
-      picking={picking}
+      picking={picking !== null}
     />
   )
 
@@ -365,30 +331,36 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     <div className="view" data-color={listColor(list.lines) ?? undefined}>
       <ListHeader
         name={list.name}
-        art={leaderArt}
-        leader={leaderRow ? (leaderRow.flavorName ?? leaderRow.line.name) : null}
+        arts={leaderArts}
+        leaders={leaderRows.map((row) => row.flavorName ?? row.line.name)}
         colors={colors}
         noun={noun}
         format={format}
         picking={picking}
         hasCommander={hasCommander}
         canPickCommander={canPickCommander}
+        partnerKind={partnerKind}
+        canPickPartner={canPickPartner}
+        leaderName={leaderName}
         legalityErrors={legalityErrors}
         ownershipErrors={ownershipErrors}
         onlyProblems={onlyProblems}
         onToggleProblems={() => setOnlyProblems(!onlyProblems)}
         onTogglePicking={togglePicking}
         onFormat={changeFormat}
-        variant={variant}
-        variantOn={variantOn}
-        version={variantOn ? version : null}
+        variants={variants}
+        baseLabel={baseLabel(list.lines)}
+        version={version}
+        versionFormat={other ? versionFormatLabel(list.lines, other) : null}
         onVersion={setVersion}
-        onToggleVariant={variant ? toggleVariant : undefined}
+        formatVariant={formatVariant}
+        onAddFormatVersion={addFormatVersion}
+        onAddVersion={() => setDialog({ kind: 'version-name', version: null })}
+        onRenameVersion={other && !other.format ? () => setDialog({ kind: 'version-name', version: other.label }) : undefined}
+        onDeleteVersion={other ? deleteVersion : undefined}
         onEditText={() => setDialog({ kind: 'text' })}
         onCopy={() =>
-          window.api
-            .copyText(stripMeta(shown.text))
-            .then(() => toast(other ? `${other.label} version copied to clipboard` : `${isDeck ? 'Deck' : 'List'} copied to clipboard`))
+          copy(stripMeta(shown.text), other ? `${other.label} version copied to clipboard` : `${isDeck ? 'Deck' : 'List'} copied to clipboard`)
         }
         onColor={() => setDialog({ kind: 'color' })}
         onUpgrade={list.kind === 'wishlist' ? () => setDialog({ kind: 'upgrade' }) : undefined}
@@ -405,7 +377,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
       <div className="facts-row">
       <ListValueCards
-        isDeck={isDeck}
+        isDeck={asDeck}
         brew={isBrew}
         summary={summary}
         mainCards={mainCards}
@@ -449,10 +421,11 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         <SwapTable
           pairs={swapPairs(swaps)}
           variant={other}
+          baseLabel={baseLabel(list.lines)}
           rows={rows}
           outChoices={outChoices}
-          onCut={(name) => setVariantCopies({ name, foil: false, qty: 0 }, copiesOf(name) - 1)}
-          onUndo={(index) => actions.removeSwapPair(list, index)}
+          onCut={(name) => versionEdits?.setCopies({ name, foil: false, qty: 0 }, copiesOf(name) - 1)}
+          onUndo={(index) => actions.removeSwapPair(list, version, index)}
           adder={{ list, inventory, pool, actions: viewActions, format, copiesOf, capsFor, limitFor, sideboardAllowed: false }}
         />
       )}
@@ -498,13 +471,11 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         limitFor={limitFor}
         onOpenList={onOpenList}
         shownVariant={other}
+        onVersion={setVersion}
       />
     </div>
   )
 }
-
-/** Type guard for a stored {@link ListVersion}. */
-const isVersion = (value: string): value is ListVersion => value === 'base' || value === 'variant'
 
 /** @returns Version of a pinned line, used when its copies are added to the inventory; undefined if unpinned. */
 function lineVersion(line: CardLine): Version | undefined {

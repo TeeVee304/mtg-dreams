@@ -1,5 +1,5 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { CONFLICT_ERROR, type AppSettings, type ListFile, type LoadedData, type Theme } from '@shared/api'
 import { fileNameProblem } from '@shared/filenames'
@@ -41,21 +41,32 @@ const RETIRED_SETTINGS = ['copies', 'inventorySortReverse']
 /** In-memory settings, keyed by path; only the app writes the file. */
 let settingsCache: { path: string; settings: Settings } | null = null
 
-/** @returns Cached settings; `{}` if the file is missing or invalid. */
+/** @returns The settings in `path`; null if it is missing or damaged. */
+function readSettingsFile(path: string): Settings | null {
+  try {
+    const settings: unknown = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null
+    return typeof settings === 'object' && settings !== null && !Array.isArray(settings) ? (settings as Settings) : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * @returns Cached settings, from the file or, if it is damaged, from its backup (so a custom data
+ * folder survives); `{}` if neither can be read.
+ */
 function readSettings(): Settings {
   const path = settingsPath()
   if (settingsCache?.path === path) return settingsCache.settings
-  let settings: Settings = {}
-  try {
-    if (existsSync(path)) settings = JSON.parse(readFileSync(path, 'utf8')) as Settings
-  } catch {}
+  const settings = readSettingsFile(path) ?? readSettingsFile(`${path}.bak`) ?? {}
   settingsCache = { path, settings }
   return settings
 }
 
 /**
  * Merges `patch` into the settings and writes atomically (temp + rename; a truncated file would
- * lose a custom data directory). Falls back to a direct write if the target is locked.
+ * lose a custom data directory). Falls back to a direct write if the target is locked. A backup
+ * beside it is what {@link readSettings} falls back on if the file is ever damaged.
  */
 function writeSettings(patch: Partial<Settings>): void {
   const settings: Settings = { ...readSettings(), ...patch }
@@ -69,6 +80,9 @@ function writeSettings(patch: Partial<Settings>): void {
     writeFileSync(path, JSON.stringify(settings, null, 2))
     rmSync(tmp, { force: true })
   }
+  try {
+    writeFileSync(`${path}.bak`, JSON.stringify(settings, null, 2))
+  } catch {}
   settingsCache = { path, settings }
 }
 
@@ -219,6 +233,22 @@ function writeText(path: string, text: string, guard: 'check' | 'force' | 'none'
   return next
 }
 
+/** Last read of each data file: its text, with the size and change time the file had then. */
+const reads = new Map<string, { size: number; mtimeMs: number; text: string }>()
+
+/**
+ * Reads a data file, reusing the last read while its size and change time are unchanged, so a reload
+ * (on every window focus) reads only the files that changed.
+ */
+async function readText(path: string): Promise<string> {
+  const { size, mtimeMs } = await stat(path)
+  const last = reads.get(path)
+  if (last && last.size === size && last.mtimeMs === mtimeMs) return last.text
+  const text = await readFile(path, 'utf8')
+  reads.set(path, { size, mtimeMs, text })
+  return text
+}
+
 /**
  * Reads all files with `extension` in `dir`, sorted case-insensitively. Unreadable files (locked,
  * offline placeholders) are skipped and appended to `unreadable` as `folder/file`.
@@ -229,7 +259,7 @@ async function readFolder(dir: string, extension: string, unreadable: string[]):
   const read = await Promise.all(
     files.map(async (file) => {
       try {
-        const text = await readFile(join(dir, file), 'utf8')
+        const text = await readText(join(dir, file))
         known.set(join(dir, file), text)
         return { name: file.slice(0, -extension.length), text }
       } catch {
@@ -377,7 +407,7 @@ export async function loadData(): Promise<LoadedData> {
     readFolder(tradesDir(), `.${TRADE_EXTENSION}`, unreadable)
   ])
   const files = Object.fromEntries(LIST_KINDS.map((kind, i) => [kind, folders[i]])) as Record<ListKind, ListFile[]>
-  const inventory = existsSync(inventoryPath()) ? await readFile(inventoryPath(), 'utf8') : ''
+  const inventory = existsSync(inventoryPath()) ? await readText(inventoryPath()) : ''
   known.set(inventoryPath(), inventory)
 
   indexCache = null

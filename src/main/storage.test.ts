@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -197,6 +197,19 @@ describe('lists on disk', () => {
     expect(readFileSync(join(data, 'inventory.txt'), 'utf8')).toBe('6 Island\n')
   })
 
+  it('reads again only files that changed, even to text of the same length', async () => {
+    const { data, storage } = await setup()
+    await storage.loadData()
+    writeFileSync(join(data, 'inventory.txt'), '4 Island\n')
+    expect((await storage.loadData()).inventory).toBe('4 Island\n')
+    expect((await storage.loadData()).inventory).toBe('4 Island\n')
+    writeFileSync(join(data, 'inventory.txt'), '4 Forest\n')
+    // Changed a moment later, as an edit elsewhere would be.
+    const later = new Date(Date.now() + 2000)
+    utimesSync(join(data, 'inventory.txt'), later, later)
+    expect((await storage.loadData()).inventory).toBe('4 Forest\n')
+  })
+
   it('treats an inventory that appeared outside the app as a change', async () => {
     const { data, storage } = await setup()
     await storage.loadData()
@@ -234,14 +247,14 @@ describe('lists on disk', () => {
 describe('settings', () => {
   it('defaults, saves, and survives a restart; bad values fall back', async () => {
     const first = await setup()
-    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, wishlistsReserve: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
+    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, wishlistsReserve: false, plainBrews: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     first.storage.updateAppSettings({ theme: 'dark', color: 'G', sort: 'mana' })
     const settingsFile = join(first.base, 'userData', 'settings.json')
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).toMatchObject({ theme: 'dark', color: 'G', sort: 'mana' })
 
     writeFileSync(settingsFile, JSON.stringify({ theme: 'neon', color: 'teal', sort: 'price', bundleBasics: false, copies: 'some' }))
     const restarted = await setup(first.base)
-    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, wishlistsReserve: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
+    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, wishlistsReserve: false, plainBrews: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     restarted.storage.updateAppSettings({ theme: 'light' })
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).not.toHaveProperty('copies')
   })
@@ -255,15 +268,27 @@ describe('settings', () => {
     expect((await storage.loadData()).dataDir).toBe(elsewhere)
   })
 
-  it('replaces the settings file whole, leaving no temporary file', async () => {
+  it('replaces the settings file whole, with a backup and no temporary file', async () => {
     const first = await setup()
     const elsewhere = join(first.base, 'OneDrive', 'Cards')
     await first.storage.setDataDir(elsewhere)
     first.storage.updateAppSettings({ theme: 'dark' })
-    expect(readdirSync(join(first.base, 'userData'))).toEqual(['settings.json'])
+    expect(readdirSync(join(first.base, 'userData')).sort()).toEqual(['settings.json', 'settings.json.bak'])
     const restarted = await setup(first.base)
     expect(restarted.storage.dataDir()).toBe(elsewhere)
     expect(restarted.storage.getTheme()).toBe('dark')
+  })
+
+  it('keeps a custom data folder when the settings file is damaged', async () => {
+    const first = await setup()
+    const elsewhere = join(first.base, 'OneDrive', 'Cards')
+    await first.storage.setDataDir(elsewhere)
+    writeFileSync(join(first.base, 'userData', 'settings.json'), '{ "dataDir": "C:/Use')
+    const restarted = await setup(first.base)
+    expect(restarted.storage.dataDir()).toBe(elsewhere)
+    // The next change writes a whole file again.
+    restarted.storage.updateAppSettings({ theme: 'light' })
+    expect(JSON.parse(readFileSync(join(first.base, 'userData', 'settings.json'), 'utf8'))).toMatchObject({ dataDir: elsewhere, theme: 'light' })
   })
 
   it('carries settings, caches and data over from "MTG Dream"', async () => {

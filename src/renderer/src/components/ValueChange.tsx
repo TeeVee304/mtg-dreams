@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { PriceSnapshot } from '@shared/api'
 import type { ValuedCopy } from '../lib/collection'
 import { formatDate, formatEur } from '../lib/format'
-import { valueChange, type ValueMove } from '../stores/history'
+import { pricesAt, valueChange, type ValueMove } from '../stores/history'
 import { Segmented } from './Controls'
 import { copyLabel } from './InventoryVersions'
 
@@ -38,8 +38,7 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
   useEffect(() => {
     if (!ready || !idsKey) return
     let live = true
-    window.api
-      .pricesAt(idsKey.split(',').map(Number), [7 * DAY, 30 * DAY])
+    pricesAt(idsKey.split(',').map(Number), [7 * DAY, 30 * DAY])
       .then((result) => {
         if (live) setSnapshots(result ? { latest: result.latest, week: result.then[0], month: result.then[1] } : 'none')
       })

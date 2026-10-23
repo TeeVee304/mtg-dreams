@@ -16,6 +16,7 @@ import { updateSettings, useSettings } from '../stores/settings'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { Modal } from './Modal'
 import { useToast } from './Toasts'
+import { copyText, openTradeFile, saveTradeFile } from '../lib/desktop'
 
 /** Total copies label, e.g. `5 cards`. */
 const copies = (cards: TradeCard[]) => cardCount(totalCopies(cards))
@@ -42,11 +43,11 @@ export function ShareTradeDialog({ myTrade, onClose }: ShareTradeDialogProps) {
     run(async () => {
       await updateSettings({ tradeName: name.trim() })
       if (how === 'file') {
-        const path = await window.api.saveTradeFile(snapshot.name, serializeSnapshot(snapshot))
+        const path = await saveTradeFile(snapshot.name, serializeSnapshot(snapshot))
         if (!path) return
         toast(`Saved ${path.split(/[\\/]/).pop()}. Send it to your friend.`)
       } else {
-        await window.api.copyText(snapshotToText(snapshot))
+        await copyText(snapshotToText(snapshot))
         toast('Trade list copied. Paste it in a chat with your friend.')
       }
       onClose()
@@ -135,7 +136,7 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
 
   const openFile = () =>
     run(async () => {
-      const file = await window.api.openTradeFile()
+      const file = await openTradeFile()
       if (!file) return
       const snapshot = parseTradeText(file.text, file.fileName)
       if (snapshot.source === 'app') {

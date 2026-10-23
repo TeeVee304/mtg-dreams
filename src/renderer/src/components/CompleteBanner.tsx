@@ -1,4 +1,5 @@
 import { useState, type CSSProperties } from 'react'
+import { cardCount } from '../lib/format'
 import { prefersReducedMotion } from '../lib/motion'
 import { Icon } from './Icon'
 
@@ -49,7 +50,7 @@ export function CompleteBanner({ cards, brew, upgrades, onMove }: CompleteBanner
       <div className="complete-text">
         <strong>{upgrades ? 'Upgrade complete!' : brew ? 'Brew complete!' : 'Wishlist complete!'}</strong>
         <span className="muted">
-          You own all {cards} {cards === 1 ? 'card' : 'cards'}.{' '}
+          You own all {cardCount(cards)}.{' '}
           {upgrades ? `Ready to apply it to “${upgrades}”?` : 'Ready to become a deck?'}
         </span>
       </div>

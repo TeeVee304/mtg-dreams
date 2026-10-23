@@ -60,13 +60,15 @@ const KIND_ORDER: TokenKind[] = ['token', 'emblem', 'helper']
 
 /**
  * Classifies a Scryfall `all_parts` entry. Tokens are `token` parts; emblems and helper cards come
- * as `combo_piece` parts typed `Emblem …`, `Card` or `Dungeon`.
+ * as `combo_piece` parts typed `Emblem …`, `Card` or `Dungeon`, and the face-down helpers (`A
+ * Mysterious Creature` for Disguise and Cloak, `Morph`, `Manifest`) as ones typed just `Creature`.
  * @returns Kind; null for parts that are not created objects (the card itself, meld parts).
  */
 export function partKind(component: string, typeLine: string): TokenKind | null {
   if (/^Emblem\b/.test(typeLine)) return 'emblem'
   if (component === 'token') return 'token'
-  if (component === 'combo_piece' && (typeLine === 'Card' || /^Dungeon\b/.test(typeLine))) return 'helper'
+  const helper = typeLine === 'Card' || typeLine === 'Creature' || /^Dungeon\b/.test(typeLine)
+  if (component === 'combo_piece' && helper) return 'helper'
   return null
 }
 

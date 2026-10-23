@@ -38,6 +38,8 @@ const CARDS: Record<string, CardInfo> = {
   Island: info('Island', 'Basic Land — Island', { commander: 'legal' }, { manaValue: 0 }),
   'Flubs, the Fool': info('Flubs, the Fool', 'Legendary Creature — Frog', { commander: 'legal', modern: 'legal' }, { colorIdentity: ['G', 'U', 'R'] }),
   'Worm Harvest': info('Worm Harvest', 'Sorcery', { commander: 'legal', modern: 'legal' }, { colorIdentity: ['B', 'G'] }),
+  Tymna: info('Tymna', 'Legendary Creature — Human', { commander: 'legal' }, { colorIdentity: ['W', 'B'], partner: { kind: 'any' } }),
+  Kraum: info('Kraum', 'Legendary Creature — Zombie', { commander: 'legal' }, { colorIdentity: ['U', 'R'], partner: { kind: 'any' } }),
   'Dakmor Salvage': info('Dakmor Salvage', 'Land', { commander: 'legal', modern: 'legal' }, { colorIdentity: ['B'] }),
   'Mana Crypt': info('Mana Crypt', 'Artifact', { commander: 'banned' }, { manaValue: 0 })
 }
@@ -129,6 +131,17 @@ describe('analyzeList', () => {
     expect(analysis.hasCommander).toBe(true)
     expect(rows.filter(analysis.isCommander).map((row) => row.line.name)).toEqual(['Atraxa'])
     expect(rows.filter(analysis.canBeCommander).map((row) => row.line.name)).toEqual(['Atraxa'])
+  })
+
+  it('knows two partners, who could join a single one, and their colors together', () => {
+    const alone = rowsOf('// Format: Commander\n// Commander: Tymna\n1 Tymna\n1 Kraum\n1 Atraxa')
+    expect(alone.rows.filter(analyzeList('deck', alone.lines, alone.rows).canJoin).map((row) => row.line.name)).toEqual(['Kraum'])
+
+    const { lines, rows } = rowsOf('// Format: Commander\n// Commander: Tymna\n// Commander: Kraum\n1 Tymna\n1 Kraum\n1 Sol Ring\n1 Worm Harvest')
+    const analysis = analyzeList('deck', lines, rows)
+    expect(rows.filter(analysis.isCommander).map((row) => row.line.name)).toEqual(['Tymna', 'Kraum'])
+    expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([null, null, null, "Outside your commanders' colors"])
+    expect(sectionRows(rows, analysis)[0].rows.map((row) => row.line.name)).toEqual(['Tymna', 'Kraum'])
   })
 
   it("flags cards outside the commander's color identity as problems", () => {

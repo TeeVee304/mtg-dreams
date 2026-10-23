@@ -77,4 +77,12 @@ describe('precons', () => {
     expect((await precons.getPrecon('NewDeck_FDC')).name).toBe('New Deck')
     online = true
   })
+
+  it('names the decklists cached by earlier versions, to remove', async () => {
+    const precons = await setup()
+    const { writeCacheFile } = await import('./cacheFiles')
+    await writeCacheFile('precons/deck-v1-OldDeck_ABC.json', {})
+    const outdated = await precons.outdatedPreconCaches()
+    expect(outdated).toEqual(['precons/deck-v1-OldDeck_ABC.json'])
+  })
 })

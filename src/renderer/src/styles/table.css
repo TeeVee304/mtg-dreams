@@ -9,7 +9,8 @@
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
+  /* Clip, not hidden: hidden would make the table the scroll box its sticky headers stick to. */
+  overflow: clip;
 }
 
 .cards-table th {
@@ -22,6 +23,15 @@
   padding: 9px 10px;
   border-bottom: 1px solid var(--border);
   background: var(--panel-2);
+}
+
+/* Column headers stay at the top of the window while a long list scrolls under them, on the
+   table's own color so the rows don't show through. */
+.cards-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--panel);
 }
 
 /* A sortable column header: the whole label is the button, styled as the header text. */
@@ -197,6 +207,12 @@ tr:hover .owned-adjust,
 
 /* Bundled basic lands: any version, not a status. */
 .auto-badge.generic {
+  background: var(--panel-2);
+  color: var(--muted);
+}
+
+/* The version is the cheapest, picked by the app until you pick one. */
+.auto-badge.cheapest {
   background: var(--panel-2);
   color: var(--muted);
 }

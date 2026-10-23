@@ -35,7 +35,7 @@ export function ListValueCards({ isDeck, brew, summary, mainCards, size, target,
     const filled = target ? Math.min(100, Math.round((mainCards / target) * 100)) : 0
     return (
       <section className="summary-strip">
-        <Item label="Deck value" value={formatEur(summary.total)} accent note={priceNote(summary, basis)} />
+        <Item label={brew ? 'Cost' : 'Deck value'} value={formatEur(summary.total)} accent note={priceNote(summary, basis)} />
         <Item
           label="Cards"
           value={size?.label ?? String(mainCards)}

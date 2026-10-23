@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { cardLines, parseInventory, parseList, unrecognizedLines } from '@shared/decklist'
+import { counted } from '@shared/plural'
 import { totalCopies } from '@shared/totals'
 import type { ListKind } from '@shared/types'
 import { cardCount } from '../lib/format'
@@ -155,7 +156,7 @@ function ParseStats({ text, mode }: { text: string; mode: 'list' | 'inventory' }
       </span>
       {stats.unrecognized.length > 0 && (
         <span className="warn" title={stats.unrecognized.join('\n')}>
-          {stats.unrecognized.length} unrecognised line{stats.unrecognized.length === 1 ? '' : 's'} (
+          {counted(stats.unrecognized.length, 'unrecognised line')} (
           {mode === 'list' ? 'kept as-is' : 'will be dropped'}): “{stats.unrecognized[0]}”
           {stats.unrecognized.length > 1 ? '…' : ''}
         </span>

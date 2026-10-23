@@ -133,6 +133,18 @@
   min-height: 0;
 }
 
+/* Trades sit under the scrolling lists, always in view; many friends scroll within them. */
+.sidebar .nav-trades {
+  flex: none;
+  max-height: 34vh;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar .nav-trades .nav-section {
+  margin-top: 8px;
+}
+
 /* The sidebar scrolls when it's full; its items keep their size. */
 .sidebar nav > * {
   flex-shrink: 0;
@@ -215,6 +227,30 @@
   gap: 2px;
   min-width: 0;
   flex: 1;
+}
+
+/* The name, with a wishlist's price moves at its end. */
+.nav-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.nav-title-row .nav-name {
+  flex: 1;
+}
+
+.nav-title-row .price-moves {
+  flex: none;
+  gap: 5px;
+  font-size: var(--fs-sm);
+}
+
+/* The color symbols take their place on hover. */
+.nav-item:hover .nav-title-row .price-moves,
+.nav-item:focus-visible .nav-title-row .price-moves {
+  display: none;
 }
 
 .nav-name {
@@ -328,6 +364,15 @@
   gap: 4px;
 }
 
+/* A page's section heading (Most Wanted's shelf, a trade's two sides): the display serif, one
+   step below the page title. */
+.section-heading {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+}
+
 /* Collapsible panels (Statistics, Tokens, Budget planner) ---------------------------- */
 
 .collapsible {
@@ -364,8 +409,9 @@
 .view-header.art-hero {
   position: relative;
   isolation: isolate;
-  min-height: 270px;
-  padding: 18px 20px 22px 26px;
+  /* Low enough that the cards start above the middle of the window. */
+  min-height: 180px;
+  padding: 14px 18px 16px 24px;
   /* Not clipped (overflow), so the ⋯ menu can open past the banner: the art and its shade round their own corners. */
   border-radius: 16px;
   background: var(--panel);
@@ -401,7 +447,7 @@
 
 .art-hero h1 {
   color: #f4f2fa;
-  font-size: 46px;
+  font-size: 40px;
 }
 
 .art-hero .header-actions > button,
@@ -507,7 +553,7 @@
 
 /* The inventory's banner: a strip of its most valuable cards' art. */
 .view-header.inventory-hero {
-  min-height: 210px;
+  min-height: 160px;
 }
 
 .hero-strip {
@@ -530,4 +576,28 @@
   margin-bottom: 4px;
   font-size: var(--fs-md);
   color: #c9cadb;
+}
+
+/* Two partners' art side by side: the second fades in over the first, toward the middle. */
+.hero-pair {
+  overflow: hidden;
+}
+
+.hero-pair img {
+  position: absolute;
+  top: 0;
+  width: 60%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 28%;
+}
+
+.hero-pair img:first-child {
+  left: 0;
+}
+
+.hero-pair img:last-child {
+  right: 0;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 34%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 34%);
 }

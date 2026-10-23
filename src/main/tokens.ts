@@ -13,8 +13,8 @@ import { backImageOf, fetchCollection } from './scryfall'
 /** Cache file name. */
 const FILE = 'token-cache.json'
 
-/** Cache schema version. */
-const VERSION = 2
+/** Cache schema version; 3 added the face-down helpers (Morph, A Mysterious Creature…). */
+const VERSION = 3
 
 /** Card link TTL. */
 const LINKS_TTL_MS = 7 * 24 * 60 * 60 * 1000

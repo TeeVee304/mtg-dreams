@@ -11,9 +11,10 @@ import type { AverageDeckFilters, AverageDeckResult } from './averageDeck'
 /** IPC bridge exposed by the preload script as `window.deckWizard`; channels are `wizard:*`. */
 export interface DeckWizardApi {
   /**
-   * @returns A commander's EDHREC average deck for a mix of theme, bracket and budget, or `missing`
-   * when EDHREC has none (an unknown commander, or too few decks in the mix). Answers are cached for a day.
+   * @param commanders - The commander, or two partners.
+   * @returns Their EDHREC average deck for a mix of theme, bracket and budget, or `missing` when
+   * EDHREC has none (an unknown commander, or too few decks in the mix). Answers are cached for a day.
    * @throws Error in plain words when EDHREC can't be reached.
    */
-  averageDeck(commander: string, filters: AverageDeckFilters): Promise<AverageDeckResult>
+  averageDeck(commanders: string[], filters: AverageDeckFilters): Promise<AverageDeckResult>
 }

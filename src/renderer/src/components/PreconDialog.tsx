@@ -3,10 +3,11 @@ import { cardImageUrl } from '@shared/images'
 import { preconEntries, type PreconEntry, type PreconOptions } from '@shared/precons'
 import { totalCopies } from '@shared/totals'
 import type { PreconCard, PreconDeck, PreconSummary } from '@shared/types'
-import { cardCount as cards, cleanError, formatIsoDate } from '../lib/format'
+import { cardCount, cleanError, formatIsoDate } from '../lib/format'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { previewHandlers } from './HoverPreview'
 import { Modal } from './Modal'
+import { preconDeck, preconIndex } from '../stores/precons'
 
 /** Precon import target: existing wishlist, new wishlist, or new owned deck (cards join the inventory). */
 export type PreconTarget = { kind: 'list'; listName: string } | { kind: 'new-list' } | { kind: 'new-deck' } | { kind: 'new-brew' }
@@ -42,7 +43,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
   const { busy, error: addError, run } = useAsyncAction()
 
   useEffect(() => {
-    window.api.getPreconIndex().then(setIndex, (error) => setIndexError(cleanError(error)))
+    preconIndex().then(setIndex, (error) => setIndexError(cleanError(error)))
   }, [])
 
   useEffect(() => {
@@ -50,7 +51,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
     let current = true
     setDeck(null)
     setDeckError(null)
-    window.api.getPrecon(selected).then(
+    preconDeck(selected).then(
       (result) => current && setDeck(result),
       (error) => current && setDeckError(cleanError(error))
     )
@@ -75,7 +76,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
   }, [index, query, type])
 
   const entries = deck ? preconEntries(deck, options) : []
-  const cardCount = totalCopies(entries)
+  const copies = totalCopies(entries)
 
   const add = () =>
     run(async () => {
@@ -84,10 +85,10 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
 
   const actionLabel =
     target.kind === 'list'
-      ? `Add ${cards(cardCount)} to “${target.listName}”`
+      ? `Add ${cardCount(copies)} to “${target.listName}”`
       : target.kind === 'new-deck'
-        ? `Create deck with ${cards(cardCount)}`
-        : `Create ${target.kind === 'new-brew' ? 'brew' : 'wishlist'} with ${cards(cardCount)}`
+        ? `Create deck with ${cardCount(copies)}`
+        : `Create ${target.kind === 'new-brew' ? 'brew' : 'wishlist'} with ${cardCount(copies)}`
   const title =
     target.kind === 'new-deck' ? 'New deck from a precon' : target.kind === 'new-list' ? 'New wishlist from a precon' : target.kind === 'new-brew' ? 'New brew from a precon' : 'Add a precon'
 
@@ -122,7 +123,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
           <button type="button" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="primary" disabled={!deck || cardCount === 0 || busy} onClick={add}>
+          <button type="button" className="primary" disabled={!deck || copies === 0 || busy} onClick={add}>
             {deck ? actionLabel : 'Pick a deck'}
           </button>
         </>
@@ -168,7 +169,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
             ))}
             {results.length > MAX_RESULTS && (
               <p className="precon-placeholder small">
-                Showing {MAX_RESULTS} of {results.length} — refine the search to see more.
+                Showing {MAX_RESULTS} of {results.length}. Refine the search to see more.
               </p>
             )}
           </div>
@@ -197,7 +198,7 @@ function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boole
     <div className="precon-deck">
       <h3>{deck.name}</h3>
       <p className="muted small">
-        {deck.type} · {deck.code} · released {deck.releaseDate ? formatIsoDate(deck.releaseDate) : 'unknown'} · {cards(total)}
+        {deck.type} · {deck.code} · released {deck.releaseDate ? formatIsoDate(deck.releaseDate) : 'unknown'} · {cardCount(total)}
       </p>
       {boards.map(({ board, cards }) => (
         <section key={board} className="precon-board">

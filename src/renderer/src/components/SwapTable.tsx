@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import type { SwapPair, Variant } from '@shared/listVersion'
 import type { CardLine, Printing } from '@shared/types'
-import { formatEur } from '../lib/format'
+import { cardCount, formatEur } from '../lib/format'
 import type { Row } from '../lib/summary'
 import { getCardInfo } from '../stores/cardinfo'
 import { cheapestVersion } from '../stores/printings'
@@ -16,8 +16,10 @@ import { CardThumb } from './Placeholders'
 interface SwapTableProps {
   /** The version's swaps, paired: what it cuts, and what it plays instead. */
   pairs: SwapPair[]
-  /** The version: Duel, EDH. */
+  /** The version: Duel, EDH, or a named one. */
   variant: Variant
+  /** The list itself, named: `Commander`, `Duel`, `Main`. */
+  baseLabel: string
   /** Rows of the version, for the printing and price of its cards in. */
   rows: Row[]
   /** Cards of the version it can cut: the list's, but its commander and its cards in. */
@@ -38,11 +40,11 @@ interface Priced {
 }
 
 /**
- * The other version as what it changes (Out → In): each card it cuts beside the card it plays
+ * A version as what it changes (Out → In): each card it cuts beside the card it plays
  * instead, in order. Picking a card out and a card in adds a pair, filling an uneven last one first;
  * each pair is undone at once.
  */
-export function SwapTable({ pairs, variant, rows, outChoices, onCut, onUndo, adder }: SwapTableProps) {
+export function SwapTable({ pairs, variant, baseLabel, rows, outChoices, onCut, onUndo, adder }: SwapTableProps) {
   const { priceBasis, bundleBasics } = useSettings()
   const { choices, pickCard, panel } = useCardAdder({ ...adder, onAdding: () => {} })
 
@@ -83,7 +85,7 @@ export function SwapTable({ pairs, variant, rows, outChoices, onCut, onUndo, add
       <div className="swaps-head">
         <h2 id="swaps-title">Swaps</h2>
         <span className="muted small">
-          What the {variant.label} version changes from the {variant.baseLabel} version
+          What the {variant.label} version changes from the {baseLabel} version
         </span>
         <span className="spacer" />
         <span className="muted small">
@@ -93,7 +95,7 @@ export function SwapTable({ pairs, variant, rows, outChoices, onCut, onUndo, add
 
       <div className="swap-grid swap-labels">
         <span>
-          <strong>Out</strong> Cut from the {variant.baseLabel} version
+          <strong>Out</strong> Cut from the {baseLabel} version
         </span>
         <span />
         <span>
@@ -144,11 +146,11 @@ export function SwapTable({ pairs, variant, rows, outChoices, onCut, onUndo, add
       {sides.length > 0 && (
         <div className="swap-grid swap-totals">
           <span>
-            {copies('out') === 1 ? '1 card' : `${copies('out')} cards`} out <span className="swap-price">{formatEur(outValue)}</span>
+            {cardCount(copies('out'))} out <span className="swap-price">{formatEur(outValue)}</span>
           </span>
           <span />
           <span>
-            {copies('in') === 1 ? '1 card' : `${copies('in')} cards`} in{' '}
+            {cardCount(copies('in'))} in{' '}
             <span className="swap-price">
               <strong>{formatEur(inValue)}</strong>{' '}
               <span className="muted">

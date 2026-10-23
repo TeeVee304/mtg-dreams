@@ -1,17 +1,11 @@
 /* Narrower windows. Last, so it overrides the rest. */
 
+/* Card tables show the version under the name instead of in a column (useNarrowTables). Keep the
+   width in step with useNarrowTables. */
 @media (max-width: 1100px) {
-  .col-version {
-    width: 170px;
-  }
-
   .col-name,
   .inventory-table .col-name {
     min-width: 180px;
-  }
-
-  .card-name {
-    max-width: 180px;
   }
 
   .col-owned {
@@ -48,8 +42,8 @@
   }
 }
 
-/* Narrow windows: the sidebar becomes an icon rail (Sidebar adds `rail`), and card tables show the
-   version under the name instead of in a column (useNarrow). Keep the width in step with useNarrow. */
+/* Narrow windows: the sidebar becomes an icon rail (Sidebar adds `rail`). Keep the width in step
+   with useNarrow. */
 
 @media (max-width: 960px) {
   .app {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { countLines } from '@shared/decklist'
+import { counted } from '@shared/plural'
 import { sumOf } from '@shared/totals'
 import { planPurchases, sortWanted } from '@shared/wanted'
 import { useStoredToggle } from '../../hooks/useStoredToggle'
@@ -57,8 +58,7 @@ export function BudgetPlanner({ overview, actions, onCopy }: BudgetPlannerProps)
               €
             </label>
             <span>
-              <strong>{cardCount(copies)}</strong> for <strong>{formatEur(plan.total)}</strong> · covers {needs} list{' '}
-              {needs === 1 ? 'need' : 'needs'}
+              <strong>{cardCount(copies)}</strong> for <strong>{formatEur(plan.total)}</strong> · covers {counted(needs, 'list need')}
               {plan.completes.length > 0 && (
                 <span title="Every card these lists miss, basic lands aside"> · completes {plan.completes.map((list) => list.name).join(', ')}</span>
               )}

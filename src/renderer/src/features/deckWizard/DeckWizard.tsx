@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { bundledBasic } from '@shared/basics'
-import type { ColorFilter } from '@shared/cards'
+import { TYPE_GROUPS, type ColorFilter } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
+import { STAT_COLORS } from '@shared/deckStats'
 import {
   averageDeckName,
   averageDeckPath,
@@ -15,7 +16,7 @@ import {
   type Budget
 } from '@shared/deckWizard/averageDeck'
 import { nameKey } from '@shared/decklist'
-import { canLead, FORMATS, listCommander } from '@shared/formats'
+import { canLead, FORMATS, listCommanders } from '@shared/formats'
 import { preconListName } from '@shared/precons'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { useAsyncAction } from '../../hooks/useAsyncAction'
@@ -26,10 +27,12 @@ import type { CardList } from '../../stores/library'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../../stores/printings'
 import { useSettings } from '../../stores/settings'
 import { CardSearch } from '../../components/CardSearch'
+import { HeroArt } from '../../components/HeroArt'
 import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Modal'
 import { WizardHat } from './WizardHat'
 import './wizard.css'
+import { openExternal } from '../../lib/desktop'
 
 /** Props of {@link DeckWizard}. */
 interface DeckWizardProps {
@@ -54,24 +57,16 @@ type DeckState =
 const THEME_CHIPS = 5
 /** Commanders you own offered before searching. */
 const OWNED_SHOWN = 6
-/** Card types in the order the deck lists them, with their heading. */
-const TYPE_ORDER: [string, string][] = [
-  ['Creature', 'Creatures'],
-  ['Instant', 'Instants'],
-  ['Sorcery', 'Sorceries'],
-  ['Artifact', 'Artifacts'],
-  ['Enchantment', 'Enchantments'],
-  ['Planeswalker', 'Planeswalkers'],
-  ['Battle', 'Battles'],
-  ['Land', 'Lands']
-]
+/** @returns The type section of an EDHREC card type, as the app's lists group cards; `Other` for one they don't name. */
+const groupOf = (type: string) => TYPE_GROUPS.find((group) => group.id === type)?.id ?? 'Other'
 /** The Commander format, whose leaders the wizard offers. */
 const COMMANDER = FORMATS.find((format) => format.id === 'commander')!
 /** Stands for a new list in copy claims: it gets the copies no list reserves. */
 const NEW_LIST = { kind: 'brew' as const, name: '' }
 
 /**
- * The Deck Wizard: pick a commander, and it shows EDHREC's average deck for it, narrowed by theme,
+ * The Deck Wizard: pick a commander (and its partner, if it has one), and it shows EDHREC's average
+ * deck for it, narrowed by theme,
  * power bracket and budget, with the cards you own ticked and what the rest would cost. The deck is
  * saved as a brew, a wishlist, or a deck once you own every card.
  */
@@ -79,7 +74,11 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
   const { priceBasis, bundleBasics } = useSettings()
   usePrintingsVersion()
   useCardInfoVersion()
-  const [commander, setCommander] = useState<string | null>(null)
+  /** The commander, then its partner if it has one. */
+  const [commanders, setCommanders] = useState<string[]>([])
+  const commander = commanders[0] ?? null
+  /** Stands for the commanders in effects' dependencies. */
+  const leadersKey = commanders.join('\n')
   const [filters, setFilters] = useState<AverageDeckFilters>(NO_FILTERS)
   /** The commander's deck over all its decks: its themes, whatever the mix. */
   const [base, setBase] = useState<AverageDeck | null>(null)
@@ -89,11 +88,11 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
   const create = useAsyncAction()
 
   useEffect(() => {
-    if (!commander) return
+    if (!leadersKey) return
     let current = true
     setState({ status: 'loading' })
     window.deckWizard
-      .averageDeck(commander, filters)
+      .averageDeck(leadersKey.split('\n'), filters)
       .then((result) => {
         if (!current) return
         setState(result)
@@ -103,23 +102,25 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
     return () => {
       current = false
     }
-  }, [commander, filters, retry])
+  }, [leadersKey, filters, retry])
 
-  // Themes come from the commander's whole deck, fetched first.
+  // Themes come from the commanders' whole deck, fetched first.
   useEffect(() => {
-    if (!commander || base?.commander === commander || filters === NO_FILTERS) return
-    void window.deckWizard.averageDeck(commander, NO_FILTERS).then((result) => result.status === 'ok' && setBase(result.deck))
-  }, [commander, base, filters])
+    if (!leadersKey || base?.commanders.join('\n') === leadersKey || filters === NO_FILTERS) return
+    void window.deckWizard
+      .averageDeck(leadersKey.split('\n'), NO_FILTERS)
+      .then((result) => result.status === 'ok' && setBase(result.deck))
+  }, [leadersKey, base, filters])
 
   const deck = state.status === 'ok' ? state.deck : null
   useEffect(() => {
-    if (commander) requestPrintings(commander, { priority: 'high' })
+    for (const name of leadersKey ? leadersKey.split('\n') : []) requestPrintings(name, { priority: 'high' })
     for (const card of deck?.cards ?? []) requestPrintings(card.name)
-  }, [commander, deck])
+  }, [leadersKey, deck])
 
   /** Legendary creatures you own that lead no deck yet, most copies first. */
   const owned = useMemo(() => {
-    const leading = new Set(lists.flatMap((list) => listCommander(list.lines) ?? []).map(nameKey))
+    const leading = new Set(lists.flatMap((list) => listCommanders(list.lines)).map(nameKey))
     return [...inventory.values()].filter((item) => !leading.has(nameKey(item.name)))
   }, [inventory, lists])
   useEffect(() => requestCardInfos(owned.map((item) => item.name), bundleBasics), [owned, bundleBasics])
@@ -130,12 +131,14 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
     })
     .slice(0, OWNED_SHOWN)
 
-  const pick = (card: string) => {
-    setCommander(card)
+  /** Leads with `leaders`, over all their decks. */
+  const lead = (leaders: string[]) => {
+    setCommanders(leaders)
     setFilters(NO_FILTERS)
     setBase(null)
     setName(null)
   }
+  const pick = (card: string) => lead([card])
 
   /** Copies of a card you can build with: those no list reserves. */
   const free = (card: string) => {
@@ -149,25 +152,27 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
     const unit = basic ? 0 : cheapestVersion(card.name, priceBasis)?.unit
     return { ...card, have, unit }
   })
-  const total = rows.reduce((sum, row) => sum + row.qty, 0) + (deck ? 1 : 0)
-  const ownedCards = rows.reduce((sum, row) => sum + row.have, 0) + (deck && free(deck.commander) > 0 ? 1 : 0)
-  const commanderUnit = commander && free(commander) === 0 ? (cheapestVersion(commander, priceBasis)?.unit ?? 0) : 0
-  const cost = rows.reduce((sum, row) => sum + (row.unit ?? 0) * (row.qty - row.have), commanderUnit)
+  const leaders = deck?.commanders ?? []
+  const total = rows.reduce((sum, row) => sum + row.qty, 0) + leaders.length
+  const ownedCards = rows.reduce((sum, row) => sum + row.have, 0) + leaders.filter((name) => free(name) > 0).length
+  const leadersCost = commanders.reduce((sum, name) => sum + (free(name) === 0 ? (cheapestVersion(name, priceBasis)?.unit ?? 0) : 0), 0)
+  const cost = rows.reduce((sum, row) => sum + (row.unit ?? 0) * (row.qty - row.have), leadersCost)
   const pricing = rows.some((row) => row.unit === undefined && row.have < row.qty)
 
   const themes = base?.themes ?? []
   const theme = themes.find((option) => option.slug === filters.theme) ?? null
   const chips = themes.slice(0, THEME_CHIPS)
   const extra = theme && !chips.includes(theme) ? theme : null
-  const defaultName = commander ? averageDeckName(commander, theme?.name ?? null) : ''
+  const defaultName = commander ? averageDeckName(commanders, theme?.name ?? null) : ''
   const listName = name ?? defaultName
   const namesOf = (kind: ListKind) => lists.filter((list) => list.kind === kind).map((list) => list.name)
   const save = (kind: ListKind) =>
     create.run(() => (deck ? onCreate(kind, preconListName(listName.trim(), namesOf(kind)), averageDeckText(deck), total) : undefined))
 
   const info = commander ? getCardInfo(commander, bundleBasics) : undefined
-  const art = commander ? artCrop(cheapestVersion(commander, priceBasis)?.printing) : null
-  const edhrecUrl = commander ? `${EDHREC_SITE}/${averageDeckPath(commander, filters)}` : 'https://edhrec.com'
+  const identity = new Set(commanders.flatMap((name) => getCardInfo(name, bundleBasics)?.colorIdentity ?? []))
+  const arts = commanders.flatMap((name) => artCrop(cheapestVersion(name, priceBasis)?.printing) ?? [])
+  const edhrecUrl = commander ? `${EDHREC_SITE}/${averageDeckPath(commanders, filters)}` : 'https://edhrec.com'
   const set = (patch: Partial<AverageDeckFilters>) => setFilters({ ...filters, ...patch })
 
   const footer = deck && (
@@ -219,12 +224,12 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
       ) : (
         <div className="wizard-deck">
           <section className="wizard-banner">
-            {art && <img className="wizard-art" src={art} alt="" draggable={false} />}
+            <HeroArt arts={arts} className="wizard-art" />
             <div className="wizard-banner-text">
-              <span className="small">Commander</span>
-              <h3>{commander}</h3>
+              <span className="small">{commanders.length > 1 ? 'Commanders' : 'Commander'}</span>
+              <h3>{commanders.join(' & ')}</h3>
               <span className="wizard-colors">
-                {(info?.colorIdentity ?? []).map((color) => (
+                {STAT_COLORS.filter((color) => identity.has(color)).map((color) => (
                   <img key={color} src={MANA_SYMBOLS[color as ColorFilter]} alt={color} draggable={false} />
                 ))}
                 {base && `${base.decks.toLocaleString('fr-FR')} decks on EDHREC`}
@@ -232,6 +237,14 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
             </div>
             <span className="spacer" />
             <div className="wizard-other">
+              {commanders.length === 1 && info?.partner && (
+                <CardSearch id="wizard-partner" placeholder="Add a partner…" onPick={(card) => lead([commanders[0], card])} />
+              )}
+              {commanders.length > 1 && (
+                <button type="button" className="wizard-drop-partner" onClick={() => lead([commanders[0]])}>
+                  <Icon name="close" /> Without {commanders[1]}
+                </button>
+              )}
               <CardSearch id="wizard-commander" placeholder="Another commander…" onPick={pick} />
             </div>
           </section>
@@ -295,7 +308,7 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
             <div className="wizard-note wizard-missing">
               <p>
                 {filters === NO_FILTERS || (!filters.theme && !filters.bracket && !filters.budget)
-                  ? `EDHREC has no decks led by ${commander}. Is it a commander?`
+                  ? `EDHREC has no decks led by ${commanders.join(' and ')}. ${commanders.length > 1 ? 'Can they share command?' : 'Is it a commander?'}`
                   : 'EDHREC has too few decks of this mix to average.'}
               </p>
               <div className="wizard-actions">
@@ -312,7 +325,7 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
                 <button type="button" className="primary" onClick={() => setRetry(retry + 1)}>
                   Try again
                 </button>
-                <button type="button" onClick={() => void window.api.openExternal(edhrecUrl)}>
+                <button type="button" onClick={() => void openExternal(edhrecUrl)}>
                   Open on EDHREC <Icon name="external" />
                 </button>
               </div>
@@ -342,19 +355,19 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
                   </strong>
                 </div>
                 <span className="spacer" />
-                <button type="button" className="link-btn" onClick={() => void window.api.openExternal(edhrecUrl)}>
+                <button type="button" className="link-btn" onClick={() => void openExternal(edhrecUrl)}>
                   Open on EDHREC <Icon name="external" />
                 </button>
               </div>
 
               <div className="wizard-cards" aria-label={`${cardCount(total)}`}>
-                {TYPE_ORDER.map(([type, heading]) => {
-                  const group = rows.filter((row) => row.type === type)
+                {TYPE_GROUPS.map(({ id, label }) => {
+                  const group = rows.filter((row) => groupOf(row.type) === id)
                   if (group.length === 0) return null
                   return (
-                    <section key={type} className="wizard-group">
+                    <section key={id} className="wizard-group">
                       <h4>
-                        {heading} <span className="muted small">{group.reduce((sum, row) => sum + row.qty, 0)}</span>
+                        {label} <span className="muted small">{group.reduce((sum, row) => sum + row.qty, 0)}</span>
                       </h4>
                       {group.map((row) => {
                         const all = row.have >= row.qty

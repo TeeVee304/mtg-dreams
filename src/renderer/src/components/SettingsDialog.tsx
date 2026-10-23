@@ -83,8 +83,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
           ))}
         </div>
         <p className="muted tiny settings-note">
-          From Cardmarket’s daily price guide, in EUR{pricedAt ? `, published ${formatDate(pricedAt)}` : ''}. Checked
-          hourly.{' '}
+          Cardmarket’s daily price guide, in EUR{pricedAt ? `, from ${formatDate(pricedAt)}` : ''}.{' '}
           <button
             type="button"
             className="link-btn"
@@ -97,14 +96,13 @@ export function SettingsDialog(props: SettingsDialogProps) {
             {refreshing ? 'Checking…' : 'Check now'}
           </button>
           <br />
-          Inventory Value always uses the typical price.
+          Inventory Value always uses Typical.
         </p>
         <div className="setting-toggle">
           <span className="setting-text">
             <span className="setting-label">Price change alerts</span>
             <span className="muted small">
-              Flags wishlist cards you still need once their price moved since you added them by both this
-              percentage and the amount for that direction, so cent moves of cheap cards don&apos;t count.
+              Flags wishlist cards whose price moved since you added them, by both the percentage and the amount.
             </span>
           </span>
           <span className="alert-fields">
@@ -164,11 +162,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
         <h3>Decks &amp; wishlists</h3>
         <label className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Card images in lists and search</span>
-            <span className="muted small">
-              A small picture beside each card in decks, wishlists, the inventory and card search. Hovering a card still
-              shows it large.
-            </span>
+            <span className="setting-label">Card Images</span>
+            <span className="muted small">A thumbnail beside each card.</span>
           </span>
           <input
             type="checkbox"
@@ -180,10 +175,9 @@ export function SettingsDialog(props: SettingsDialogProps) {
         </label>
         <label className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Bundle basic lands</span>
+            <span className="setting-label">Simple Basic Lands</span>
             <span className="muted small">
-              Counts every version of Plains, Island, Swamp, Mountain and Forest as one generic card, free of charge.
-              Faster, since their versions aren't looked up. Your files keep their versions; turn this off to see them.
+              Every basic land version counts as one free card. Faster; your files keep their versions.
             </span>
           </span>
           <input
@@ -200,11 +194,10 @@ export function SettingsDialog(props: SettingsDialogProps) {
         <h3>Copies</h3>
         <label className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Wishlists reserve copies</span>
+            <span className="setting-label">Wishlists reserve Copies</span>
             <span className="muted small">
-              Your copies go to built decks first, then to wishlists from the top of your order down. A card a higher
-              wishlist holds counts as missing for the ones below, and Most Wanted buys a copy for each. Off: every
-              wishlist uses every copy your built decks don&apos;t hold.
+              After built decks, wishlists hold copies from the top down. Off: each wishlist uses every copy decks
+              don&apos;t hold.
             </span>
           </span>
           <input
@@ -213,6 +206,19 @@ export function SettingsDialog(props: SettingsDialogProps) {
             className="switch"
             checked={settings.wishlistsReserve}
             onChange={(event) => change({ wishlistsReserve: event.target.checked })}
+          />
+        </label>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">Brews ignore Inventory</span>
+            <span className="muted small">Brews show only their cards and prices, with nothing owned.</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.plainBrews}
+            onChange={(event) => change({ plainBrews: event.target.checked })}
           />
         </label>
       </section>
@@ -231,7 +237,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </button>
         </div>
         <p className="muted tiny settings-note">
-          Your decks, wishlists, inventory and trades, as plain text files. Settings and caches stay with Windows.
+          Your lists, inventory and trades, as text files.
         </p>
       </section>
       {error && <p className="warn">{error}</p>}

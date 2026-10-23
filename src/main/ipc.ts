@@ -15,7 +15,7 @@ import * as storage from './storage'
 import { arrayOf, cardNames, numbers, text } from './validate'
 
 /** Hosts (and subdomains) allowed for external links. */
-const EXTERNAL_HOSTS = ['cardmarket.com', 'scryfall.com']
+const EXTERNAL_HOSTS = ['cardmarket.com', 'scryfall.com', 'edhrec.com']
 /** Max imported trade file size. */
 const MAX_TRADE_FILE_BYTES = 5 * 1024 * 1024
 

@@ -1,26 +1,28 @@
 import { COLOR_NAMES, type ColorFilter } from '@shared/cards'
 import { colorIdentityName } from '@shared/colorIdentity'
 import { commanderRule, type DeckFormat } from '@shared/formats'
-import type { ListVersion, Variant } from '@shared/listVersion'
+import type { PickMode } from '../hooks/useCommanderPicking'
+import { BASE, sameVersion, type ListVersion, type Variant } from '@shared/listVersion'
 import { MANA_SYMBOLS } from '../lib/artwork'
 import { FormatSelect, Segmented } from './Controls'
 import { Icon } from './Icon'
+import { HeroArt } from './HeroArt'
 import { MenuButton } from './MenuButton'
 
 /** Props of {@link ListHeader}. */
 interface ListHeaderProps {
   name: string
-  /** Art crop of the commander: the header becomes an art banner. Null for a plain header. */
-  art: string | null
-  /** The commander, named under the title. */
-  leader: string | null
-  /** Color identity, as mana symbols named on hover: the commander's, else the cards'. */
+  /** Art crops of the commanders: the header becomes an art banner. None for a plain header. */
+  arts: string[]
+  /** The commanders (two for partners), named under the title. */
+  leaders: string[]
+  /** Color identity, as mana symbols named on hover: the commanders', else the cards'. */
   colors: ColorFilter[]
   /** Noun used in labels. */
   noun: 'deck' | 'list'
   format: DeckFormat | null
-  /** Commander picking mode active. */
-  picking: boolean
+  /** Commander picking mode, while picking: a commander, or a partner for it. */
+  picking: PickMode | null
   /** The list has a commander. */
   hasCommander: boolean
   /** Some card can lead the list, or the commander can be removed. */
@@ -30,7 +32,13 @@ interface ListHeaderProps {
   /** Problem-only filter active. */
   onlyProblems: boolean
   onToggleProblems: () => void
-  onTogglePicking: () => void
+  onTogglePicking: (mode: PickMode) => void
+  /** `Partner` or `Background` while the only commander can take one: offers adding it. */
+  partnerKind: 'Partner' | 'Background' | null
+  /** Some card in the list can join the commander. */
+  canPickPartner: boolean
+  /** The only commander, which a partner joins. */
+  leaderName: string | null
   onFormat: (formatId: string | null) => void
   onEditText: () => void
   /** Copies the list text to the clipboard. */
@@ -43,16 +51,26 @@ interface ListHeaderProps {
   unbuilt?: boolean
   /** Decks: toggles unbuilt. */
   onToggleUnbuilt?: () => void
-  /** The other version the list's format allows (Duel for Commander, EDH for Duel); null for none. */
-  variant: Variant | null
-  /** Whether the list has that version. */
-  variantOn: boolean
-  /** The version shown, when the list has its other version; null without one. */
-  version: ListVersion | null
+  /** The list's versions (Duel or EDH, then named ones); none for a list without. */
+  variants: Variant[]
+  /** The list itself, named in the version toggle: `Commander`, `Duel`, `Main`. */
+  baseLabel: string
+  /** The version shown: `base`, or one of `variants`. */
+  version: ListVersion
+  /** Full name of the format the version shown follows (`Duel Commander`); null for the list itself. */
+  versionFormat: string | null
   /** Shows a version. */
   onVersion: (version: ListVersion) => void
-  /** Adds the other version, or removes it. */
-  onToggleVariant?: () => void
+  /** The other-format version the list's format allows, while the list lacks it (Duel, EDH); null otherwise. */
+  formatVariant: Variant | null
+  /** Adds the other-format version. */
+  onAddFormatVersion: () => void
+  /** Asks for a name, and adds a version of that name. */
+  onAddVersion: () => void
+  /** A named version shown: asks for its new name. */
+  onRenameVersion?: () => void
+  /** A version shown: deletes it (the list stays). */
+  onDeleteVersion?: () => void
   /** Brews: makes it a wishlist; the header then shows it is a brew. */
   onMakeWishlist?: () => void
   onRename: () => void
@@ -61,25 +79,25 @@ interface ListHeaderProps {
 
 /**
  * List title bar: format select, commander picking, problem badges and list actions. With the
- * commander's art it is a banner: the art behind the title, darkened toward the text.
+ * commanders' art it is a banner: the art behind the title, darkened toward the text.
  */
 export function ListHeader(props: ListHeaderProps) {
-  const { name, noun, format, legalityErrors, ownershipErrors, onlyProblems, art, leader, colors } = props
+  const { name, noun, format, legalityErrors, ownershipErrors, onlyProblems, arts, leaders, colors } = props
   const colorName = colorIdentityName(colors)
-  const { picking, hasCommander, canPickCommander } = props
+  const { picking, hasCommander, canPickCommander, partnerKind } = props
   const problemsTitle = onlyProblems ? 'Show all cards' : 'Show only cards with problems'
-  const { variant } = props
-  const other = props.version === 'variant' && variant ? variant : null
+  const { variants, formatVariant } = props
+  const other = variants.find((variant) => sameVersion(variant.label, props.version)) ?? null
   const advanced = [
     ...(props.onUpgrade ? [{ label: 'Upgrade of…', onSelect: props.onUpgrade }] : []),
     ...(props.onToggleUnbuilt ? [{ label: 'Unbuilt', checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] : []),
-    ...(props.onToggleVariant && variant
-      ? [{ label: `${props.variantOn ? 'Remove' : 'Add'} ${variant.label} Version`, onSelect: props.onToggleVariant }]
-      : [])
+    ...(formatVariant ? [{ label: `Add ${formatVariant.label} Version`, onSelect: props.onAddFormatVersion }] : []),
+    { label: 'Add Version…', onSelect: props.onAddVersion },
+    ...(other && props.onRenameVersion ? [{ label: `Rename ${other.label} Version…`, onSelect: props.onRenameVersion }] : [])
   ]
   return (
-    <header className={`view-header${art ? ' art-hero' : ''}${other ? ' variant-view' : ''}`}>
-      {art && <img className="hero-art" src={art} alt="" draggable={false} />}
+    <header className={`view-header${arts.length > 0 ? ' art-hero' : ''}${other ? ' variant-view' : ''}`}>
+      <HeroArt arts={arts} className="hero-art" />
       <div className="header-title">
         {other && <span className="duel-badge">{other.label} version</span>}
         {props.onMakeWishlist && (
@@ -88,21 +106,31 @@ export function ListHeader(props: ListHeaderProps) {
           </span>
         )}
         <h1>{name}</h1>
-        {leader && (
+        {leaders.length > 0 && (
           <p className="hero-leader">
-            Led by <strong>{leader}</strong>
+            Led by <strong>{leaders[0]}</strong>
+            {leaders.length > 1 && (
+              <>
+                {' '}
+                and <strong>{leaders[1]}</strong>
+              </>
+            )}
           </p>
         )}
         <div className="header-meta">
-          {props.version && variant && (
+          {variants.length > 0 && (
             <Segmented
               label="Version"
               className="version-toggle"
               options={[
-                { id: 'base', label: variant.baseLabel, title: `The ${noun} itself, for ${variant.baseLabel} games` },
-                { id: 'variant', label: variant.label, title: `Its ${variant.label} version: the same ${noun} with its ${variant.label} swaps` }
+                { id: BASE, label: props.baseLabel, title: `The ${noun} itself` },
+                ...variants.map((variant) => ({
+                  id: variant.label,
+                  label: variant.label,
+                  title: `Its ${variant.label} version: the same ${noun} with its ${variant.label} swaps`
+                }))
               ]}
-              value={props.version}
+              value={other?.label ?? BASE}
               onChange={props.onVersion}
             />
           )}
@@ -123,29 +151,50 @@ export function ListHeader(props: ListHeaderProps) {
             </span>
           )}
           {other ? (
-            <span className="duel-rules">
-              <Icon name="lock" /> {other.formatLabel}
-            </span>
+            props.versionFormat && (
+              <span className="duel-rules">
+                <Icon name="lock" /> {props.versionFormat}
+              </span>
+            )
           ) : (
             <label className="field-inline format-field">
               Format
               <FormatSelect value={format?.id ?? ''} onChange={(id) => props.onFormat(id || null)} label="Deck format" />
             </label>
           )}
-          {format?.commander && (picking || canPickCommander) && (
+          {format?.commander && (picking === 'commander' || (!picking && canPickCommander)) && (
             <button
               type="button"
               className={`wand-btn${picking ? ' on' : ''}`}
-              onClick={props.onTogglePicking}
-              aria-pressed={picking}
+              onClick={() => props.onTogglePicking('commander')}
+              aria-pressed={picking === 'commander'}
               title={
                 picking
                   ? 'Cancel (Esc)'
-                  : `Then click the card that leads this ${noun}. In ${format.label} it must be ${commanderRule(format)}.${hasCommander ? ' Click your commander to remove it.' : ''}`
+                  : `Then click the card that leads this ${noun}. In ${format.label} it must be ${commanderRule(format)}.${hasCommander ? ' Click a Commander to remove it.' : ''}`
               }
             >
               <Icon name="wand" />
-              {picking ? 'Click your commander… (Esc to cancel)' : hasCommander ? 'Change commander' : 'Set commander'}
+              {picking ? 'Click your Commander… (Esc to cancel)' : hasCommander ? 'Change Commander' : 'Set Commander'}
+            </button>
+          )}
+          {partnerKind && (picking === 'partner' || !picking) && (
+            <button
+              type="button"
+              className={`wand-btn${picking ? ' on' : ''}`}
+              onClick={() => props.onTogglePicking('partner')}
+              aria-pressed={picking === 'partner'}
+              disabled={!props.canPickPartner}
+              title={
+                picking
+                  ? 'Cancel (Esc)'
+                  : props.canPickPartner
+                    ? `Then click the card that joins ${props.leaderName} as your second Commander.`
+                    : `Add a card that can join ${props.leaderName} to this ${noun} first.`
+              }
+            >
+              <Icon name="wand" />
+              {picking ? `Click a ${partnerKind}… (Esc to cancel)` : `Add ${partnerKind}`}
             </button>
           )}
           {legalityErrors > 0 && (
@@ -187,9 +236,9 @@ export function ListHeader(props: ListHeaderProps) {
             { label: 'Color…', onSelect: props.onColor },
             ...(advanced.length > 0 ? [{ label: 'Advanced', items: advanced }] : []),
             { label: 'Rename…', onSelect: props.onRename },
-            // In the other version's view, deleting deletes that version only; the list stays.
-            other && props.onToggleVariant
-              ? { label: `Delete ${other.label} Version…`, onSelect: props.onToggleVariant, danger: true }
+            // In a version's view, deleting deletes that version only; the list stays.
+            other && props.onDeleteVersion
+              ? { label: `Delete ${other.label} Version…`, onSelect: props.onDeleteVersion, danger: true }
               : { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
           ]}
         />

@@ -137,6 +137,59 @@ textarea {
   outline: none;
 }
 
+/* Dropdowns open in the app's colors, like its menus, not in Windows' grey and blue. */
+select,
+::picker(select) {
+  appearance: base-select;
+}
+
+select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+select::picker-icon {
+  color: var(--muted);
+  transition: rotate 0.15s ease;
+}
+
+select:open::picker-icon {
+  rotate: 180deg;
+}
+
+::picker(select) {
+  margin-block: 4px;
+  padding: 5px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+option {
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+}
+
+option::checkmark {
+  display: none;
+}
+
+option:checked {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+/* The option under the pointer, in the theme's color. */
+option:hover,
+option:focus-visible {
+  background: var(--accent);
+  color: var(--accent-ink);
+  outline: none;
+}
+
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,

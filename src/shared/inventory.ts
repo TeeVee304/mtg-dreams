@@ -14,8 +14,11 @@ export type Version = Pick<OwnedCopy, 'set' | 'collector' | 'foil' | 'lang' | 'w
 /** Unversioned, non-foil. */
 const ANY_VERSION: Version = { foil: false }
 
-/** Version equality; missing fields compare as empty. */
-export const sameVersion = (a: Version, b: Version) =>
+/**
+ * Owned-copy version equality (printing, finish, language, valued); missing fields compare as empty.
+ * Not to be confused with `sameVersion` in `listVersion`, which compares a list's versions (Duel, Counters).
+ */
+const sameCopyVersion = (a: Version, b: Version) =>
   (a.set ?? '') === (b.set ?? '') &&
   (a.collector ?? '') === (b.collector ?? '') &&
   a.foil === b.foil &&
@@ -46,7 +49,7 @@ export function normalizeCopies(copies: OwnedCopy[]): OwnedCopy[] {
       ...(copy.lang && { lang: copy.lang }),
       ...(copy.worthless && { worthless: true as const })
     }
-    const same = merged.find((other) => sameVersion(other, version))
+    const same = merged.find((other) => sameCopyVersion(other, version))
     if (same) same.qty += copy.qty
     else merged.push({ qty: copy.qty, ...version })
   }

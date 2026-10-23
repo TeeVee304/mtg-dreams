@@ -180,7 +180,10 @@ export function Sidebar(props: SidebarProps) {
           {art && settings.cardImages ? <img src={art} alt="" loading="lazy" draggable={false} /> : <Initials name={list.name} />}
         </span>
         <span className="nav-text">
-        <span className="nav-name">{list.name}</span>
+        <span className="nav-title-row">
+          <span className="nav-name">{list.name}</span>
+          <PriceMoves cheaper={cheaper} pricier={pricier} />
+        </span>
         {list.kind === 'wishlist' && !complete && summary.cards > 0 && (
           <span className="nav-progress" aria-hidden="true">
             <span style={{ width: `${Math.max(collected, 2)}%` }} />
@@ -206,14 +209,17 @@ export function Sidebar(props: SidebarProps) {
               )}
             </>
           ) : isBrew ? (
-            `${summary.ownedCards} of ${summary.cards} owned`
+            settings.plainBrews ? (
+              `${cardCount(summary.cards)}${priced ? ` · ${formatEur(summary.total)}` : ''}`
+            ) : (
+              `${summary.ownedCards} of ${summary.cards} owned`
+            )
           ) : complete ? (
             <span className="nav-complete">✓ Complete · {cardCount(summary.cards)}</span>
           ) : (
             `${summary.ownedCards} of ${summary.cards}${priced ? ` · ${formatEur(summary.neededValue)} to go` : ''}`
           )}
         </span>
-        <PriceMoves cheaper={cheaper} pricier={pricier} className="nav-meta" />
         </span>
       </button>
     )
@@ -327,7 +333,10 @@ export function Sidebar(props: SidebarProps) {
         {section('deck', 'Decks', 'No decks yet.')}
         {section('wishlist', 'Wishlists', 'No wishlists yet.')}
         {section('brew', 'Brews', 'Decks you are toying with, kept out of Most Wanted.')}
+      </nav>
 
+      {/* Trades stay in view under the lists, however long those get. */}
+      <nav className="nav-trades" aria-label="Trades">
         <div className="nav-section">
           <span className="nav-section-title">Trades</span>
           <button

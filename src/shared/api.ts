@@ -18,6 +18,8 @@ export interface AppSettings {
    * down; otherwise each wishlist sees every copy built decks don't hold.
    */
   wishlistsReserve: boolean
+  /** Brews ignore the inventory: no owned copies, just their cards and prices. */
+  plainBrews: boolean
   /** Show card thumbnails in lists and search. */
   cardImages: boolean
   /** List layout for decks and wishlists. */

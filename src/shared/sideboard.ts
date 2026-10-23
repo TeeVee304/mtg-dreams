@@ -27,11 +27,33 @@ const SIDEBOARD_HEADER = /^(?:\/\/\s*)?side(?:board)?\s*:?$/i
 /** Other section headers; each ends a sideboard section. */
 const OTHER_HEADER = /^(?:\/\/\s*)?(?:deck|main|mainboard|maindeck|commander|companion|maybeboard|about)\s*:?$/i
 
+/** Header naming one of a list's own versions: `// Version: Counters` (see listVersion). */
+export const VERSION_HEADER = /^\/\/\s*version\s*:\s*(.+?)\s*$/i
+
+/** Header shape of a version's swap section: `// Duel in`, `// Counters out`… */
+const SWAP_SECTION = /^\/\/\s*(.+?)\s+(in|out)\s*:?$/i
+
+/** @returns Names, lower-case, of the versions whose swap sections a list may have: Duel, EDH and its named ones. */
+export function versionSectionNames(lines: ListLine[]): Set<string> {
+  const names = new Set(['duel', 'edh'])
+  for (const line of lines) {
+    const named = line.kind === 'text' ? VERSION_HEADER.exec(line.text.trim()) : null
+    if (named) names.add(named[1].toLowerCase())
+  }
+  return names
+}
+
 /**
- * Header of a version's swap section, `// Duel in`, `// EDH out`… (see listVersion). Its cards are no
- * part of the main deck; the app writes these sections last.
+ * @param names - From {@link versionSectionNames}.
+ * @returns The version (lower-case) and part a swap section header starts, `// Duel in`, `// Counters
+ * out`… (see listVersion); null if the line is none. Its cards are no part of the main deck; the app
+ * writes these sections last.
  */
-export const VERSION_SECTION = /^\/\/\s*(duel|edh)\s+(in|out)\s*:?$/i
+export function swapSection(line: ListLine, names: Set<string>): { name: string; part: 'in' | 'out' } | null {
+  const match = line.kind === 'text' ? SWAP_SECTION.exec(line.text.trim()) : null
+  if (!match || !names.has(match[1].toLowerCase())) return null
+  return { name: match[1].toLowerCase(), part: match[2].toLowerCase() as 'in' | 'out' }
+}
 
 /** Text line matching `re`. */
 const isHeader = (line: ListLine, re: RegExp) => line.kind === 'text' && re.test(line.text.trim())
@@ -61,7 +83,8 @@ function boardEnd(lines: ListLine[], board: Board): number {
   let end: number
   if (board === 'main') {
     // The main deck ends at the sideboard, or at the version swaps.
-    const swaps = lines.findIndex((line) => isHeader(line, VERSION_SECTION))
+    const names = versionSectionNames(lines)
+    const swaps = lines.findIndex((line) => swapSection(line, names) !== null)
     end = Math.min(header < 0 ? lines.length : header, swaps < 0 ? lines.length : swaps)
   } else {
     if (header < 0) return -1

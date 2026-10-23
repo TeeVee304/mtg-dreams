@@ -14,11 +14,12 @@ import { TradeView } from './components/TradeView'
 import { WantedView } from './components/wanted/WantedView'
 import { Welcome } from './components/Welcome'
 import { plannedLists, useCopyPool } from './hooks/useCopyPool'
-import { cleanError } from './lib/format'
+import { useListMover } from './hooks/useListMover'
 import { usePrices } from './hooks/usePrices'
 import { useScrollMemory } from './hooks/useScrollMemory'
 import { useShortcuts } from './hooks/useShortcuts'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
+import { onWindowFocus } from './lib/desktop'
 
 /** @returns Identity of a page, for remembering its scroll position. */
 function pageKey(view: View | null): string {
@@ -42,12 +43,13 @@ export default function App() {
     [toast, showUndone]
   )
   const { state, actions, conflict } = useLibrary({ onError, onUndoable })
+  const moveListTo = useListMover(actions)
   const [view, setView] = useState<View | null>(null)
   const [dialog, setDialog] = useState<AppDialog | null>(null)
 
   useEffect(() => {
     void actions.reload(true)
-    return window.api.onWindowFocus(() => void actions.reload())
+    return onWindowFocus(() => void actions.reload())
   }, [actions])
 
   // A page whose list or trade is gone falls back to the first list.
@@ -85,14 +87,12 @@ export default function App() {
   const newList = (kind: ListKind) => setDialog({ kind: 'new-list', list: kind })
   /** Moves a list dragged between Wishlists and Brews; an open one stays open. */
   const moveKind = async (target: ListRef, to: 'wishlist' | 'brew', at?: number) => {
-    try {
-      const moved = await actions.moveList(target, to)
-      if (to === 'wishlist' && at !== undefined) actions.moveWishlist(moved, at)
-      if (view?.page === 'list' && sameList(view.list, target)) setView({ page: 'list', list: moved })
-      toast(to === 'brew' ? `“${moved.name}” is now a brew: it no longer counts in Most Wanted` : `“${moved.name}” is now a wishlist`)
-    } catch (error) {
-      toast(`Could not move the list: ${cleanError(error)}`, 'error')
-    }
+    const moved = await moveListTo(target, to, (moved) =>
+      to === 'brew' ? `“${moved.name}” is now a brew: it no longer counts in Most Wanted` : `“${moved.name}” is now a wishlist`
+    )
+    if (!moved) return
+    if (to === 'wishlist' && at !== undefined) actions.moveWishlist(moved, at)
+    if (view?.page === 'list' && sameList(view.list, target)) setView({ page: 'list', list: moved })
   }
 
   return (

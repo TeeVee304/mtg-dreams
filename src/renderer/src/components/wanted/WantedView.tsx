@@ -25,6 +25,7 @@ import { WishlistShelf } from './WishlistShelf'
 import { CardsTab, type CardPriceChange, type FriendHaves } from './CardsTab'
 import { listMetas } from './parts'
 import { TokensTab } from './TokensTab'
+import { useCopy } from '../../hooks/useCopy'
 
 /** Page tab. */
 type WantedTab = 'cards' | 'basics' | 'tokens'
@@ -135,7 +136,8 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
     actions.setOwned(card.name, card.owned + card.toBuy)
     toast(`Marked ${card.toBuy}× ${card.name} as bought (Ctrl+Z to undo)`)
   }
-  const copy = (text: string, what: string) => window.api.copyText(text).then(() => toast(`${what} copied to clipboard`))
+  const copyText = useCopy()
+  const copy = (text: string, what: string) => copyText(text, `${what} copied to clipboard`)
   const copyTab = () => {
     const cards = tab === 'cards' ? visible : basics
     void copy(countLines(cards.map((card) => ({ qty: card.toBuy, name: card.name }))).join('\n'), tab === 'cards' ? 'Cards to buy' : 'Basic lands')

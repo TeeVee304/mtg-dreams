@@ -15,20 +15,13 @@
   flex-wrap: wrap;
 }
 
-/* A labeled set of toggles (and the color match select); groups sit further apart than the
-   toggles inside them. */
+/* A set of toggles (and the color match select), named for screen readers only: the mana symbols
+   and rarity letters say what they are, and leaving the words out keeps view and sort on the row.
+   Groups sit further apart than the toggles inside them. */
 .filter-group {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-}
-
-.filter-label {
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--faint);
 }
 
 /* Narrow, so view and sort usually fit on the same row. */

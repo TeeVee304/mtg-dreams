@@ -7,7 +7,7 @@ import {
   type AverageDeckFilters,
   type AverageDeckResult
 } from '@shared/deckWizard/averageDeck'
-import { cachedFetch } from '../cacheFiles'
+import { cacheEntries, cachedFetch } from '../cacheFiles'
 import { fetchJson } from '../http'
 import { text } from '../validate'
 
@@ -23,18 +23,26 @@ import { text } from '../validate'
 const DAY_MS = 24 * 60 * 60 * 1000
 /** Longest commander name accepted. */
 const MAX_NAME = 200
+/** Version of the cached answers' form; older ones are fetched again. */
+const CACHE_VERSION = 2
+
+/** @returns Cached EDHREC answers of earlier cache versions, which nothing reads any more. */
+export async function outdatedWizardCaches(): Promise<string[]> {
+  return (await cacheEntries('edhrec')).filter((name) => name !== `v${CACHE_VERSION}`).map((name) => `edhrec/${name}`)
+}
 
 /** Registers an IPC handler; tests pass a stand-in. */
 type Handle = (channel: string, listener: (event: unknown, ...args: unknown[]) => unknown) => void
 
 /**
- * @returns A commander's average deck for a mix from EDHREC, or `missing` when EDHREC has none.
+ * @param commanders - The commander, or two partners.
+ * @returns Their average deck for a mix from EDHREC, or `missing` when EDHREC has none.
  * @throws Error in plain words when EDHREC can't be reached or answers oddly.
  */
-export function averageDeck(commander: string, filters: AverageDeckFilters): Promise<AverageDeckResult> {
-  const path = averageDeckPath(commander, filters)
+export function averageDeck(commanders: string[], filters: AverageDeckFilters): Promise<AverageDeckResult> {
+  const path = averageDeckPath(commanders, filters)
   if (!path) return Promise.resolve({ status: 'missing' })
-  return cachedFetch<AverageDeckResult>(`edhrec/${path}.json`, DAY_MS, async () => {
+  return cachedFetch<AverageDeckResult>(`edhrec/v${CACHE_VERSION}/${path}.json`, DAY_MS, async () => {
     const response = await fetchJson(`${EDHREC_JSON}/${path}.json`, 'EDHREC')
     if (response.status === 403 || response.status === 404) return { status: 'missing' }
     if (response.status !== 200) throw new Error(`EDHREC answered with an error (HTTP ${response.status}). Try again later.`)
@@ -44,8 +52,12 @@ export function averageDeck(commander: string, filters: AverageDeckFilters): Pro
 
 /** Registers the Deck Wizard's IPC handlers. */
 export function registerDeckWizard(handle: Handle = (channel, listener) => ipcMain.handle(channel, listener)): void {
-  handle('wizard:average', (_e, commander, filters) => {
+  handle('wizard:average', (_e, commanders, filters) => {
     if (!isFilters(filters)) throw new Error('Invalid deck filters.')
-    return averageDeck(text(commander, 'commander').slice(0, MAX_NAME), filters)
+    if (!Array.isArray(commanders) || commanders.length < 1 || commanders.length > 2) throw new Error('Invalid commanders.')
+    return averageDeck(
+      commanders.map((name) => text(name, 'commander').slice(0, MAX_NAME)),
+      filters
+    )
   })
 }

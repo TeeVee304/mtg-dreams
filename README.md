@@ -32,23 +32,26 @@
 - **Decks** are built from your inventory: you can only add cards you own, up to the copies you have.
 - **Owned copies** belong to decks: each built deck holds its own copies, handed out by deck name. Wishlists are plans,
   so they hold none: each one counts every copy no deck holds, without competing with other wishlists.
-  **Settings → Copies → Wishlists reserve copies** makes them hold copies too, from the top of your order down.
+  **Settings → Copies → Wishlists reserve Copies** makes them hold copies too, from the top of your order down.
 - Mark a deck you put together only when you play it **Unbuilt** (⋯ menu, Advanced): it uses every copy you own without
   reserving any, so other decks keep theirs. Its copies still stay off your trade list.
 - Make a wishlist an **Upgrade of** a deck (⋯ menu, Advanced): it holds the whole deck as you want it to be, and uses
   the deck's copies of the cards they share. Once you own every card, apply it: the deck becomes the upgrade.
 - Give a Commander deck a **Duel version** (⋯ menu, Advanced), or a Duel Commander deck an **EDH version**: the same
-  deck with a few cards swapped, shown as cards out and cards in. Both versions share your copies.
+  deck with a few cards swapped, shown as cards out and cards in. **Add Version…** adds named versions in the same
+  format (say, *Counters* or *Artifacts*). All versions share your copies, and Most Wanted counts each.
+- **Partner commanders**: with a commander that has Partner, Friends forever, Choose a Background or Doctor's
+  companion, **Add Partner** (or **Add Background**) lets you click a second one. The colors are both commanders'.
 - **Wishlists** list the cards you want and what they still cost. Owned cards are ticked.
 - **Brews** are decks you're only toying with: they count toward nothing (Most Wanted, trades, copies). Drag a list
-  between Wishlists and Brews to switch.
+  between Wishlists and Brews to switch. **Settings → Copies → Brews ignore Inventory** shows just their cards and prices.
 - **Order your wishlists** by dragging them in the sidebar, most wanted first.
   The higher a wishlist, the more its cards count in Most Wanted and the budget planner. New wishlists start at the bottom.
 - A **Statistics** panel shows the mana curve and the colors of the cards besides lands.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers the cards create, with which cards make each one.
 
 ### Deck Wizard
-- Pick a commander to see EDHREC's average deck for it, by theme, power bracket and budget, with the cards you own
+- Pick a commander (and its partner) to see EDHREC's average deck for it, by theme, power bracket and budget, with the cards you own
   ticked and what the rest would cost. Save it as a brew or a wishlist.
 
 ### Most Wanted

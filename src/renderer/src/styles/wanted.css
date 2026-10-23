@@ -106,16 +106,69 @@
   gap: 10px;
 }
 
-.wishlist-shelf h2 {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 500;
-}
-
+/* One row that scrolls sideways when the wishlists don't fit, so the shelf never grows taller and
+   pushes the cards to buy below the window. */
 .shelf-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 220px);
   gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  /* Room for the scrollbar under the cards. */
+  padding-bottom: 4px;
+}
+
+.shelf-card {
+  scroll-snap-align: start;
+}
+
+/* Arrows and a fade on the sides with more wishlists, so the shelf shows it scrolls. */
+.shelf-scroller {
+  position: relative;
+}
+
+.shelf-scroller.more-before .shelf-grid {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 56px);
+  mask-image: linear-gradient(to right, transparent 0, #000 56px);
+}
+
+.shelf-scroller.more-after .shelf-grid {
+  -webkit-mask-image: linear-gradient(to left, transparent 0, #000 56px);
+  mask-image: linear-gradient(to left, transparent 0, #000 56px);
+}
+
+.shelf-scroller.more-before.more-after .shelf-grid {
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 56px, #000 calc(100% - 56px), transparent 100%);
+}
+
+.shelf-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  transform: translateY(-50%);
+}
+
+.shelf-arrow.before {
+  left: 4px;
+}
+
+.shelf-arrow.before svg {
+  transform: rotate(180deg);
+}
+
+.shelf-arrow.after {
+  right: 4px;
 }
 
 .shelf-card {

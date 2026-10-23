@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { nameKey } from '@shared/decklist'
 import { useSettings } from '../stores/settings'
 import { CardThumb } from './Placeholders'
+import { smallCardImages, suggestCardNames } from '../stores/search'
 
 /** Local search option. */
 export interface SearchChoice {
@@ -67,8 +68,7 @@ export function CardSearch({ onPick, placeholder, choices, id = CARD_SEARCH_ID }
     }
     setLoading(true)
     const timer = setTimeout(() => {
-      window.api
-        .autocomplete(q)
+      suggestCardNames(q)
         .then((names) => {
           if (seq !== requestSeq.current) return
           setSuggestions(names)
@@ -87,8 +87,7 @@ export function CardSearch({ onPick, placeholder, choices, id = CARD_SEARCH_ID }
   useEffect(() => {
     if (!imagesKey) return
     let live = true
-    window.api
-      .getCardImages(imagesKey.split('\n'))
+    smallCardImages(imagesKey.split('\n'))
       .then((found) => live && setImages((known) => ({ ...known, ...found })))
       .catch(() => undefined)
     return () => {

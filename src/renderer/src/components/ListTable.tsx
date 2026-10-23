@@ -4,7 +4,7 @@ import type { Section } from '@shared/listModel'
 import { cardCount, formatEur } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { summarize, type Row, type Summary } from '../lib/summary'
-import { useNarrow } from '../hooks/useNarrow'
+import { useNarrowTables } from '../hooks/useNarrow'
 import { CardSortSelect, Segmented, SortHeader } from './Controls'
 import { FilterBar } from './FilterBar'
 import { Icon } from './Icon'
@@ -56,7 +56,7 @@ interface ListTableProps {
 export function ListTable(props: ListTableProps) {
   const { isDeck, sections, renderRow, visibleSummary, filtering } = props
   const { cardView } = useSettings()
-  const narrow = useNarrow()
+  const narrow = useNarrowTables()
   const sortProps = { sort: props.sort, reverse: props.sortReverse }
   const [closed, setClosed] = useState<Set<string>>(() => folded.get(props.listKey) ?? new Set())
   const toggle = (id: string) => {
@@ -121,11 +121,11 @@ export function ListTable(props: ListTableProps) {
                   id="owned"
                   label="Owned"
                   className="col-owned"
-                  title="Owned — shared across all lists through the Inventory"
+                  title="Copies you own, shared by all lists through the Inventory"
                   {...sortProps}
                 />
               )}
-              <SortHeader id="qty" label="Qty" className="col-qty" {...sortProps} />
+              <SortHeader id="qty" label={isDeck ? 'Qty' : 'Wanted'} className="col-qty" {...sortProps} />
               <SortHeader id="name" label="Card" {...sortProps} />
               {!narrow && <th className="col-version">Version</th>}
               <SortHeader id="unit" label="Price" className="col-num" title="Sorts by unit price" {...sortProps} />

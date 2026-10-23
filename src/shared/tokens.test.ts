@@ -22,6 +22,9 @@ describe('partKind', () => {
     expect(partKind('combo_piece', 'Emblem — Elspeth')).toBe('emblem')
     expect(partKind('combo_piece', 'Card')).toBe('helper')
     expect(partKind('combo_piece', 'Dungeon')).toBe('helper')
+    // Face-down helpers: A Mysterious Creature (Disguise, Cloak), Morph, Manifest.
+    expect(partKind('combo_piece', 'Creature')).toBe('helper')
+    expect(partKind('combo_piece', 'Creature — Goblin Rogue')).toBeNull()
     expect(partKind('combo_piece', 'Legendary Planeswalker — Elspeth')).toBeNull()
     expect(partKind('meld_part', 'Legendary Creature — Eldrazi')).toBeNull()
   })

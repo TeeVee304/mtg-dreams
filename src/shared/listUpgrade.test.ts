@@ -36,8 +36,8 @@ describe('upgrades of a version', () => {
 
   it('name the version they plan, kept when the deck is renamed', () => {
     const lines = withUpgradeOf(parseList('1 Sol Ring'), 'Elves', 'Duel')
-    expect(upgradeVersion(lines)).toBe('variant')
-    expect(upgradeVersion(withUpgradeOf(lines, 'Goblins', 'Duel'))).toBe('variant')
+    expect(upgradeVersion(lines)).toBe('Duel')
+    expect(upgradeVersion(withUpgradeOf(lines, 'Goblins', 'Duel'))).toBe('Duel')
     expect(serializeList(withUpgradeOf(lines, null))).toBe('1 Sol Ring\n')
   })
 
@@ -51,7 +51,15 @@ describe('upgrades of a version', () => {
   it('keep the deck\'s Duel version when the deck itself is upgraded', () => {
     const upgrade = withUpgradeOf(parseList('// Format: Commander\n1 Sol Ring\n1 Galactus, Devourer of Worlds\n1 Arcane Signet\n'), 'Deck')
     expect(serializeList(appliedUpgrade(upgrade, deck))).toBe(
-      '// Duel: On\n// Format: Commander\n1 Sol Ring\n1 Galactus, Devourer of Worlds\n1 Arcane Signet\n\n// Duel out\n1 Galactus, Devourer of Worlds\n'
+      '// Format: Commander\n// Duel: On\n1 Sol Ring\n1 Galactus, Devourer of Worlds\n1 Arcane Signet\n\n// Duel out\n1 Galactus, Devourer of Worlds\n'
+    )
+  })
+
+  it('apply an upgrade of a named version as its swaps', () => {
+    const named = parseList('// Format: Commander\n// Version: Counters\n1 Sol Ring\n1 Galactus, Devourer of Worlds\n')
+    const upgrade = withUpgradeOf(parseList('1 Sol Ring\n1 Hardened Scales\n'), 'Deck', 'Counters')
+    expect(serializeList(appliedUpgrade(upgrade, named))).toBe(
+      '// Format: Commander\n// Version: Counters\n1 Sol Ring\n1 Galactus, Devourer of Worlds\n\n// Counters in\n1 Hardened Scales\n\n// Counters out\n1 Galactus, Devourer of Worlds\n'
     )
   })
 })

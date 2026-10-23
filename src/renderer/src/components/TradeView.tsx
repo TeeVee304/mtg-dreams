@@ -143,7 +143,7 @@ export function TradeView({ trade, myTrade, pool, lists, actions, onOpenList, on
 
       <div className="trade-columns">
         <section>
-          <h3 className="trade-heading">{trade.name} has, your lists need</h3>
+          <h2 className="section-heading trade-heading">{trade.name} has, your lists need</h2>
           {receive.length > 0 ? (
             <MatchTable
               matches={receive}
@@ -169,7 +169,7 @@ export function TradeView({ trade, myTrade, pool, lists, actions, onOpenList, on
           )}
         </section>
         <section>
-          <h3 className="trade-heading">You have, {trade.name}'s lists need</h3>
+          <h2 className="section-heading trade-heading">You have, {trade.name}'s lists need</h2>
           {give.length > 0 ? (
             <MatchTable
               matches={give}

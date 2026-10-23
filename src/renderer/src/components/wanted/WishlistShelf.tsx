@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { listColor } from '@shared/listColor'
 import type { InventoryItem } from '@shared/types'
 import { useCopyPool } from '../../hooks/useCopyPool'
@@ -8,6 +8,7 @@ import { useBaselines } from '../../stores/history'
 import type { CardList, ListRef } from '../../stores/library'
 import { usePrintingsVersion } from '../../stores/printings'
 import { useSettings } from '../../stores/settings'
+import { Icon } from '../Icon'
 import { PriceMoves } from '../PriceMoves'
 
 /** Props of {@link WishlistShelf}. */
@@ -15,6 +16,33 @@ interface WishlistShelfProps {
   lists: CardList[]
   inventory: Map<string, InventoryItem>
   onOpenList: (list: ListRef) => void
+}
+
+/**
+ * Which ends of a sideways scroller have more to show, kept up to date as it scrolls or resizes.
+ * @param items - What it holds; measured again when it changes.
+ */
+function useScrollEnds(items: number) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [ends, setEnds] = useState({ before: false, after: false })
+  const measure = () => {
+    const el = ref.current
+    if (!el) return
+    const before = el.scrollLeft > 1
+    const after = el.scrollLeft + el.clientWidth < el.scrollWidth - 1
+    setEnds((was) => (was.before === before && was.after === after ? was : { before, after }))
+  }
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [items])
+  /** Scrolls most of a view's width toward `direction` (-1 back, 1 on). */
+  const page = (direction: -1 | 1) => ref.current?.scrollBy({ left: direction * ref.current.clientWidth * 0.8, behavior: 'smooth' })
+  return { ref, ends, measure, page }
 }
 
 /**
@@ -36,12 +64,19 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
     // `version` stands for the prices the figures are read from.
     [lists, inventory, settings, baselines, pool, version]
   )
+  const { ref, ends, measure, page } = useScrollEnds(shelf.length)
   if (shelf.length === 0) return null
 
   return (
     <section className="wishlist-shelf" aria-labelledby="shelf-title">
-      <h2 id="shelf-title">Wishlists by cost to finish</h2>
-      <div className="shelf-grid">
+      <h2 id="shelf-title" className="section-heading">Wishlists by cost to finish</h2>
+      <div className={`shelf-scroller${ends.before ? ' more-before' : ''}${ends.after ? ' more-after' : ''}`}>
+      {ends.before && (
+        <button type="button" className="shelf-arrow before" onClick={() => page(-1)} aria-label="Earlier wishlists" title="Earlier wishlists">
+          <Icon name="chevron" />
+        </button>
+      )}
+      <div className="shelf-grid" ref={ref} onScroll={measure}>
         {shelf.map(({ list, figures: { summary, cheaper, pricier, art } }) => {
           const collected = Math.round((summary.ownedCards / summary.cards) * 100)
           return (
@@ -71,6 +106,12 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
             </button>
           )
         })}
+      </div>
+      {ends.after && (
+        <button type="button" className="shelf-arrow after" onClick={() => page(1)} aria-label="More wishlists" title="More wishlists">
+          <Icon name="chevron" />
+        </button>
+      )}
       </div>
     </section>
   )

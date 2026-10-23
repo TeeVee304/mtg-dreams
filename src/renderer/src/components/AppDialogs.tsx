@@ -1,6 +1,6 @@
 import { copiesToAdd, type CopyPool } from '@shared/copies'
 import { cardLines, parseList, serializeList } from '@shared/decklist'
-import { withCommander, withFormat } from '@shared/formats'
+import { withCommanders, withFormat } from '@shared/formats'
 import { preconListName, type PreconEntry } from '@shared/precons'
 import { entriesToLines } from '@shared/sideboard'
 import { totalCopies } from '@shared/totals'
@@ -15,6 +15,7 @@ import { PreconDialog } from './PreconDialog'
 import { SettingsDialog } from './SettingsDialog'
 import { useToast } from './Toasts'
 import { ImportTradeDialog, ShareTradeDialog } from './TradeDialogs'
+import { openDataFolder } from '../lib/desktop'
 
 /** The dialog open over the app, if any. */
 export type AppDialog =
@@ -52,14 +53,14 @@ export function AppDialogs(props: AppDialogsProps) {
 
   /**
    * Creates a list from a precon. Decks also add their cards to the inventory. Commander decks get
-   * the Commander format and their first commander.
+   * the Commander format and their commanders (two at most: partners).
    */
   const createFromPrecon = async (kind: ListKind, deck: PreconDeck, entries: PreconEntry[]) => {
     const name = preconListName(deck.name, state.lists.filter((list) => list.kind === kind).map((list) => list.name))
     const lines = entriesToLines(entries)
     const format = deck.type === 'Commander Deck' ? 'commander' : null
-    const leader = format ? deck.cards.find((card) => card.board === 'commander')?.name : undefined
-    const text = serializeList(withCommander(withFormat(lines, format), leader ?? null))
+    const leaders = format ? deck.cards.filter((card) => card.board === 'commander').map((card) => card.name) : []
+    const text = serializeList(withCommanders(withFormat(lines, format), leaders))
     const created = await actions.createList(kind, name, text)
     if (kind === 'deck') actions.addOwned(entries)
     close()
@@ -106,7 +107,7 @@ export function AppDialogs(props: AppDialogsProps) {
         <SettingsDialog
           onClose={close}
           dataDir={state.dataDir}
-          onOpenDataDir={() => void window.api.openDataDir()}
+          onOpenDataDir={() => void openDataFolder()}
           onChangeDataDir={changeDataDir}
           pricedAt={props.pricedAt}
           onRefreshPrices={props.onRefreshPrices}

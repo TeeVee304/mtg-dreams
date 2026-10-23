@@ -1,5 +1,6 @@
 import { COLOR_NAMES } from '@shared/cards'
 import { CURVE_TOP, deckStats, STAT_COLORS, type DeckStats as Stats, type StatsRow } from '@shared/deckStats'
+import { counted } from '@shared/plural'
 import { MANA_SYMBOLS } from '../lib/artwork'
 import { cardCount } from '../lib/format'
 import { useStoredToggle } from '../hooks/useStoredToggle'
@@ -20,8 +21,8 @@ interface DeckStatsProps {
 }
 
 /**
- * Collapsible stats panel of decks and wishlists (deck plans), closed by default with the card and
- * land counts: mana curve and color breakdown (see {@link deckStats}). A curve bar filters the list
+ * Collapsible stats panel of decks and wishlists (deck plans), closed by default with the average
+ * mana value (the card and land counts are beside it already): mana curve and color breakdown (see {@link deckStats}). A curve bar filters the list
  * to its mana value.
  */
 export function DeckStats({ rows, manaValue, onManaValue }: DeckStatsProps) {
@@ -40,7 +41,7 @@ export function DeckStats({ rows, manaValue, onManaValue }: DeckStatsProps) {
       }
       summary={
         <>
-          {`${counted(stats.spells, 'card')} + ${counted(stats.lands, 'land')}`}
+          {stats.averageManaValue !== null ? `Average mana value ${stats.averageManaValue.toFixed(2)}` : counted(stats.lands, 'land')}
           {stats.pending > 0 && ` · ${cardCount(stats.pending)} loading`}
         </>
       }
@@ -129,9 +130,6 @@ function MiniCurve({ stats }: { stats: Stats }) {
 
 /** Curve column label; the last is `N+`. */
 const label = (manaValue: number) => (manaValue === CURVE_TOP ? `${CURVE_TOP}+` : String(manaValue))
-
-/** @returns Pluralized count, e.g. `1 card`. */
-const counted = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
 /** Curve bar accessible name. */
 const tip = (manaValue: number, creatures: number, others: number) =>

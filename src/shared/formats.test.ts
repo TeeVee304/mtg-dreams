@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { parseList, serializeList } from './decklist'
 import {
+  canJoin,
   canLead,
+  canPartner,
   capEntries,
   colorIdentityIssue,
   commanderIssue,
@@ -9,11 +11,12 @@ import {
   deckSizeCheck,
   findFormat,
   legalityIssue,
-  listCommander,
+  listCommanders,
   listFormat,
-  withCommander,
+  partnerAbility,
+  withCommanders,
   withFormat,
-  withoutMissingCommander
+  withoutMissingCommanders
 } from './formats'
 import type { CardInfo, Printing } from './types'
 
@@ -45,35 +48,46 @@ describe('list format header', () => {
 describe('commander', () => {
   const deck = '// Format: Commander\n// my notes\n1 Sol Ring\n1 Atraxa, Praetors\' Voice\n1 Mister Fantastic\n'
 
-  it('is stored as a comment below the format, one at a time', () => {
-    const lines = withCommander(parseList(deck), "Atraxa, Praetors' Voice")
+  it('is stored as a comment below the format, one per commander', () => {
+    const lines = withCommanders(parseList(deck), ["Atraxa, Praetors' Voice"])
     expect(serializeList(lines)).toBe(
       "// Format: Commander\n// Commander: Atraxa, Praetors' Voice\n// my notes\n1 Sol Ring\n1 Atraxa, Praetors' Voice\n1 Mister Fantastic\n"
     )
-    expect(listCommander(lines)).toBe("Atraxa, Praetors' Voice")
-    const changed = withCommander(lines, 'Mister Fantastic')
-    expect(listCommander(changed)).toBe('Mister Fantastic')
+    expect(listCommanders(lines)).toEqual(["Atraxa, Praetors' Voice"])
+    const changed = withCommanders(lines, ['Mister Fantastic'])
+    expect(listCommanders(changed)).toEqual(['Mister Fantastic'])
     expect(serializeList(changed).match(/Commander:/g)).toHaveLength(1)
-    expect(serializeList(withCommander(changed, null))).toBe(deck)
-    expect(listCommander(parseList(deck))).toBeNull()
+    expect(serializeList(withCommanders(changed, []))).toBe(deck)
+    expect(listCommanders(parseList(deck))).toEqual([])
   })
 
-  it('reads the Commander heading of Arena and Moxfield exports', () => {
+  it('stores partners as two headers, in order', () => {
+    const lines = withCommanders(parseList(deck), ['Mister Fantastic', 'Sol Ring', 'Atraxa'])
+    expect(serializeList(lines)).toMatch(/^\/\/ Format: Commander\n\/\/ Commander: Mister Fantastic\n\/\/ Commander: Sol Ring\n\/\/ my notes\n/)
+    expect(listCommanders(lines)).toEqual(['Mister Fantastic', 'Sol Ring'])
+    expect(listCommanders(parseList('// Commander: Sol Ring\n// Commander: sol ring\n1 Sol Ring'))).toEqual(['Sol Ring'])
+  })
+
+  it('reads the Commander heading of Arena and Moxfield exports, with partners', () => {
     const arena = parseList('Commander\n1 Mister Fantastic (MSC) 5\n\nDeck\n1 Sol Ring')
-    expect(listCommander(arena)).toBe('Mister Fantastic')
-    expect(listCommander(parseList('Commander\n\nDeck\n1 Sol Ring'))).toBeNull()
-    const chosen = withCommander(arena, 'Sol Ring')
+    expect(listCommanders(arena)).toEqual(['Mister Fantastic'])
+    expect(listCommanders(parseList('Commander\n\nDeck\n1 Sol Ring'))).toEqual([])
+    expect(listCommanders(parseList('Commander\n1 Tymna the Weaver\n1 Kraum, Ludevic\'s Opus\n\nDeck\n1 Sol Ring'))).toEqual([
+      'Tymna the Weaver',
+      "Kraum, Ludevic's Opus"
+    ])
+    const chosen = withCommanders(arena, ['Sol Ring'])
     expect(serializeList(chosen)).toBe('// Commander: Sol Ring\n1 Mister Fantastic <5> [MSC]\n\nDeck\n1 Sol Ring\n')
   })
 
   it('is dropped by formats without commanders, and when its card is removed', () => {
-    const lines = withCommander(parseList(deck), 'Mister Fantastic')
-    expect(listCommander(withFormat(lines, 'duel'))).toBe('Mister Fantastic')
-    expect(listCommander(withFormat(lines, 'modern'))).toBeNull()
-    expect(listCommander(withFormat(lines, null))).toBeNull()
-    expect(withoutMissingCommander(lines)).toBe(lines)
+    const lines = withCommanders(parseList(deck), ['Mister Fantastic', 'Sol Ring'])
+    expect(listCommanders(withFormat(lines, 'duel'))).toEqual(['Mister Fantastic', 'Sol Ring'])
+    expect(listCommanders(withFormat(lines, 'modern'))).toEqual([])
+    expect(listCommanders(withFormat(lines, null))).toEqual([])
+    expect(withoutMissingCommanders(lines)).toBe(lines)
     const removed = lines.filter((line) => !(line.kind === 'card' && line.name === 'Mister Fantastic'))
-    expect(listCommander(withoutMissingCommander(removed))).toBeNull()
+    expect(listCommanders(withoutMissingCommanders(removed))).toEqual(['Sol Ring'])
   })
 
   it('must be able to lead in the format', () => {
@@ -104,6 +118,70 @@ describe('commander', () => {
     expect(legalityIssue(pauperCommander, legend, 1)?.message).toBe('Not legal in Pauper Commander')
     expect(commanderIssue(oathbreaker, legend, [], 1)?.message).toBe("Can't be your commander in Oathbreaker")
     expect(commanderIssue(commander, { ...legend, legalities: { commander: 'banned' } }, [], 1)?.message).toBe('Banned in Commander')
+  })
+})
+
+describe('partners', () => {
+  const legend = (name: string, partner?: CardInfo['partner'], typeLine = 'Legendary Creature — Human') =>
+    card({ commander: 'legal' }, { name, typeLine, rarity: 'rare', ...(partner && { partner }) })
+  const tymna = legend('Tymna the Weaver', { kind: 'any' })
+  const kraum = legend("Kraum, Ludevic's Opus", { kind: 'any' })
+  const pir = legend("Pir, Imaginative Rascal", { kind: 'with', name: 'Toothy, Imaginary Friend' })
+  const toothy = legend('Toothy, Imaginary Friend', { kind: 'with', name: 'Pir, Imaginative Rascal' })
+  const will = legend('Will the Wise', { kind: 'group', group: 'Friends forever' })
+  const eleven = legend('Eleven, the Mage', { kind: 'group', group: 'friends forever' })
+  const wilson = legend('Wilson, Refined Grizzly', { kind: 'background' })
+  const noble = legend('Noble Heritage', undefined, 'Legendary Enchantment — Background')
+  const rose = legend('Rose Tyler', { kind: 'companion' })
+  const doctor = legend('The Tenth Doctor', undefined, 'Legendary Creature — Time Lord Doctor')
+  const atraxa = legend("Atraxa, Praetors' Voice")
+
+  it('reads the ability from rules text, without reminder text', () => {
+    expect(partnerAbility('Flying\nPartner (You can have two commanders if both have partner.)')).toEqual({ kind: 'any' })
+    expect(partnerAbility('Partner with Toothy, Imaginary Friend (When this creature enters, …)\nOther')).toEqual({
+      kind: 'with',
+      name: 'Toothy, Imaginary Friend'
+    })
+    expect(partnerAbility('Partner—Father & son (You can have two commanders if both have this ability.)')).toEqual({
+      kind: 'group',
+      group: 'Father & son'
+    })
+    expect(partnerAbility('Friends forever (You can have two commanders if both have friends forever.)')).toEqual({
+      kind: 'group',
+      group: 'Friends forever'
+    })
+    expect(partnerAbility('Choose a Background (You can have a Background as a second commander.)')).toEqual({ kind: 'background' })
+    expect(partnerAbility("Doctor's companion (You can have two commanders if the other is the Doctor.)")).toEqual({ kind: 'companion' })
+    expect(partnerAbility('Whenever a creature partners up, draw a card.')).toBeUndefined()
+  })
+
+  it('pairs cards whose abilities allow it', () => {
+    expect(canPartner(tymna, kraum)).toBe(true)
+    expect(canPartner(pir, toothy)).toBe(true)
+    expect(canPartner(pir, tymna)).toBe(false)
+    expect(canPartner(will, eleven)).toBe(true)
+    expect(canPartner(will, tymna)).toBe(false)
+    expect(canPartner(noble, wilson)).toBe(true)
+    expect(canPartner(rose, doctor)).toBe(true)
+    expect(canPartner(rose, atraxa)).toBe(false)
+    expect(canPartner(atraxa, tymna)).toBe(false)
+    expect(canPartner(tymna, tymna)).toBe(false)
+  })
+
+  it('lets a Background join only a commander that chooses one, and not in Oathbreaker', () => {
+    expect(canJoin(commander, wilson, noble)).toBe(true)
+    expect(canJoin(commander, tymna, noble)).toBe(false)
+    expect(canJoin(commander, tymna, kraum)).toBe(true)
+    expect(canJoin(oathbreaker, tymna, kraum)).toBe(false)
+    expect(canJoin(pauperCommander, wilson, noble)).toBe(false)
+    expect(canJoin(pauperCommander, wilson, { ...noble, rarity: 'uncommon' })).toBe(true)
+  })
+
+  it('reports pairs that cannot share command', () => {
+    expect(commanderIssue(commander, noble, [], 1, wilson)).toBeNull()
+    expect(commanderIssue(commander, noble, [], 1)?.message).toBe("Can't be your commander in Commander")
+    expect(commanderIssue(commander, atraxa, [], 1, tymna)?.message).toBe('Can\'t share command with Tymna the Weaver')
+    expect(commanderIssue(oathbreaker, kraum, [], 1, tymna)?.message).toBe('Oathbreaker has one commander')
   })
 })
 

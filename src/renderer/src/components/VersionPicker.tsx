@@ -33,13 +33,18 @@ interface VersionPickerProps {
   onSelect: (id: string) => void
   /** Double-click confirm. */
   onConfirm?: () => void
+  /**
+   * Hovering a version shows it here (null when the pointer leaves) instead of in the floating
+   * preview, for a picker beside a large image of the card.
+   */
+  onPreview?: (printing: Printing | null) => void
 }
 
 /**
  * Printings with a leading cheapest ({@link AUTO}) option, sorted by {@link sortPrintings}: as rows
  * (set, number, year, tags and price on one line) or as card images; the choice is remembered.
  */
-export function VersionPicker({ printings, foil, selected, onSelect, onConfirm }: VersionPickerProps) {
+export function VersionPicker({ printings, foil, selected, onSelect, onConfirm, onPreview }: VersionPickerProps) {
   const [filter, setFilter] = useState('')
   const [view, setView] = useStoredValue<VersionView>('mtg-dreams.versionView', 'list', isVersionView)
   const { priceBasis } = useSettings()
@@ -79,6 +84,7 @@ export function VersionPicker({ printings, foil, selected, onSelect, onConfirm }
             selected={selected === AUTO}
             onClick={() => onSelect(AUTO)}
             onDoubleClick={onConfirm}
+            onPreview={onPreview}
             auto
           />
         )}
@@ -92,6 +98,7 @@ export function VersionPicker({ printings, foil, selected, onSelect, onConfirm }
             selected={selected === printing.id}
             onClick={() => onSelect(printing.id)}
             onDoubleClick={onConfirm}
+            onPreview={onPreview}
           />
         ))}
         {shown.length === 0 && <p className="muted">No versions match “{filter}”.</p>}
@@ -109,8 +116,16 @@ interface OptionProps {
   selected: boolean
   onClick: () => void
   onDoubleClick?: () => void
+  /** See {@link VersionPickerProps.onPreview}; the floating preview without it. */
+  onPreview?: (printing: Printing | null) => void
   /** Cheapest-printing option. */
   auto?: boolean
+}
+
+/** Hover handlers of an option: {@link OptionProps.onPreview}, else the floating preview. */
+function hoverHandlers({ printing, onPreview }: Pick<OptionProps, 'printing' | 'onPreview'>) {
+  if (!onPreview) return previewHandlers({ src: printing?.imageNormal, back: printing?.imageBack })
+  return { onMouseEnter: () => onPreview(printing), onMouseLeave: () => onPreview(null) }
 }
 
 /** Printing tags (Borderless, Showcase…) as chips; none for the cheapest option. */
@@ -128,7 +143,7 @@ function Labels({ printing, auto }: Pick<OptionProps, 'printing' | 'auto'>) {
 }
 
 /** Printing tile with image, price and labels. */
-function Tile({ printing, price, title, subtitle, selected, onClick, onDoubleClick, auto }: OptionProps) {
+function Tile({ printing, price, title, subtitle, selected, onClick, onDoubleClick, onPreview, auto }: OptionProps) {
   const image = printing?.imageNormal ?? printing?.imageSmall
   return (
     <button
@@ -138,7 +153,7 @@ function Tile({ printing, price, title, subtitle, selected, onClick, onDoubleCli
       className={`tile${selected ? ' selected' : ''}${auto ? ' auto' : ''}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      {...previewHandlers({ src: printing?.imageNormal, back: printing?.imageBack })}
+      {...hoverHandlers({ printing, onPreview })}
     >
       <div className="tile-image">{image ? <img src={image} alt="" loading="lazy" /> : <span>No image</span>}</div>
       <div className="tile-price">{formatEur(price)}</div>
@@ -150,7 +165,7 @@ function Tile({ printing, price, title, subtitle, selected, onClick, onDoubleCli
 }
 
 /** Printing row: art crop, set and number, tags and price on one line; the full card shows on hover. */
-function Row({ printing, price, title, subtitle, selected, onClick, onDoubleClick, auto }: OptionProps) {
+function Row({ printing, price, title, subtitle, selected, onClick, onDoubleClick, onPreview, auto }: OptionProps) {
   return (
     <button
       type="button"
@@ -159,7 +174,7 @@ function Row({ printing, price, title, subtitle, selected, onClick, onDoubleClic
       className={`version-row${selected ? ' selected' : ''}${auto ? ' auto' : ''}`}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
-      {...previewHandlers({ src: printing?.imageNormal, back: printing?.imageBack })}
+      {...hoverHandlers({ printing, onPreview })}
     >
       <CardThumb src={printing?.imageSmall} />
       <span className="version-row-text">

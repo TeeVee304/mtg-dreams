@@ -10,16 +10,18 @@ import {
 import type { HeldCopies } from './copies'
 import { cardLines, nameKey } from './decklist'
 import {
+  canJoin,
   canLead,
   colorIdentityIssue,
   commanderIssue,
   copyLimit,
   legalityIssue,
-  listCommander,
+  listCommanders,
   listFormat,
   type DeckFormat,
   type LegalityIssue
 } from './formats'
+import { counted } from './plural'
 import { SIDEBOARD_MAX } from './sideboard'
 import { sumOf } from './totals'
 import type { CardInfo, CardLine, ListKind, ListLine, Printing } from './types'
@@ -65,13 +67,15 @@ export interface ListAnalysis<R extends ModelRow> {
   format: DeckFormat | null
   /** Total copies of a card across all lines. */
   copiesOf(name: string): number
-  /** Commander nameKey; null outside commander formats or if unset. */
-  commanderKey: string | null
-  /** Row is the commander (never a bundled basic). */
+  /** Commander nameKeys: two for partners; none outside commander formats or if unset. */
+  commanderKeys: string[]
+  /** Row is a commander (never a bundled basic). */
   isCommander(row: R): boolean
-  /** Row's card is eligible as commander in this format. */
+  /** Row's card is eligible as commander in this format, on its own. */
   canBeCommander(row: R): boolean
-  /** Some row is the commander. */
+  /** Row's card can join the list's only commander as its partner. */
+  canJoin(row: R): boolean
+  /** Some row is a commander. */
   hasCommander: boolean
   /** Format issue; null if none, no format, or no card data. */
   issueOf(row: R): LegalityIssue | null
@@ -96,23 +100,32 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
   for (const line of cardLines(lines)) copies.set(nameKey(line.name), (copies.get(nameKey(line.name)) ?? 0) + line.qty)
   const copiesOf = (name: string) => copies.get(nameKey(name)) ?? 0
 
-  const commanderName = format?.commander ? listCommander(lines) : null
-  const commanderKey = commanderName ? nameKey(commanderName) : null
-  const isCommander = (row: R) => !row.bundledIds && commanderKey !== null && nameKey(row.line.name) === commanderKey
+  const commanderKeys = format?.commander ? listCommanders(lines).map(nameKey) : []
+  const isCommander = (row: R) => !row.bundledIds && commanderKeys.includes(nameKey(row.line.name))
   const canBeCommander = (row: R) =>
     !!format?.commander && !row.bundledIds && !!row.info && canLead(format, row.info, row.entry?.data?.printings)
 
-  const identity = rows.find(isCommander)?.info?.colorIdentity ?? null
+  const leaders = rows.filter(isCommander)
+  const leader = leaders.length === 1 ? leaders[0].info : null
+  const joins = (row: R) =>
+    !!format && !!leader && !row.bundledIds && !!row.info && !isCommander(row) && canJoin(format, leader, row.info, row.entry?.data?.printings)
+  // The commanders' colors together, once all have loaded.
+  const identity = leaders.length > 0 && leaders.every((row) => row.info)
+    ? [...new Set(leaders.flatMap((row) => row.info!.colorIdentity))]
+    : null
   const issues = new Map<R, LegalityIssue | null>()
   if (format) {
     for (const row of rows) {
       if (!row.info) continue
       const count = copiesOf(row.line.name)
+      const partner = leaders.find((other) => other !== row)?.info ?? null
+      // A pair is checked once both commanders have loaded.
+      if (isCommander(row) && leaders.length > 1 && !partner) continue
       issues.set(
         row,
         isCommander(row)
-          ? commanderIssue(format, row.info, row.entry?.data?.printings ?? [], count)
-          : legalityIssue(format, row.info, count) ?? (identity ? colorIdentityIssue(row.info, identity) : null)
+          ? commanderIssue(format, row.info, row.entry?.data?.printings ?? [], count, leaders.length > 1 ? partner : null)
+          : legalityIssue(format, row.info, count) ?? (identity ? colorIdentityIssue(row.info, identity, leaders.length > 1) : null)
       )
     }
   }
@@ -123,10 +136,11 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
   return {
     format,
     copiesOf,
-    commanderKey,
+    commanderKeys,
     isCommander,
     canBeCommander,
-    hasCommander: rows.some(isCommander),
+    canJoin: joins,
+    hasCommander: leaders.length > 0,
     issueOf,
     shortfallOf,
     legalityErrors: rows.filter((row) => issueOf(row)?.severity === 'error').length,
@@ -213,7 +227,7 @@ export function heldWhere(holders: HeldCopies[], owned: number): string {
   if (holders.length === 1 && holders[0].qty >= owned) return `${owned === 1 ? 'in' : 'all in'} ${holders[0].name}`
   const named = holders.slice(0, 2).map((held) => `${held.qty} in ${held.name}`).join(', ')
   const more = holders.length - 2
-  return more > 0 ? `${named} and ${more} more ${more === 1 ? 'list' : 'lists'}` : named
+  return more > 0 ? `${named} and ${counted(more, 'more list')}` : named
 }
 
 /** @returns Short label and explanation of a deck row's shortfall, naming the decks ahead when `row.holders` is set. */
@@ -243,7 +257,7 @@ export interface Section<R> {
 export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysis<R>): Section<R>[] {
   const { isCommander } = analysis
   const sections: Section<R>[] = [
-    { id: 'Commander', label: 'Commander', rows: rows.filter(isCommander) },
+    { id: 'Commander', label: analysis.commanderKeys.length > 1 ? 'Commanders' : 'Commander', rows: rows.filter(isCommander) },
     ...TYPE_GROUPS.map((group) => ({
       id: group.id as string,
       label: group.label as string,
@@ -291,11 +305,10 @@ export function copyCaps(
   return { formatCap, ownedCap, cap: Math.min(formatCap, ownedCap), ownedQty, inOtherDecks }
 }
 
-const copyWord = (n: number) => (n === 1 ? 'copy' : 'copies')
 
 /** @returns User-facing reason for the binding cap (format if it is the lower one, else ownership). */
 export function limitReason(format: DeckFormat | null, name: string, caps: CopyCaps): string {
-  if (format && caps.formatCap <= caps.ownedCap) return `${format.label} allows ${caps.formatCap} ${copyWord(caps.formatCap)} of ${name}`
+  if (format && caps.formatCap <= caps.ownedCap) return `${format.label} allows ${counted(caps.formatCap, 'copy', 'copies')} of ${name}`
   return caps.inOtherDecks > 0
     ? `You own ${caps.ownedQty}× ${name}, ${Math.min(caps.inOtherDecks, caps.ownedQty)} in other decks`
     : `You own ${caps.ownedQty}× ${name}`

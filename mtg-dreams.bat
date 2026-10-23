@@ -16,6 +16,8 @@ node scripts\needs-build.mjs
 if errorlevel 1 (
   echo Building MTG Dreams...
   call npx electron-vite build --logLevel error || goto :error
+  rem An open window would keep running the old build (a second launch only brings it forward): close it.
+  powershell -NoProfile -Command "Get-Process electron -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq '%CD%\node_modules\electron\dist\electron.exe' -and $_.MainWindowHandle -ne 0 } | ForEach-Object { $_.CloseMainWindow() | Out-Null; $_.WaitForExit(10000) | Out-Null }"
 )
 
 start "" "node_modules\electron\dist\electron.exe" .

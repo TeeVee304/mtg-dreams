@@ -14,6 +14,7 @@ import { nameKey, serializeInventory } from '@shared/decklist'
 import { unionCardLines } from '@shared/listVersion'
 import { hasVersions } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
+import { counted } from '@shared/plural'
 import type { ThemeColor } from '@shared/themes'
 import { totalCopies } from '@shared/totals'
 import type { InventoryItem, ListKind } from '@shared/types'
@@ -37,6 +38,7 @@ import { MenuButton } from './MenuButton'
 import { Stepper } from './Stepper'
 import { SummaryItem } from './SummaryItem'
 import { useToast } from './Toasts'
+import { useCopy } from '../hooks/useCopy'
 
 /** Copies of a card used by one list. */
 interface Usage {
@@ -70,6 +72,7 @@ interface InventoryViewProps {
 export function InventoryView(props: InventoryViewProps) {
   const { inventory, lists, actions, onOpenList, onAddPrecon, onValueDetails, startPasting } = props
   const toast = useToast()
+  const copy = useCopy()
   useCardInfoVersion()
   usePrintingsVersion()
   const settings = useSettings()
@@ -157,7 +160,7 @@ export function InventoryView(props: InventoryViewProps) {
   const brewsChip = (item: InventoryItem) => {
     const brews = usage.brew.get(nameKey(item.name)) ?? []
     if (brews.length === 0) return null
-    const label = brews.length === 1 ? '1 brew' : `${brews.length} brews`
+    const label = counted(brews.length, 'brew')
     return (
       <MenuButton
         label={`In ${label}`}
@@ -213,7 +216,7 @@ export function InventoryView(props: InventoryViewProps) {
                 label: 'Copy as text',
                 // Other apps don't know languages or worthless marks: the copy leaves them out.
                 onSelect: () =>
-                  void window.api.copyText(serializeInventory(inventory, true)).then(() => toast('Inventory copied to clipboard'))
+                  void copy(serializeInventory(inventory, true), 'Inventory copied to clipboard')
               }
             ]}
           />

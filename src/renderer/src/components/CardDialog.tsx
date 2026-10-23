@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FORMATS, type DeckFormat, type LegalityIssue } from '@shared/formats'
 import { finishFor, hasFoil, singleFinish } from '@shared/pricing'
+import type { Printing } from '@shared/types'
 import { formatEur } from '../lib/format'
 import type { NewCard } from '../stores/library'
 import type { Row } from '../lib/summary'
@@ -33,8 +34,11 @@ interface CardDialogProps {
   onUpdate: (patch: Partial<NewCard>) => void
   /** Board controls; absent where there is no sideboard (commander formats). */
   board?: { side: boolean; onMove: () => void }
-  /** Commander formats: whether the card leads the list or could, and how to make it lead. */
-  commander?: { leads: boolean; canLead: boolean; onMake: () => void }
+  /**
+   * Commander formats: whether the card leads the list or could, and how to make it lead: alone, or
+   * beside the list's only commander (`onJoin`, when it can partner with it).
+   */
+  commander?: { leads: boolean; canLead: boolean; onMake: () => void; onJoin?: () => void }
   onClose: () => void
 }
 
@@ -52,7 +56,10 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
   const foilLocked = pinned ? singleFinish(pinned) : false
   const selected = line.set ? (printing?.id ?? '') : AUTO
   const [flipped, setFlipped] = useState(false)
-  const showBack = flipped && !!printing?.imageBack
+  /** The version hovered in Change version: the large image shows it until the pointer leaves. */
+  const [previewing, setPreviewing] = useState<Printing | null>(null)
+  const shown = previewing ?? printing
+  const showBack = flipped && !!shown?.imageBack
 
   const selectVersion = (id: string) => {
     if (id === AUTO) {
@@ -69,8 +76,8 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
       <div className="card-view">
         <div className="card-view-media">
           <div className="card-view-image">
-            {printing?.imageNormal ? (
-              <img src={showBack ? printing.imageBack! : printing.imageNormal} alt={showBack ? `${line.name} (back)` : line.name} />
+            {shown?.imageNormal ? (
+              <img src={showBack ? shown.imageBack! : shown.imageNormal} alt={showBack ? `${line.name} (back)` : line.name} />
             ) : (
               <span>No image</span>
             )}
@@ -139,7 +146,7 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
                 Foil
               </label>
               {foilLocked && pinned && (
-                <span className="muted small"> — this version is {hasFoil(pinned) ? 'foil only' : 'non-foil only'}</span>
+                <span className="muted small"> (this version is {hasFoil(pinned) ? 'foil only' : 'non-foil only'})</span>
               )}
             </dd>
             <dt>Quantity</dt>
@@ -173,7 +180,7 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
                   × {line.qty} = {formatEur(unit * line.qty)}
                 </span>
               )}
-              {unit === null && entry?.data && <span className="muted small"> — no Cardmarket price for this version and finish</span>}
+              {unit === null && entry?.data && <span className="muted small"> (no Cardmarket price for this version and finish)</span>}
             </dd>
           </dl>
           <div className="card-view-actions">
@@ -182,9 +189,14 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
                 <Icon name="crown" /> Commander
               </span>
             )}
+            {commander && !commander.leads && commander.onJoin && (
+              <button type="button" onClick={commander.onJoin}>
+                <Icon name="crown" /> Add as partner
+              </button>
+            )}
             {commander && !commander.leads && commander.canLead && (
               <button type="button" onClick={commander.onMake}>
-                <Icon name="crown" /> Make commander
+                <Icon name="crown" /> {commander.onJoin ? 'Make sole commander' : 'Make commander'}
               </button>
             )}
             {printing?.cardmarketUrl && <CardmarketButton url={printing.cardmarketUrl} labeled />}
@@ -218,7 +230,9 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
         <h3>Change version</h3>
         <p className="muted small">Pick a version to use it right away; the price updates immediately.</p>
         <PickerBody name={line.name}>
-          {(list) => <VersionPicker printings={list} foil={line.foil} selected={selected} onSelect={selectVersion} />}
+          {(list) => (
+            <VersionPicker printings={list} foil={line.foil} selected={selected} onSelect={selectVersion} onPreview={setPreviewing} />
+          )}
         </PickerBody>
       </section>
     </Modal>

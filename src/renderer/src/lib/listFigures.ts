@@ -3,7 +3,7 @@ import type { ColorFilter } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { STAT_COLORS } from '@shared/deckStats'
 import { nameKey } from '@shared/decklist'
-import { deckSizeCheck, listCommander, listFormat } from '@shared/formats'
+import { deckSizeCheck, listCommanders, listFormat } from '@shared/formats'
 import { sumOf } from '@shared/totals'
 import type { InventoryItem, Printing } from '@shared/types'
 import type { CardList } from '../stores/library'
@@ -34,7 +34,7 @@ export function listFigures(
           return change ? [change.direction] : []
         })
       : []
-  const commander = format?.commander ? listCommander(list.lines) : null
+  const commanders = format?.commander ? listCommanders(list.lines) : []
   return {
     format,
     summary: summarize(rows),
@@ -44,8 +44,8 @@ export function listFigures(
     cheaper: changes.filter((direction) => direction === 'down').length,
     /** Still-needed wishlist cards pricier than when added. */
     pricier: changes.filter((direction) => direction === 'up').length,
-    colors: listColors(rows, commander),
-    art: artCrop(listPrinting(rows, commander))
+    colors: listColors(rows, commanders),
+    art: artCrop(listPrinting(rows, commanders[0] ?? null))
   }
 }
 
@@ -71,15 +71,20 @@ function listPrinting(rows: Row[], commander: string | null): Printing | null {
 
 /**
  * @param rows - List rows, with card data once loaded.
- * @param commander - Commander name in commander formats; its color identity decides alone.
- * @returns Color identity in WUBRG order: the commander's, else the union of the cards'. `C` when that
- * identity is empty: a colorless commander, or a list whose cards are all colorless (once all have loaded).
+ * @param commanders - Commander names in commander formats; their color identity decides alone.
+ * @returns Color identity in WUBRG order: the commanders', else the union of the cards'. `C` when that
+ * identity is empty: colorless commanders, or a list whose cards are all colorless (once all have loaded).
  */
-export function listColors(rows: Array<{ line: { name: string }; info?: { colorIdentity: string[] } | null }>, commander: string | null): ColorFilter[] {
-  if (commander) {
-    const info = rows.find((row) => nameKey(row.line.name) === nameKey(commander))?.info
-    if (!info) return []
-    return info.colorIdentity.length === 0 ? ['C'] : STAT_COLORS.filter((color) => info.colorIdentity.includes(color))
+export function listColors(
+  rows: Array<{ line: { name: string }; info?: { colorIdentity: string[] } | null }>,
+  commanders: string[]
+): ColorFilter[] {
+  if (commanders.length > 0) {
+    const keys = commanders.map(nameKey)
+    const infos = keys.map((key) => rows.find((row) => nameKey(row.line.name) === key)?.info)
+    if (infos.some((info) => !info)) return []
+    const identity = new Set(infos.flatMap((info) => info!.colorIdentity))
+    return identity.size === 0 ? ['C'] : STAT_COLORS.filter((color) => identity.has(color))
   }
   const identity = new Set(rows.flatMap((row) => row.info?.colorIdentity ?? []))
   if (identity.size > 0) return STAT_COLORS.filter((color) => identity.has(color))

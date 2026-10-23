@@ -5,9 +5,9 @@ export const PRINTINGS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 /** Selectable price bases with UI label and hint. */
 export const PRICE_BASES: Array<{ id: PriceBasis; label: string; hint: string }> = [
-  { id: 'trend', label: 'Typical', hint: 'What copies usually sell for: Cardmarket’s price trend.' },
-  { id: 'low', label: 'Lowest listing', hint: 'The cheapest copy on offer, in any condition or language.' },
-  { id: 'avg30', label: '30-day average', hint: 'What copies sold for over the last month: steadier.' }
+  { id: 'trend', label: 'Typical', hint: 'Cardmarket’s price trend.' },
+  { id: 'low', label: 'Lowest listing', hint: 'The cheapest copy on offer, any condition.' },
+  { id: 'avg30', label: '30-day average', hint: 'The average sale over the last month.' }
 ]
 
 /** Default price basis. */

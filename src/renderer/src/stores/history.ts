@@ -38,6 +38,9 @@ export function useBaselines(): Record<string, PriceBaseline> {
   return baselines
 }
 
+/** @returns Prices now and `ago` milliseconds back of the Cardmarket products `ids`; null without history. */
+export const pricesAt = (ids: number[], ago: number[]) => window.api.pricesAt(ids, ago)
+
 /** @returns Baseline key: `nameKey|set|collector|foil`. */
 export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foil'>) =>
   `${nameKey(line.name)}|${line.set ?? ''}|${line.collector ?? ''}|${line.foil}`

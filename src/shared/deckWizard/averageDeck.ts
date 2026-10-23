@@ -1,10 +1,10 @@
 import { parseList, serializeList } from '../decklist'
-import { withCommander, withFormat } from '../formats'
+import { withCommanders, withFormat } from '../formats'
 
 /**
- * EDHREC's average decks: for a commander, the cards most of its decks on EDHREC play, optionally
- * narrowed to a theme (`infect`), a power bracket (`core`) and a budget (`budget`). EDHREC serves
- * them as JSON at `json.edhrec.com/pages/average-decks/<commander>[/<bracket>][/<theme>][/<budget>].json`;
+ * EDHREC's average decks: for a commander (or two partners), the cards most of its decks on EDHREC
+ * play, optionally narrowed to a theme (`infect`), a power bracket (`core`) and a budget (`budget`). EDHREC serves
+ * them as JSON at `json.edhrec.com/pages/average-decks/<commanders>[/<bracket>][/<theme>][/<budget>].json`;
  * a mix with too few decks has none (403).
  *
  * @packageDocumentation
@@ -59,8 +59,9 @@ export interface AverageCard {
 
 /** A commander's average deck. */
 export interface AverageDeck {
-  commander: string
-  /** The 99, by type. */
+  /** The commander, or two partners. */
+  commanders: string[]
+  /** The other cards, by type. */
   cards: AverageCard[]
   /** Decks averaged. */
   decks: number
@@ -86,9 +87,14 @@ export function commanderSlug(name: string): string {
     .replace(/^-|-$/g, '')
 }
 
-/** @returns The path of an average deck under {@link EDHREC_JSON} or {@link EDHREC_SITE}, without extension. */
-export function averageDeckPath(commander: string, { theme, bracket, budget }: AverageDeckFilters): string {
-  return [commanderSlug(commander), bracket, theme, budget].filter(Boolean).join('/')
+/**
+ * @param commanders - The commander, or two partners: EDHREC names a pair by both slugs, in
+ * alphabetical order (`kraum-ludevics-opus-tymna-the-weaver`).
+ * @returns The path of an average deck under {@link EDHREC_JSON} or {@link EDHREC_SITE}, without extension.
+ */
+export function averageDeckPath(commanders: string[], { theme, bracket, budget }: AverageDeckFilters): string {
+  const slug = commanders.map(commanderSlug).filter(Boolean).sort().join('-')
+  return slug ? [slug, bracket, theme, budget].filter(Boolean).join('/') : ''
 }
 
 /** @returns Whether `value` is valid filters, as sent by the renderer. */
@@ -120,10 +126,14 @@ export function parseAverageDeck(json: unknown, filters: AverageDeckFilters): Av
     budget_counts?: Record<string, unknown>
     bracket_counts?: Record<string, unknown>
   }
-  const commander = (Array.isArray(page.deck?.commander_v2) && Array.isArray(page.deck.commander_v2[0]) && page.deck.commander_v2[0][0]) ||
-    (Array.isArray(page.deck?.commander) && page.deck.commander[0])
+  // `commander_v2` is `[name, copies]` per commander; `commander`, just the names.
+  const v2: unknown[] = Array.isArray(page.deck?.commander_v2)
+    ? page.deck.commander_v2.map((entry: unknown) => (Array.isArray(entry) ? entry[0] : null))
+    : []
+  const named: unknown[] = v2.length > 0 ? v2 : Array.isArray(page.deck?.commander) ? page.deck.commander : []
+  const commanders = named.filter((name): name is string => typeof name === 'string' && name !== '').slice(0, 2)
   const groups = page.deck?.cards
-  if (typeof commander !== 'string' || typeof groups !== 'object' || groups === null) throw new Error('EDHREC sent no deck.')
+  if (commanders.length === 0 || typeof groups !== 'object' || groups === null) throw new Error('EDHREC sent no deck.')
   const cards: AverageCard[] = []
   for (const [type, entries] of Object.entries(groups)) {
     if (!Array.isArray(entries)) continue
@@ -143,17 +153,21 @@ export function parseAverageDeck(json: unknown, filters: AverageDeckFilters): Av
   const counts = [total(page.budget_counts)]
   if (filters.budget) counts.push(Number(page.budget_counts?.[filters.budget]) || 0)
   if (filters.bracket) counts.push(Number(page.bracket_counts?.[BRACKETS.findIndex((b) => b.id === filters.bracket) + 1]) || 0)
-  return { commander, cards, decks: Math.min(...counts), themes }
+  return { commanders, cards, decks: Math.min(...counts), themes }
 }
 
-/** @returns An average deck as list text: Commander format, its commander, then the 99. */
+/** @returns An average deck as list text: Commander format, its commanders, then the other cards. */
 export function averageDeckText(deck: AverageDeck): string {
-  const cards = [{ name: deck.commander, qty: 1 }, ...deck.cards].map((card) => `${card.qty} ${card.name}`).join('\n')
-  return serializeList(withCommander(withFormat(parseList(cards), 'commander'), deck.commander))
+  const leaders = deck.commanders.map((name) => ({ name, qty: 1 }))
+  const cards = [...leaders, ...deck.cards].map((card) => `${card.qty} ${card.name}`).join('\n')
+  return serializeList(withCommanders(withFormat(parseList(cards), 'commander'), deck.commanders))
 }
 
-/** @returns A list name for an average deck: the commander's short name, then the theme: `Atraxa Infect`. */
-export function averageDeckName(commander: string, theme: string | null): string {
-  const short = commander.split('//')[0].split(',')[0].trim()
+/**
+ * @returns A list name for an average deck: the commanders' short names, then the theme: `Atraxa
+ * Infect`, `Tymna & Kraum`.
+ */
+export function averageDeckName(commanders: string[], theme: string | null): string {
+  const short = commanders.map((name) => name.split('//')[0].split(',')[0].trim()).join(' & ')
   return theme ? `${short} ${theme}` : short
 }

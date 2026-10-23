@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { bundledBasic } from '@shared/basics'
+import { plural } from '@shared/plural'
 import { priceBasisLabel } from '@shared/pricing'
 import type { InventoryItem } from '@shared/types'
 import { inventoryValue, VALUATION_BASIS } from '../lib/collection'
@@ -80,7 +81,7 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
                   <div style={{ width: `${Math.round((priced / items.length) * 100)}%` }} />
                 </div>
                 <span className="muted tiny">
-                  Pricing {pending} more {pending === 1 ? 'card' : 'cards'}…
+                  Pricing {pending} more {plural(pending, 'card')}…
                 </span>
               </>
             )}

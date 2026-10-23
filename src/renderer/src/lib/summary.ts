@@ -1,6 +1,6 @@
 import { bundleBasicLines, genericBasic } from '@shared/basics'
 import { allocateOwned, nameKey, serializeList } from '@shared/decklist'
-import { baseCardLines, versionLines, type ListVersion } from '@shared/listVersion'
+import { BASE, baseCardLines, versionLines, type ListVersion } from '@shared/listVersion'
 import { listFormat } from '@shared/formats'
 import { ownedVersion } from '@shared/inventory'
 import { resolveLine, type Resolution } from '@shared/pricing'
@@ -45,6 +45,9 @@ export interface Row {
 
 /** Settings affecting list pricing. */
 export type PricingSettings = Pick<AppSettings, 'bundleBasics' | 'priceBasis'>
+
+/** Inventory a list sees when it ignores yours: none. */
+const NO_INVENTORY = new Map<string, InventoryItem>()
 
 /** Empty id set. */
 const NO_IDS: ReadonlySet<string> = new Set()
@@ -121,9 +124,15 @@ const listRowsCache = new WeakMap<CardList, (...args: [Map<string, InventoryItem
 
 /**
  * {@link buildRows} of a whole list, with its sideboard (none in commander formats) and the copies the
- * lists ahead hold. Shared by every caller, so the sidebar and the open page compute it once.
+ * lists ahead hold. Shared by every caller, so the sidebar and the open page compute it once. With
+ * `plainBrews`, a brew sees no inventory: it owns nothing, and no copies are matched.
  */
-export function listRows(list: CardList, inventory: Map<string, InventoryItem>, settings: PricingSettings, pool: CopyPool): Row[] {
+export function listRows(
+  list: CardList,
+  inventory: Map<string, InventoryItem>,
+  settings: PricingSettings & Partial<Pick<AppSettings, 'plainBrews'>>,
+  pool: CopyPool
+): Row[] {
   let rows = listRowsCache.get(list)
   if (!rows) {
     rows = memoLast((items, bundleBasics, priceBasis, claims, _version) =>
@@ -137,7 +146,8 @@ export function listRows(list: CardList, inventory: Map<string, InventoryItem>, 
     )
     listRowsCache.set(list, rows)
   }
-  return rows(inventory, settings.bundleBasics, settings.priceBasis, pool, getPrintingsVersion())
+  const items = list.kind === 'brew' && settings.plainBrews ? NO_INVENTORY : inventory
+  return rows(items, settings.bundleBasics, settings.priceBasis, pool, getPrintingsVersion())
 }
 
 /** List totals. Values are EUR over priced rows. */
@@ -185,20 +195,23 @@ export function summarize(rows: Row[]): Summary {
   return summary
 }
 
-/** Per list: its Duel version as a list, kept while the list is unchanged. */
-const versionLists: Record<ListVersion, WeakMap<CardList, CardList>> = { base: new WeakMap(), variant: new WeakMap() }
+/** Per version (by lower-case name): each list's version as a list, kept while the list is unchanged. */
+const versionLists = new Map<string, WeakMap<CardList, CardList>>()
 
 /**
  * @returns A version of a list as a list of its own ({@link versionLines}), same kind and name, so
- * copy claims and edits find the list: for `base`, the list without its swaps; for `variant`, its
- * other version (Duel, EDH). A list without swap sections is its own base.
+ * copy claims and edits find the list: for `base`, the list without its swaps; otherwise that
+ * version. A list without swap sections is its own base.
  */
 export function versionList(list: CardList, version: ListVersion): CardList {
-  let shown = versionLists[version].get(list)
+  const key = version.toLowerCase()
+  let lists = versionLists.get(key)
+  if (!lists) versionLists.set(key, (lists = new WeakMap()))
+  let shown = lists.get(list)
   if (!shown) {
     const lines = versionLines(list.lines, version)
-    shown = lines.length === list.lines.length && version === 'base' ? list : { ...list, lines, text: serializeList(lines) }
-    versionLists[version].set(list, shown)
+    shown = lines.length === list.lines.length && version === BASE ? list : { ...list, lines, text: serializeList(lines) }
+    lists.set(list, shown)
   }
   return shown
 }
