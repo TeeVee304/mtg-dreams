@@ -1,6 +1,7 @@
 import type { DeckSizeCheck } from '@shared/formats'
 import { priceBasisLabel } from '@shared/pricing'
 import type { PriceBasis } from '@shared/types'
+import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
 import type { Summary } from '../lib/summary'
 import { SummaryItem as Item } from './SummaryItem'
@@ -30,20 +31,21 @@ interface ListValueCardsProps {
  * cost and how much of it you own.
  */
 export function ListValueCards({ isDeck, brew, summary, mainCards, size, target, lands, sideboard, basis }: ListValueCardsProps) {
+  const text = ui.list.figures
   if (isDeck) {
-    const makeup = [size?.note, `${lands} lands · ${mainCards - lands} nonland`, sideboard > 0 && `${sideboard} sideboard`]
+    const makeup = [size?.note, text.makeup(lands, mainCards - lands), sideboard > 0 && text.sideboard(sideboard)]
     const filled = target ? Math.min(100, Math.round((mainCards / target) * 100)) : 0
     return (
       <section className="summary-strip">
-        <Item label={brew ? 'Cost' : 'Deck value'} value={formatEur(summary.total)} accent note={priceNote(summary, basis)} />
+        <Item label={brew ? text.cost : text.deckValue} value={formatEur(summary.total)} accent note={priceNote(summary, basis)} />
         <Item
-          label="Cards"
+          label={text.cards}
           value={size?.label ?? String(mainCards)}
           warn={size !== null && size.status !== 'ok'}
           note={makeup.filter(Boolean).join(' · ')}
         >
           {size && target && (
-            <div className={`progress${size.status === 'over' ? ' over' : ''}`} aria-label={`${mainCards} of ${target} cards`}>
+            <div className={`progress${size.status === 'over' ? ' over' : ''}`} aria-label={text.ofCards(mainCards, target)}>
               <div style={{ width: `${filled}%` }} />
             </div>
           )}
@@ -54,13 +56,13 @@ export function ListValueCards({ isDeck, brew, summary, mainCards, size, target,
   const progress = summary.cards ? Math.round((summary.ownedCards / summary.cards) * 100) : 0
   return (
     <section className="summary-strip">
-      <Item label={brew ? 'To build it' : 'Still needed'} value={formatEur(summary.neededValue)} accent note={priceNote(summary, basis)} />
+      <Item label={brew ? text.toBuild : text.stillNeeded} value={formatEur(summary.neededValue)} accent note={priceNote(summary, basis)} />
       <Item
-        label={brew ? 'You own' : 'Collected'}
+        label={brew ? text.youOwn : text.collected}
         value={`${summary.ownedCards} / ${summary.cards}`}
-        note={summary.ownedCards > 0 ? `${formatEur(summary.ownedValue)} owned of ${formatEur(summary.total)}` : undefined}
+        note={summary.ownedCards > 0 ? text.ownedValue(formatEur(summary.ownedValue), formatEur(summary.total)) : undefined}
       >
-        <div className="progress" aria-label={`${progress}% collected`}>
+        <div className="progress" aria-label={text.percentCollected(progress)}>
           <div style={{ width: `${progress}%` }} />
         </div>
       </Item>
@@ -70,8 +72,9 @@ export function ListValueCards({ isDeck, brew, summary, mainCards, size, target,
 
 /** @returns Note naming the price basis and any loading or unpriced cards. */
 function priceNote(summary: Summary, basis: PriceBasis): string {
-  const parts = [`${priceBasisLabel(basis)} prices`]
-  if (summary.loading) parts.push(`${summary.loading} loading`)
-  if (summary.unpriced) parts.push(`${summary.unpriced} without price`)
+  const text = ui.list.figures
+  const parts = [text.prices(priceBasisLabel(basis))]
+  if (summary.loading) parts.push(text.loading(summary.loading))
+  if (summary.unpriced) parts.push(text.unpriced(summary.unpriced))
   return parts.join(' · ')
 }

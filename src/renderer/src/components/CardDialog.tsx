@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { FORMATS, type DeckFormat, type LegalityIssue } from '@shared/formats'
 import { finishFor, hasFoil, singleFinish } from '@shared/pricing'
 import type { Printing } from '@shared/types'
+import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
 import type { NewCard } from '../stores/library'
 import type { Row } from '../lib/summary'
@@ -13,12 +14,7 @@ import { Stepper } from './Stepper'
 import { AUTO, VersionPicker } from './VersionPicker'
 
 /** Display labels of Scryfall legality values. */
-const STATUS_LABELS: Record<string, string> = {
-  legal: 'Legal',
-  not_legal: 'Not legal',
-  banned: 'Banned',
-  restricted: 'Restricted'
-}
+const STATUS_LABELS = ui.card.dialog.statuses
 
 /** Props of {@link CardDialog}. */
 interface CardDialogProps {
@@ -55,6 +51,7 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
   const pinned = resolution?.pinned ? printing : null
   const foilLocked = pinned ? singleFinish(pinned) : false
   const selected = line.set ? (printing?.id ?? '') : AUTO
+  const text = ui.card.dialog
   const [flipped, setFlipped] = useState(false)
   /** The version hovered in Change version: the large image shows it until the pointer leaves. */
   const [previewing, setPreviewing] = useState<Printing | null>(null)
@@ -77,22 +74,22 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
         <div className="card-view-media">
           <div className="card-view-image">
             {shown?.imageNormal ? (
-              <img src={showBack ? shown.imageBack! : shown.imageNormal} alt={showBack ? `${line.name} (back)` : line.name} />
+              <img src={showBack ? shown.imageBack! : shown.imageNormal} alt={showBack ? text.back(line.name) : line.name} />
             ) : (
-              <span>No image</span>
+              <span>{ui.card.picker.noImage}</span>
             )}
           </div>
           {printing?.imageBack && (
             <button type="button" className="flip-btn" onClick={() => setFlipped(!flipped)} aria-pressed={showBack}>
-              <Icon name="flip" /> {showBack ? 'Show front' : 'Show back'}
+              <Icon name="flip" /> {showBack ? text.showFront : text.showBack}
             </button>
           )}
         </div>
         <div className="card-view-info">
-          {row.flavorName && <p className="muted small">Printed name · official name: {line.name}</p>}
+          {row.flavorName && <p className="muted small">{text.printedName(line.name)}</p>}
           {info && (
             <p className="muted">
-              {info.typeLine} · Mana value {info.manaValue}
+              {text.typeLine(info.typeLine, info.manaValue)}
             </p>
           )}
           {format && info && (
@@ -100,23 +97,23 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
               {issue ? (
                 <span className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`}>{issue.message}</span>
               ) : (
-                <span className="chip legal">Legal in {format.label}</span>
+                <span className="chip legal">{text.legalIn(format.label)}</span>
               )}
             </p>
           )}
           <dl className="card-facts">
-            <dt>Version</dt>
+            <dt>{text.version}</dt>
             <dd>
               {printing ? (
                 <>
                   {resolution?.pinned ? (
                     ''
                   ) : resolution?.fromInventory ? (
-                    <span className="auto-badge yours" title="The version in your inventory">
-                      Yours
+                    <span className="auto-badge yours" title={text.yoursHint}>
+                      {text.yours}
                     </span>
                   ) : (
-                    <span className="auto-badge">Cheapest</span>
+                    <span className="auto-badge">{text.cheapest}</span>
                   )}{' '}
                   {printing.setName} (
                   {printing.set.toUpperCase()} #{printing.collectorNumber})
@@ -131,25 +128,25 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
                   )}
                 </>
               ) : (
-                <span className="muted">Loading…</span>
+                <span className="muted">{ui.common.loading}</span>
               )}
             </dd>
-            <dt>Finish</dt>
+            <dt>{text.finish}</dt>
             <dd>
-              <label className="check" title={foilLocked ? 'This version only exists in one finish' : undefined}>
+              <label className="check" title={foilLocked ? text.oneFinish : undefined}>
                 <input
                   type="checkbox"
                   checked={line.foil}
                   disabled={foilLocked}
                   onChange={(event) => onUpdate({ foil: event.target.checked })}
                 />
-                Foil
+                {ui.common.foil}
               </label>
               {foilLocked && pinned && (
-                <span className="muted small"> (this version is {hasFoil(pinned) ? 'foil only' : 'non-foil only'})</span>
+                <span className="muted small">{text.foilOnly(hasFoil(pinned))}</span>
               )}
             </dd>
-            <dt>Quantity</dt>
+            <dt>{text.quantity}</dt>
             <dd>
               <Stepper
                 value={line.qty}
@@ -157,21 +154,21 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
                 max={maxQty}
                 maxTitle={maxTitle}
                 onChange={(qty) => onUpdate({ qty })}
-                label="quantity"
+                label={text.quantityLabel}
               />
             </dd>
             {board && (
               <>
-                <dt>Board</dt>
+                <dt>{text.board}</dt>
                 <dd>
-                  {board.side ? 'Sideboard' : 'Main deck'}{' '}
+                  {board.side ? text.sideboard : text.mainDeck}{' '}
                   <button type="button" className="link-btn" onClick={board.onMove}>
-                    Move to {board.side ? 'main deck' : 'sideboard'}
+                    {text.moveTo(!board.side)}
                   </button>
                 </dd>
               </>
             )}
-            <dt>Price</dt>
+            <dt>{text.price}</dt>
             <dd>
               <strong>{formatEur(unit)}</strong>
               {unit !== null && line.qty > 1 && (
@@ -180,23 +177,23 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
                   × {line.qty} = {formatEur(unit * line.qty)}
                 </span>
               )}
-              {unit === null && entry?.data && <span className="muted small"> (no Cardmarket price for this version and finish)</span>}
+              {unit === null && entry?.data && <span className="muted small">{text.noPrice}</span>}
             </dd>
           </dl>
           <div className="card-view-actions">
             {commander?.leads && (
               <span className="chip commander-chip">
-                <Icon name="crown" /> Commander
+                <Icon name="crown" /> {text.commander}
               </span>
             )}
             {commander && !commander.leads && commander.onJoin && (
               <button type="button" onClick={commander.onJoin}>
-                <Icon name="crown" /> Add as partner
+                <Icon name="crown" /> {text.addPartner}
               </button>
             )}
             {commander && !commander.leads && commander.canLead && (
               <button type="button" onClick={commander.onMake}>
-                <Icon name="crown" /> {commander.onJoin ? 'Make sole commander' : 'Make commander'}
+                <Icon name="crown" /> {text.makeCommander(!!commander.onJoin)}
               </button>
             )}
             {printing?.cardmarketUrl && <CardmarketButton url={printing.cardmarketUrl} labeled />}
@@ -204,13 +201,12 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
           {info && (
             <details className="legality-more">
               <summary>
-                All formats
+                {text.allFormats}
                 <span className="muted small">
-                  {' '}
-                  · legal in {FORMATS.filter((f) => info.legalities[f.id] === 'legal').length} of {FORMATS.length}
+                  {text.legalCount(FORMATS.filter((f) => info.legalities[f.id] === 'legal').length, FORMATS.length)}
                 </span>
               </summary>
-              <div className="legality-grid" aria-label="Format legality">
+              <div className="legality-grid" aria-label={text.legality}>
                 {FORMATS.map((f) => {
                   const status = info.legalities[f.id] ?? 'not_legal'
                   return (
@@ -227,8 +223,8 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
       </div>
 
       <section className="change-version">
-        <h3>Change version</h3>
-        <p className="muted small">Pick a version to use it right away; the price updates immediately.</p>
+        <h3>{text.changeVersion}</h3>
+        <p className="muted small">{text.changeHint}</p>
         <PickerBody name={line.name}>
           {(list) => (
             <VersionPicker printings={list} foil={line.foil} selected={selected} onSelect={selectVersion} onPreview={setPreviewing} />

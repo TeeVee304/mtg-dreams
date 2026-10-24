@@ -331,12 +331,14 @@
   color: var(--faint);
 }
 
-.swap-row .swap-undo {
+.swap-row .swap-undo,
+.swap-item .swap-undo {
   opacity: 0;
 }
 
 .swap-row:hover .swap-undo,
-.swap-row .swap-undo:focus-visible {
+.swap-item:hover .swap-undo,
+.swap-undo:focus-visible {
   opacity: 1;
 }
 
@@ -365,6 +367,77 @@
 
 .swap-totals strong {
   color: var(--text);
+}
+
+/* An Upgrade's swaps: the Deck's Cards out and the Cards in, two columns not paired. */
+.swap-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 0 4px;
+  padding: 0 18px 6px;
+}
+
+.swap-columns > .swap-arrow {
+  padding-top: 36px;
+}
+
+.swap-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.swap-column > .swap-labels {
+  padding-inline: 0;
+}
+
+/* A Card and its undo button. */
+.swap-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 4px;
+  padding-block: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.swap-item.swap-add {
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: 8px;
+}
+
+/* A column's totals: its copies and value; the Cards in add what is left to buy. */
+.swap-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 10px 10px 4px;
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.swap-sum strong {
+  color: var(--text);
+}
+
+.swap-finish {
+  margin-left: auto;
+}
+
+/* Whether you own a Card the Upgrade adds. */
+.swap-owned {
+  flex: none;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.swap-owned.need {
+  color: var(--warn);
+  font-weight: 600;
 }
 
 /* The whole Duel list, folded under its swaps. */

@@ -1,4 +1,5 @@
 import { featuredTokens, tokenLabel } from '@shared/tokens'
+import { ui } from '@shared/text'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { useSettings } from '../stores/settings'
 import { useDeckTokens } from '../stores/tokens'
@@ -21,13 +22,13 @@ export function DeckTokens({ names }: { names: string[] }) {
   const tokens = data ? featuredTokens(data, names) : null
 
   return (
-    <Collapsible open={open} onToggle={toggle} title="Tokens" summary={tokens?.length} className="deck-tokens">
+    <Collapsible open={open} onToggle={toggle} title={ui.deckTokens.title} summary={tokens?.length} className="deck-tokens">
       <div className="deck-tokens-body">
         {!data || !tokens ? (
           <Skeleton width={160} />
         ) : tokens.length === 0 ? (
           <p className="muted small">
-            {data.available ? 'No cards here create tokens, emblems or helpers.' : 'Token data unavailable (Scryfall).'}
+            {data.available ? ui.deckTokens.none : ui.deckTokens.unavailable}
           </p>
         ) : (
           <ul className="token-strip">
@@ -38,7 +39,7 @@ export function DeckTokens({ names }: { names: string[] }) {
                 <li
                   key={entry.key}
                   className={`token-tile ${entry.kind}`}
-                  title={`${label}\nMade by: ${makers.join(', ')}`}
+                  title={ui.deckTokens.madeBy(label, makers.join(', '))}
                   {...previewHandlers({ src: entry.token.imageNormal, back: entry.token.imageBack })}
                 >
                   {cardImages && (

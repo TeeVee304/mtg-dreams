@@ -126,31 +126,17 @@ export function valueOf(card: WantedCard, unit: UnitPrice): UnitPrice {
 }
 
 /** Most Wanted sort options. */
-export const WANTED_SORTS = [
-  {
-    id: 'value',
-    label: 'Best value',
-    hint: 'Lowest cost per list served: decks and your top wishlists count most, the bottom ones least'
-  },
-  { id: 'lists', label: 'Most wanted', hint: 'Wanted by the most lists' },
-  { id: 'completion', label: 'Closest to completing', hint: 'Finishes lists that are nearly done' },
-  { id: 'price', label: 'Cheapest', hint: 'Lowest cost to buy' },
-  { id: 'name', label: 'Name', hint: '' },
-  { id: 'mana', label: 'Mana value', hint: '' },
-  { id: 'color', label: 'Color', hint: '' },
-  { id: 'type', label: 'Type', hint: '' },
-  { id: 'rarity', label: 'Rarity', hint: '' }
-] as const
+export const WANTED_SORTS = ['value', 'lists', 'completion', 'price', 'name', 'mana', 'color', 'type', 'rarity'] as const
 
-/** Most Wanted sort. */
-export type WantedSort = (typeof WANTED_SORTS)[number]['id']
+/** Most Wanted sort; its name and meaning are `text.wantedSorts`. */
+export type WantedSort = (typeof WANTED_SORTS)[number]
 
 /** Default sort. */
 export const DEFAULT_WANTED_SORT: WantedSort = 'value'
 
 /** Type guard for {@link WantedSort}. */
 export function isWantedSort(value: unknown): value is WantedSort {
-  return WANTED_SORTS.some((option) => option.id === value)
+  return WANTED_SORTS.includes(value as WantedSort)
 }
 
 /** Ascending comparator for prices: priced first, then loading, then unpriced. */

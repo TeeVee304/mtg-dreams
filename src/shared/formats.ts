@@ -1,6 +1,6 @@
 import { frontTypeWords, isBasicLand } from './cards'
 import { cardLines, listHeader, nameKey, newLineId } from './decklist'
-import { counted } from './plural'
+import { ui } from './text'
 import type { CardInfo, ListLine, PartnerAbility, Printing } from './types'
 
 /** Constructed format definition. */
@@ -50,7 +50,7 @@ export function deckSizeCheck(format: DeckFormat, cards: number): DeckSizeCheck 
   return {
     status,
     label: status === 'ok' && !format.commander ? String(cards) : `${cards}/${size}`,
-    note: status === 'short' ? `${size - cards} short of ${size}` : status === 'over' ? `${cards - size} over ${size}` : null
+    note: status === 'short' ? ui.rules.sizeShort(size - cards, size) : status === 'over' ? ui.rules.sizeOver(cards - size, size) : null
   }
 }
 
@@ -137,9 +137,9 @@ export function withoutMissingCommanders(lines: ListLine[]): ListLine[] {
 
 /** @returns Commander eligibility rule phrase for messages, e.g. `a planeswalker`. */
 export function commanderRule(format: DeckFormat): string {
-  if (format.id === 'oathbreaker') return 'a planeswalker'
-  if (format.id === 'paupercommander') return 'a creature printed at uncommon'
-  return 'a legendary creature or Vehicle'
+  if (format.id === 'oathbreaker') return ui.rules.commanderRule.oathbreaker
+  if (format.id === 'paupercommander') return ui.rules.commanderRule.paupercommander
+  return ui.rules.commanderRule.other
 }
 
 /**
@@ -185,7 +185,7 @@ export function allowsPartners(format: DeckFormat): boolean {
 const subtypesOf = (card: CardInfo) => card.typeLine.split('//')[0].split('—')[1]?.trim().split(/\s+/) ?? []
 
 /** @returns Whether the card is a Background. */
-const isBackground = (card: CardInfo) => subtypesOf(card).includes('Background')
+export const isBackground = (card: CardInfo) => subtypesOf(card).includes('Background')
 
 /** @returns Whether `a`'s partner ability lets `b` share command with it. */
 function partnersWith(a: CardInfo, b: CardInfo): boolean {
@@ -239,10 +239,10 @@ export function commanderIssue(
   copies: number,
   partner: CardInfo | null = null
 ): LegalityIssue | null {
-  if (partner && !allowsPartners(format)) return { severity: 'error', message: `${format.label} has one commander` }
-  if (partner && !canPartner(card, partner)) return { severity: 'error', message: `Can't share command with ${partner.name}` }
+  if (partner && !allowsPartners(format)) return { severity: 'error', message: ui.rules.oneCommander(format.label) }
+  if (partner && !canPartner(card, partner)) return { severity: 'error', message: ui.rules.cantShareCommand(partner.name) }
   if (!canLead(format, card, printings) && !(partner && canJoin(format, partner, card, printings))) {
-    return { severity: 'error', message: `Can't be your commander in ${format.label}` }
+    return { severity: 'error', message: ui.rules.cantLead(format.label) }
   }
   return legalityIssue(format, card, copies, true)
 }
@@ -260,16 +260,16 @@ export interface LegalityIssue {
  */
 export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number, asCommander = false): LegalityIssue | null {
   const status = card.legalities[format.id] ?? 'not_legal'
-  if (status === 'banned') return { severity: 'error', message: `Banned in ${format.label}` }
+  if (status === 'banned') return { severity: 'error', message: ui.rules.banned(format.label) }
   const commandsPauper = asCommander && format.id === 'paupercommander'
-  if (status === 'not_legal' && !commandsPauper) return { severity: 'error', message: `Not legal in ${format.label}` }
+  if (status === 'not_legal' && !commandsPauper) return { severity: 'error', message: ui.rules.notLegal(format.label) }
   if (status === 'restricted') {
     return copies > 1
-      ? { severity: 'error', message: `Restricted in ${format.label} (max 1)` }
-      : { severity: 'warning', message: `Restricted in ${format.label}` }
+      ? { severity: 'error', message: ui.rules.restrictedOver(format.label) }
+      : { severity: 'warning', message: ui.rules.restricted(format.label) }
   }
   const max = copyLimit(format, card, card.name)
-  if (copies > max) return { severity: 'error', message: `Max ${counted(max, 'copy', 'copies')} in ${format.label}` }
+  if (copies > max) return { severity: 'error', message: ui.rules.maxCopies(max, format.label) }
   return null
 }
 
@@ -280,7 +280,7 @@ export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number
  */
 export function colorIdentityIssue(card: CardInfo, identity: string[], partners = false): LegalityIssue | null {
   return card.colorIdentity.some((color) => !identity.includes(color))
-    ? { severity: 'error', message: partners ? "Outside your commanders' colors" : "Outside your commander's colors" }
+    ? { severity: 'error', message: ui.rules.outsideColors(partners) }
     : null
 }
 

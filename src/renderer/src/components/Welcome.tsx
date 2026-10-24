@@ -1,5 +1,5 @@
 import type { ListKind } from '@shared/types'
-import { cardCount } from '../lib/format'
+import { ui } from '@shared/text'
 
 /** Props of {@link Welcome}. */
 interface WelcomeProps {
@@ -16,28 +16,28 @@ export function Welcome({ owned, onPaste, onAddPrecon, onNew, onWizard }: Welcom
   if (owned === 0) {
     return (
       <div className="empty welcome">
-        <h1>Welcome to MTG Dreams</h1>
-        <p className="muted">Decks are built from the cards you own, so start by adding your collection.</p>
+        <h1>{ui.welcome.title}</h1>
+        <p className="muted">{ui.welcome.startWithCollection}</p>
         <div className="welcome-actions">
           <button type="button" className="primary" onClick={onPaste}>
-            Paste your collection
+            {ui.welcome.pasteCollection}
           </button>
           <button type="button" onClick={onAddPrecon}>
-            Add a precon you own
+            {ui.welcome.addPrecon}
           </button>
         </div>
         <p className="muted small">
-          Or plan first:{' '}
+          {ui.welcome.planFirst}{' '}
           <button type="button" className="link-btn" onClick={() => onNew('deck')}>
-            New deck
+            {ui.welcome.newDeck}
           </button>{' '}
           ·{' '}
           <button type="button" className="link-btn" onClick={() => onNew('wishlist')}>
-            New wishlist
+            {ui.welcome.newWishlist}
           </button>{' '}
           ·{' '}
           <button type="button" className="link-btn" onClick={onWizard}>
-            Let the Deck Wizard plan a Commander deck
+            {ui.welcome.wizardCommander}
           </button>
         </p>
       </div>
@@ -45,20 +45,20 @@ export function Welcome({ owned, onPaste, onAddPrecon, onNew, onWizard }: Welcom
   }
   return (
     <div className="empty welcome">
-      <h1>Welcome to MTG Dreams</h1>
-      <p className="muted">Build a deck from the {cardCount(owned)} you own, or plan one with a wishlist.</p>
+      <h1>{ui.welcome.title}</h1>
+      <p className="muted">{ui.welcome.buildFrom(owned)}</p>
       <div className="welcome-actions">
         <button type="button" className="primary" onClick={() => onNew('deck')}>
-          New deck
+          {ui.welcome.newDeck}
         </button>
         <button type="button" onClick={() => onNew('wishlist')}>
-          New wishlist
+          {ui.welcome.newWishlist}
         </button>
       </div>
       <p className="muted small">
-        New to Commander?{' '}
+        {ui.welcome.newToCommander}{' '}
         <button type="button" className="link-btn" onClick={onWizard}>
-          Let the Deck Wizard plan a deck with you
+          {ui.welcome.wizardWithYou}
         </button>
       </p>
     </div>

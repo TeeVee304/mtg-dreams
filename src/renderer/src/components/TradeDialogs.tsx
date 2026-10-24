@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { totalCopies } from '@shared/totals'
+import { ui } from '@shared/text'
 import {
   buildSnapshot,
   parseTradeText,
@@ -11,15 +12,13 @@ import {
   type TradeCard,
   type TradeSnapshot
 } from '@shared/trade'
-import { cardCount, cleanError } from '../lib/format'
+import { cleanError } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { Modal } from './Modal'
 import { useToast } from './Toasts'
 import { copyText, openTradeFile, saveTradeFile } from '../lib/desktop'
 
-/** Total copies label, e.g. `5 cards`. */
-const copies = (cards: TradeCard[]) => cardCount(totalCopies(cards))
 /** `N Name` lines, worthless copies apart ({@link tradeLines}). */
 const cardsToText = (cards: TradeCard[]) => tradeLines(cards).join('\n')
 
@@ -36,7 +35,7 @@ export function ShareTradeDialog({ myTrade, onClose }: ShareTradeDialogProps) {
   const settings = useSettings()
   const [name, setName] = useState(settings.tradeName)
   const { busy, error, run } = useAsyncAction()
-  const snapshot = useMemo(() => buildSnapshot(tradeName(name, 'Me'), myTrade), [name, myTrade])
+  const snapshot = useMemo(() => buildSnapshot(tradeName(name, ui.trades.share.defaultName), myTrade), [name, myTrade])
   const ready = name.trim().length > 0 && !busy
 
   const share = (how: 'file' | 'text') =>
@@ -45,51 +44,47 @@ export function ShareTradeDialog({ myTrade, onClose }: ShareTradeDialogProps) {
       if (how === 'file') {
         const path = await saveTradeFile(snapshot.name, serializeSnapshot(snapshot))
         if (!path) return
-        toast(`Saved ${path.split(/[\\/]/).pop()}. Send it to your friend.`)
+        toast(ui.trades.share.saved(path.split(/[\\/]/).pop() ?? path))
       } else {
         await copyText(snapshotToText(snapshot))
-        toast('Trade list copied. Paste it in a chat with your friend.')
+        toast(ui.trades.share.copied)
       }
       onClose()
     })
 
   return (
     <Modal
-      title="Share my trade list"
+      title={ui.trades.share.title}
       onClose={onClose}
       footer={
         <>
           <span className="spacer" />
           <button type="button" onClick={onClose}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
           <button type="button" disabled={!ready} onClick={() => share('text')}>
-            Copy as text
+            {ui.trades.share.copy}
           </button>
           <button type="button" className="primary" disabled={!ready} onClick={() => share('file')}>
-            Save file…
+            {ui.trades.share.save}
           </button>
         </>
       }
     >
       <label className="field">
-        <span>Your name (your friend sees this)</span>
-        <input autoFocus value={name} placeholder="e.g. Bruno" onChange={(event) => setName(event.target.value)} />
+        <span>{ui.trades.share.yourName}</span>
+        <input autoFocus value={name} placeholder={ui.trades.share.namePlaceholder} onChange={(event) => setName(event.target.value)} />
       </label>
       <div className="trade-summary">
         <div>
-          <strong>{copies(snapshot.haves)}</strong> you can spare
-          <span className="muted"> ({snapshot.haves.length} unique)</span>
+          <strong>{ui.trades.share.spare(totalCopies(snapshot.haves))}</strong>
+          <span className="muted">{ui.trades.share.unique(snapshot.haves.length)}</span>
         </div>
         <div>
-          <strong>{copies(snapshot.wants)}</strong> your lists still need
+          <strong>{ui.trades.share.needed(totalCopies(snapshot.wants))}</strong>
         </div>
       </div>
-      <p className="muted small">
-        Your friend imports it in MTG Dreams to see which of their cards your lists need, and the other way round.
-        Only spare copies are offered: copies your decks and wishlists use stay out. Prices, decks and where your
-        files live are never included, and basic lands are left out.
-      </p>
+      <p className="muted small">{ui.trades.share.hint}</p>
       {error && <p className="warn">{error}</p>}
     </Modal>
   )
@@ -116,14 +111,14 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
   const pasted = useMemo(() => {
     if (!haves.trim() && !wants.trim()) return null
     try {
-      const main = haves.trim() ? parseTradeText(haves, name || 'Friend') : null
-      const extra = wants.trim() ? parseTradeText(wants, name || 'Friend') : null
+      const main = haves.trim() ? parseTradeText(haves, name || ui.names.defaultFriend) : null
+      const extra = wants.trim() ? parseTradeText(wants, name || ui.names.defaultFriend) : null
       const wanted = [...(main?.wants ?? []), ...(extra ? [...extra.haves, ...extra.wants] : [])]
       const snapshot: TradeSnapshot = {
         ...(main ?? extra!),
         haves: main?.haves ?? [],
         wants: wanted,
-        name: replaceName ?? (name.trim() ? tradeName(name) : (main?.name ?? 'Friend'))
+        name: replaceName ?? (name.trim() ? tradeName(name) : (main?.name ?? ui.names.defaultFriend))
       }
       return { snapshot, error: null }
     } catch (e) {
@@ -146,12 +141,12 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
       setName(replaceName ?? snapshot.name)
       setHaves(cardsToText(snapshot.haves))
       setWants(cardsToText(snapshot.wants))
-      setNotice(`Read ${copies(snapshot.haves)} from “${file.fileName}”. Check the name, then import.`)
+      setNotice(ui.trades.import.read(totalCopies(snapshot.haves), file.fileName))
     })
 
   return (
     <Modal
-      title={replaceName ? `Update ${replaceName}'s trade list` : 'Import a trade list'}
+      title={ui.trades.import.title(replaceName ?? null)}
       onClose={onClose}
       size="wide"
       footer={
@@ -161,13 +156,13 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
               <span className="warn">{pasted.error}</span>
             ) : pasted?.snapshot ? (
               <span>
-                {copies(pasted.snapshot.haves)} they have · {copies(pasted.snapshot.wants)} they want{replaces ? ` · replaces your current list for ${target}` : ''}
+                {ui.trades.import.summary(totalCopies(pasted.snapshot.haves), totalCopies(pasted.snapshot.wants), replaces ? target : null)}
               </span>
             ) : null}
           </span>
           <span className="spacer" />
           <button type="button" onClick={onClose}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
           <button
             type="button"
@@ -175,44 +170,42 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
             disabled={busy || !pasted?.snapshot}
             onClick={() => pasted?.snapshot && run(() => onImport(pasted.snapshot!))}
           >
-            Import
+            {ui.trades.import.confirm}
           </button>
         </>
       }
     >
       <div className="import-file">
         <button type="button" className="primary" onClick={openFile} disabled={busy}>
-          Open a file…
+          {ui.trades.import.openFile}
         </button>
-        <span className="muted small">
-          An MTG Dreams trade list (.mtgtrade), or a collection export from Moxfield, Deckbox and the like (.txt, .csv).
-        </span>
+        <span className="muted small">{ui.trades.import.fileHint}</span>
       </div>
-      <p className="import-or muted small">or paste lists your friend sent you</p>
+      <p className="import-or muted small">{ui.trades.import.orPaste}</p>
       {notice && <p className="muted small">{notice}</p>}
       {!replaceName && (
         <label className="field">
-          <span>Friend's name</span>
-          <input value={name} placeholder="e.g. Ana" onChange={(event) => setName(event.target.value)} />
+          <span>{ui.trades.friendName}</span>
+          <input value={name} placeholder={ui.trades.import.namePlaceholder} onChange={(event) => setName(event.target.value)} />
         </label>
       )}
       <div className="import-lists">
         <label className="field">
-          <span>Cards they have</span>
+          <span>{ui.trades.import.haves}</span>
           <textarea
             className="text-editor short"
             spellCheck={false}
-            placeholder={'One card per line, e.g.\n4 Lightning Bolt\n1 Sol Ring\n\n(A list copied from MTG Dreams works too.)'}
+            placeholder={ui.trades.import.havesPlaceholder}
             value={haves}
             onChange={(event) => setHaves(event.target.value)}
           />
         </label>
         <label className="field">
-          <span>Cards they want (optional)</span>
+          <span>{ui.trades.import.wants}</span>
           <textarea
             className="text-editor short"
             spellCheck={false}
-            placeholder={'Their wishlist, e.g.\n1 Thoughtseize'}
+            placeholder={ui.trades.import.wantsPlaceholder}
             value={wants}
             onChange={(event) => setWants(event.target.value)}
           />

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { totalCopies } from '@shared/totals'
 import { myTradeSide } from '@shared/trade'
 import type { ListKind } from '@shared/types'
+import { ui } from '@shared/text'
 import { AppDialogs, type AppDialog } from './components/AppDialogs'
 import { HistorySync } from './components/HistorySync'
 import { HoverPreview } from './components/HoverPreview'
@@ -39,7 +40,7 @@ export default function App() {
   const onError = useCallback((message: string) => toast(message, 'error'), [toast])
   const showUndone = useCallback((result: UndoResult) => toast(result.message, result.kind), [toast])
   const onUndoable = useCallback(
-    (label: string, undo: () => UndoResult) => toast(label, 'info', { label: 'Undo', run: () => showUndone(undo()) }),
+    (label: string, undo: () => UndoResult) => toast(label, 'info', { label: ui.common.undo, run: () => showUndone(undo()) }),
     [toast, showUndone]
   )
   const { state, actions, conflict } = useLibrary({ onError, onUndoable })
@@ -72,11 +73,11 @@ export default function App() {
   const myTrade = useMemo(() => myTradeSide(state.inventory, planned, pool), [state.inventory, planned, pool])
   useShortcuts(useCallback(() => showUndone(actions.undo()), [actions, showUndone]))
 
-  if (state.status === 'loading') return <div className="splash">Loading…</div>
+  if (state.status === 'loading') return <div className="splash">{ui.common.loading}</div>
   if (state.status === 'error') {
     return (
       <div className="splash">
-        <p>Could not read your data folder.</p>
+        <p>{ui.common.dataFolderUnreadable}</p>
         <p className="warn">{state.error}</p>
       </div>
     )
@@ -88,7 +89,7 @@ export default function App() {
   /** Moves a list dragged between Wishlists and Brews; an open one stays open. */
   const moveKind = async (target: ListRef, to: 'wishlist' | 'brew', at?: number) => {
     const moved = await moveListTo(target, to, (moved) =>
-      to === 'brew' ? `“${moved.name}” is now a brew: it no longer counts in Most Wanted` : `“${moved.name}” is now a wishlist`
+      to === 'brew' ? ui.moves.toBrew(moved.name) : ui.moves.toWishlist(moved.name)
     )
     if (!moved) return
     if (to === 'wishlist' && at !== undefined) actions.moveWishlist(moved, at)

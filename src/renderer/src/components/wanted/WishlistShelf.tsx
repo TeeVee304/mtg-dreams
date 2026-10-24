@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { listColor } from '@shared/listColor'
 import type { InventoryItem } from '@shared/types'
+import { ui } from '@shared/text'
 import { useCopyPool } from '../../hooks/useCopyPool'
 import { formatEur } from '../../lib/format'
 import { listFigures } from '../../lib/listFigures'
@@ -69,10 +70,10 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
 
   return (
     <section className="wishlist-shelf" aria-labelledby="shelf-title">
-      <h2 id="shelf-title" className="section-heading">Wishlists by cost to finish</h2>
+      <h2 id="shelf-title" className="section-heading">{ui.wanted.shelf.title}</h2>
       <div className={`shelf-scroller${ends.before ? ' more-before' : ''}${ends.after ? ' more-after' : ''}`}>
       {ends.before && (
-        <button type="button" className="shelf-arrow before" onClick={() => page(-1)} aria-label="Earlier wishlists" title="Earlier wishlists">
+        <button type="button" className="shelf-arrow before" onClick={() => page(-1)} aria-label={ui.wanted.shelf.earlier} title={ui.wanted.shelf.earlier}>
           <Icon name="chevron" />
         </button>
       )}
@@ -86,7 +87,7 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
               className="shelf-card"
               data-color={listColor(list.lines) ?? undefined}
               onClick={() => onOpenList({ kind: 'wishlist', name: list.name })}
-              title={`${list.name}: ${summary.ownedCards} of ${summary.cards} collected`}
+              title={ui.wanted.shelf.collected(list.name, summary.ownedCards, summary.cards)}
             >
               <span className="shelf-art" aria-hidden="true">
                 {art && settings.cardImages ? <img src={art} alt="" loading="lazy" draggable={false} /> : list.name.slice(0, 1)}
@@ -108,7 +109,7 @@ export function WishlistShelf({ lists, inventory, onOpenList }: WishlistShelfPro
         })}
       </div>
       {ends.after && (
-        <button type="button" className="shelf-arrow after" onClick={() => page(1)} aria-label="More wishlists" title="More wishlists">
+        <button type="button" className="shelf-arrow after" onClick={() => page(1)} aria-label={ui.wanted.shelf.more} title={ui.wanted.shelf.more}>
           <Icon name="chevron" />
         </button>
       )}

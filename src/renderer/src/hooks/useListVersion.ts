@@ -12,6 +12,7 @@ import {
   type ListVersion
 } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
+import { cutChoices } from '../lib/cutChoices'
 import { versionList } from '../lib/summary'
 import type { CardList } from '../stores/library'
 import type { SearchChoice } from '../components/CardSearch'
@@ -41,12 +42,7 @@ export function useListVersion(list: CardList) {
     if (version === BASE) return []
     const ins = new Set(variantSwaps(list.lines, version).ins.map((line) => nameKey(line.name)))
     const leaders = new Set(listCommanders(list.lines).map(nameKey))
-    const copies = new Map<string, number>()
-    for (const line of versionCardLines(list.lines, version)) {
-      if (ins.has(nameKey(line.name)) || leaders.has(nameKey(line.name))) continue
-      copies.set(line.name, (copies.get(line.name) ?? 0) + line.qty)
-    }
-    return [...copies].map(([name, qty]) => ({ name, hint: qty > 1 ? `${qty} in the deck` : undefined }))
+    return cutChoices(versionCardLines(list.lines, version), (key) => !ins.has(key) && !leaders.has(key))
   }, [list.lines, version])
   return { variants, other, version, setVersion, formatVariant, shown, swaps, swapsQty, outChoices }
 }

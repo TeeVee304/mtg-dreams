@@ -3,7 +3,8 @@ import { cardImageUrl } from '@shared/images'
 import { preconEntries, type PreconEntry, type PreconOptions } from '@shared/precons'
 import { totalCopies } from '@shared/totals'
 import type { PreconCard, PreconDeck, PreconSummary } from '@shared/types'
-import { cardCount, cleanError, formatIsoDate } from '../lib/format'
+import { ui } from '@shared/text'
+import { cleanError, formatIsoDate } from '../lib/format'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { previewHandlers } from './HoverPreview'
 import { Modal } from './Modal'
@@ -21,14 +22,6 @@ interface PreconDialogProps {
 
 /** Max search results shown. */
 const MAX_RESULTS = 250
-
-/** Section titles per board. */
-const BOARD_TITLES: Record<PreconCard['board'], string> = {
-  commander: 'Commander',
-  main: 'Main deck',
-  side: 'Sideboard',
-  other: 'Other cards'
-}
 
 /** Precon search, preview and import. New decks default to exact printings. */
 export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
@@ -83,14 +76,14 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
       if (deck) await onAdd(deck, entries)
     })
 
+  const text = ui.precons
   const actionLabel =
     target.kind === 'list'
-      ? `Add ${cardCount(copies)} to “${target.listName}”`
+      ? text.addTo(copies, target.listName)
       : target.kind === 'new-deck'
-        ? `Create deck with ${cardCount(copies)}`
-        : `Create ${target.kind === 'new-brew' ? 'brew' : 'wishlist'} with ${cardCount(copies)}`
-  const title =
-    target.kind === 'new-deck' ? 'New deck from a precon' : target.kind === 'new-list' ? 'New wishlist from a precon' : target.kind === 'new-brew' ? 'New brew from a precon' : 'Add a precon'
+        ? text.createDeck(copies)
+        : text.createList(target.kind === 'new-brew', copies)
+  const title = text.titles[target.kind]
 
   return (
     <Modal
@@ -106,25 +99,25 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
                 checked={options.skipBasics}
                 onChange={(event) => setOptions({ ...options, skipBasics: event.target.checked })}
               />
-              Skip basic lands
+              {text.skipBasics}
             </label>
-            <label className="check" title="Pin each card to the printing in the deck instead of the cheapest version">
+            <label className="check" title={text.exactHint}>
               <input
                 type="checkbox"
                 checked={options.exact}
                 onChange={(event) => setOptions({ ...options, exact: event.target.checked })}
               />
-              Keep the precon's exact printings
+              {text.exact}
             </label>
-            {target.kind === 'new-deck' && <span className="muted small">Its cards are also added to your inventory.</span>}
+            {target.kind === 'new-deck' && <span className="muted small">{text.addsToInventory}</span>}
           </div>
           <span className="spacer" />
           {addError && <span className="warn small">{addError}</span>}
           <button type="button" onClick={onClose}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
           <button type="button" className="primary" disabled={!deck || copies === 0 || busy} onClick={add}>
-            {deck ? actionLabel : 'Pick a deck'}
+            {deck ? actionLabel : text.pickDeck}
           </button>
         </>
       }
@@ -135,12 +128,12 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
             <input
               type="search"
               autoFocus
-              placeholder="Name, set code or year…"
+              placeholder={text.search}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
-            <select value={type} onChange={(event) => setType(event.target.value)} aria-label="Deck type">
-              <option value="all">All Types</option>
+            <select value={type} onChange={(event) => setType(event.target.value)} aria-label={text.deckType}>
+              <option value="all">{text.allTypes}</option>
               {types.map((name) => (
                 <option key={name} value={name}>
                   {name}
@@ -148,10 +141,10 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
               ))}
             </select>
           </div>
-          <div className="precon-list" role="listbox" aria-label="Precons">
-            {!index && !indexError && <p className="precon-placeholder">Loading decklists…</p>}
-            {indexError && <p className="precon-placeholder warn">Could not load decklists: {indexError}</p>}
-            {index && results.length === 0 && <p className="precon-placeholder">No decks match.</p>}
+          <div className="precon-list" role="listbox" aria-label={text.list}>
+            {!index && !indexError && <p className="precon-placeholder">{text.loadingIndex}</p>}
+            {indexError && <p className="precon-placeholder warn">{text.indexFailed(indexError)}</p>}
+            {index && results.length === 0 && <p className="precon-placeholder">{text.noMatch}</p>}
             {results.slice(0, MAX_RESULTS).map((d) => (
               <button
                 key={d.fileName}
@@ -168,18 +161,16 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
               </button>
             ))}
             {results.length > MAX_RESULTS && (
-              <p className="precon-placeholder small">
-                Showing {MAX_RESULTS} of {results.length}. Refine the search to see more.
-              </p>
+              <p className="precon-placeholder small">{text.showing(MAX_RESULTS, results.length)}</p>
             )}
           </div>
-          <p className="muted tiny">Decklists from MTGJSON</p>
+          <p className="muted tiny">{text.source}</p>
         </div>
 
         <div className="precon-right">
-          {!selected && <p className="precon-placeholder">Pick a deck to see its cards.</p>}
-          {selected && !deck && !deckError && <p className="precon-placeholder">Loading decklist…</p>}
-          {deckError && <p className="precon-placeholder warn">Could not load this deck: {deckError}</p>}
+          {!selected && <p className="precon-placeholder">{text.pickToPreview}</p>}
+          {selected && !deck && !deckError && <p className="precon-placeholder">{text.loadingDeck}</p>}
+          {deckError && <p className="precon-placeholder warn">{text.deckFailed(deckError)}</p>}
           {deck && <DeckPreview deck={deck} skipBasics={options.skipBasics} />}
         </div>
       </div>
@@ -190,7 +181,7 @@ export function PreconDialog({ target, onAdd, onClose }: PreconDialogProps) {
 /** Decklist preview grouped by board. */
 function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boolean }) {
   const total = totalCopies(deck.cards)
-  const boards = (Object.keys(BOARD_TITLES) as PreconCard['board'][])
+  const boards = (Object.keys(ui.precons.boards) as PreconCard['board'][])
     .map((board) => ({ board, cards: deck.cards.filter((card) => card.board === board) }))
     .filter((group) => group.cards.length > 0)
 
@@ -198,12 +189,12 @@ function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boole
     <div className="precon-deck">
       <h3>{deck.name}</h3>
       <p className="muted small">
-        {deck.type} · {deck.code} · released {deck.releaseDate ? formatIsoDate(deck.releaseDate) : 'unknown'} · {cardCount(total)}
+        {ui.precons.details(deck.type, deck.code, deck.releaseDate ? formatIsoDate(deck.releaseDate) : null, total)}
       </p>
       {boards.map(({ board, cards }) => (
         <section key={board} className="precon-board">
           <h4>
-            {BOARD_TITLES[board]} ({totalCopies(cards)})
+            {ui.precons.boards[board]} ({totalCopies(cards)})
           </h4>
           {cards.map((card, i) => (
             <div
@@ -216,7 +207,7 @@ function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boole
                 {card.flavorName ?? card.name}
                 {card.flavorName && <span className="muted small official-name">{card.name}</span>}
               </span>
-              {card.foil && <span className="chip foil">Foil</span>}
+              {card.foil && <span className="chip foil">{ui.common.foil}</span>}
               <span className="where">
                 {card.set.toUpperCase()} #{card.collector}
               </span>

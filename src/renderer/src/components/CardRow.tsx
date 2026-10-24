@@ -2,6 +2,7 @@ import { memo, useEffect, useRef } from 'react'
 import { nameKey } from '@shared/decklist'
 import type { LegalityIssue } from '@shared/formats'
 import { heldWhere, shortfallNote } from '@shared/listModel'
+import { ui } from '@shared/text'
 import { formatDate, formatEur } from '../lib/format'
 import { useNarrowTables } from '../hooks/useNarrow'
 import type { PriceChange } from '../stores/history'
@@ -121,10 +122,10 @@ function CardRowView(props: CardRowProps) {
       title={
         pick === 'ok'
           ? leader
-            ? `Stop using ${row.flavorName ?? line.name} as the commander`
-            : `Make ${row.flavorName ?? line.name} the commander`
+            ? ui.card.stopLeading(row.flavorName ?? line.name)
+            : ui.card.lead(row.flavorName ?? line.name)
           : pick === 'no'
-            ? "Can't be the commander in this format"
+            ? ui.card.cantLead
             : undefined
       }
     >
@@ -136,17 +137,17 @@ function CardRowView(props: CardRowProps) {
               type="checkbox"
               checked={complete}
               onChange={onToggleOwned}
-              aria-label={`Own ${line.name}`}
-              title={`${complete ? 'Owned; unchecking takes them out of your inventory.' : 'Check once you own them: adds them to your inventory.'} ${row.inventoryQty} in inventory${row.held > 0 ? `; decks hold ${row.held} of them` : ''}.`}
+              aria-label={ui.card.own(line.name)}
+              title={ui.card.ownedHint(complete, row.inventoryQty, row.held)}
             />
             <span className="owned-count">
               {owned}/{line.qty}
             </span>
             <span className="owned-adjust">
-              <button type="button" onClick={() => onOwnedDelta(-1)} disabled={row.inventoryQty === 0} aria-label="One fewer owned">
+              <button type="button" onClick={() => onOwnedDelta(-1)} disabled={row.inventoryQty === 0} aria-label={ui.card.oneFewer}>
                 −
               </button>
-              <button type="button" onClick={() => onOwnedDelta(1)} aria-label="One more owned">
+              <button type="button" onClick={() => onOwnedDelta(1)} aria-label={ui.card.oneMore}>
                 +
               </button>
             </span>
@@ -160,12 +161,12 @@ function CardRowView(props: CardRowProps) {
           max={maxQty}
           maxTitle={maxTitle}
           onChange={onQty}
-          label={`quantity of ${line.name}`}
+          label={ui.card.quantityOf(line.name)}
         />
       </td>
       <NameCell images={printing} loading={loading}>
         {row.bundledIds ? (
-          <span className="card-name" title="Basic lands are bundled: any version counts, for free. Change this in Settings.">
+          <span className="card-name" title={ui.card.bundledHint}>
             {line.name}
           </span>
         ) : (
@@ -179,14 +180,14 @@ function CardRowView(props: CardRowProps) {
           </button>
         )}
         {row.flavorName && (
-          <span className="muted small official-name" title="The card's official name">
+          <span className="muted small official-name" title={ui.card.officialName}>
             {line.name}
           </span>
         )}
-        {line.foil && <span className="chip foil">Foil</span>}
+        {line.foil && <span className="chip foil">{ui.common.foil}</span>}
         {swapTag === 'only' && (
-          <span className="chip duel-only" title={`Only in the ${swapLabel} version`}>
-            {swapLabel} only
+          <span className="chip duel-only" title={ui.card.onlyIn(swapLabel ?? '')}>
+            {ui.card.only(swapLabel ?? '')}
           </span>
         )}
         {issue && (
@@ -197,9 +198,9 @@ function CardRowView(props: CardRowProps) {
         {change && (
           <span
             className={`chip ${change.direction === 'down' ? 'cheaper' : 'pricier'}`}
-            title={`${formatEur(change.was)} when added on ${formatDate(change.since)}, now ${formatEur(row.unit)}`}
+            title={ui.card.priceChange(formatEur(change.was), formatDate(change.since), formatEur(row.unit))}
           >
-            {change.direction === 'down' ? `↓ ${change.percent}% cheaper` : `↑ ${change.percent}% pricier`}
+            {change.direction === 'down' ? ui.card.cheaper(change.percent) : ui.card.pricier(change.percent)}
           </span>
         )}
         {shortfall > 0 && (
@@ -213,17 +214,15 @@ function CardRowView(props: CardRowProps) {
             className="chip link fix-name"
             onClick={() => onRename(matchedName)}
             title={
-              printedAs
-                ? `“${line.name}” is a printed name of “${matchedName}”. Use the official name so your inventory and other versions match.`
-                : `Scryfall matched this to “${matchedName}”. Click to use that name.`
+              printedAs ? ui.card.printedName(line.name, matchedName) : ui.card.matched(matchedName)
             }
           >
-            Use “{matchedName}”
+            {ui.card.useName(matchedName)}
           </button>
         )}
         {!isDeck && row.holders && row.holders.length > 0 && !complete && (
           <span className="muted small owned-note">
-            {row.inventoryQty} owned · {heldWhere(row.holders, row.inventoryQty)}
+            {ui.card.ownedWhere(row.inventoryQty, heldWhere(row.holders, row.inventoryQty))}
           </span>
         )}
         {narrow && (
@@ -242,10 +241,10 @@ function CardRowView(props: CardRowProps) {
           unit={loading ? undefined : unit}
           qty={line.qty}
           free={!!row.bundledIds}
-          title={entry?.data && unit === null ? 'No Cardmarket price for this version and finish' : undefined}
+          title={entry?.data && unit === null ? ui.card.noPrice : undefined}
         />
         {entry?.data?.staleError && (
-          <span className="stale" title={`Showing cached price: ${entry.data.staleError}`}>
+          <span className="stale" title={ui.card.cachedPrice(entry.data.staleError)}>
             {' '}
             ⚠
           </span>
@@ -257,8 +256,8 @@ function CardRowView(props: CardRowProps) {
           type="button"
           className="icon-btn danger-ghost"
           onClick={onRemove}
-          title={isDeck ? 'Remove from deck' : 'Remove from list'}
-          aria-label={isDeck ? 'Remove from deck' : 'Remove from list'}
+          title={ui.card.remove(isDeck)}
+          aria-label={ui.card.remove(isDeck)}
         >
           <Icon name="close" />
         </button>
@@ -272,54 +271,53 @@ function CardRowView(props: CardRowProps) {
  * pinned printing you own only other versions of says so on hover.
  */
 function VersionCell({ row, otherVersions }: { row: Row; otherVersions?: string | null }) {
-  const yours = otherVersions ? `. You own another version: ${otherVersions}` : ''
+  const text = ui.card.version
+  const yours = otherVersions ? text.ownsOther(otherVersions) : ''
   const { line, entry, resolution } = row
   if (row.bundledIds) {
     return (
-      <span className="version" title="Every version of this basic land counts as one generic card">
-        <span className="auto-badge generic">Any version</span>
-        {row.bundledIds.length > 1 && <span className="muted">{row.bundledIds.length} lines bundled</span>}
+      <span className="version" title={text.genericHint}>
+        <span className="auto-badge generic">{text.any}</span>
+        {row.bundledIds.length > 1 && <span className="muted">{text.bundled(row.bundledIds.length)}</span>}
       </span>
     )
   }
   const data = entry?.data
   if (!data) {
-    if (entry?.error) return <span className="warn" title={entry.error}>Price unavailable</span>
+    if (entry?.error) return <span className="warn" title={entry.error}>{text.unavailable}</span>
     return <Skeleton width={120} />
   }
-  if (data.notFound) return <span className="warn">Not found on Scryfall</span>
+  if (data.notFound) return <span className="warn">{text.notFound}</span>
   if (resolution?.pinMissing && data.partial) return <Skeleton width={120} />
   if (resolution?.pinMissing) {
     return (
-      <span className="warn">
-        [{line.set?.toUpperCase()}]{line.collector ? ` #${line.collector}` : ''} not found
-      </span>
+      <span className="warn">{text.pinNotFound(`[${line.set?.toUpperCase()}]${line.collector ? ` #${line.collector}` : ''}`)}</span>
     )
   }
   const printing = resolution?.printing
-  if (!printing) return <span className="muted">No paper printings</span>
+  if (!printing) return <span className="muted">{text.noPaper}</span>
   const where = `${printing.set.toUpperCase()} #${printing.collectorNumber}`
   if (resolution.collectorMissing) {
     return (
-      <span className="version" title={`#${line.collector} is not in ${printing.setName}; using the cheapest copy in that set${yours || '.'}`}>
+      <span className="version" title={text.collectorMissing(line.collector ?? '', printing.setName, yours)}>
         <span className="set-code">{where}</span>
-        <span className="warn small">#{line.collector} not found</span>
+        <span className="warn small">{text.collectorNotFound(line.collector ?? '')}</span>
       </span>
     )
   }
   const labels = printing.labels.length ? ` · ${printing.labels.join(', ')}` : ''
   if (resolution.fromInventory) {
     return (
-      <span className="version" title={`The version in your inventory: ${printing.setName}${labels}`}>
-        <span className="auto-badge yours">Yours</span>
+      <span className="version" title={text.yoursHint(printing.setName, labels)}>
+        <span className="auto-badge yours">{text.yours}</span>
         <span className="muted">{where}</span>
       </span>
     )
   }
   if (!resolution.pinned) {
     return (
-      <span className="version" title={`Cheapest version: ${printing.setName}${labels}. Pick a version to keep it.`}>
-        <span className="auto-badge cheapest">Cheapest</span>
+      <span className="version" title={text.cheapestHint(printing.setName, labels)}>
+        <span className="auto-badge cheapest">{text.cheapest}</span>
         <span className="muted">{where}</span>
       </span>
     )

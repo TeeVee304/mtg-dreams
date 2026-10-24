@@ -14,10 +14,10 @@ import { nameKey, serializeInventory } from '@shared/decklist'
 import { unionCardLines } from '@shared/listVersion'
 import { hasVersions } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
-import { counted } from '@shared/plural'
 import type { ThemeColor } from '@shared/themes'
 import { totalCopies } from '@shared/totals'
 import type { InventoryItem, ListKind } from '@shared/types'
+import { ui } from '@shared/text'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../stores/cardinfo'
 import { inventoryValue, type ItemValue } from '../lib/collection'
 import { artCrop } from '../lib/artwork'
@@ -76,6 +76,7 @@ export function InventoryView(props: InventoryViewProps) {
   useCardInfoVersion()
   usePrintingsVersion()
   const settings = useSettings()
+  const text = ui.inventory
   const { bundleBasics } = settings
   const sort = sortFor('inventory', settings.sort)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
@@ -160,10 +161,10 @@ export function InventoryView(props: InventoryViewProps) {
   const brewsChip = (item: InventoryItem) => {
     const brews = usage.brew.get(nameKey(item.name)) ?? []
     if (brews.length === 0) return null
-    const label = counted(brews.length, 'brew')
+    const label = ui.count.brews(brews.length)
     return (
       <MenuButton
-        label={`In ${label}`}
+        label={text.inBrews(label)}
         trigger={{ content: label, className: 'chip link brew-chip' }}
         items={brews.map((entry) => ({ label: entry.list, onSelect: () => onOpenList({ kind: 'brew', name: entry.list }) }))}
       />
@@ -176,14 +177,13 @@ export function InventoryView(props: InventoryViewProps) {
     return entries.map((entry) => {
       const got = Math.min(entry.qty, Math.max(0, item.qty - entry.held))
       const short = got < entry.qty
-      const ahead = entry.held > 0 ? `; ${Math.min(entry.held, item.qty)} of yours go to ${kind === 'deck' ? 'decks ahead of it' : 'decks'}` : ''
       return (
         <ListChip
           key={entry.list}
           color={entry.color}
           className={kind === 'deck' && short ? 'short' : undefined}
           onClick={() => onOpenList({ kind, name: entry.list })}
-          title={`${entry.list} ${kind === 'deck' ? 'uses' : 'wants'} ${entry.qty}, ${got} covered${ahead}`}
+          title={text.usage(entry.list, kind === 'deck', entry.qty, got, Math.min(entry.held, item.qty), kind === 'deck')}
         >
           {entry.list} · {kind === 'deck' && !short ? entry.qty : `${got}/${entry.qty}`}
         </ListChip>
@@ -202,21 +202,21 @@ export function InventoryView(props: InventoryViewProps) {
           </div>
         )}
         <div className="header-title">
-          {showcase.length > 0 && <p className="hero-eyebrow">Your collection</p>}
-          <h1>Inventory</h1>
+          {showcase.length > 0 && <p className="hero-eyebrow">{text.eyebrow}</p>}
+          <h1>{text.title}</h1>
         </div>
         <div className="header-actions">
           <button type="button" onClick={() => setEditing(true)}>
-            Edit as text
+            {text.editAsText}
           </button>
           <MenuButton
-            label="More inventory actions"
+            label={text.more}
             items={[
               {
-                label: 'Copy as text',
+                label: text.copyAsText,
                 // Other apps don't know languages or worthless marks: the copy leaves them out.
                 onSelect: () =>
-                  void copy(serializeInventory(inventory, true), 'Inventory copied to clipboard')
+                  void copy(serializeInventory(inventory, true), text.copied)
               }
             ]}
           />
@@ -226,34 +226,34 @@ export function InventoryView(props: InventoryViewProps) {
       {items.length > 0 && (
         <section className="summary-strip">
           <SummaryItem
-            label="Inventory value"
+            label={text.value}
             value={formatEur(worth.total)}
             accent
-            note={worth.pending > 0 ? `Typical prices · ${worth.pending} loading` : 'Typical prices'}
+            note={text.typicalPrices(worth.pending)}
             action={
-              <button type="button" className="value-details-btn" onClick={onValueDetails} aria-label="Changes and top cards">
+              <button type="button" className="value-details-btn" onClick={onValueDetails} aria-label={text.details}>
                 <Icon name="sparkle" />
                 <span className="tip tip-end" role="tooltip" aria-hidden="true">
-                  Changes and top cards
+                  {text.details}
                 </span>
               </button>
             }
           />
-          <SummaryItem label="Cards" value={String(worth.copies)} note={`${items.length} unique`} />
+          <SummaryItem label={text.cards} value={String(worth.copies)} note={text.unique(items.length)} />
         </section>
       )}
 
       <div className="search-row">
         <CardSearch
-          placeholder="Add a card you own…  (Ctrl+K)"
+          placeholder={text.addCard}
           onPick={(name) => {
             const qty = (inventory.get(nameKey(name))?.qty ?? 0) + 1
             actions.setOwned(name, qty)
-            toast(`${name}: ${qty} owned`)
+            toast(text.owned(name, qty))
           }}
         />
-        <button type="button" onClick={onAddPrecon} title="Adds the precon's cards here and creates a deck with them">
-          Add precon…
+        <button type="button" onClick={onAddPrecon} title={text.addPreconHint}>
+          {text.addPrecon}
         </button>
       </div>
 
@@ -262,25 +262,23 @@ export function InventoryView(props: InventoryViewProps) {
           <FilterBar
             filters={filters}
             onChange={setFilters}
-            namePlaceholder="Filter by name…"
-            loadingNote={dataLoading ? 'Loading card data…' : undefined}
+            namePlaceholder={text.filterByName}
+            loadingNote={dataLoading ? text.loadingCardData : undefined}
             end={<CardSortSelect view="inventory" value={sort} />}
           >
             {filtersActive(filters) && (
-              <span className="muted small">
-                Showing {visibleCopies} of {worth.copies} copies
-              </span>
+              <span className="muted small">{text.showing(visibleCopies, worth.copies)}</span>
             )}
           </FilterBar>
           <table className="cards-table inventory-table">
             <thead>
               <tr>
-                {sortHeader('qty', 'Owned', 'col-qty')}
-                {sortHeader('name', 'Card')}
-                {sortHeader('decks', 'In decks')}
-                {sortHeader('wanted', 'Wanted in')}
-                {sortHeader('value', 'Value', 'col-num', "Cardmarket's typical price, as in Inventory Value")}
-                <th className="col-actions" aria-label="Actions" />
+                {sortHeader('qty', text.columns.owned, 'col-qty')}
+                {sortHeader('name', text.columns.card)}
+                {sortHeader('decks', text.columns.decks)}
+                {sortHeader('wanted', text.columns.wanted)}
+                {sortHeader('value', text.columns.value, 'col-num', text.valueHint)}
+                <th className="col-actions" aria-label={text.columns.actions} />
               </tr>
             </thead>
             <tbody>
@@ -291,7 +289,7 @@ export function InventoryView(props: InventoryViewProps) {
                       value={item.qty}
                       min={1}
                       onChange={(qty) => actions.setOwned(item.name, qty)}
-                      label={`owned copies of ${item.name}`}
+                      label={text.ownedLabel(item.name)}
                     />
                   </td>
                   <NameCell images={item.value.printing} name={item.name} loading={item.value.status === 'loading'}>
@@ -307,7 +305,7 @@ export function InventoryView(props: InventoryViewProps) {
                             type="button"
                             className={`chip link${copy.foil ? ' foil' : ''}${copy.worthless ? ' worthless' : ''}`}
                             onClick={() => setVersionsOf(nameKey(item.name))}
-                            title="Your versions of this card"
+                            title={text.yourVersions}
                           >
                             {copy.qty}× {copyLabel(copy)}
                             {copy.lang && <LanguageFlag code={copy.lang} />}
@@ -331,18 +329,18 @@ export function InventoryView(props: InventoryViewProps) {
                       type="button"
                       className="versions-btn"
                       onClick={() => setVersionsOf(nameKey(item.name))}
-                      title="Which versions and foils you own"
-                      aria-label={`Versions of ${item.name} you own`}
+                      title={text.versionsHint}
+                      aria-label={text.versionsOf(item.name)}
                     >
                       <Icon name="versions" />
-                      <span className="versions-label">Versions</span>
+                      <span className="versions-label">{text.versions}</span>
                     </button>
                     <button
                       type="button"
                       className="icon-btn danger-ghost"
                       onClick={() => actions.setOwned(item.name, 0)}
-                      title="Remove from inventory"
-                      aria-label="Remove from inventory"
+                      title={text.remove}
+                      aria-label={text.remove}
                     >
                       <Icon name="close" />
                     </button>
@@ -351,14 +349,13 @@ export function InventoryView(props: InventoryViewProps) {
               ))}
             </tbody>
           </table>
-          {visible.length === 0 && <p className="muted empty-filter">No cards match the current filters.</p>}
+          {visible.length === 0 && <p className="muted empty-filter">{text.noMatch}</p>}
         </>
       ) : (
         <div className="empty">
-          <p>Your inventory is empty.</p>
+          <p>{text.empty}</p>
           <p className="muted">
-            Search above, add a precon you own, tick cards in a wishlist, or use <em>Edit as text</em> to paste your
-            collection.
+            {text.emptyHintBefore} <em>{text.editAsText}</em> {text.emptyHintAfter}
           </p>
         </div>
       )}
@@ -373,7 +370,7 @@ export function InventoryView(props: InventoryViewProps) {
 
       {editing && (
         <TextEditorDialog
-          title="Edit inventory as text"
+          title={text.editTitle}
           initial={inventoryText(inventory)}
           mode="inventory"
           onClose={() => setEditing(false)}
@@ -406,8 +403,8 @@ function ValuePrice({ value, qty }: { value: ItemValue; qty: number }) {
         total={value.total}
         title={
           [
-            value.unpriced > 0 && 'Some versions have no price and are left out',
-            value.worthless > 0 && `${value.worthless} marked worthless, left out`
+            value.unpriced > 0 && ui.inventory.unpricedVersions,
+            value.worthless > 0 && ui.inventory.worthlessCount(value.worthless)
           ]
             .filter(Boolean)
             .join('. ') || undefined
@@ -417,8 +414,8 @@ function ValuePrice({ value, qty }: { value: ItemValue; qty: number }) {
   }
   if (value.status === 'none') {
     return (
-      <span className="muted" title="Marked worthless: left out of the inventory value">
-        Worthless
+      <span className="muted" title={ui.inventory.worthlessHint}>
+        {ui.inventory.worthless}
       </span>
     )
   }

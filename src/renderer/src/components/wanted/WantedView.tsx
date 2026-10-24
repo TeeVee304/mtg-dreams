@@ -7,9 +7,10 @@ import { sumOf } from '@shared/totals'
 import type { TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { DEFAULT_WANTED_SORT, isWantedSort, sortWanted, type WantedCard, type WantedSort } from '@shared/wanted'
+import { ui } from '@shared/text'
 import { useCopyPool } from '../../hooks/useCopyPool'
 import { useStoredValue } from '../../hooks/useStoredValue'
-import { cardCount, formatEur } from '../../lib/format'
+import { formatEur } from '../../lib/format'
 import { listRows } from '../../lib/summary'
 import { wantedOverview } from '../../lib/wanted'
 import { getCardInfo, useCardInfoVersion } from '../../stores/cardinfo'
@@ -123,9 +124,9 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   const toBuy = (cards: WantedCard[]) => sumOf(cards, (card) => card.toBuy)
   const tabs = (
     [
-      { id: 'cards', label: `Cards · ${toBuy(overview.cards)}` },
-      { id: 'basics', label: `Basic lands · ${toBuy(overview.basics)}` },
-      { id: 'tokens', label: 'Tokens' }
+      { id: 'cards', label: ui.wanted.tabs.cards(toBuy(overview.cards)) },
+      { id: 'basics', label: ui.wanted.tabs.basics(toBuy(overview.basics)) },
+      { id: 'tokens', label: ui.wanted.tokens }
     ] as const
   ).filter(({ id }) => id === 'cards' || (id === 'basics' ? basics.length > 0 : wishlists.length > 0))
   const tab = tabs.some(({ id }) => id === storedTab) ? storedTab : 'cards'
@@ -134,32 +135,32 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
 
   const markBought = (card: WantedCard) => {
     actions.setOwned(card.name, card.owned + card.toBuy)
-    toast(`Marked ${card.toBuy}× ${card.name} as bought (Ctrl+Z to undo)`)
+    toast(ui.wanted.markedBought(card.toBuy, card.name))
   }
   const copyText = useCopy()
-  const copy = (text: string, what: string) => copyText(text, `${what} copied to clipboard`)
+  const copy = (text: string, what: string) => copyText(text, ui.wanted.copied(what))
   const copyTab = () => {
     const cards = tab === 'cards' ? visible : basics
-    void copy(countLines(cards.map((card) => ({ qty: card.toBuy, name: card.name }))).join('\n'), tab === 'cards' ? 'Cards to buy' : 'Basic lands')
+    void copy(countLines(cards.map((card) => ({ qty: card.toBuy, name: card.name }))).join('\n'), tab === 'cards' ? ui.wanted.cardsToBuy : ui.wanted.basicLands)
   }
 
   return (
     <div className="view wanted-view">
       <header className="view-header">
         <div>
-          <h1>Most Wanted</h1>
+          <h1>{ui.wanted.title}</h1>
           {!noLists && (
             <p className="muted">
-              {cardCount(toBuy(overview.cards))} to buy · {formatEur(overview.total)} to complete every {withDecks ? 'deck and wishlist' : 'wishlist'}
-              {overview.loading > 0 && ` (${overview.loading} still loading)`}
-              {completers > 0 && ` · ${completers} complete a list`}
+              {ui.wanted.summary(toBuy(overview.cards), formatEur(overview.total), withDecks)}
+              {overview.loading > 0 && ui.wanted.stillLoading(overview.loading)}
+              {completers > 0 && ui.wanted.completers(completers)}
             </p>
           )}
         </div>
         <div className="header-actions">
           {copyable && (
-            <button type="button" onClick={copyTab} title="As “N Card Name” lines, e.g. for a Cardmarket wants list">
-              Copy as text
+            <button type="button" onClick={copyTab} title={ui.wanted.copyHint}>
+              {ui.wanted.copyAsText}
             </button>
           )}
         </div>
@@ -169,7 +170,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
 
       {overview.cards.length > 0 && <BudgetPlanner overview={overview} actions={actions} onCopy={copy} />}
 
-      {tabs.length > 1 && <Segmented label="Most Wanted" tabs className="wanted-tabs" options={tabs} value={tab} onChange={setTab} />}
+      {tabs.length > 1 && <Segmented label={ui.wanted.title} tabs className="wanted-tabs" options={tabs} value={tab} onChange={setTab} />}
 
       {tab === 'cards' && (
         <CardsTab

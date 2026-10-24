@@ -1,14 +1,11 @@
 import type { CardLine, PriceBasis, Prices, Printing } from './types'
+import { ui } from './text'
 
 /** Max age of cached printings (1 week). Prices are refreshed separately from Cardmarket's daily price guide. */
 export const PRINTINGS_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
-/** Selectable price bases with UI label and hint. */
-export const PRICE_BASES: Array<{ id: PriceBasis; label: string; hint: string }> = [
-  { id: 'trend', label: 'Typical', hint: 'Cardmarket’s price trend.' },
-  { id: 'low', label: 'Lowest listing', hint: 'The cheapest copy on offer, any condition.' },
-  { id: 'avg30', label: '30-day average', hint: 'The average sale over the last month.' }
-]
+/** Selectable price bases, in the order offered; their names are `ui.priceBases`. */
+export const PRICE_BASES: PriceBasis[] = ['trend', 'low', 'avg30']
 
 /** Default price basis. */
 export const DEFAULT_PRICE_BASIS: PriceBasis = 'trend'
@@ -24,7 +21,7 @@ export const DEFAULT_RISE_ALERT_EUR = 0.5
 
 /** Type guard for {@link PriceBasis}. */
 export function isPriceBasis(value: unknown): value is PriceBasis {
-  return PRICE_BASES.some((basis) => basis.id === value)
+  return PRICE_BASES.includes(value as PriceBasis)
 }
 
 /** "€12.50": for messages written outside the window, which formats prices in the player's own locale. */
@@ -32,7 +29,7 @@ export const eurText = (value: number) => `€${value.toFixed(2)}`
 
 /** @returns UI label of `basis`. */
 export function priceBasisLabel(basis: PriceBasis): string {
-  return PRICE_BASES.find((option) => option.id === basis)?.label ?? basis
+  return ui.priceBases[basis].label
 }
 
 /** @returns Price on `basis`, falling back to `trend`; null if neither is known. */

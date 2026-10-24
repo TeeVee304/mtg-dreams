@@ -116,7 +116,7 @@ describe('commander', () => {
     expect(commanderIssue(commander, legend, [], 1)).toBeNull()
     expect(commanderIssue(pauperCommander, legend, [], 1)).toBeNull()
     expect(legalityIssue(pauperCommander, legend, 1)?.message).toBe('Not legal in Pauper Commander')
-    expect(commanderIssue(oathbreaker, legend, [], 1)?.message).toBe("Can't be your commander in Oathbreaker")
+    expect(commanderIssue(oathbreaker, legend, [], 1)?.message).toBe("Can't be your Commander in Oathbreaker")
     expect(commanderIssue(commander, { ...legend, legalities: { commander: 'banned' } }, [], 1)?.message).toBe('Banned in Commander')
   })
 })
@@ -179,9 +179,9 @@ describe('partners', () => {
 
   it('reports pairs that cannot share command', () => {
     expect(commanderIssue(commander, noble, [], 1, wilson)).toBeNull()
-    expect(commanderIssue(commander, noble, [], 1)?.message).toBe("Can't be your commander in Commander")
+    expect(commanderIssue(commander, noble, [], 1)?.message).toBe("Can't be your Commander in Commander")
     expect(commanderIssue(commander, atraxa, [], 1, tymna)?.message).toBe('Can\'t share command with Tymna the Weaver')
-    expect(commanderIssue(oathbreaker, kraum, [], 1, tymna)?.message).toBe('Oathbreaker has one commander')
+    expect(commanderIssue(oathbreaker, kraum, [], 1, tymna)?.message).toBe('Oathbreaker has one Commander')
   })
 })
 
@@ -199,11 +199,11 @@ describe('legalityIssue', () => {
 
   it('enforces copy limits with exceptions', () => {
     expect(legalityIssue(modern, card({ modern: 'legal' }), 4)).toBeNull()
-    expect(legalityIssue(modern, card({ modern: 'legal' }), 5)?.message).toBe('Max 4 copies in Modern')
-    expect(legalityIssue(commander, card({ commander: 'legal' }), 2)?.message).toBe('Max 1 copy in Commander')
+    expect(legalityIssue(modern, card({ modern: 'legal' }), 5)?.message).toBe('Max 4 Copies in Modern')
+    expect(legalityIssue(commander, card({ commander: 'legal' }), 2)?.message).toBe('Max 1 Copy in Commander')
     expect(legalityIssue(commander, card({ commander: 'legal' }, { typeLine: 'Basic Land — Island' }), 30)).toBeNull()
     expect(legalityIssue(commander, card({ commander: 'legal' }, { deckLimit: 'any' }), 40)).toBeNull()
-    expect(legalityIssue(commander, card({ commander: 'legal' }, { deckLimit: 7 }), 8)?.message).toBe('Max 7 copies in Commander')
+    expect(legalityIssue(commander, card({ commander: 'legal' }, { deckLimit: 7 }), 8)?.message).toBe('Max 7 Copies in Commander')
   })
 })
 
@@ -215,7 +215,7 @@ describe('colorIdentityIssue', () => {
     const wormHarvest = card({ commander: 'legal' }, { name: 'Worm Harvest', colorIdentity: ['B', 'G'] })
     const dakmor = card({ commander: 'legal' }, { name: 'Dakmor Salvage', typeLine: 'Land', colorIdentity: ['B'] })
     for (const outside of [leyline, wormHarvest, dakmor]) {
-      expect(colorIdentityIssue(outside, temur)).toEqual({ severity: 'error', message: "Outside your commander's colors" })
+      expect(colorIdentityIssue(outside, temur)).toEqual({ severity: 'error', message: "Outside your Commander's colors" })
     }
   })
 

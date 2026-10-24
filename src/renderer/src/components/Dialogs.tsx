@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react'
 import { cardLines, parseInventory, parseList, unrecognizedLines } from '@shared/decklist'
-import { counted } from '@shared/plural'
 import { totalCopies } from '@shared/totals'
 import type { ListKind } from '@shared/types'
-import { cardCount } from '../lib/format'
-import { KIND_NOUN } from '../stores/library'
+import { ui } from '@shared/text'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { FormatSelect } from './Controls'
 import { Modal } from './Modal'
@@ -32,7 +30,7 @@ export function PromptDialog({ title, label, initial = '', confirmLabel, onSubmi
         <>
           <span className="spacer" />
           <button type="button" onClick={onClose}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
           <button type="button" className="primary" disabled={busy || !value.trim()} onClick={submit}>
             {confirmLabel}
@@ -79,7 +77,7 @@ export function ConfirmDialog({ title, message, confirmLabel, danger, onConfirm,
         <>
           <span className="spacer" />
           <button type="button" onClick={onClose}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
           <button type="button" className={danger ? 'danger' : 'primary'} disabled={busy} onClick={submit} autoFocus>
             {confirmLabel}
@@ -107,30 +105,27 @@ interface ConflictDialogProps {
 export function ConflictDialog({ name, onKeepMine, onLoadOther }: ConflictDialogProps) {
   return (
     <Modal
-      title="Changed somewhere else"
+      title={ui.dialogs.conflict.title}
       onClose={onLoadOther}
       footer={
         <>
           <span className="spacer" />
           <button type="button" onClick={onKeepMine}>
-            Keep mine
+            {ui.dialogs.conflict.keepMine}
           </button>
           <button type="button" className="primary" onClick={onLoadOther} autoFocus>
-            Load the other version
+            {ui.dialogs.conflict.loadOther}
           </button>
         </>
       }
     >
-      <p>
-        {name} was changed outside MTG Dreams, maybe synced from another computer, so your latest change here
-        wasn&apos;t saved.
-      </p>
+      <p>{ui.dialogs.conflict.body(name)}</p>
       <ul className="muted small">
         <li>
-          <strong>Load the other version</strong> shows what&apos;s in the file now, without your latest changes.
+          <strong>{ui.dialogs.conflict.loadOther}</strong> {ui.dialogs.conflict.loadOtherHint}
         </li>
         <li>
-          <strong>Keep mine</strong> saves your version over the other one.
+          <strong>{ui.dialogs.conflict.keepMine}</strong> {ui.dialogs.conflict.keepMineHint}
         </li>
       </ul>
     </Modal>
@@ -151,25 +146,15 @@ function ParseStats({ text, mode }: { text: string; mode: 'list' | 'inventory' }
 
   return (
     <div className="parse-stats">
-      <span>
-        {cardCount(stats.cards)} · {stats.unique} {mode === 'inventory' ? 'unique names' : 'lines'}
-      </span>
+      <span>{ui.dialogs.editor.stats(stats.cards, stats.unique, mode === 'inventory')}</span>
       {stats.unrecognized.length > 0 && (
         <span className="warn" title={stats.unrecognized.join('\n')}>
-          {counted(stats.unrecognized.length, 'unrecognised line')} (
-          {mode === 'list' ? 'kept as-is' : 'will be dropped'}): “{stats.unrecognized[0]}”
-          {stats.unrecognized.length > 1 ? '…' : ''}
+          {ui.dialogs.editor.unrecognized(stats.unrecognized.length, mode === 'list', stats.unrecognized[0], stats.unrecognized.length > 1)}
         </span>
       )}
     </div>
   )
 }
-
-/** Example shown in empty list text fields. */
-const LIST_PLACEHOLDER = 'Paste a Goldfish / Arena / Moxfield list here, e.g.\n4 Lightning Bolt\n1 Sol Ring [CMM]'
-
-/** List syntax help text. */
-const FORMAT_HINT = 'One card per line: “4 Lightning Bolt”. Optional version: “4 Lightning Bolt <141> [A25]”, foil: “(F)”.'
 
 /** Props of {@link TextEditorDialog}. */
 interface TextEditorDialogProps {
@@ -198,22 +183,20 @@ export function TextEditorDialog({ title, initial, mode, onSave, onClose }: Text
           <ParseStats text={text} mode={mode} />
           <span className="spacer" />
           <button type="button" onClick={onClose}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
           <button type="button" className="primary" onClick={save}>
-            Save
+            {ui.dialogs.save}
           </button>
         </>
       }
     >
-      <p className="muted small">
-        {FORMAT_HINT}
-      </p>
+      <p className="muted small">{ui.dialogs.editor.syntax}</p>
       <textarea
         className="text-editor"
         autoFocus
         spellCheck={false}
-        placeholder={LIST_PLACEHOLDER}
+        placeholder={ui.dialogs.editor.placeholder}
         value={text}
         onChange={(event) => setText(event.target.value)}
         onKeyDown={(event) => {
@@ -239,7 +222,6 @@ interface NewListDialogProps {
 /** New deck, wishlist or brew dialog: name, optional format and pasted list. */
 export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose }: NewListDialogProps) {
   const isDeck = kind === 'deck'
-  const noun = KIND_NOUN[kind]
   const [name, setName] = useState('')
   const [format, setFormat] = useState('')
   const [text, setText] = useState('')
@@ -248,7 +230,7 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
   const submit = () => run(() => onCreate(name, text, format || null, isDeck && addToInventory))
   return (
     <Modal
-      title={`New ${noun}`}
+      title={ui.dialogs.newList.title(kind)}
       onClose={onClose}
       size="wide"
       footer={
@@ -256,20 +238,20 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
           {text.trim() && <ParseStats text={text} mode="list" />}
           <span className="spacer" />
           <button type="button" onClick={onClose}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
           <button type="button" className="primary" disabled={busy || !name.trim()} onClick={submit}>
-            {`Create ${noun}`}
+            {ui.dialogs.newList.create(kind)}
           </button>
         </>
       }
     >
       <label className="field">
-        <span>Name</span>
+        <span>{ui.dialogs.name}</span>
         <input
           autoFocus
           value={name}
-          placeholder={isDeck ? 'e.g. Atraxa superfriends' : kind === 'brew' ? 'e.g. Atraxa infect, someday' : 'e.g. Atraxa upgrades'}
+          placeholder={ui.dialogs.newList.namePlaceholder[kind]}
           onChange={(event) => setName(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && name.trim()) void submit()
@@ -277,15 +259,15 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
         />
       </label>
       <label className="field">
-        <span>Format</span>
+        <span>{ui.dialogs.format}</span>
         <FormatSelect value={format} onChange={setFormat} />
       </label>
       <label className="field">
-        <span>{isDeck ? 'Import a decklist (optional)' : 'Import cards (optional)'}</span>
+        <span>{isDeck ? ui.dialogs.newList.importDeck : ui.dialogs.newList.importCards}</span>
         <textarea
           className="text-editor short"
           spellCheck={false}
-          placeholder={LIST_PLACEHOLDER}
+          placeholder={ui.dialogs.editor.placeholder}
           value={text}
           onChange={(event) => setText(event.target.value)}
         />
@@ -293,20 +275,20 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
       {isDeck && text.trim() && (
         <label className="check">
           <input type="checkbox" checked={addToInventory} onChange={(event) => setAddToInventory(event.target.checked)} />
-          Add these cards to my inventory if they're missing (decks can only use cards you own)
+          {ui.dialogs.newList.addToInventory}
         </label>
       )}
       <p className="muted small">
-        Or{' '}
+        {ui.dialogs.newList.or}{' '}
         <button type="button" className="link-btn" onClick={onFromPrecon}>
-          start from an official precon…
+          {ui.dialogs.newList.fromPrecon}
         </button>
         {onWizard && (
           <>
             {' '}
-            or{' '}
+            {ui.dialogs.newList.orLower}{' '}
             <button type="button" className="link-btn" onClick={onWizard}>
-              let the Deck Wizard plan a Commander deck…
+              {ui.dialogs.newList.wizard}
             </button>
           </>
         )}

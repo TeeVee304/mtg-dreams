@@ -6,8 +6,9 @@ import { entriesToLines } from '@shared/sideboard'
 import { totalCopies } from '@shared/totals'
 import type { MyTradeSide } from '@shared/trade'
 import type { ListKind, PreconDeck } from '@shared/types'
+import { ui } from '@shared/text'
 import { DeckWizardDialog } from '../features/deckWizard'
-import { cardCount, cleanError } from '../lib/format'
+import { cleanError } from '../lib/format'
 import type { LibraryActions, LibraryState, ListRef } from '../stores/library'
 import { CollectionValueDialog } from './CollectionValue'
 import { ConflictDialog, NewListDialog } from './Dialogs'
@@ -67,15 +68,15 @@ export function AppDialogs(props: AppDialogsProps) {
     onOpenList(created)
     toast(
       kind === 'deck'
-        ? `Created deck “${created.name}” and added its ${cardCount(totalCopies(entries))} to your inventory`
-        : `Created “${created.name}” with ${cardCount(totalCopies(entries))}`
+        ? ui.dialogs.created.deck(created.name, totalCopies(entries))
+        : ui.dialogs.created.list(created.name, totalCopies(entries))
     )
   }
 
   const changeDataDir = () =>
     actions
       .chooseDataDir()
-      .then((changed) => changed && toast('Data folder changed'))
+      .then((changed) => changed && toast(ui.dialogs.dataFolderChanged))
       .catch((error) => toast(cleanError(error), 'error'))
 
   return (
@@ -125,9 +126,7 @@ export function AppDialogs(props: AppDialogsProps) {
             close()
             onOpenList(created)
             toast(
-              kind === 'brew'
-                ? `Created brew “${created.name}” with ${cardCount(cards)}: make it a wishlist once you want it`
-                : `Created ${kind} “${created.name}” with ${cardCount(cards)}`
+              kind === 'brew' ? ui.dialogs.created.brew(created.name, cards) : ui.dialogs.created.kind(kind, created.name, cards)
             )
           }}
         />
@@ -143,7 +142,7 @@ export function AppDialogs(props: AppDialogsProps) {
             close()
             onOpenTrade(name)
             toast(
-              `Imported ${name}'s trade list: ${cardCount(totalCopies(snapshot.haves))} they have, ${cardCount(totalCopies(snapshot.wants))} they want`
+              ui.dialogs.importedTrade(name, totalCopies(snapshot.haves), totalCopies(snapshot.wants))
             )
           }}
         />

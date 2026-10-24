@@ -21,7 +21,7 @@ import {
   type DeckFormat,
   type LegalityIssue
 } from './formats'
-import { counted } from './plural'
+import { ui } from './text'
 import { SIDEBOARD_MAX } from './sideboard'
 import { sumOf } from './totals'
 import type { CardInfo, CardLine, ListKind, ListLine, Printing } from './types'
@@ -148,7 +148,7 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
     hasProblem: (row) => issueOf(row)?.severity === 'error' || shortfallOf(row) > 0,
     sideboardCards,
     sideboardIssue:
-      format && !format.commander && sideboardCards > SIDEBOARD_MAX ? `Max ${SIDEBOARD_MAX} in ${format.label}` : null
+      format && !format.commander && sideboardCards > SIDEBOARD_MAX ? ui.rules.maxSideboard(SIDEBOARD_MAX, format.label) : null
   }
 }
 
@@ -224,21 +224,22 @@ export function freeCopies(row: ModelRow): number {
  * Zombies and 1 more list`; at most two lists are named.
  */
 export function heldWhere(holders: HeldCopies[], owned: number): string {
-  if (holders.length === 1 && holders[0].qty >= owned) return `${owned === 1 ? 'in' : 'all in'} ${holders[0].name}`
-  const named = holders.slice(0, 2).map((held) => `${held.qty} in ${held.name}`).join(', ')
+  if (holders.length === 1 && holders[0].qty >= owned) return ui.ownership.heldAll(owned, holders[0].name)
+  const named = holders.slice(0, 2).map((held) => ui.ownership.heldIn(held.qty, held.name)).join(', ')
   const more = holders.length - 2
-  return more > 0 ? `${named} and ${counted(more, 'more list')}` : named
+  return more > 0 ? ui.ownership.heldMore(named, more) : named
 }
 
 /** @returns Short label and explanation of a deck row's shortfall, naming the decks ahead when `row.holders` is set. */
 export function shortfallNote(row: ModelRow): { label: string; title: string } {
-  if (row.inventoryQty === 0) return { label: 'Not in inventory', title: 'Decks can only use cards from your inventory' }
-  if (row.held === 0) return { label: `Only ${row.inventoryQty} owned`, title: 'Decks can only use cards from your inventory' }
+  const { ownership } = ui
+  if (row.inventoryQty === 0) return { label: ownership.notInInventory, title: ownership.onlyFromInventory }
+  if (row.held === 0) return { label: ownership.onlyOwned(row.inventoryQty), title: ownership.onlyFromInventory }
   const free = freeCopies(row)
   const holders = row.holders ?? []
-  const used = free > 0 ? `Only ${free} free` : holders.length === 1 ? `Used by ${holders[0].name}` : 'Used by other decks'
-  const where = holders.length > 0 ? heldWhere(holders, row.inventoryQty) : `decks ahead of this one use ${Math.min(row.held, row.inventoryQty)}`
-  return { label: used, title: `You own ${row.inventoryQty} (${where}). Each copy belongs to one deck.` }
+  const used = free > 0 ? ownership.onlyFree(free) : holders.length === 1 ? ownership.usedBy(holders[0].name) : ownership.usedByOthers
+  const where = holders.length > 0 ? heldWhere(holders, row.inventoryQty) : ownership.decksAhead(Math.min(row.held, row.inventoryQty))
+  return { label: used, title: ownership.ownedWhere(row.inventoryQty, where) }
 }
 
 /** Rendered list section. */
@@ -257,13 +258,13 @@ export interface Section<R> {
 export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysis<R>): Section<R>[] {
   const { isCommander } = analysis
   const sections: Section<R>[] = [
-    { id: 'Commander', label: analysis.commanderKeys.length > 1 ? 'Commanders' : 'Commander', rows: rows.filter(isCommander) },
+    { id: 'Commander', label: ui.sections.commander(analysis.commanderKeys.length), rows: rows.filter(isCommander) },
     ...TYPE_GROUPS.map((group) => ({
       id: group.id as string,
       label: group.label as string,
       rows: rows.filter((row) => !row.side && !isCommander(row) && typeGroup(row.info) === group.id)
     })),
-    { id: 'Sideboard', label: 'Sideboard', rows: rows.filter((row) => row.side), warning: analysis.sideboardIssue }
+    { id: 'Sideboard', label: ui.sections.sideboard, rows: rows.filter((row) => row.side), warning: analysis.sideboardIssue }
   ]
   return sections.filter((section) => section.rows.length > 0)
 }
@@ -308,10 +309,10 @@ export function copyCaps(
 
 /** @returns User-facing reason for the binding cap (format if it is the lower one, else ownership). */
 export function limitReason(format: DeckFormat | null, name: string, caps: CopyCaps): string {
-  if (format && caps.formatCap <= caps.ownedCap) return `${format.label} allows ${counted(caps.formatCap, 'copy', 'copies')} of ${name}`
+  if (format && caps.formatCap <= caps.ownedCap) return ui.ownership.formatAllows(format.label, caps.formatCap, name)
   return caps.inOtherDecks > 0
-    ? `You own ${caps.ownedQty}× ${name}, ${Math.min(caps.inOtherDecks, caps.ownedQty)} in other decks`
-    : `You own ${caps.ownedQty}× ${name}`
+    ? ui.ownership.ownedElsewhere(caps.ownedQty, name, Math.min(caps.inOtherDecks, caps.ownedQty))
+    : ui.ownership.owned(caps.ownedQty, name)
 }
 
 /**

@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { cardCount } from '../lib/format'
+import { ui } from '@shared/text'
 import { prefersReducedMotion } from '../lib/motion'
 import { Icon } from './Icon'
 
@@ -48,15 +48,14 @@ export function CompleteBanner({ cards, brew, upgrades, onMove }: CompleteBanner
         <Icon name="check" />
       </span>
       <div className="complete-text">
-        <strong>{upgrades ? 'Upgrade complete!' : brew ? 'Brew complete!' : 'Wishlist complete!'}</strong>
+        <strong>{ui.list.complete.title(!!upgrades, !!brew)}</strong>
         <span className="muted">
-          You own all {cardCount(cards)}.{' '}
-          {upgrades ? `Ready to apply it to “${upgrades}”?` : 'Ready to become a deck?'}
+          {ui.list.complete.ownAll(ui.count.cards(cards))} {ui.list.complete.next(upgrades ?? null)}
         </span>
       </div>
       <div className="move-wrap">
         <button type="button" className="move-btn" onClick={move} disabled={moving}>
-          {upgrades ? (moving ? 'Applying…' : 'Apply upgrade') : moving ? 'Moving…' : 'Move to Decks'}
+          {upgrades ? (moving ? ui.list.complete.applying : ui.list.complete.apply) : moving ? ui.list.complete.moving : ui.list.complete.move}
           <Icon name="arrow" />
         </button>
         {moving && (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { ui } from '@shared/text'
 
 /** Props of {@link Stepper}. */
 interface StepperProps {
@@ -27,7 +28,7 @@ export function Stepper({ value, onChange, label, min = 0, max = 9999, maxTitle 
 
   return (
     <span className="stepper">
-      <button type="button" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label={`Decrease ${label}`}>
+      <button type="button" onClick={() => onChange(value - 1)} disabled={value <= min} aria-label={ui.common.decrease(label)}>
         −
       </button>
       <input
@@ -45,7 +46,7 @@ export function Stepper({ value, onChange, label, min = 0, max = 9999, maxTitle 
         onClick={() => onChange(value + 1)}
         disabled={value >= max}
         title={value >= max ? maxTitle : undefined}
-        aria-label={`Increase ${label}`}
+        aria-label={ui.common.increase(label)}
       >
         +
       </button>

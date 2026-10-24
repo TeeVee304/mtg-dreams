@@ -1,5 +1,6 @@
 import { parseList, serializeList } from '../decklist'
 import { withCommanders, withFormat } from '../formats'
+import { ui } from '../text'
 
 /**
  * EDHREC's average decks: for a commander (or two partners), the cards most of its decks on EDHREC
@@ -133,7 +134,7 @@ export function parseAverageDeck(json: unknown, filters: AverageDeckFilters): Av
   const named: unknown[] = v2.length > 0 ? v2 : Array.isArray(page.deck?.commander) ? page.deck.commander : []
   const commanders = named.filter((name): name is string => typeof name === 'string' && name !== '').slice(0, 2)
   const groups = page.deck?.cards
-  if (commanders.length === 0 || typeof groups !== 'object' || groups === null) throw new Error('EDHREC sent no deck.')
+  if (commanders.length === 0 || typeof groups !== 'object' || groups === null) throw new Error(ui.errors.edhrecNoDeck)
   const cards: AverageCard[] = []
   for (const [type, entries] of Object.entries(groups)) {
     if (!Array.isArray(entries)) continue

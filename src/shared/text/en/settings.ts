@@ -1,0 +1,43 @@
+import type { Theme } from '../../api'
+
+/** The Settings dialog. */
+export const settings = {
+  title: 'Settings',
+  color: 'Color',
+  mode: 'Mode',
+  themes: {
+    system: { label: 'System', hint: 'Follow Windows' },
+    light: { label: 'Light', hint: 'Always light' },
+    dark: { label: 'Dark', hint: 'Always dark' }
+  } satisfies Record<Theme, { label: string; hint: string }>,
+  prices: 'Prices',
+  priceBasis: 'Price basis',
+  priceSource: (date: string | null) => `Cardmarket’s daily price guide, in EUR${date ? `, from ${date}` : ''}.`,
+  checking: 'Checking…',
+  checkNow: 'Check now',
+  inventoryUsesTypical: 'Inventory Value always uses Typical.',
+  alerts: 'Price change alerts',
+  alertsHint: 'Flags Wishlist Cards whose price moved since you added them, by both the percentage and the amount.',
+  atLeast: 'At least',
+  thresholdLabel: 'Price change alert threshold in percent',
+  cheaper: '↓ cheaper',
+  pricier: '↑ pricier',
+  by: 'by',
+  dropLabel: 'Smallest price drop for an alert, in euros',
+  riseLabel: 'Smallest price rise for an alert, in euros',
+  lists: 'Decks & Wishlists',
+  cardImages: 'Card Images',
+  cardImagesHint: 'A thumbnail beside each Card.',
+  basics: 'Simple Basic Lands',
+  basicsHint: 'Every basic Land Version counts as one free Card. Faster; your files keep their Versions.',
+  copies: 'Copies',
+  wishlistsReserve: 'Wishlists reserve Copies',
+  wishlistsReserveHint: "After built Decks, Wishlists hold Copies from the top down. Off: each Wishlist uses every Copy Decks don't hold.",
+  plainBrews: 'Brews ignore Inventory',
+  plainBrewsHint: 'Brews show only their Cards and prices, with nothing owned.',
+  dataFolder: 'Data folder',
+  open: 'Open',
+  change: 'Change…',
+  dataFolderHint: 'Your lists, Inventory and Trades, as text files.',
+  credits: 'Card data & images © Scryfall / Wizards of the Coast. Prices from Cardmarket. MTG Dreams is not affiliated with them.'
+}

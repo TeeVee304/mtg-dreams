@@ -1,6 +1,7 @@
 import { cardLines, listHeader, nameKey, newLineId, parseList, serializeList } from './decklist'
 import { findFormat, listCommanders, listFormat, withFormat } from './formats'
 import { swapSection, VERSION_HEADER, versionSectionNames } from './sideboard'
+import { ui } from './text'
 import type { CardLine, ListLine } from './types'
 
 /**
@@ -134,7 +135,7 @@ export function hasVariant(lines: ListLine[]): boolean {
 
 /** @returns The list itself, named for the version toggle: its format (`Commander`, `Duel`) when it has an other-format version, else `Main`. */
 export function baseLabel(lines: ListLine[]): string {
-  return variantFor(lines)?.baseLabel ?? 'Main'
+  return variantFor(lines)?.baseLabel ?? ui.terms.mainVersion
 }
 
 /** @returns The format a version follows, by full name: `Duel Commander`; the list's own for a named version; null without a format. */
@@ -143,10 +144,27 @@ export function versionFormatLabel(lines: ListLine[], variant: Variant): string 
 }
 
 /** @returns Copies per card, by nameKey. */
-function totals(lines: CardLine[]): Map<string, number> {
+export function copiesByName(lines: CardLine[]): Map<string, number> {
   const counts = new Map<string, number>()
   for (const line of lines) counts.set(nameKey(line.name), (counts.get(nameKey(line.name)) ?? 0) + line.qty)
   return counts
+}
+
+/**
+ * @returns The lines of `lines` with more copies of their card than `other` has, each down to the
+ * copies beyond `other`'s, in order: `other`'s copies are taken off a card's first lines first. Kept
+ * lines keep their ids and printings, so edits find them.
+ */
+export function linesBeyond(lines: CardLine[], other: CardLine[]): CardLine[] {
+  const left = copiesByName(other)
+  const result: CardLine[] = []
+  for (const line of lines) {
+    const key = nameKey(line.name)
+    const covered = Math.min(left.get(key) ?? 0, line.qty)
+    left.set(key, (left.get(key) ?? 0) - covered)
+    if (line.qty > covered) result.push(covered > 0 ? { ...line, qty: line.qty - covered } : line)
+  }
+  return result
 }
 
 /** @returns The list's own card lines: every card line outside the swap sections. */
@@ -169,7 +187,7 @@ export function variantSwaps(lines: ListLine[], version: ListVersion): Swaps {
   if (!variant) return { ins: [], outs: [] }
   const key = keyOf(variant.label)
   const swaps = swapsById(lines)
-  const base = totals(baseCardLines(lines))
+  const base = copiesByName(baseCardLines(lines))
   const ins: CardLine[] = []
   const outs: CardLine[] = []
   for (const line of cardLines(lines)) {
@@ -197,15 +215,7 @@ export function versionCardLines(lines: ListLine[], version: ListVersion): CardL
   const base = baseCardLines(lines)
   if (!findVariant(lines, version)) return base
   const { ins, outs } = variantSwaps(lines, version)
-  const cut = totals(outs)
-  const result: CardLine[] = []
-  for (const line of base) {
-    const key = nameKey(line.name)
-    const less = Math.min(cut.get(key) ?? 0, line.qty)
-    if (less > 0) cut.set(key, (cut.get(key) ?? 0) - less)
-    if (line.qty > less) result.push(less > 0 ? { ...line, qty: line.qty - less } : line)
-  }
-  return [...result, ...ins]
+  return [...linesBeyond(base, outs), ...ins]
 }
 
 /**
@@ -232,10 +242,10 @@ export function versionLines(lines: ListLine[], version: ListVersion): ListLine[
  */
 export function unionCardLines(lines: ListLine[]): CardLine[] {
   const base = baseCardLines(lines)
-  const own = totals(base)
+  const own = copiesByName(base)
   const extra: CardLine[] = []
   for (const variant of listVariants(lines)) {
-    const other = totals(versionCardLines(lines, variant.label))
+    const other = copiesByName(versionCardLines(lines, variant.label))
     for (const line of variantSwaps(lines, variant.label).ins) {
       const key = nameKey(line.name)
       const more = Math.min((other.get(key) ?? 0) - (own.get(key) ?? 0), line.qty)
@@ -321,13 +331,13 @@ export function withVariant(lines: ListLine[], on: boolean): ListLine[] {
  */
 export function versionNameIssue(lines: ListLine[], name: string, except: ListVersion | null = null): string | null {
   const trimmed = name.trim()
-  if (!trimmed) return 'Name the version.'
-  if (trimmed.length > MAX_VERSION_NAME) return `At most ${MAX_VERSION_NAME} characters.`
-  if (!/^[\p{L}\p{N}][\p{L}\p{N} &'+-]*$/u.test(trimmed)) return 'Use letters, numbers, spaces, &, +, \' and -.'
-  if (/\s(in|out)$/i.test(trimmed)) return 'A name can\'t end in “in” or “out”.'
+  if (!trimmed) return ui.names.version.empty
+  if (trimmed.length > MAX_VERSION_NAME) return ui.names.version.tooLong(MAX_VERSION_NAME)
+  if (!/^[\p{L}\p{N}][\p{L}\p{N} &'+-]*$/u.test(trimmed)) return ui.names.version.characters
+  if (/\s(in|out)$/i.test(trimmed)) return ui.names.version.endsInOut
   const taken = [...FORMAT_VARIANTS.map((variant) => variant.label), ...listVariants(lines).map((variant) => variant.label)]
-  if (taken.some((label) => sameVersion(label, trimmed) && !(except && sameVersion(except, trimmed)))) return 'That name is taken.'
-  if (RESERVED.has(keyOf(trimmed))) return 'That name is taken.'
+  if (taken.some((label) => sameVersion(label, trimmed) && !(except && sameVersion(except, trimmed)))) return ui.names.version.taken
+  if (RESERVED.has(keyOf(trimmed))) return ui.names.version.taken
   return null
 }
 
@@ -372,7 +382,7 @@ export type CardPick = Omit<CardLine, 'id' | 'kind' | 'qty'>
 export function withVariantCount(lines: ListLine[], version: ListVersion, card: CardPick, target: number): ListLine[] {
   const key = nameKey(card.name)
   const { ins, outs } = variantSwaps(lines, version)
-  const own = totals(baseCardLines(lines)).get(key) ?? 0
+  const own = copiesByName(baseCardLines(lines)).get(key) ?? 0
   const previous = ins.find((line) => nameKey(line.name) === key)
   const added: CardLine | null = target > own ? { ...(previous ?? { kind: 'card', id: '', ...card }), qty: target - own } : null
   const cut: CardLine | null = target < own ? { kind: 'card', id: '', name: card.name, foil: false, qty: own - target } : null
@@ -416,8 +426,8 @@ export function withoutSwapPair(lines: ListLine[], version: ListVersion, index: 
  * @param target - Card lines the version should have.
  */
 export function withVariantCards(lines: ListLine[], version: ListVersion, target: CardLine[]): ListLine[] {
-  const own = totals(baseCardLines(lines))
-  const wanted = totals(target)
+  const own = copiesByName(baseCardLines(lines))
+  const wanted = copiesByName(target)
   const ins: CardLine[] = []
   const seen = new Set<string>()
   for (const line of target) {

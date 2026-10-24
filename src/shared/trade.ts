@@ -3,6 +3,7 @@ import { copyPool, listNeeds, type CopyPool, type ListKey, type PoolList } from 
 import { nameKey, parseInventory } from './decklist'
 import { safeFileName } from './filenames'
 import { worthlessCopies } from './inventory'
+import { ui } from './text'
 import type { InventoryItem } from './types'
 
 /**
@@ -157,7 +158,7 @@ export function tradeLines(cards: TradeCard[]): string[] {
 }
 
 /** @returns Sanitized file name for a friend's trade list, or `fallback` if empty. */
-export function tradeName(name: string, fallback = 'Friend'): string {
+export function tradeName(name: string, fallback = ui.names.defaultFriend): string {
   return safeFileName(name) || fallback
 }
 
@@ -244,9 +245,9 @@ export function parseTradeText(text: string, fallbackName: string, now = new Dat
     try {
       data = JSON.parse(trimmed)
     } catch {
-      throw new Error('This file is not a valid trade list.')
+      throw new Error(ui.errors.notTrade)
     }
-    if (data?.format !== TRADE_FORMAT && !OLD_TRADE_FORMATS.includes(data?.format)) throw new Error('This file is not an MTG Dreams trade list.')
+    if (data?.format !== TRADE_FORMAT && !OLD_TRADE_FORMATS.includes(data?.format)) throw new Error(ui.errors.notMtgDreamsTrade)
     const date = typeof data.createdAt === 'string' && !Number.isNaN(Date.parse(data.createdAt)) ? data.createdAt : now.toISOString()
     return {
       ...base,
@@ -260,7 +261,7 @@ export function parseTradeText(text: string, fallbackName: string, now = new Dat
 
   const csv = parseCsvCards(trimmed)
   if (csv) {
-    if (csv.length === 0) throw new Error('No cards found in this file.')
+    if (csv.length === 0) throw new Error(ui.errors.noCardsInFile)
     return { ...base, name: tradeName(fallbackName), createdAt: now.toISOString(), haves: csv, wants: [], source: 'list' }
   }
 
@@ -274,7 +275,7 @@ export function parseTradeText(text: string, fallbackName: string, now = new Dat
   const haves = listCards(sections.haves)
   const wants = listCards(sections.wants)
   if (haves.length + wants.length === 0) {
-    throw new Error('No cards found. Use one card per line, like “4 Lightning Bolt”.')
+    throw new Error(ui.errors.noCardsFound)
   }
   const header = /^\/\/\s*MTG Dreams? trade list:\s*(.+?)\s*\((\d{4}-\d{2}-\d{2})\)\s*$/im.exec(trimmed)
   return {

@@ -3,6 +3,7 @@ import { isBasicLand } from '@shared/cards'
 import { nameKey } from '@shared/decklist'
 import { partnerAbility } from '@shared/formats'
 import { hasNamedCard, printingsOfNamedCard } from '@shared/matching'
+import { ui } from '@shared/text'
 import type { CardInfo, Prices, Printing, PrintingsResult } from '@shared/types'
 import { env } from './environment'
 import { fetchJson } from './http'
@@ -107,10 +108,10 @@ async function getJson(url: string, body?: unknown): Promise<any | null> {
     if (res.status === 429) {
       blockedUntil = Date.now() + 31_000
       if (attempt === 0) continue
-      throw new Error('Scryfall rate limit hit; try again in a minute.')
+      throw new Error(ui.errors.scryfallRateLimit)
     }
     if (res.status === 404) return null
-    if (res.status >= 400 || res.data === null) throw new Error(`Scryfall responded with HTTP ${res.status}.`)
+    if (res.status >= 400 || res.data === null) throw new Error(ui.errors.http('Scryfall', res.status))
     return res.data
   }
 }
@@ -131,22 +132,23 @@ function trendOnly(value: unknown): Prices {
 /** Derives display labels (frame, finish, promo, border, language, flavor name) from a Scryfall card. */
 function labelsFor(card: any): string[] {
   const labels: string[] = []
+  const tags = ui.printingTags
   const effects: string[] = card.frame_effects ?? []
   const promoTypes: string[] = card.promo_types ?? []
-  if (card.border_color === 'borderless') labels.push('Borderless')
-  if (effects.includes('showcase')) labels.push('Showcase')
-  if (effects.includes('extendedart')) labels.push('Extended art')
-  if (card.full_art) labels.push('Full art')
-  if (card.textless) labels.push('Textless')
-  if (effects.includes('etched') || (card.finishes ?? []).includes('etched')) labels.push('Etched')
-  if (promoTypes.includes('serialized')) labels.push('Serialized')
-  if (card.promo) labels.push('Promo')
-  if (card.border_color === 'white') labels.push('White border')
-  if (card.border_color === 'gold') labels.push('Gold border')
-  if (card.set_type === 'memorabilia') labels.push('Not tournament legal')
+  if (card.border_color === 'borderless') labels.push(tags.borderless)
+  if (effects.includes('showcase')) labels.push(tags.showcase)
+  if (effects.includes('extendedart')) labels.push(tags.extendedArt)
+  if (card.full_art) labels.push(tags.fullArt)
+  if (card.textless) labels.push(tags.textless)
+  if (effects.includes('etched') || (card.finishes ?? []).includes('etched')) labels.push(tags.etched)
+  if (promoTypes.includes('serialized')) labels.push(tags.serialized)
+  if (card.promo) labels.push(tags.promo)
+  if (card.border_color === 'white') labels.push(tags.whiteBorder)
+  if (card.border_color === 'gold') labels.push(tags.goldBorder)
+  if (card.set_type === 'memorabilia') labels.push(tags.notLegal)
   if (card.lang && card.lang !== 'en') labels.push(String(card.lang).toUpperCase())
   const flavorName = flavorNameOf(card)
-  if (flavorName) labels.push(`Printed as “${flavorName}”`)
+  if (flavorName) labels.push(tags.printedAs(flavorName))
   return labels
 }
 

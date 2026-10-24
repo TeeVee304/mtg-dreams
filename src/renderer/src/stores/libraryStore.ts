@@ -20,7 +20,8 @@ import { moveToBoard, type BoardEntry } from '@shared/sideboard'
 import type { ThemeColor } from '@shared/themes'
 import { serializeSnapshot, type TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
-import { cardCount, cleanError } from '../lib/format'
+import { ui } from '@shared/text'
+import { cleanError } from '../lib/format'
 import {
   LOADING,
   UndoHistory,
@@ -45,6 +46,7 @@ import {
   withAddedOwned,
   withBundledQty,
   withCopies,
+  withFewerCopies,
   withMovedWishlist,
   withOwned,
   withTrade,
@@ -143,7 +145,7 @@ export class LibraryStore {
     write
       .catch((error) => {
         const message = cleanError(error)
-        if (!message.startsWith(CONFLICT_ERROR)) this.callbacks.onError(`Could not save: ${message}`)
+        if (!message.startsWith(CONFLICT_ERROR)) this.callbacks.onError(ui.changes.saveFailed(message))
         else if (!this.snapshot.conflict) this.showConflict(conflictOn(target))
       })
       .finally(() => {
@@ -230,7 +232,7 @@ export class LibraryStore {
     this.commit({ ...this.state, lists: next })
     const after = wishlistNames(next)
     if (after.join('\n') !== before.join('\n')) {
-      this.io.writeWishlistOrder(after).catch((error) => this.callbacks.onError(`Could not save the wishlist order: ${cleanError(error)}`))
+      this.io.writeWishlistOrder(after).catch((error) => this.callbacks.onError(ui.changes.orderFailed(cleanError(error))))
     }
   }
 
@@ -281,7 +283,7 @@ export class LibraryStore {
     /** Moves lines to the sideboard (`side`) or main deck, merging into identical lines there. */
     moveCards: (target: ListRef, ids: string[], side: boolean) => {
       this.updateLines(target, (lines) => moveToBoard(lines, ids, side ? 'side' : 'main'), {
-        label: `Moved ${cardName(this.state.lists, target, ids[0])} to the ${side ? 'sideboard' : 'main deck'}`
+        label: ui.changes.moved(cardName(this.state.lists, target, ids[0]), side)
       })
     },
 
@@ -290,14 +292,14 @@ export class LibraryStore {
       this.updateLines(
         target,
         (lines) => lines.map((line) => (line.id === id && line.kind === 'card' ? { ...line, ...patch } : line)),
-        { label: `Changed ${cardName(this.state.lists, target, id)}` }
+        { label: ui.changes.changed(cardName(this.state.lists, target, id)) }
       )
     },
 
     /** Removes a line (and the commander if it was the last copy); announced. */
     removeCard: (target: ListRef, id: string) => {
       this.updateLines(target, (lines) => withoutMissingCommanders(lines.filter((line) => line.id !== id)), {
-        label: `Removed ${cardName(this.state.lists, target, id)}`,
+        label: ui.changes.removed(cardName(this.state.lists, target, id)),
         announce: true
       })
     },
@@ -305,14 +307,22 @@ export class LibraryStore {
     /** Removes lines (and the commander if no copy remains); announced. */
     removeCards: (target: ListRef, ids: string[]) => {
       this.updateLines(target, (lines) => withoutMissingCommanders(lines.filter((line) => !ids.includes(line.id))), {
-        label: `Removed ${cardName(this.state.lists, target, ids[0])}`,
+        label: ui.changes.removed(cardName(this.state.lists, target, ids[0])),
+        announce: true
+      })
+    },
+
+    /** Takes `qty` copies of a card out of the list itself (and the commander if no copy remains); announced. */
+    removeCopies: (target: ListRef, name: string, qty: number) => {
+      this.updateLines(target, (lines) => withoutMissingCommanders(withFewerCopies(lines, name, qty)), {
+        label: ui.changes.removed(name),
         announce: true
       })
     },
 
     /** Collapses a bundled basic's lines into one unversioned non-foil line of `qty`, at the first line's position. */
     setBundledQty: (target: ListRef, ids: string[], qty: number) => {
-      this.updateLines(target, (lines) => withBundledQty(lines, ids, qty), { label: `Changed ${cardName(this.state.lists, target, ids[0])}` })
+      this.updateLines(target, (lines) => withBundledQty(lines, ids, qty), { label: ui.changes.changed(cardName(this.state.lists, target, ids[0])) })
     },
 
     /**
@@ -323,25 +333,25 @@ export class LibraryStore {
       this.updateLines(
         target,
         (lines) => (listFormat(lines)?.id === formatId ? lines : withVariant(withFormat(lines, formatId), false)),
-        { label: 'Changed the format' }
+        { label: ui.changes.format }
       )
     },
 
     /** Turns a list's other-format version (Duel, EDH) on, as a copy of the list. */
     addFormatVersion: (target: ListRef) => {
-      const label = `Added the ${formatVersionName(this.state.lists, target)} version of ${target.name}`
+      const label = ui.changes.addedVersion(formatVersionName(this.state.lists, target), target.name)
       this.updateLines(target, (lines) => withVariant(lines, true), { label })
     },
 
     /** Adds a named version, identical to the list until changed. */
     addVersion: (target: ListRef, name: string) => {
-      this.updateLines(target, (lines) => withNamedVersion(lines, name), { label: `Added the ${name.trim()} version of ${target.name}` })
+      this.updateLines(target, (lines) => withNamedVersion(lines, name), { label: ui.changes.addedVersion(name.trim(), target.name) })
     },
 
     /** Deletes one of a list's versions and its swaps; announced, with Undo. */
     deleteVersion: (target: ListRef, version: ListVersion) => {
       this.updateLines(target, (lines) => withoutVersion(lines, version), {
-        label: `Deleted the ${version} version of ${target.name}`,
+        label: ui.changes.deletedVersion(version, target.name),
         announce: true
       })
     },
@@ -349,31 +359,31 @@ export class LibraryStore {
     /** Renames a named version, keeping its swaps; upgrades of that version follow it. */
     renameVersion: (target: ListRef, version: ListVersion, name: string) => {
       this.updateLines(target, (lines) => withVersionName(lines, version, name), {
-        label: `Renamed the ${version} version of ${target.name} to ${name.trim()}`
+        label: ui.changes.renamedVersion(version, target.name, name.trim())
       })
       for (const { list, lines } of renamedVersionUpgrades(this.state.lists, target.name, version, name)) this.saveLines(list, lines)
     },
 
     /** Replaces a version with an edited decklist, as swaps against the list; announced. */
     replaceVariantText: (target: ListRef, version: ListVersion, text: string) => {
-      this.updateLines(target, (lines) => withVariantText(lines, version, text), { label: `Edited ${target.name}`, announce: true })
+      this.updateLines(target, (lines) => withVariantText(lines, version, text), { label: ui.changes.edited(target.name), announce: true })
     },
 
     /** Sets a card's copies in a version, as swaps against the list ({@link withVariantCount}). */
     setVariantCount: (target: ListRef, version: ListVersion, card: CardPick, qty: number) => {
       this.updateLines(target, (lines) => withVariantCount(lines, version, card, qty), {
-        label: `Changed ${card.name} in the ${version} version`
+        label: ui.changes.changedIn(card.name, version)
       })
     },
 
     /** Undoes a pair of a version's swaps ({@link withoutSwapPair}). */
     removeSwapPair: (target: ListRef, version: ListVersion, index: number) => {
-      this.updateLines(target, (lines) => withoutSwapPair(lines, version, index), { label: `Undid a ${version} swap in ${target.name}` })
+      this.updateLines(target, (lines) => withoutSwapPair(lines, version, index), { label: ui.changes.undidSwap(version, target.name) })
     },
 
     /** Sets or clears (`null`) the color header. */
     setListColor: (target: ListRef, color: ThemeColor | null) => {
-      this.updateLines(target, (lines) => withColor(lines, color), { label: 'Changed the color' })
+      this.updateLines(target, (lines) => withColor(lines, color), { label: ui.changes.color })
     },
 
     /**
@@ -388,7 +398,7 @@ export class LibraryStore {
     /** Makes a deck unbuilt, using every owned copy without reserving any, or built again. */
     setUnbuilt: (target: ListRef, unbuilt: boolean) => {
       this.updateLines(target, (lines) => withUnbuilt(lines, unbuilt), {
-        label: unbuilt ? `Made ${target.name} unbuilt` : `Made ${target.name} built`
+        label: ui.changes.unbuilt(target.name, unbuilt)
       })
     },
 
@@ -398,7 +408,7 @@ export class LibraryStore {
      */
     setUpgradeOf: (target: ListRef, deck: string | null, variant: string | null = null) => {
       this.updateLines(target, (lines) => withUpgradeOf(lines, deck, variant), {
-        label: deck ? `Made ${target.name} an upgrade of ${deck}` : `Made ${target.name} a plain wishlist`
+        label: ui.changes.upgrade(target.name, deck)
       })
     },
 
@@ -411,11 +421,11 @@ export class LibraryStore {
     applyUpgrade: async (target: ListRef): Promise<ListRef> => {
       const upgrade = this.state.lists.find((list) => sameList(list, target))
       const deck = upgrade ? upgradeTarget(upgrade, this.state.lists) : null
-      if (!upgrade || !deck) throw new Error('The deck it upgrades no longer exists.')
+      if (!upgrade || !deck) throw new Error(ui.errors.upgradeGone)
       // Deleted first: if that fails, nothing has changed.
       await this.removeList(target)
       const current = this.state.lists.find((list) => sameList(list, deck)) ?? deck
-      this.saveLines(deck, appliedUpgrade(upgrade.lines, current.lines), { label: `Applied ${upgrade.name} to ${deck.name}` })
+      this.saveLines(deck, appliedUpgrade(upgrade.lines, current.lines), { label: ui.changes.applied(upgrade.name, deck.name) })
       return { kind: deck.kind, name: deck.name }
     },
 
@@ -426,7 +436,7 @@ export class LibraryStore {
 
     /** Replaces a list's content from raw text; announced. */
     replaceListText: (target: ListRef, text: string) => {
-      this.saveLines(target, parseList(text), { label: `Edited ${target.name}`, announce: true })
+      this.saveLines(target, parseList(text), { label: ui.changes.edited(target.name), announce: true })
     },
 
     /** Creates a list file; a wishlist goes to the bottom of the order. @throws If the name is invalid or taken. */
@@ -478,7 +488,7 @@ export class LibraryStore {
     /** Adds owned copies in bulk with optional versions. */
     addOwned: (items: Array<{ name: string; qty: number } & Partial<Version>>) => {
       const { inventory, cards } = withAddedOwned(this.state.inventory, items)
-      this.saveInventory(inventory, { label: `Added ${cardCount(cards)} to your inventory` })
+      this.saveInventory(inventory, { label: ui.changes.addedToInventory(cards) })
     },
 
     /** Replaces a card's copies; empty removes the item. */
@@ -518,7 +528,7 @@ export class LibraryStore {
 
     /** Replaces the inventory from raw text; announced. */
     replaceInventoryText: (text: string) => {
-      this.saveInventory(parseInventory(text), { label: 'Edited the inventory', announce: true })
+      this.saveInventory(parseInventory(text), { label: ui.changes.editedInventory, announce: true })
     },
 
     /** Prompts for a data directory; on change, clears undo and reloads. @returns Whether it changed. */

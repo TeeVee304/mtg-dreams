@@ -3,6 +3,7 @@ import type { CopyPool } from '@shared/copies'
 import { heldWhere } from '@shared/listModel'
 import type { CardInfo, ListKind } from '@shared/types'
 import { WANTED_SORTS, type WantedCard, type WantedSort } from '@shared/wanted'
+import { ui } from '@shared/text'
 import type { WantedOverview } from '../../lib/wanted'
 import type { PriceChange } from '../../stores/history'
 import type { ListRef } from '../../stores/library'
@@ -50,14 +51,14 @@ export function CardsTab(props: CardsTabProps) {
   if (noLists) {
     return (
       <div className="empty">
-        <p>No decks or wishlists yet.</p>
-        <p className="muted">Most Wanted gathers the cards your decks and wishlists still miss.</p>
+        <p>{ui.wanted.noLists}</p>
+        <p className="muted">{ui.wanted.noListsHint}</p>
         <div className="welcome-actions">
           <button type="button" onClick={() => props.onNew('deck')}>
-            New deck
+            {ui.wanted.newDeck}
           </button>
           <button type="button" onClick={() => props.onNew('wishlist')}>
-            New wishlist
+            {ui.wanted.newWishlist}
           </button>
         </div>
       </div>
@@ -66,8 +67,8 @@ export function CardsTab(props: CardsTabProps) {
   if (overview.cards.length === 0) {
     return (
       <div className="empty">
-        <p>Nothing to buy.</p>
-        <p className="muted">Every deck and wishlist card is in your inventory, basic lands aside.</p>
+        <p>{ui.wanted.nothingToBuy}</p>
+        <p className="muted">{ui.wanted.nothingToBuyHint}</p>
       </div>
     )
   }
@@ -76,35 +77,30 @@ export function CardsTab(props: CardsTabProps) {
       <FilterBar
         filters={filters}
         onChange={props.onFilters}
-        namePlaceholder="Filter by name…"
-        loadingNote={needsCardData(filters) && overview.cards.some((card) => props.infoOf(card) === undefined) ? 'Loading card data…' : undefined}
-        end={<SortSelect value={props.sort} options={WANTED_SORTS} onChange={props.onSort} />}
+        namePlaceholder={ui.wanted.filterByName}
+        loadingNote={needsCardData(filters) && overview.cards.some((card) => props.infoOf(card) === undefined) ? ui.wanted.loadingCardData : undefined}
+        end={<SortSelect value={props.sort} options={WANTED_SORTS.map((id) => ({ id, ...ui.wantedSorts[id] }))} onChange={props.onSort} />}
       >
         {props.hasTrades && (
-          <label className="check" title="Cards on a friend's trade list: ask before buying">
+          <label className="check" title={ui.wanted.friendHasItHint}>
             <input type="checkbox" checked={props.friendsOnly} onChange={(event) => props.onFriendsOnly(event.target.checked)} />
-            A friend has it
+            {ui.wanted.friendHasIt}
           </label>
         )}
         {(filtersActive(filters) || props.friendsOnly) && (
-          <span className="muted small">
-            Showing {visible.length} of {overview.cards.length}
-          </span>
+          <span className="muted small">{ui.wanted.showing(visible.length, overview.cards.length)}</span>
         )}
       </FilterBar>
       <table className="cards-table wanted-table">
         <thead>
           <tr>
-            <th>Card</th>
-            <th>Wanted in</th>
-            <th
-              className="col-num"
-              title="Copies to buy so every list is covered: each built deck needs its own; wishlists, upgrades and unbuilt decks share"
-            >
-              To buy
+            <th>{ui.wanted.columns.card}</th>
+            <th>{ui.wanted.columns.wantedIn}</th>
+            <th className="col-num" title={ui.wanted.toBuyHint}>
+              {ui.wanted.columns.toBuy}
             </th>
-            <th className="col-num">Cost</th>
-            <th className="col-actions" aria-label="Actions" />
+            <th className="col-num">{ui.wanted.columns.cost}</th>
+            <th className="col-actions" aria-label={ui.wanted.columns.actions} />
           </tr>
         </thead>
         <tbody>
@@ -121,18 +117,18 @@ export function CardsTab(props: CardsTabProps) {
                     {card.name}
                   </span>
                   {card.completes.length > 0 && (
-                    <span className="chip completes-chip" title="The last card these lists miss (basic lands aside)">
-                      ✓ Completes {card.completes.map((list) => list.name).join(', ')}
+                    <span className="chip completes-chip" title={ui.wanted.completesHint}>
+                      {ui.wanted.completes(card.completes.map((list) => list.name).join(', '))}
                     </span>
                   )}
                   {change &&
                     (change.direction === 'down' ? (
-                      <span className="chip cheaper" title="Cheaper than when it was added to a wishlist">
-                        ↓ {change.percent}% cheaper
+                      <span className="chip cheaper" title={ui.wanted.cheaperHint}>
+                        {ui.wanted.cheaper(change.percent)}
                       </span>
                     ) : (
-                      <span className="chip pricier" title="More expensive than when it was added to a wishlist">
-                        ↑ {change.percent}% pricier
+                      <span className="chip pricier" title={ui.wanted.pricierHint}>
+                        {ui.wanted.pricier(change.percent)}
                       </span>
                     ))}
                   {haves && (
@@ -140,14 +136,14 @@ export function CardsTab(props: CardsTabProps) {
                       type="button"
                       className="chip link friend-chip"
                       onClick={() => props.onOpenTrade(haves[0].friend)}
-                      title={haves.map((have) => `${have.friend} has ${have.qty}`).join('\n')}
+                      title={haves.map((have) => ui.wanted.friendHas(have.friend, have.qty)).join('\n')}
                     >
-                      {haves.length === 1 ? `${haves[0].friend} has it` : `${haves.length} friends have it`}
+                      {ui.wanted.friendsHaveIt(haves.map((have) => have.friend))}
                     </button>
                   )}
                   {card.owned > 0 && (
                     <span className="muted small owned-note">
-                      {card.owned} owned{usedBy.length > 0 && ` · ${heldWhere(usedBy, card.owned)}`}
+                      {ui.wanted.owned(card.owned, usedBy.length > 0 ? heldWhere(usedBy, card.owned) : null)}
                     </span>
                   )}
                 </NameCell>
@@ -167,7 +163,7 @@ export function CardsTab(props: CardsTabProps) {
           })}
         </tbody>
       </table>
-      {visible.length === 0 && <p className="muted empty-filter">No cards match the current filters.</p>}
+      {visible.length === 0 && <p className="muted empty-filter">{ui.wanted.noMatch}</p>}
     </>
   )
 }

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { languageOf, LANGUAGES } from '@shared/languages'
 import { finishFor, resolveLine, singleFinish } from '@shared/pricing'
 import type { InventoryItem, OwnedCopy } from '@shared/types'
-import { cardCount } from '../lib/format'
+import { ui } from '@shared/text'
 import { PickerBody, usePrintingsFor } from './CardEditors'
 import { Icon } from './Icon'
 import { LanguageFlag } from './LanguageFlag'
@@ -12,8 +12,9 @@ import { AUTO, VersionPicker } from './VersionPicker'
 
 /** @returns Copy label, e.g. `A25 #141`, `Any version`, with `Foil` and `Worthless` appended; the language is a flag beside it. */
 export function copyLabel(copy: OwnedCopy): string {
-  const where = copy.set ? `${copy.set.toUpperCase()}${copy.collector ? ` #${copy.collector}` : ''}` : 'Any version'
-  return [where, copy.foil && 'Foil', copy.worthless && 'Worthless'].filter(Boolean).join(' · ')
+  const text = ui.inventory.versionsDialog
+  const where = copy.set ? `${copy.set.toUpperCase()}${copy.collector ? ` #${copy.collector}` : ''}` : text.anyVersion
+  return [where, copy.foil && text.foil, copy.worthless && text.worthless].filter(Boolean).join(' · ')
 }
 
 /** Props of {@link InventoryVersionsDialog}. */
@@ -71,14 +72,11 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
   }
 
   const pickingCopy = picking?.mode === 'change' ? item.copies[picking.index] : undefined
+  const text = ui.inventory.versionsDialog
 
   return (
-    <Modal title={`Your ${item.name}`} onClose={onClose} size="wide">
-      <p className="muted small">
-        {cardCount(item.qty)} owned. Recording versions values your copies at their own price, and decks and wishlists
-        show the version you own when they don&apos;t ask for one. A language is only a note; worthless copies
-        (damaged, say) stay out of your inventory&apos;s value. Changing either moves one copy at a time.
-      </p>
+    <Modal title={text.title(item.name)} onClose={onClose} size="wide">
+      <p className="muted small">{text.intro(ui.count.cards(item.qty))}</p>
       <table className="cards-table versions-table">
         <tbody>
           {item.copies.map((copy, index) => {
@@ -90,7 +88,7 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
                     value={copy.qty}
                     min={0}
                     onChange={(qty) => update(index, { qty })}
-                    label={`copies of ${copyLabel(copy)}`}
+                    label={text.copiesOf(copyLabel(copy))}
                   />
                 </td>
                 <td className="versions-thumb">
@@ -100,12 +98,12 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
                   {copy.set ? (
                     <span className="version">
                       <span className="set-code">{copyLabel({ ...copy, foil: false })}</span>
-                      <span className="muted">{printing?.setName ?? (entry?.data ? 'Version not found' : 'Loading…')}</span>
+                      <span className="muted">{printing?.setName ?? (entry?.data ? text.notFound : ui.common.loading)}</span>
                     </span>
                   ) : (
                     <span className="version">
-                      <span className="auto-badge">Any version</span>
-                      <span className="muted small">valued at the cheapest</span>
+                      <span className="auto-badge">{text.anyVersion}</span>
+                      <span className="muted small">{text.cheapest}</span>
                     </span>
                   )}
                 </td>
@@ -117,17 +115,17 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
                       disabled={!!printing && singleFinish(printing)}
                       onChange={(event) => update(index, { foil: event.target.checked })}
                     />
-                    Foil
+                    {text.foil}
                   </label>
                 </td>
                 <td className="versions-lang">
                   {copy.lang && <LanguageFlag code={copy.lang} />}
                   <select
-                    aria-label={`Language of one copy of ${copyLabel(copy)}`}
+                    aria-label={text.languageOf(copyLabel(copy))}
                     value={copy.lang ?? ''}
                     onChange={(event) => changeOne(index, { lang: languageOf(event.target.value) })}
                   >
-                    <option value="">English</option>
+                    <option value="">{text.english}</option>
                     {LANGUAGES.map((language) => (
                       <option key={language.code} value={language.code}>
                         {language.label}
@@ -136,25 +134,25 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
                   </select>
                 </td>
                 <td>
-                  <label className="check" title="Left out of your inventory's value: damaged, or not counted">
+                  <label className="check" title={text.worthlessHint}>
                     <input
                       type="checkbox"
                       checked={!!copy.worthless}
                       onChange={(event) => changeOne(index, { worthless: event.target.checked ? true : undefined })}
                     />
-                    Worthless
+                    {text.worthless}
                   </label>
                 </td>
                 <td className="col-actions">
                   <button type="button" onClick={() => setPicking({ mode: 'change', index })}>
-                    {copy.set ? 'Change version' : 'Set version'}
+                    {copy.set ? text.change : text.set}
                   </button>
                   <button
                     type="button"
                     className="icon-btn danger-ghost"
                     onClick={() => update(index, { qty: 0 })}
-                    title="Remove these copies"
-                    aria-label={`Remove ${copyLabel(copy)}`}
+                    title={text.removeHint}
+                    aria-label={text.remove(copyLabel(copy))}
                   >
                     <Icon name="close" />
                   </button>
@@ -167,11 +165,9 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
 
       {picking ? (
         <section className="change-version">
-          <h3>{picking.mode === 'add' ? 'Add a version' : `Version of your ${copyLabel(pickingCopy!)} copies`}</h3>
+          <h3>{picking.mode === 'add' ? text.add : text.pickFor(copyLabel(pickingCopy!))}</h3>
           {picking.mode === 'add' && (
-            <p className="muted small">
-              Picking a version turns one of your &ldquo;any version&rdquo; copies into it, or adds a copy if there are none.
-            </p>
+            <p className="muted small">{text.addHint}</p>
           )}
           <PickerBody name={item.name}>
             {(list) => (
@@ -184,12 +180,12 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
             )}
           </PickerBody>
           <button type="button" onClick={() => setPicking(null)}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
         </section>
       ) : (
         <button type="button" onClick={() => setPicking({ mode: 'add' })}>
-          <Icon name="plus" /> Add a version
+          <Icon name="plus" /> {text.add}
         </button>
       )}
     </Modal>

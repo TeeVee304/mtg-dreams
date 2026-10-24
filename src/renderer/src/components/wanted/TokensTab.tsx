@@ -2,6 +2,7 @@ import { listId, listWeights } from '@shared/copies'
 import { cardLines, nameKey } from '@shared/decklist'
 import { sumOf } from '@shared/totals'
 import { featuredTokens, tokenLabel } from '@shared/tokens'
+import { ui } from '@shared/text'
 import type { CardList, ListRef } from '../../stores/library'
 import { useDeckTokens } from '../../stores/tokens'
 import { NameCell } from '../CardCells'
@@ -33,24 +34,24 @@ export function TokensTab({ wishlists, meta, onOpenList, onCopy }: TokensTabProp
   if (tokens.length === 0) {
     return (
       <div className="empty">
-        <p>{data.available ? 'No wishlist card creates tokens, emblems or helpers.' : 'Token data unavailable (Scryfall).'}</p>
+        <p>{data.available ? ui.wanted.tokensTab.none : ui.wanted.tokensTab.unavailable}</p>
       </div>
     )
   }
   return (
     <>
       <div className="wanted-note-row">
-        <p className="muted small wanted-note">Tokens, emblems and helpers your wishlist cards create, owned or not.</p>
-        <button type="button" onClick={() => onCopy(tokens.map(({ entry }) => tokenLabel(entry)).join('\n'), 'Tokens')}>
-          Copy as text
+        <p className="muted small wanted-note">{ui.wanted.tokensTab.hint}</p>
+        <button type="button" onClick={() => onCopy(tokens.map(({ entry }) => tokenLabel(entry)).join('\n'), ui.wanted.tokens)}>
+          {ui.wanted.copyAsText}
         </button>
       </div>
       <table className="cards-table wanted-table">
         <thead>
           <tr>
-            <th>Token</th>
-            <th>Made by</th>
-            <th>Wanted in</th>
+            <th>{ui.wanted.columns.token}</th>
+            <th>{ui.wanted.columns.madeBy}</th>
+            <th>{ui.wanted.columns.wantedIn}</th>
           </tr>
         </thead>
         <tbody>

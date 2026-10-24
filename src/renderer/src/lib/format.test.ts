@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cardCount, cleanError, formatDate, formatEur, formatIsoDate, timeAgo } from './format'
+import { cleanError, formatDate, formatEur, formatIsoDate, timeAgo } from './format'
 
 afterEach(() => vi.useRealTimers())
 
@@ -9,12 +9,6 @@ describe('formatting for the window', () => {
     expect(formatEur(12.5)).toContain('€')
     expect(formatEur(null)).toBe('—')
     expect(formatEur(undefined)).toBe('—')
-  })
-
-  it('counts cards in words', () => {
-    expect(cardCount(1)).toBe('1 card')
-    expect(cardCount(0)).toBe('0 cards')
-    expect(cardCount(60)).toBe('60 cards')
   })
 
   it('writes dates day first', () => {

@@ -1,7 +1,17 @@
 import { listHeader } from './decklist'
 import { listColor, withColor } from './listColor'
 import { isUnbuilt, withUnbuilt } from './listUnbuilt'
-import { BASE, baseCardLines, findVariant, withVariantCards, withVariantOf, type ListVersion } from './listVersion'
+import {
+  BASE,
+  baseCardLines,
+  findVariant,
+  linesBeyond,
+  versionCardLines,
+  withVariantCards,
+  withVariantOf,
+  type ListVersion,
+  type Swaps
+} from './listVersion'
 import type { ListKind, ListLine } from './types'
 
 /** Upgrade header line stored in a wishlist file: `// Upgrade of: <deck name>`. */
@@ -66,4 +76,18 @@ export function appliedUpgrade(upgrade: ListLine[], deck: ListLine[]): ListLine[
   const lines = withUnbuilt(own, isUnbuilt(deck))
   const color = listColor(deck)
   return withVariantOf(color ? withColor(lines, color) : lines, deck)
+}
+
+/**
+ * What an upgrade changes in its deck (or in the deck's version it plans), worked out card by card
+ * from the two lists, since an upgrade holds the whole deck as it will be.
+ * @param upgrade - The upgrade's lines.
+ * @param deck - Lines of the deck it upgrades.
+ * @returns Its cards in, in the upgrade's order, as its own lines (so edits find them); the deck's
+ * cards out, in the deck's order, as the deck's lines.
+ */
+export function upgradeSwaps(upgrade: ListLine[], deck: ListLine[]): Swaps {
+  const own = baseCardLines(upgrade)
+  const before = versionCardLines(deck, upgradeVersion(upgrade))
+  return { ins: linesBeyond(own, before), outs: linesBeyond(before, own) }
 }

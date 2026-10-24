@@ -176,23 +176,26 @@ export type SortView = 'deck' | 'wishlist' | 'inventory'
 const LISTS: SortView[] = ['deck', 'wishlist']
 const EVERYWHERE: SortView[] = ['deck', 'wishlist', 'inventory']
 
-/** Sort options and the views offering each. `type` is inventory-only: lists are already grouped by type. */
+/**
+ * Sort options and the views offering each; their names are `text.sorts`. `type` is inventory-only:
+ * lists are already grouped by type.
+ */
 export const SORT_OPTIONS = [
-  { id: 'file', label: 'List order', views: LISTS },
-  { id: 'recent', label: 'Recently added', views: LISTS },
-  { id: 'name', label: 'Name', views: EVERYWHERE },
-  { id: 'qty', label: 'Quantity', views: EVERYWHERE },
-  { id: 'owned', label: 'Owned', views: ['wishlist'] },
-  { id: 'unit', label: 'Unit price', views: LISTS },
-  { id: 'value', label: 'Value', views: ['inventory'] },
-  { id: 'decks', label: 'In decks', views: ['inventory'] },
-  { id: 'wanted', label: 'Wanted in', views: ['inventory'] },
-  { id: 'needed', label: 'Cost still needed', views: ['wishlist'] },
-  { id: 'mana', label: 'Mana value', views: EVERYWHERE },
-  { id: 'color', label: 'Color', views: EVERYWHERE },
-  { id: 'type', label: 'Type', views: ['inventory'] },
-  { id: 'rarity', label: 'Rarity', views: EVERYWHERE }
-] as const satisfies ReadonlyArray<{ id: string; label: string; views: readonly SortView[] }>
+  { id: 'file', views: LISTS },
+  { id: 'recent', views: LISTS },
+  { id: 'name', views: EVERYWHERE },
+  { id: 'qty', views: EVERYWHERE },
+  { id: 'owned', views: ['wishlist'] },
+  { id: 'unit', views: LISTS },
+  { id: 'value', views: ['inventory'] },
+  { id: 'decks', views: ['inventory'] },
+  { id: 'wanted', views: ['inventory'] },
+  { id: 'needed', views: ['wishlist'] },
+  { id: 'mana', views: EVERYWHERE },
+  { id: 'color', views: EVERYWHERE },
+  { id: 'type', views: ['inventory'] },
+  { id: 'rarity', views: EVERYWHERE }
+] as const satisfies ReadonlyArray<{ id: string; views: readonly SortView[] }>
 
 /** Global sort setting. */
 export type SortKey = (typeof SORT_OPTIONS)[number]['id']
@@ -260,12 +263,21 @@ export function frontTypeWords(typeLine: string): string[] {
   return typeLine.split('//')[0].split('—')[0].trim().split(/\s+/)
 }
 
-/** @returns Section from the front face's types; `Other` when `info` is missing or matches none. */
 /** "Flubs" from "Flubs, the Fool": a card's name up to its comma or second face. */
 export const shortName = (name: string) => name.split(/,| \/\/ /)[0]
 
+/** @returns Section from the front face's types; `Other` when `info` is missing or matches none. */
 export function typeGroup(info: CardInfo | null | undefined): TypeGroup {
   if (!info) return 'Other'
   const words = frontTypeWords(info.typeLine)
   return GROUP_PRIORITY.find((type) => words.includes(type)) ?? 'Other'
+}
+
+/** @returns Where a card's section comes in a list ({@link TYPE_GROUPS}); after them all without card data. */
+const sectionIndex = (card: Sortable) =>
+  card.info ? TYPE_GROUPS.findIndex((group) => group.id === typeGroup(card.info)) : TYPE_GROUPS.length
+
+/** Comparator in a list's order: by type section ({@link TYPE_GROUPS}), then mana value, then name. */
+export function compareInListOrder(a: Sortable, b: Sortable): number {
+  return sectionIndex(a) - sectionIndex(b) || compareCards('mana', a, b)
 }

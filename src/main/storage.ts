@@ -6,6 +6,7 @@ import { fileNameProblem } from '@shared/filenames'
 import { joinMeta, sameMeta, splitMeta, validMeta, type ListMeta } from '@shared/listMeta'
 import { validSettings } from '@shared/settings'
 import { TRADE_EXTENSION } from '@shared/trade'
+import { ui } from '@shared/text'
 import type { ListKind } from '@shared/types'
 import { env } from './environment'
 
@@ -159,7 +160,7 @@ const tradePath = (name: string) => join(tradesDir(), `${validateListName(name)}
  * @throws Error with a user-facing message if invalid.
  */
 export function validateListName(raw: unknown): string {
-  if (typeof raw !== 'string') throw new Error('Name must be text.')
+  if (typeof raw !== 'string') throw new Error(ui.errors.notText)
   const name = raw.trim()
   const problem = fileNameProblem(name)
   if (problem) throw new Error(problem)
@@ -168,7 +169,7 @@ export function validateListName(raw: unknown): string {
 
 /** @throws Error if `raw` is not a {@link ListKind}. */
 export function validateKind(raw: unknown): ListKind {
-  if (!LIST_KINDS.includes(raw as ListKind)) throw new Error('Invalid list kind.')
+  if (!LIST_KINDS.includes(raw as ListKind)) throw new Error(ui.errors.invalid('list kind'))
   return raw as ListKind
 }
 
@@ -215,7 +216,7 @@ function writeText(path: string, text: string, guard: 'check' | 'force' | 'none'
       if (guard === 'check' && expected !== undefined) {
         const current = await readIfExists(path)
         if (current !== null && current !== expected) {
-          throw new Error(`${CONFLICT_ERROR} "${basename(path)}" was changed by another program.`)
+          throw new Error(`${CONFLICT_ERROR} ${ui.errors.changedOutside(basename(path))}`)
         }
       }
       await mkdir(dirname(path), { recursive: true })
@@ -473,7 +474,7 @@ export async function deleteTrade(name: string): Promise<void> {
 export async function createList(kind: ListKind, name: string, text: string): Promise<void> {
   await mkdir(listsDir(kind), { recursive: true })
   const path = listPath(kind, name)
-  if (existsSync(path)) throw new Error(`A ${kind} called "${name.trim()}" already exists.`)
+  if (existsSync(path)) throw new Error(ui.errors.listExists(ui.terms.kinds[kind], name.trim()))
   await writeListText(kind, name, text, 'none')
 }
 
@@ -487,7 +488,7 @@ export async function renameList(kind: ListKind, from: string, to: string): Prom
   const source = listPath(kind, from)
   const target = listPath(kind, to)
   const caseOnly = source.toLowerCase() === target.toLowerCase()
-  if (!caseOnly && existsSync(target)) throw new Error(`A ${kind} called "${to.trim()}" already exists.`)
+  if (!caseOnly && existsSync(target)) throw new Error(ui.errors.listExists(ui.terms.kinds[kind], to.trim()))
   await writeChains.get(source)?.catch(() => undefined)
   await rename(source, target)
   moveKnown(source, target)

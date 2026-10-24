@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { ui } from '@shared/text'
 
 /** Props of {@link Modal}. */
 interface ModalProps {
@@ -44,7 +45,7 @@ export function Modal({ title, onClose, children, footer, size = 'normal', icon,
             {icon}
             {title}
           </h2>
-          <button type="button" className="icon-btn" onClick={onClose} aria-label="Close">
+          <button type="button" className="icon-btn" onClick={onClose} aria-label={ui.common.close}>
             ×
           </button>
         </header>

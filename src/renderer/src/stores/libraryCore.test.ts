@@ -18,6 +18,7 @@ import {
   toCardList,
   unreadableMessage,
   withBundledQty,
+  withFewerCopies,
   withCopies,
   withMovedWishlist,
   withOwned,
@@ -181,6 +182,12 @@ describe('list edits', () => {
     expect(serializeList(withBundledQty(lines, ids, 7))).toBe('1 Sol Ring\n7 Island\n')
   })
 
+  it('takes copies of a card off its last lines, never off the swaps of a version', () => {
+    const lines = parseList('2 Forest [M21]\n3 Forest\n1 Sol Ring\n// Version: Lands\n\n// Lands in\n2 Forest')
+    expect(serializeList(withFewerCopies(lines, 'forest', 4))).toBe('1 Forest [M21]\n1 Sol Ring\n// Version: Lands\n\n// Lands in\n2 Forest\n')
+    expect(serializeList(withFewerCopies(lines, 'Sol Ring', 1))).not.toContain('Sol Ring')
+  })
+
   it('relinks the upgrades of a renamed or deleted deck', () => {
     const lists = [
       list('deck', 'Elves', '1 Llanowar Elves'),
@@ -215,13 +222,13 @@ describe('inventory edits', () => {
     expect(more.change).toEqual({ label: 'Changed how many Sol Ring you own' })
     const none = withOwned(inventory, 'Sol Ring', 0)
     expect(inventoryText(none.inventory)).toBe('1 Lightning Bolt\n')
-    expect(none.change).toEqual({ label: 'Removed Sol Ring from your inventory', announce: true })
+    expect(none.change).toEqual({ label: 'Removed Sol Ring from your Inventory', announce: true })
     expect(inventoryText(inventory)).toBe('1 Lightning Bolt\n2 Sol Ring\n')
   })
 
   it('replaces a card’s copies, and drops it when none are left', () => {
     expect(inventoryText(withCopies(inventory, 'Sol Ring', []).inventory)).toBe('1 Lightning Bolt\n')
-    expect(withCopies(inventory, 'Sol Ring', []).change.label).toBe('Changed the versions of Sol Ring you own')
+    expect(withCopies(inventory, 'Sol Ring', []).change.label).toBe('Changed the Versions of Sol Ring you own')
   })
 })
 
@@ -239,7 +246,7 @@ describe('trade lists', () => {
   it('renames only to a free, valid name', () => {
     expect(renamedTrade([dani, sam], 'Dani', 'Daniela')?.renamed.name).toBe('Daniela')
     expect(renamedTrade([dani, sam], 'Dani', 'Dani')).toBeNull()
-    expect(() => renamedTrade([dani, sam], 'Dani', 'sam')).toThrow('You already have a trade list called "sam".')
+    expect(() => renamedTrade([dani, sam], 'Dani', 'sam')).toThrow('You already have a Trade list called "sam".')
     expect(() => renamedTrade([dani], 'Dani', '  ')).toThrow('Please enter a name.')
   })
 })

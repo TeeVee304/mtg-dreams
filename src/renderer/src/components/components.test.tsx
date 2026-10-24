@@ -21,14 +21,14 @@ const textOf = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, '
 describe('the welcome page', () => {
   it('starts a new player with their collection', () => {
     const text = textOf(renderToStaticMarkup(<Welcome owned={0} onPaste={noop} onAddPrecon={noop} onNew={noop} onWizard={noop} />))
-    expect(text).toContain('Paste your collection')
-    expect(text).toContain('Let the Deck Wizard plan a Commander deck')
+    expect(text).toContain('Paste your Collection')
+    expect(text).toContain('Let the Deck Wizard plan a Commander Deck')
   })
 
   it('offers a deck from the cards a player owns', () => {
     const text = textOf(renderToStaticMarkup(<Welcome owned={240} onPaste={noop} onAddPrecon={noop} onNew={noop} onWizard={noop} />))
-    expect(text).toContain('Build a deck from the 240 cards you own')
-    expect(text).not.toContain('Paste your collection')
+    expect(text).toContain('Build a Deck from the 240 Cards you own')
+    expect(text).not.toContain('Paste your Collection')
   })
 })
 
@@ -50,6 +50,6 @@ describe('Most Wanted', () => {
   it('says when no basic lands are needed', () => {
     const overview = { cards: [], basics: [], unitOf: () => null, printingOf: () => undefined } as unknown as WantedOverview
     const html = renderToStaticMarkup(<BasicsTab overview={overview} basics={[] as WantedCard[]} bundleBasics meta={new Map()} onBought={noop} onOpenList={noop} />)
-    expect(textOf(html)).toBe('No basic lands needed.')
+    expect(textOf(html)).toBe('No basic Lands needed.')
   })
 })

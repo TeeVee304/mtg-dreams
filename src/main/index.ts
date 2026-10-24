@@ -1,5 +1,7 @@
 import { app, BrowserWindow, clipboard, ClipboardItem, Menu, nativeImage, session, shell } from 'electron'
+import { setDefaultResultOrder } from 'node:dns'
 import { join } from 'node:path'
+import { ui } from '@shared/text'
 import { RETIRED_CACHES, removeCacheEntries } from './cacheFiles'
 import { contextMenuItems } from './contextMenu'
 import { outdatedWizardCaches, registerDeckWizard } from './deckWizard'
@@ -35,7 +37,7 @@ function createWindow(): void {
     height: 860,
     minWidth: 960,
     minHeight: 600,
-    title: 'MTG Dreams',
+    title: ui.app.name,
     icon: WINDOW_ICONS[getAppSettings().color],
     backgroundColor: windowBackground(),
     autoHideMenuBar: true,
@@ -89,9 +91,9 @@ function createWindow(): void {
 /** Downloads an image and puts it on the clipboard as a PNG; rejects if it can't be read as an image. */
 async function copyImageFrom(url: string): Promise<void> {
   const response = await fetch(url, { headers: { 'User-Agent': env().userAgent }, signal: AbortSignal.timeout(15_000) })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  if (!response.ok) throw new Error(ui.errors.httpStatus(response.status))
   const image = nativeImage.createFromBuffer(Buffer.from(await response.arrayBuffer()))
-  if (image.isEmpty()) throw new Error('Not an image')
+  if (image.isEmpty()) throw new Error(ui.errors.notAnImage)
   await clipboard.write([new ClipboardItem({ 'image/png': new Blob([new Uint8Array(image.toPNG())], { type: 'image/png' }) })])
 }
 
@@ -111,6 +113,8 @@ if (!app.requestSingleInstanceLock()) {
     }
   })
 
+  // Some networks reset IPv6 connections to EDHREC's servers while IPv4 works; IPv6-only ones still connect.
+  setDefaultResultOrder('ipv4first')
   app.whenReady().then(() => {
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false))
     setEnvironment({
@@ -121,7 +125,8 @@ if (!app.requestSingleInstanceLock()) {
       userAgent: `MTGDreams/${app.getVersion()}`,
       scryfallApi: (!app.isPackaged && process.env.MTG_DREAMS_SCRYFALL_API) || SERVICES.scryfallApi,
       mtgjsonApi: (!app.isPackaged && process.env.MTG_DREAMS_MTGJSON_API) || SERVICES.mtgjsonApi,
-      priceGuideUrl: (!app.isPackaged && process.env.MTG_DREAMS_PRICE_GUIDE_URL) || SERVICES.priceGuideUrl
+      priceGuideUrl: (!app.isPackaged && process.env.MTG_DREAMS_PRICE_GUIDE_URL) || SERVICES.priceGuideUrl,
+      edhrecJson: (!app.isPackaged && process.env.MTG_DREAMS_EDHREC_JSON) || SERVICES.edhrecJson
     })
     migrateFromOldName()
     applyTheme(getTheme())

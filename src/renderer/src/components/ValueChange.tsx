@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { PriceSnapshot } from '@shared/api'
+import { ui } from '@shared/text'
 import type { ValuedCopy } from '../lib/collection'
 import { formatDate, formatEur } from '../lib/format'
 import { pricesAt, valueChange, type ValueMove } from '../stores/history'
@@ -9,8 +10,8 @@ import { copyLabel } from './InventoryVersions'
 const DAY = 24 * 60 * 60 * 1000
 /** Selectable comparison ranges. */
 const RANGES = [
-  { id: 'week', label: 'This week', days: 7 },
-  { id: 'month', label: 'This month', days: 30 }
+  { id: 'week', label: ui.value.ranges.week, days: 7 },
+  { id: 'month', label: ui.value.ranges.month, days: 30 }
 ] as const
 type Range = (typeof RANGES)[number]['id']
 /** Top risers and fallers shown. */
@@ -55,27 +56,22 @@ export function ValueChange({ valued, ready }: { valued: ValuedCopy[]; ready: bo
 
   return (
     <section className="value-change">
-      <Segmented label="Period" tabs options={RANGES} value={range} onChange={setRange} />
+      <Segmented label={ui.value.period} tabs options={RANGES} value={range} onChange={setRange} />
       {change ? (
         <>
           <p className="value-change-total">
             <Delta value={change.change} />
-            <span className="muted small">
-              since {formatDate(change.from)}
-            </span>
+            <span className="muted small">{ui.value.since(formatDate(change.from))}</span>
           </p>
           {(risers.length > 0 || fallers.length > 0) && (
             <div className="movers">
-              <Movers title="Biggest rises" moves={risers} />
-              <Movers title="Biggest falls" moves={fallers} />
+              <Movers title={ui.value.rises} moves={risers} />
+              <Movers title={ui.value.falls} moves={fallers} />
             </div>
           )}
         </>
       ) : (
-        <p className="muted small value-change-empty">
-          Price changes show up here after Cardmarket&apos;s next daily price update: MTG Dreams keeps its own history
-          from the day it first sees your cards.
-        </p>
+        <p className="muted small value-change-empty">{ui.value.noHistory}</p>
       )}
     </section>
   )
@@ -100,7 +96,7 @@ function Movers({ title, moves }: { title: string; moves: ValueMove[] }) {
     <div>
       <h3 className="value-heading">{title}</h3>
       {moves.length === 0 ? (
-        <p className="muted small">None</p>
+        <p className="muted small">{ui.value.none}</p>
       ) : (
         <ul className="movers-list">
           {moves.map(({ valued, change }) => (
@@ -109,7 +105,7 @@ function Movers({ title, moves }: { title: string; moves: ValueMove[] }) {
                 <span>{valued.name}</span>
                 <span className="muted tiny">
                   {valued.qty > 1 ? `${valued.qty}× ` : ''}
-                  {valued.copy.set ? copyLabel(valued.copy) : `cheapest version${valued.copy.foil ? ' · Foil' : ''}`}
+                  {valued.copy.set ? copyLabel(valued.copy) : ui.value.cheapestVersion(valued.copy.foil)}
                 </span>
               </span>
               <Delta value={change} />

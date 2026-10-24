@@ -66,7 +66,7 @@ describe('EDHREC average decks', () => {
     expect(deck.themes.map((theme) => theme.slug)).toEqual(['infect', 'plus-1-plus-1-counters'])
     expect(deck.decks).toBe(3740)
     expect(parseAverageDeck(PAGE, { theme: null, bracket: 'core', budget: 'budget' }).decks).toBe(400)
-    expect(() => parseAverageDeck({}, NO_FILTERS)).toThrow('EDHREC sent no deck.')
+    expect(() => parseAverageDeck({}, NO_FILTERS)).toThrow('EDHREC sent no Deck.')
   })
 
   it('makes a Commander list led by the commander', () => {

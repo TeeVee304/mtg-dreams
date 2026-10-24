@@ -1,7 +1,7 @@
 import { useRef, useState, useSyncExternalStore } from 'react'
 import { LibraryStore, type LibraryCallbacks } from './libraryStore'
 
-export { KIND_NOUN, inventoryText, sameList } from './libraryCore'
+export { inventoryText, sameList } from './libraryCore'
 export type { CardList, ChangeTarget, Conflict, LibraryState, ListRef, NewCard, UndoResult } from './libraryCore'
 export type { LibraryActions, LibraryCallbacks } from './libraryStore'
 

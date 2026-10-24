@@ -5,7 +5,6 @@ import { otherVersions, type Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import { stripMeta } from '@shared/listMeta'
 import { isUnbuilt } from '@shared/listUnbuilt'
-import { upgradeTarget } from '@shared/listUpgrade'
 import { activeVariant, BASE, baseLabel, swapPairs, variantSwaps, versionFormatLabel } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
 import { deckSizeCheck, FORMATS, listFormat } from '@shared/formats'
@@ -22,10 +21,11 @@ import {
 } from '@shared/listModel'
 import type { CopyPool } from '@shared/copies'
 import type { CardLine, InventoryItem } from '@shared/types'
+import { ui } from '@shared/text'
 import { getCardInfo } from '../stores/cardinfo'
-import { artCrop } from '../lib/artwork'
-import { listColors } from '../lib/listFigures'
-import { cardCount, cleanError } from '../lib/format'
+import { useCommanderThemes } from '../features/deckWizard'
+import { headerLeaders, listColors } from '../lib/listFigures'
+import { cleanError } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceChange, useBaselines } from '../stores/history'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
@@ -34,6 +34,7 @@ import { useCommanderPicking } from '../hooks/useCommanderPicking'
 import { useListMover } from '../hooks/useListMover'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { useListVersion } from '../hooks/useListVersion'
+import { useUpgradeSwaps } from '../hooks/useUpgradeSwaps'
 import { useStableHandlers } from '../hooks/useStableHandlers'
 import { versionActions } from '../lib/versionActions'
 import { listRows, summarize, type Row } from '../lib/summary'
@@ -50,7 +51,7 @@ import { ListDialogs, type ListDialog } from './ListDialogs'
 import { ListHeader } from './ListHeader'
 import { ListTable } from './ListTable'
 import { ListValueCards } from './ListValueCards'
-import { SwapTable } from './SwapTable'
+import { SwapTable, UpgradeSwapTable } from './SwapTable'
 import { useToast } from './Toasts'
 import { useCopy } from '../hooks/useCopy'
 
@@ -80,7 +81,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   usePrintingsVersion()
   const isDeck = list.kind === 'deck'
   const isBrew = list.kind === 'brew'
-  const noun = isDeck ? 'deck' : 'list'
+  const noun = ui.terms.noun(isDeck)
   const [adding, setAdding] = useState(false)
   const [dialog, setDialog] = useState<ListDialog | null>(null)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
@@ -92,6 +93,9 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
   const { variants, other, version, setVersion, formatVariant, shown, swaps, swapsQty, outChoices } = useListVersion(list)
   const [fullListOpen, toggleFullList] = useStoredToggle('mtg-dreams.fullVersionList', false)
+  const upgradeView = useUpgradeSwaps(list, lists)
+  /** An upgrade's page, but one of its own versions': what it changes in its deck. */
+  const upgradeChanges = other ? null : upgradeView
 
   const cards = cardLines(shown.lines)
   /** A brew that ignores your collection: shown like a deck, with no copies owned. */
@@ -126,12 +130,11 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const { picking, canPickCommander, partnerKind, canPickPartner, leaderName, togglePicking, pickOf, isCrowned, chooseCommander } =
     useCommanderPicking(list, rows, analysis, actions)
 
-  const leaderRows = rows.filter(isCommander)
-  const crops = settings.cardImages ? leaderRows.flatMap((row) => artCrop(row.resolution?.printing) ?? []) : []
-  // Both partners' art, or none until both load: one alone would picture half the pair.
-  const leaderArts = crops.length === leaderRows.length ? crops : []
+  const leaders = headerLeaders(rows.filter(isCommander), settings.cardImages)
+  const leaderRows = leaders.rows
   // The commanders' color identity, else the colors of all the cards.
   const colors = listColors(rows, leaderRows.map((row) => row.line.name))
+  const themes = useCommanderThemes(leaderRows.map((row) => row.line.name))
 
   useEffect(() => {
     if (legalityErrors + ownershipErrors === 0) setOnlyProblems(false)
@@ -163,7 +166,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         rows,
         copiesOf,
         isCommander,
-        onCommanderCut: () => toast('Commanders lead every version. Change them with “Change Commander”.', 'error')
+        onCommanderCut: () => toast(ui.list.commanderCut, 'error')
       })
     : null
   const viewActions = versionEdits?.actions ?? actions
@@ -175,7 +178,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     if (!formatVariant) return
     actions.addFormatVersion(list)
     setVersion(formatVariant.label)
-    toast(`“${list.name}” has a ${formatVariant.label} version, identical until you change it`)
+    toast(ui.list.versionAdded(list.name, formatVariant.label))
   }
   /** Deletes the version shown: at once while it has no swaps, else once confirmed. */
   const deleteVersion = () => {
@@ -192,7 +195,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     const lost = activeVariant(list.lines)
     const lostSwaps = lost ? sumOf(Object.values(variantSwaps(list.lines, lost.label)).flat(), (line) => line.qty) : 0
     if (lost && lostSwaps > 0) {
-      const label = FORMATS.find((format) => format.id === formatId)?.label ?? 'No format'
+      const label = FORMATS.find((format) => format.id === formatId)?.label ?? ui.common.noFormat
       setDialog({ kind: 'variant-format', formatId, label, variant: lost, swaps: lostSwaps })
     } else {
       actions.setListFormat(list, formatId)
@@ -268,18 +271,18 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
   // Completing (and applying) belongs to the list itself, not its versions.
   const complete = !isDeck && !other && summary.cards > 0 && summary.ownedCards >= summary.cards
-  const upgrades = upgradeTarget(list, lists)
+  const upgrades = upgradeView?.deck ?? null
 
   /** Makes a completed wishlist a deck; fails (so the banner stays) if it could not move. */
   const moveToDecks = async () => {
-    const moved = await moveListTo(list, 'deck', (moved) => `“${moved.name}” is now a deck`)
-    if (!moved) throw new Error('Not moved')
+    const moved = await moveListTo(list, 'deck', (moved) => ui.moves.toDeck(moved.name))
+    if (!moved) throw new Error(ui.list.notMoved)
     onOpenList(moved)
   }
 
   /** Makes a brew a wishlist, at the bottom of the order. */
   const makeWishlist = async () => {
-    const moved = await moveListTo(list, 'wishlist', (moved) => `“${moved.name}” is now a wishlist, at the bottom of your wishlists`)
+    const moved = await moveListTo(list, 'wishlist', (moved) => ui.moves.toWishlistBottom(moved.name))
     if (moved) onOpenList(moved)
   }
 
@@ -287,9 +290,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     const unbuilt = !isUnbuilt(list.lines)
     actions.setUnbuilt(list, unbuilt)
     toast(
-      unbuilt
-        ? `“${list.name}” is now unbuilt: it uses your cards without reserving them`
-        : `“${list.name}” is built again: it reserves its cards`
+      unbuilt ? ui.list.unbuilt(list.name) : ui.list.built(list.name)
     )
   }
 
@@ -297,9 +298,9 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     try {
       const deck = await actions.applyUpgrade(list)
       onOpenList(deck)
-      toast(`Upgraded “${deck.name}”; “${list.name}” went to the Recycle Bin`)
+      toast(ui.list.upgraded(deck.name, list.name))
     } catch (error) {
-      toast(`Could not apply the upgrade: ${cleanError(error)}`, 'error')
+      toast(ui.list.upgradeFailed(cleanError(error)), 'error')
       throw error
     }
   }
@@ -331,8 +332,10 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     <div className="view" data-color={listColor(list.lines) ?? undefined}>
       <ListHeader
         name={list.name}
-        arts={leaderArts}
-        leaders={leaderRows.map((row) => row.flavorName ?? row.line.name)}
+        arts={leaders.arts}
+        leaders={leaders.names}
+        themes={themes}
+        background={leaders.background}
         colors={colors}
         noun={noun}
         format={format}
@@ -360,7 +363,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         onDeleteVersion={other ? deleteVersion : undefined}
         onEditText={() => setDialog({ kind: 'text' })}
         onCopy={() =>
-          copy(stripMeta(shown.text), other ? `${other.label} version copied to clipboard` : `${isDeck ? 'Deck' : 'List'} copied to clipboard`)
+          copy(stripMeta(shown.text), other ? ui.list.versionCopied(other.label) : ui.list.copied(isDeck))
         }
         onColor={() => setDialog({ kind: 'color' })}
         onUpgrade={list.kind === 'wishlist' ? () => setDialog({ kind: 'upgrade' }) : undefined}
@@ -396,12 +399,13 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
       {isBrew && (
         <p className="brew-note">
-          <Icon name="info" />A brew is just an idea: it never counts in Most Wanted, the budget planner or trades.
+          <Icon name="info" />
+          {ui.list.brewNote}
         </p>
       )}
       </div>
 
-      {!other && (
+      {!other && !upgradeChanges && (
         <ListAddCards
           list={list}
           inventory={inventory}
@@ -430,13 +434,26 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         />
       )}
 
-      {other && cards.length > 0 ? (
+      {upgradeChanges && (
+        <UpgradeSwapTable
+          swaps={upgradeChanges.swaps}
+          deckLabel={upgradeChanges.deckLabel}
+          rows={rows}
+          outChoices={upgradeChanges.outChoices}
+          onCut={(name) => actions.removeCopies(list, name, 1)}
+          onKeep={({ id: _id, kind: _kind, ...card }) => actions.addCards(list, [card])}
+          onDrop={(line) => actions.removeCopies(list, line.name, line.qty)}
+          adder={{ list, inventory, pool, actions, format, copiesOf, capsFor, limitFor, sideboardAllowed }}
+        />
+      )}
+
+      {(other || upgradeChanges) && cards.length > 0 ? (
         <Collapsible
           open={fullListOpen || onlyProblems}
           onToggle={toggleFullList}
           className="version-list"
-          title={`Full ${other.label} List`}
-          summary={cardCount(summary.cards)}
+          title={other ? ui.list.fullList(other.label) : ui.upgradeSwaps.fullList}
+          summary={ui.count.cards(summary.cards)}
         >
           {table}
         </Collapsible>
@@ -445,12 +462,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       ) : (
         !adding && (
           <div className="empty">
-            <p>This {noun} is empty.</p>
-            <p className="muted">
-              {isDeck
-                ? 'Search your inventory above to add cards, or use Edit as text to paste a decklist.'
-                : 'Search for a card above, add a precon, or use Edit as text to paste a whole list.'}
-            </p>
+            <p>{ui.list.empty(noun)}</p>
+            <p className="muted">{isDeck ? ui.list.emptyDeckHint : ui.list.emptyListHint}</p>
           </div>
         )
       )}

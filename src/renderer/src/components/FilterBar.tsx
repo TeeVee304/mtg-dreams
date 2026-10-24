@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ui } from '@shared/text'
 import {
   CARD_TYPES,
   COLOR_LETTERS,
@@ -11,18 +12,16 @@ import {
 } from '@shared/cards'
 import { MANA_SYMBOLS } from '../lib/artwork'
 
+/** Rarity toggles: id and the letter shown; names are `ui.filters.rarities`. */
 const RARITY_BUTTONS = [
-  { id: 'common', short: 'C', label: 'Common' },
-  { id: 'uncommon', short: 'U', label: 'Uncommon' },
-  { id: 'rare', short: 'R', label: 'Rare' },
-  { id: 'mythic', short: 'M', label: 'Mythic rare' }
+  { id: 'common', short: 'C' },
+  { id: 'uncommon', short: 'U' },
+  { id: 'rare', short: 'R' },
+  { id: 'mythic', short: 'M' }
 ]
 
-const COLOR_MODES: Array<{ id: ColorMode; label: string }> = [
-  { id: 'any', label: 'Any of these' },
-  { id: 'exact', label: 'Exactly these' },
-  { id: 'within', label: 'Only these' }
-]
+/** Color match modes, in the order offered; names are `ui.filters.colorModes`. */
+const COLOR_MODES: ColorMode[] = ['any', 'exact', 'within']
 
 /** @returns `list` with `item` toggled. */
 function toggle<T>(list: T[], item: T): T[] {
@@ -57,7 +56,7 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
           onChange={(event) => set({ name: event.target.value })}
         />
         <div className="filter-group">
-          <div className="toggle-group" role="group" aria-label="Colors" title="Colors use color identity, so lands count too">
+          <div className="toggle-group" role="group" aria-label={ui.filters.colors} title={ui.filters.colorsHint}>
             {COLOR_LETTERS.map((color) => {
               const on = filters.colors.includes(color)
               return (
@@ -79,19 +78,19 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
             <select
               value={filters.colorMode}
               onChange={(event) => set({ colorMode: event.target.value as ColorMode })}
-              aria-label="How colors match"
-              title="“Only these” shows cards that fit within the selected colors, like a Commander color identity"
+              aria-label={ui.filters.colorMode}
+              title={ui.filters.colorModeHint}
             >
               {COLOR_MODES.map((mode) => (
-                <option key={mode.id} value={mode.id}>
-                  {mode.label}
+                <option key={mode} value={mode}>
+                  {ui.filters.colorModes[mode]}
                 </option>
               ))}
             </select>
           )}
         </div>
-        <select value={filters.type} onChange={(event) => set({ type: event.target.value })} aria-label="Card type">
-          <option value="">All Types</option>
+        <select value={filters.type} onChange={(event) => set({ type: event.target.value })} aria-label={ui.filters.cardType}>
+          <option value="">{ui.filters.allTypes}</option>
           {CARD_TYPES.map((type) => (
             <option key={type} value={type}>
               {type}
@@ -99,7 +98,7 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
           ))}
         </select>
         <div className="filter-group">
-          <div className="toggle-group" role="group" aria-label="Rarity" title="Rarity">
+          <div className="toggle-group" role="group" aria-label={ui.filters.rarity} title={ui.filters.rarity}>
             {RARITY_BUTTONS.map((rarity) => {
               const on = filters.rarities.includes(rarity.id)
               return (
@@ -108,8 +107,8 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
                   type="button"
                   className={`rarity rarity-${rarity.id}${on ? ' on' : ''}`}
                   aria-pressed={on}
-                  aria-label={rarity.label}
-                  title={rarity.label}
+                  aria-label={ui.filters.rarities[rarity.id]}
+                  title={ui.filters.rarities[rarity.id]}
                   onClick={() => set({ rarities: toggle(filters.rarities, rarity.id) })}
                 >
                   {rarity.short}
@@ -120,21 +119,21 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
         </div>
         <label className="check">
           <input type="checkbox" checked={filters.legendary} onChange={(event) => set({ legendary: event.target.checked })} />
-          Legendary
+          {ui.filters.legendary}
         </label>
         {filters.manaValue !== null && (
           <button
             type="button"
             className="chip link curve-filter"
             onClick={() => set({ manaValue: null })}
-            title="Set from the mana curve in Statistics. Click to remove."
+            title={ui.filters.manaValueHint}
           >
-            Mana value {filters.manaValue === CURVE_TOP ? `${CURVE_TOP}+` : filters.manaValue} ×
+            {ui.filters.manaValue(filters.manaValue === CURVE_TOP ? `${CURVE_TOP}+` : String(filters.manaValue))}
           </button>
         )}
         {filtersActive(filters) && (
           <button type="button" className="link-btn" onClick={() => onChange(NO_FILTERS)}>
-            Clear filters
+            {ui.filters.clear}
           </button>
         )}
         {children}

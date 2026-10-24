@@ -119,7 +119,7 @@ describe('lists on disk', () => {
     const { storage } = await setup()
     await storage.createList('deck', 'burn', '4 Lightning Bolt\n')
     await storage.createList('deck', 'Atraxa', '1 Sol Ring\n')
-    await expect(storage.createList('deck', 'Burn', '')).rejects.toThrow('A deck called "Burn" already exists.')
+    await expect(storage.createList('deck', 'Burn', '')).rejects.toThrow('A Deck called "Burn" already exists.')
     const loaded = await storage.loadData()
     expect(loaded.decks).toEqual([
       { name: 'Atraxa', text: '1 Sol Ring\n' },

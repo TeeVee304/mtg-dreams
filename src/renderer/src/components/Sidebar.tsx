@@ -3,9 +3,10 @@ import { listColor } from '@shared/listColor'
 import { sumOf, totalCopies } from '@shared/totals'
 import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
+import { ui } from '@shared/text'
 import { inventoryValue } from '../lib/collection'
-import { cardCount, formatDate, formatEur } from '../lib/format'
-import { KIND_NOUN, sameList, type CardList, type ListRef } from '../stores/library'
+import { formatDate, formatEur } from '../lib/format'
+import { sameList, type CardList, type ListRef } from '../stores/library'
 import { useBaselines } from '../stores/history'
 import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
@@ -190,34 +191,34 @@ export function Sidebar(props: SidebarProps) {
           </span>
         )}
         {colors.length > 0 && (
-          <span className="nav-colors" aria-label={`Colors: ${colors.join(', ')}`}>
+          <span className="nav-colors" aria-label={ui.sidebar.colors(colors.join(', '))}>
             {colors.map((color) => (
               <img key={color} src={MANA_SYMBOLS[color]} alt="" draggable={false} />
             ))}
           </span>
         )}
-        <span className="nav-meta" title={priced ? (list.kind === 'deck' ? `Worth ${formatEur(summary.total)}` : undefined) : undefined}>
+        <span className="nav-meta" title={priced ? (list.kind === 'deck' ? ui.sidebar.worth(formatEur(summary.total)) : undefined) : undefined}>
           {list.kind === 'deck' ? (
             <>
               {format && `${format.label} · `}
               {size ? (
                 <span className={size.status === 'ok' ? undefined : 'warn'} title={size.note ?? undefined}>
-                  {size.label} cards
+                  {ui.sidebar.deckSize(size.label)}
                 </span>
               ) : (
-                cardCount(mainCards)
+                ui.count.cards(mainCards)
               )}
             </>
           ) : isBrew ? (
             settings.plainBrews ? (
-              `${cardCount(summary.cards)}${priced ? ` · ${formatEur(summary.total)}` : ''}`
+              `${ui.count.cards(summary.cards)}${priced ? ` · ${formatEur(summary.total)}` : ''}`
             ) : (
-              `${summary.ownedCards} of ${summary.cards} owned`
+              ui.sidebar.ownedOf(summary.ownedCards, summary.cards)
             )
           ) : complete ? (
-            <span className="nav-complete">✓ Complete · {cardCount(summary.cards)}</span>
+            <span className="nav-complete">{ui.sidebar.complete(summary.cards)}</span>
           ) : (
-            `${summary.ownedCards} of ${summary.cards}${priced ? ` · ${formatEur(summary.neededValue)} to go` : ''}`
+            ui.sidebar.progress(summary.ownedCards, summary.cards, priced ? formatEur(summary.neededValue) : null)
           )}
         </span>
         </span>
@@ -227,7 +228,7 @@ export function Sidebar(props: SidebarProps) {
 
   const section = (kind: ListKind, title: string, empty: string) => {
     const items = lists.filter((list) => list.kind === kind)
-    const label = `New ${KIND_NOUN[kind]}`
+    const label = ui.sidebar.newList(ui.terms.kinds[kind])
     const toggles = { deck: [decksOpen, toggleDecks], wishlist: [wishlistsOpen, toggleWishlists], brew: [brewsOpen, toggleBrews] } as const
     // The rail has no room for folding: it always shows every list.
     const [open, toggle] = rail ? [true, () => {}] : toggles[kind]
@@ -255,8 +256,8 @@ export function Sidebar(props: SidebarProps) {
                 className={`icon-btn nav-section-toggle${open ? ' open' : ''}`}
                 onClick={toggle}
                 aria-expanded={open}
-                title={open ? `Collapse ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
-                aria-label={open ? `Collapse ${title.toLowerCase()}` : `Show ${title.toLowerCase()}`}
+                title={open ? ui.sidebar.collapse(title) : ui.sidebar.show(title)}
+                aria-label={open ? ui.sidebar.collapse(title) : ui.sidebar.show(title)}
               >
                 <Icon name="chevron" />
               </button>
@@ -268,8 +269,8 @@ export function Sidebar(props: SidebarProps) {
           <input
             type="search"
             className="nav-filter"
-            placeholder="Find a brew…"
-            aria-label="Find a brew"
+            placeholder={ui.sidebar.findBrewPlaceholder}
+            aria-label={ui.sidebar.findBrew}
             value={brewFilter}
             onChange={(event) => setBrewFilter(event.target.value)}
           />
@@ -277,7 +278,7 @@ export function Sidebar(props: SidebarProps) {
         {open && shown.map(renderList)}
         {open && brews && !query && items.length > BREWS_SHOWN && (
           <button type="button" className="link-btn nav-more" onClick={() => setAllBrews(!allBrews)}>
-            {allBrews ? 'Show fewer' : `Show all ${items.length}`}
+            {allBrews ? ui.sidebar.showFewer : ui.sidebar.showAll(items.length)}
           </button>
         )}
       </div>
@@ -288,23 +289,23 @@ export function Sidebar(props: SidebarProps) {
     <aside className={`sidebar${rail ? ' rail' : ''}`}>
       <div className="brand">
         <img className="brand-mark" src={THEME_ICONS[settings.color]} alt="" draggable={false} />
-        <span className="brand-name">MTG Dreams</span>
+        <span className="brand-name">{ui.app.name}</span>
       </div>
 
       <nav className="nav-fixed">
         <button
           type="button"
           className={`nav-item${view?.page === 'inventory' ? ' active' : ''}`}
-          title={rail ? 'Inventory' : undefined}
+          title={rail ? ui.sidebar.inventory : undefined}
           onClick={() => onSelect({ page: 'inventory' })}
         >
           <span className="nav-thumb nav-tile" aria-hidden="true">
             <Icon name="backpack" />
           </span>
           <span className="nav-text">
-            <span className="nav-name">Inventory</span>
+            <span className="nav-name">{ui.sidebar.inventory}</span>
             <span className="nav-meta">
-              {cardCount(worth.copies)}
+              {ui.count.cards(worth.copies)}
               {inventory.size > 0 && worth.pending === 0 && ` · ${formatEur(worth.total)}`}
             </span>
           </span>
@@ -312,16 +313,16 @@ export function Sidebar(props: SidebarProps) {
         <button
           type="button"
           className={`nav-item${view?.page === 'wanted' ? ' active' : ''}`}
-          title={rail ? 'Most Wanted' : undefined}
+          title={rail ? ui.sidebar.mostWanted : undefined}
           onClick={() => onSelect({ page: 'wanted' })}
         >
           <span className="nav-thumb nav-tile" aria-hidden="true">
             <Icon name="cart" />
           </span>
           <span className="nav-text">
-            <span className="nav-name">Most Wanted</span>
+            <span className="nav-name">{ui.sidebar.mostWanted}</span>
             <span className="nav-meta">
-              {cardCount(sumOf(wanted.cards, (card) => card.toBuy))}
+              {ui.count.cards(sumOf(wanted.cards, (card) => card.toBuy))}
               {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
             </span>
           </span>
@@ -330,31 +331,31 @@ export function Sidebar(props: SidebarProps) {
       </nav>
 
       <nav className="nav-scroll">
-        {section('deck', 'Decks', 'No decks yet.')}
-        {section('wishlist', 'Wishlists', 'No wishlists yet.')}
-        {section('brew', 'Brews', 'Decks you are toying with, kept out of Most Wanted.')}
+        {section('deck', ui.terms.kindsPlural.deck, ui.sidebar.noDecks)}
+        {section('wishlist', ui.terms.kindsPlural.wishlist, ui.sidebar.noWishlists)}
+        {section('brew', ui.terms.kindsPlural.brew, ui.sidebar.brewsHint)}
       </nav>
 
       {/* Trades stay in view under the lists, however long those get. */}
-      <nav className="nav-trades" aria-label="Trades">
+      <nav className="nav-trades" aria-label={ui.sidebar.trades}>
         <div className="nav-section">
-          <span className="nav-section-title">Trades</span>
+          <span className="nav-section-title">{ui.sidebar.trades}</span>
           <button
             type="button"
             className="icon-btn"
             onClick={onImportTrade}
-            title="Import a friend's trade list"
-            aria-label="Import a friend's trade list"
+            title={ui.sidebar.importTrade}
+            aria-label={ui.sidebar.importTrade}
           >
             <Icon name="plus" />
           </button>
         </div>
-        <button type="button" className="nav-item share-item" onClick={onShareTrade} title={rail ? 'Share my trade list' : undefined}>
+        <button type="button" className="nav-item share-item" onClick={onShareTrade} title={rail ? ui.sidebar.shareTrade : undefined}>
           <span className="nav-thumb nav-tile" aria-hidden="true">
             <Icon name="share" />
           </span>
           <span className="nav-text">
-            <span className="nav-name">Share my trade list</span>
+            <span className="nav-name">{ui.sidebar.shareTrade}</span>
           </span>
         </button>
         {trades.map((trade, index) => {
@@ -365,7 +366,7 @@ export function Sidebar(props: SidebarProps) {
               key={trade.name}
               type="button"
               className={`nav-item${active ? ' active' : ''}`}
-              title={rail ? `Trade with ${trade.name}` : undefined}
+              title={rail ? ui.sidebar.tradeWith(trade.name) : undefined}
               onClick={() => onSelect({ page: 'trade', friend: trade.name })}
             >
               <span className="nav-thumb" aria-hidden="true">
@@ -374,7 +375,7 @@ export function Sidebar(props: SidebarProps) {
               <span className="nav-text">
                 <span className="nav-name">{trade.name}</span>
                 <span className="nav-meta">
-                  {totalCopies(forMe)} for you · {totalCopies(forThem)} for them
+                  {ui.sidebar.tradeCounts(totalCopies(forMe), totalCopies(forThem))}
                 </span>
               </span>
             </button>
@@ -384,22 +385,22 @@ export function Sidebar(props: SidebarProps) {
 
       <footer className="sidebar-foot">
         <div className="foot-row price-status">
-          <span className="muted small">{pricedAt ? `Prices from ${formatDate(pricedAt)}` : 'No prices yet'}</span>
+          <span className="muted small">{pricedAt ? ui.sidebar.pricesFrom(formatDate(pricedAt)) : ui.sidebar.noPrices}</span>
           <button
             type="button"
             className="link-btn small"
             disabled={refreshing}
-            title="Check Cardmarket for a newer price guide (also checked hourly)"
+            title={ui.sidebar.refreshHint}
             onClick={() => {
               setRefreshing(true)
               void onRefreshPrices().finally(() => setRefreshing(false))
             }}
           >
-            {refreshing ? 'Checking…' : 'Refresh'}
+            {refreshing ? ui.sidebar.checking : ui.sidebar.refresh}
           </button>
         </div>
-        <button type="button" className="settings-btn" onClick={onSettings} title={rail ? 'Settings' : undefined}>
-          <Icon name="settings" /> <span className="nav-label">Settings</span>
+        <button type="button" className="settings-btn" onClick={onSettings} title={rail ? ui.sidebar.settings : undefined}>
+          <Icon name="settings" /> <span className="nav-label">{ui.sidebar.settings}</span>
         </button>
       </footer>
     </aside>

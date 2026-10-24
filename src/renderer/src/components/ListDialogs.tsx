@@ -18,11 +18,10 @@ import {
   type Variant
 } from '@shared/listVersion'
 import { serializeList } from '@shared/decklist'
-import { counted, plural } from '@shared/plural'
 import type { ListAnalysis } from '@shared/listModel'
 import { totalCopies } from '@shared/totals'
 import type { CardLine } from '@shared/types'
-import { cardCount } from '../lib/format'
+import { ui } from '@shared/text'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import type { Row } from '../lib/summary'
 import { useSettings } from '../stores/settings'
@@ -81,17 +80,18 @@ export function ListDialogs(props: ListDialogsProps) {
   const toast = useToast()
   const settings = useSettings()
   const isDeck = list.kind === 'deck'
-  const noun = isDeck ? 'deck' : 'list'
+  const noun = ui.terms.noun(isDeck)
+  const text = ui.listDialogs
   const cardRow = dialog?.kind === 'card' ? props.rows.find((row) => row.line.id === dialog.lineId) : undefined
 
   switch (dialog?.kind) {
     case 'rename':
       return (
         <PromptDialog
-          title={`Rename ${noun}`}
-          label="Name"
+          title={text.rename(noun)}
+          label={text.name}
           initial={list.name}
-          confirmLabel="Rename"
+          confirmLabel={text.renameConfirm}
           onClose={onClose}
           onSubmit={async (value) => {
             if (value.trim() !== list.name) props.onOpenList(await actions.renameList(list, value))
@@ -102,14 +102,14 @@ export function ListDialogs(props: ListDialogsProps) {
     case 'delete':
       return (
         <ConfirmDialog
-          title={`Delete ${noun}`}
-          message={`Move “${list.name}” to the Recycle Bin? ${isDeck ? 'Its cards stay in your inventory.' : 'Your inventory is not affected.'}`}
-          confirmLabel="Delete"
+          title={text.delete(noun)}
+          message={text.deleteMessage(list.name, isDeck)}
+          confirmLabel={text.deleteConfirm}
           danger
           onClose={onClose}
           onConfirm={async () => {
             await actions.deleteList(list)
-            toast(`Deleted ${list.name}`)
+            toast(text.deleted(list.name))
           }}
         />
       )
@@ -118,7 +118,7 @@ export function ListDialogs(props: ListDialogsProps) {
       const shown = props.shownVariant
       return shown ? (
         <TextEditorDialog
-          title={`Edit the ${shown.label} version of “${list.name}” as text`}
+          title={text.editVersion(shown.label, list.name)}
           initial={variantText(list.lines, shown.label)}
           mode="list"
           onClose={onClose}
@@ -127,7 +127,7 @@ export function ListDialogs(props: ListDialogsProps) {
       ) : hasVariant(list.lines) ? (
         // The list itself, without its versions, which come back on save.
         <TextEditorDialog
-          title={`Edit “${list.name}” as text`}
+          title={text.edit(list.name)}
           initial={stripMeta(baseText(list.lines))}
           mode="list"
           onClose={onClose}
@@ -136,7 +136,7 @@ export function ListDialogs(props: ListDialogsProps) {
       ) : (
         // The deck only: personal settings (color, upgrade…) stay, unless the text sets its own.
         <TextEditorDialog
-          title={`Edit “${list.name}” as text`}
+          title={text.edit(list.name)}
           initial={stripMeta(list.text)}
           mode="list"
           onClose={onClose}
@@ -161,7 +161,7 @@ export function ListDialogs(props: ListDialogsProps) {
                   onMove: () => {
                     actions.moveCards(list, cardRow.bundledIds ?? [cardRow.line.id], !cardRow.side)
                     onClose()
-                    toast(`Moved ${cardRow.line.name} to the ${cardRow.side ? 'main deck' : 'sideboard'}`)
+                    toast(text.moved(cardRow.line.name, !cardRow.side))
                   }
                 }
           }
@@ -172,13 +172,13 @@ export function ListDialogs(props: ListDialogsProps) {
                   canLead: analysis.canBeCommander(cardRow),
                   onMake: () => {
                     actions.setListCommanders(list, [cardRow.line.name])
-                    toast(`${cardRow.flavorName ?? cardRow.line.name} now leads this ${noun}`)
+                    toast(ui.list.nowLeads(cardRow.flavorName ?? cardRow.line.name, noun))
                   },
                   onJoin: analysis.canJoin(cardRow)
                     ? () => {
                         const [leader] = listCommanders(list.lines)
                         actions.setListCommanders(list, [leader, cardRow.line.name])
-                        toast(`${cardRow.flavorName ?? cardRow.line.name} now shares command with ${leader}`)
+                        toast(ui.list.sharesCommand(cardRow.flavorName ?? cardRow.line.name, leader))
                       }
                     : undefined
                 }
@@ -197,25 +197,16 @@ export function ListDialogs(props: ListDialogsProps) {
             actions.addCards(list, capped.entries)
             onClose()
             const added = totalCopies(capped.entries)
-            toast(
-              `Added ${cardCount(added)} from ${deck.name}` +
-                (capped.skipped > 0
-                  ? ` · skipped ${capped.skipped} extra ${plural(capped.skipped, 'copy', 'copies')} (${format?.label} limit)`
-                  : '')
-            )
+            toast(text.addedFrom(added, deck.name, capped.skipped, format?.label ?? null))
           }}
         />
       )
     case 'unown':
       return (
         <ConfirmDialog
-          title="Update inventory"
-          message={
-            `You have ${dialog.inventoryQty}× ${dialog.line.name} in your inventory. ` +
-            (dialog.target === 0 ? 'Remove all of them?' : `Reduce it to ${dialog.target}?`) +
-            ' Other wishlists using it lose those copies too.'
-          }
-          confirmLabel={dialog.target === 0 ? 'Remove all' : `Reduce to ${dialog.target}`}
+          title={text.unown.title}
+          message={text.unown.message(dialog.inventoryQty, dialog.line.name, dialog.target)}
+          confirmLabel={text.unown.confirm(dialog.target)}
           danger
           onClose={onClose}
           onConfirm={() => {
@@ -226,7 +217,7 @@ export function ListDialogs(props: ListDialogsProps) {
       )
     case 'color':
       return (
-        <Modal title={`${isDeck ? 'Deck' : 'List'} color`} size="medium" onClose={onClose}>
+        <Modal title={text.color(isDeck)} size="medium" onClose={onClose}>
           <ColorOptions
             value={listColor(list.lines)}
             inherit={settings.color}
@@ -242,9 +233,9 @@ export function ListDialogs(props: ListDialogsProps) {
     case 'variant-off':
       return (
         <ConfirmDialog
-          title={`Delete the ${dialog.variant.label} version?`}
-          message={`Its ${counted(dialog.swaps, 'swap')} will be deleted. The ${baseLabel(list.lines)} version stays as it is.`}
-          confirmLabel={`Delete ${dialog.variant.label} version`}
+          title={text.deleteVersion.title(dialog.variant.label)}
+          message={text.deleteVersion.message(dialog.swaps, baseLabel(list.lines))}
+          confirmLabel={text.deleteVersion.confirm(dialog.variant.label)}
           danger
           onClose={onClose}
           onConfirm={() => {
@@ -258,10 +249,10 @@ export function ListDialogs(props: ListDialogsProps) {
       const renaming = dialog.version
       return (
         <PromptDialog
-          title={renaming ? `Rename the ${renaming} version` : 'Add a version'}
-          label={renaming ? 'Name' : `Name, e.g. “Counters” or “Artifacts”`}
+          title={renaming ? text.versionName.rename(renaming) : text.versionName.add}
+          label={renaming ? text.name : text.versionName.label}
           initial={renaming ?? ''}
-          confirmLabel={renaming ? 'Rename' : 'Add version'}
+          confirmLabel={renaming ? text.renameConfirm : text.versionName.addConfirm}
           onClose={onClose}
           onSubmit={(value) => {
             const name = value.trim()
@@ -271,7 +262,7 @@ export function ListDialogs(props: ListDialogsProps) {
             if (renaming) actions.renameVersion(list, renaming, name)
             else {
               actions.addVersion(list, name)
-              toast(`“${list.name}” has a ${name} version, identical until you change it`)
+              toast(ui.list.versionAdded(list.name, name))
             }
             props.onVersion(name)
             onClose()
@@ -282,9 +273,9 @@ export function ListDialogs(props: ListDialogsProps) {
     case 'variant-format':
       return (
         <ConfirmDialog
-          title={`Change the format to ${dialog.label}?`}
-          message={`${dialog.variant.label} versions belong to ${baseLabel(list.lines)} ${noun}s. This ${noun}’s ${dialog.variant.label} version and its ${counted(dialog.swaps, 'swap')} will be deleted.`}
-          confirmLabel="Change and delete"
+          title={text.changeFormat.title(dialog.label)}
+          message={text.changeFormat.message(dialog.variant.label, baseLabel(list.lines), noun, dialog.swaps)}
+          confirmLabel={text.changeFormat.confirm}
           danger
           onClose={onClose}
           onConfirm={() => {
@@ -323,38 +314,32 @@ function UpgradeDialog({ list, lists, actions, onClose }: UpgradeDialogProps) {
       const [deck, variant] = choice.split(VERSION_MARK)
       actions.setUpgradeOf(list, deck || null, variant || null)
       toast(
-        deck
-          ? `“${list.name}” is now an upgrade of ${deck}${variant ? `’s ${variant} version` : ''}`
-          : `“${list.name}” is a plain wishlist again`
+        deck ? ui.listDialogs.upgrade.upgradeOf(list.name, deck, variant || null) : ui.listDialogs.upgrade.plain(list.name)
       )
     }
     onClose()
   }
   return (
     <Modal
-      title="Upgrade of…"
+      title={ui.listDialogs.upgrade.title}
       onClose={onClose}
       footer={
         <>
           <span className="spacer" />
           <button type="button" onClick={onClose}>
-            Cancel
+            {ui.dialogs.cancel}
           </button>
           <button type="button" className="primary" onClick={save}>
-            Save
+            {ui.dialogs.save}
           </button>
         </>
       }
     >
-      <p className="muted small">
-        Make this list the whole deck as you want it to be after an upgrade. It uses the deck’s copies of the
-        cards they share, so it only needs copies of its own for the rest. Once you own every card, you can apply
-        it to the deck.
-      </p>
+      <p className="muted small">{ui.listDialogs.upgrade.hint}</p>
       <label className="field">
-        <span>Deck</span>
+        <span>{ui.listDialogs.upgrade.deck}</span>
         <select autoFocus value={choice} onChange={(event) => setChoice(event.target.value)}>
-          <option value="">None: a plain wishlist</option>
+          <option value="">{ui.listDialogs.upgrade.none}</option>
           {decks.flatMap((other) => [
             <option key={other.name} value={other.name}>
               {other.name}
@@ -367,7 +352,7 @@ function UpgradeDialog({ list, lists, actions, onClose }: UpgradeDialogProps) {
           ])}
         </select>
       </label>
-      {decks.length === 0 && <p className="muted small">You have no decks yet.</p>}
+      {decks.length === 0 && <p className="muted small">{ui.listDialogs.upgrade.noDecks}</p>}
     </Modal>
   )
 }

@@ -1,6 +1,7 @@
 import type { AppSettings, Theme } from './api'
 import { DEFAULT_SORT, isSortKey } from './cards'
 import { DEFAULT_DROP_ALERT_EUR, DEFAULT_DROP_ALERT_PERCENT, DEFAULT_RISE_ALERT_EUR, DEFAULT_PRICE_BASIS, isPriceBasis } from './pricing'
+import { ui } from './text'
 import { DEFAULT_THEME_COLOR, isThemeColor } from './themes'
 
 /** Settings before any change, and in place of invalid stored values. */
@@ -70,7 +71,7 @@ export function settingsPatch(raw: unknown): Partial<AppSettings> {
     if (!(key in input)) continue
     const [valid, what] = CHECKS[key]
     const value = input[key]
-    if (!valid(value)) throw new Error(`Invalid ${what}.`)
+    if (!valid(value)) throw new Error(ui.errors.invalid(what))
     patch[key] = typeof value === 'string' && key === 'tradeName' ? value.trim() : value
   }
   return patch as Partial<AppSettings>

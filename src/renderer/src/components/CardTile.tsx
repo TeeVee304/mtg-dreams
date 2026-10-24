@@ -1,5 +1,6 @@
 import type { LegalityIssue } from '@shared/formats'
 import { shortfallNote } from '@shared/listModel'
+import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
 import type { Row } from '../lib/summary'
 import { Icon } from './Icon'
@@ -31,7 +32,7 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
   const complete = owned >= line.qty
   const problem = issue?.message ?? (shortfall > 0 ? shortfallNote(row).label : null)
   /** Badge text: copies covered out of those in the deck for a shortfall, else the issue kind. */
-  const badge = issue ? (issue.severity === 'warning' ? 'Restricted' : 'Illegal') : `${line.qty - shortfall}/${line.qty}`
+  const badge = issue ? (issue.severity === 'warning' ? ui.card.restricted : ui.card.illegal) : `${line.qty - shortfall}/${line.qty}`
   const price = unit === null ? null : unit * line.qty
 
   const classes = [
@@ -51,12 +52,12 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
       title={
         pick === 'ok'
           ? leader
-            ? `Stop using ${name} as the commander`
-            : `Make ${name} the commander`
+            ? ui.card.stopLeading(name)
+            : ui.card.lead(name)
           : pick === 'no'
-            ? "Can't be the commander in this format"
+            ? ui.card.cantLead
             : row.bundledIds
-              ? 'Bundled basic land: any version counts, for free'
+              ? ui.card.bundledTileHint
               : name
       }
     >
@@ -65,7 +66,7 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
         {line.foil && <span className="card-tile-foil" aria-hidden="true" />}
         {line.qty > 1 && <span className="card-tile-qty">×{line.qty}</span>}
         {!isDeck && (
-          <span className={`card-tile-owned${complete ? ' done' : ''}`} title={`${owned} of ${line.qty} owned`}>
+          <span className={`card-tile-owned${complete ? ' done' : ''}`} title={ui.card.ownedOf(owned, line.qty)}>
             {complete ? <Icon name="check" /> : `${owned}/${line.qty}`}
           </span>
         )}
@@ -76,14 +77,14 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
           </span>
         )}
         {leader && (
-          <span className="card-tile-crown" title="Commander">
+          <span className="card-tile-crown" title={ui.card.commander}>
             <Icon name="crown" />
           </span>
         )}
       </span>
       <span className="card-tile-meta">
         <span className="card-tile-name">{name}</span>
-        <span className="card-tile-price">{loading ? '…' : row.bundledIds ? 'Free' : formatEur(price)}</span>
+        <span className="card-tile-price">{loading ? '…' : row.bundledIds ? ui.card.price.free : formatEur(price)}</span>
       </span>
     </button>
   )

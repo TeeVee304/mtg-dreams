@@ -7,7 +7,8 @@ import { priceBasisLabel } from '@shared/pricing'
 import { sumOf, totalCopies } from '@shared/totals'
 import { keptMatches, matchTrades, type MyTradeSide, type TradeMatch, type TradeSnapshot } from '@shared/trade'
 import type { PriceBasis, Printing } from '@shared/types'
-import { cardCount, formatDate, formatEur, timeAgo } from '../lib/format'
+import { ui } from '@shared/text'
+import { formatDate, formatEur, timeAgo } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
@@ -41,7 +42,6 @@ const byValue = (a: PricedMatch, b: PricedMatch) =>
 /** EUR total of priced matches, worthless copies aside. */
 const totalOf = (matches: PricedMatch[]) => sumOf(matches, (m) => (m.unit ?? 0) * valued(m))
 /** Matched copy count label. */
-const matchedCards = (matches: TradeMatch[]) => cardCount(totalCopies(matches))
 
 /** Props of {@link TradeView}. */
 interface TradeViewProps {
@@ -91,26 +91,26 @@ export function TradeView({ trade, myTrade, pool, lists, actions, onOpenList, on
   const balance = receiveTotal - giveTotal
   const even = Math.abs(balance) < 0.005
   const date = new Date(trade.createdAt)
+  const text = ui.trades
 
   return (
     <div className="view">
       <header className="view-header">
         <div>
-          <h1>Trading with {trade.name}</h1>
+          <h1>{text.title(trade.name)}</h1>
           <p className="muted">
-            {trade.name}'s list from {formatDate(date.getTime())} ({timeAgo(date.getTime())}) ·{' '}
-            {cardCount(totalCopies(trade.haves))} they have · {cardCount(totalCopies(trade.wants))} they want
+            {text.listFrom(trade.name, formatDate(date.getTime()), timeAgo(date.getTime()), totalCopies(trade.haves), totalCopies(trade.wants))}
           </p>
         </div>
         <div className="header-actions">
           <button type="button" onClick={onUpdate}>
-            Update from file…
+            {text.update}
           </button>
           <MenuButton
-            label="More trade actions"
+            label={text.more}
             items={[
-              { label: 'Rename…', onSelect: () => setDialog('rename') },
-              { label: 'Remove…', onSelect: () => setDialog('delete'), danger: true }
+              { label: text.rename, onSelect: () => setDialog('rename') },
+              { label: text.remove, onSelect: () => setDialog('delete'), danger: true }
             ]}
           />
         </div>
@@ -118,32 +118,28 @@ export function TradeView({ trade, myTrade, pool, lists, actions, onOpenList, on
 
       {trade.source === 'list' && (
         <p className="trade-note muted small">
-          {trade.wants.length === 0
-            ? `Imported from a plain card list, so it only says what ${trade.name} has. Ask them to share their list from MTG Dreams to see what they want too.`
-            : 'Imported from plain card lists.'}
+          {trade.wants.length === 0 ? text.plainList(trade.name) : text.plainLists}
         </p>
       )}
 
       <section className="summary-strip">
         <SummaryItem
-          label={`${trade.name} can give you`}
+          label={text.canGiveYou(trade.name)}
           value={formatEur(receiveTotal)}
           accent
-          note={`${matchedCards(receive)} your lists need`}
+          note={text.yourListsNeed(totalCopies(receive))}
         />
-        <SummaryItem label={`You can give ${trade.name}`} value={formatEur(giveTotal)} note={`${matchedCards(give)} on their lists`} />
+        <SummaryItem label={text.youCanGive(trade.name)} value={formatEur(giveTotal)} note={text.onTheirLists(totalCopies(give))} />
         <SummaryItem
-          label="Balance"
-          value={even ? 'Even' : `${balance > 0 ? '+' : '−'}${formatEur(Math.abs(balance))}`}
-          note={
-            loading ? 'Pricing cards…' : even ? 'Both sides are worth the same' : balance > 0 ? 'in your favour' : `in ${trade.name}'s favour`
-          }
+          label={text.balance}
+          value={even ? text.even : `${balance > 0 ? '+' : '−'}${formatEur(Math.abs(balance))}`}
+          note={loading ? text.pricing : even ? text.bothEven : balance > 0 ? text.yourFavour : text.theirFavour(trade.name)}
         />
       </section>
 
       <div className="trade-columns">
         <section>
-          <h2 className="section-heading trade-heading">{trade.name} has, your lists need</h2>
+          <h2 className="section-heading trade-heading">{text.theyHave(trade.name)}</h2>
           {receive.length > 0 ? (
             <MatchTable
               matches={receive}
@@ -154,69 +150,61 @@ export function TradeView({ trade, myTrade, pool, lists, actions, onOpenList, on
                       key={listId(list)}
                       color={colors.get(listId(list)) ?? null}
                       onClick={() => onOpenList(list)}
-                      title={list.kind === 'deck' ? `Deck ${list.name}` : undefined}
+                      title={list.kind === 'deck' ? text.deckChip(list.name) : undefined}
                     >
                       {list.name}
                     </ListChip>
                   ))}
                 </div>
               )}
-              detailLabel="Wanted by"
-              qtyNote={(m) => (m.available < m.needed ? `they have ${m.available}, you need ${m.needed}` : undefined)}
+              detailLabel={text.wantedBy}
+              qtyNote={(m) => (m.available < m.needed ? text.theyHaveYouNeed(m.available, m.needed) : undefined)}
             />
           ) : (
-            <p className="empty-note muted">None of {trade.name}'s cards are on your lists.</p>
+            <p className="empty-note muted">{text.noneOfTheirs(trade.name)}</p>
           )}
         </section>
         <section>
-          <h2 className="section-heading trade-heading">You have, {trade.name}'s lists need</h2>
+          <h2 className="section-heading trade-heading">{text.youHave(trade.name)}</h2>
           {give.length > 0 ? (
             <MatchTable
               matches={give}
               detail={(m) => {
                 const owned = ownedOf(m.name)
-                return <span className="muted owned-detail">{owned > m.available ? `${owned} owned · ${m.available} spare` : `${owned} owned`}</span>
+                return <span className="muted owned-detail">{text.owned(owned, owned > m.available ? m.available : null)}</span>
               }}
-              detailLabel="You own"
-              qtyNote={(m) => (m.available < m.needed ? `they need ${m.needed}` : undefined)}
+              detailLabel={text.youOwn}
+              qtyNote={(m) => (m.available < m.needed ? text.theyNeed(m.needed) : undefined)}
             />
           ) : (
             <p className="empty-note muted">
-              {trade.wants.length === 0
-                ? `${trade.name} didn't share their lists.`
-                : `None of your spare cards are on ${trade.name}'s lists.`}
+              {trade.wants.length === 0 ? text.noLists(trade.name) : text.noneOfYours(trade.name)}
             </p>
           )}
           {kept.length > 0 && (
             <div className="trade-kept">
-              <p className="muted small">
-                Also on {trade.name}'s lists, but your decks and wishlists use these copies, so they're not offered or
-                counted:
-              </p>
+              <p className="muted small">{text.kept(trade.name)}</p>
               <MatchTable
                 matches={kept}
-                detail={(m) => <span className="muted owned-detail">{ownedOf(m.name)} owned</span>}
-                detailLabel="You own"
+                detail={(m) => <span className="muted owned-detail">{text.owned(ownedOf(m.name), null)}</span>}
+                detailLabel={text.youOwn}
                 qtyNote={(m) => {
                   const owned = ownedOf(m.name)
-                  return `${heldWhere(pool.usedBy(nameKey(m.name), owned), owned)}${m.available < m.needed ? ` · they need ${m.needed}` : ''}`
+                  return text.keptWhere(heldWhere(pool.usedBy(nameKey(m.name), owned), owned), m.available < m.needed ? m.needed : null)
                 }}
               />
             </div>
           )}
         </section>
       </div>
-      <p className="muted tiny trade-footnote">
-        Values use each card's cheapest version at Cardmarket prices ({priceBasisLabel(priceBasis)}). Basic lands are
-        left out.
-      </p>
+      <p className="muted tiny trade-footnote">{text.footnote(priceBasisLabel(priceBasis))}</p>
 
       {dialog === 'rename' && (
         <PromptDialog
-          title="Rename trade list"
-          label="Friend's name"
+          title={text.renameTitle}
+          label={text.friendName}
           initial={trade.name}
-          confirmLabel="Rename"
+          confirmLabel={text.renameConfirm}
           onClose={() => setDialog(null)}
           onSubmit={async (value) => {
             onRenamed(await actions.renameTrade(trade.name, value))
@@ -226,14 +214,14 @@ export function TradeView({ trade, myTrade, pool, lists, actions, onOpenList, on
       )}
       {dialog === 'delete' && (
         <ConfirmDialog
-          title="Remove trade list"
-          message={`Move ${trade.name}'s trade list to the Recycle Bin? You can import it again any time.`}
-          confirmLabel="Remove"
+          title={text.removeTitle}
+          message={text.removeMessage(trade.name)}
+          confirmLabel={text.removeConfirm}
           danger
           onClose={() => setDialog(null)}
           onConfirm={async () => {
             await actions.deleteTrade(trade.name)
-            toast(`Removed ${trade.name}'s trade list`)
+            toast(text.removed(trade.name))
           }}
         />
       )}
@@ -258,10 +246,10 @@ function MatchTable({ matches, detail, detailLabel, qtyNote }: MatchTableProps) 
     <table className="cards-table trade-table">
       <thead>
         <tr>
-          <th className="col-trade-qty">Qty</th>
-          <th>Card</th>
+          <th className="col-trade-qty">{ui.trades.columns.qty}</th>
+          <th>{ui.trades.columns.card}</th>
           <th>{detailLabel}</th>
-          <th className="col-num">Value</th>
+          <th className="col-num">{ui.trades.columns.value}</th>
         </tr>
       </thead>
       <tbody>
@@ -274,8 +262,8 @@ function MatchTable({ matches, detail, detailLabel, qtyNote }: MatchTableProps) 
               <span className="card-name">{match.name}</span>
               {qtyNote(match) && <span className="muted tiny trade-qty-note">{qtyNote(match)}</span>}
               {match.worthless > 0 && (
-                <span className="chip worthless" title="Marked worthless (damaged, or not counted): left out of the balance">
-                  {match.worthless === match.qty ? 'Worthless' : `${match.worthless} worthless`}
+                <span className="chip worthless" title={ui.trades.worthlessHint}>
+                  {ui.trades.worthless(match.worthless, match.worthless === match.qty)}
                 </span>
               )}
             </td>

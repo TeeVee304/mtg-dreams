@@ -1,14 +1,15 @@
 import { ipcMain } from 'electron'
 import {
   averageDeckPath,
-  EDHREC_JSON,
   isFilters,
   parseAverageDeck,
   type AverageDeckFilters,
   type AverageDeckResult
 } from '@shared/deckWizard/averageDeck'
 import { cacheEntries, cachedFetch } from '../cacheFiles'
+import { env } from '../environment'
 import { fetchJson } from '../http'
+import { ui } from '@shared/text'
 import { text } from '../validate'
 
 /**
@@ -43,9 +44,9 @@ export function averageDeck(commanders: string[], filters: AverageDeckFilters): 
   const path = averageDeckPath(commanders, filters)
   if (!path) return Promise.resolve({ status: 'missing' })
   return cachedFetch<AverageDeckResult>(`edhrec/v${CACHE_VERSION}/${path}.json`, DAY_MS, async () => {
-    const response = await fetchJson(`${EDHREC_JSON}/${path}.json`, 'EDHREC')
+    const response = await fetchJson(`${env().edhrecJson}/${path}.json`, 'EDHREC')
     if (response.status === 403 || response.status === 404) return { status: 'missing' }
-    if (response.status !== 200) throw new Error(`EDHREC answered with an error (HTTP ${response.status}). Try again later.`)
+    if (response.status !== 200) throw new Error(ui.errors.edhrec(response.status))
     return { status: 'ok', deck: parseAverageDeck(response.data, filters) }
   })
 }
@@ -53,8 +54,8 @@ export function averageDeck(commanders: string[], filters: AverageDeckFilters): 
 /** Registers the Deck Wizard's IPC handlers. */
 export function registerDeckWizard(handle: Handle = (channel, listener) => ipcMain.handle(channel, listener)): void {
   handle('wizard:average', (_e, commanders, filters) => {
-    if (!isFilters(filters)) throw new Error('Invalid deck filters.')
-    if (!Array.isArray(commanders) || commanders.length < 1 || commanders.length > 2) throw new Error('Invalid commanders.')
+    if (!isFilters(filters)) throw new Error(ui.errors.invalid('Deck filters'))
+    if (!Array.isArray(commanders) || commanders.length < 1 || commanders.length > 2) throw new Error(ui.errors.invalid('Commanders'))
     return averageDeck(
       commanders.map((name) => text(name, 'commander').slice(0, MAX_NAME)),
       filters

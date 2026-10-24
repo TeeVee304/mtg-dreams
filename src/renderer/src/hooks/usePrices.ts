@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { bundledBasic } from '@shared/basics'
 import type { InventoryItem } from '@shared/types'
 import { cardLines } from '@shared/decklist'
+import { ui } from '@shared/text'
 import { cleanError, formatDate } from '../lib/format'
 import { sameList, type CardList, type ListRef } from '../stores/library'
 import { refreshStalePrintings, reloadPrices, requestPrintings } from '../stores/printings'
@@ -61,9 +62,7 @@ export function usePrices(lists: CardList[], inventory: Map<string, InventoryIte
       ({ updated, pricedAt: at }) => {
         setPricedAt(at)
         toast(
-          updated
-            ? `New Cardmarket prices loaded (${formatDate(at!)})`
-            : `Prices are up to date: Cardmarket, ${at ? formatDate(at) : 'not loaded yet'}`
+          updated ? ui.prices.loaded(formatDate(at!)) : ui.prices.upToDate(at ? formatDate(at) : null)
         )
       },
       (error) => toast(cleanError(error), 'error')

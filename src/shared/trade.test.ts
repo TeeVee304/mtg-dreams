@@ -109,8 +109,8 @@ describe('parseTradeText', () => {
   })
 
   it('rejects files that are not trade lists', () => {
-    expect(() => parseTradeText('{"hello": 1}', 'x')).toThrow('not an MTG Dreams trade list')
-    expect(() => parseTradeText('just some words', 'x')).toThrow('No cards found')
+    expect(() => parseTradeText('{"hello": 1}', 'x')).toThrow('not an MTG Dreams Trade list')
+    expect(() => parseTradeText('just some words', 'x')).toThrow('No Cards found')
   })
 
   it('keeps friend names safe to use as file names', () => {

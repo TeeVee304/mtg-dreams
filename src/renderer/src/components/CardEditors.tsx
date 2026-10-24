@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { sortPrintings } from '@shared/pricing'
 import type { Printing } from '@shared/types'
+import { ui } from '@shared/text'
 import type { NewCard } from '../stores/library'
 import { getPrintingsEntry, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
@@ -19,26 +20,26 @@ export function PickerBody({ name, children }: { name: string; children: (printi
   const entry = getPrintingsEntry(name)
   const data = entry?.data
   if (!data) {
-    if (entry?.error) return <p className="warn">Could not load versions: {entry.error}</p>
-    return <p className="muted loading-line">Loading versions and prices…</p>
+    if (entry?.error) return <p className="warn">{ui.card.picker.loadFailed(entry.error)}</p>
+    return <p className="muted loading-line">{ui.card.picker.loading}</p>
   }
-  if (data.notFound) return <p className="warn">Scryfall has no card named “{name}”.</p>
-  if (data.printings.length === 0) return <p className="warn">No paper printings found for {data.name}.</p>
+  if (data.notFound) return <p className="warn">{ui.card.picker.noSuchCard(name)}</p>
+  if (data.printings.length === 0) return <p className="warn">{ui.card.picker.noPaper(data.name)}</p>
   return (
     <>
       {children(data.printings)}
       {data.partial && (
         <p className="muted small picker-more">
-          Showing the newest {data.printings.length} of {data.totalPrintings ?? 'many'} versions.{' '}
+          {ui.card.picker.newest(data.printings.length, data.totalPrintings ?? null)}{' '}
           {entry?.refreshing ? (
-            'Loading…'
+            ui.common.loading
           ) : (
             <button
               type="button"
               className="link-btn"
               onClick={() => requestPrintings(name, { full: true, priority: 'high' })}
             >
-              Show all versions
+              {ui.card.picker.showAll}
             </button>
           )}
         </p>
@@ -70,7 +71,7 @@ interface AddCardPanelProps {
  * typed flavor name; quantity is clamped to `maxQty` as it may shrink once card data loads.
  */
 export function AddCardPanel(props: AddCardPanelProps) {
-  const { name, onAdd, onCancel, actionLabel = 'Add to list', maxQty, maxTitle, note, sideboardChoice } = props
+  const { name, onAdd, onCancel, actionLabel = ui.card.picker.addToList, maxQty, maxTitle, note, sideboardChoice } = props
   const entry = usePrintingsFor(name)
   const { priceBasis } = useSettings()
   const [qty, setQty] = useState(1)
@@ -102,7 +103,7 @@ export function AddCardPanel(props: AddCardPanelProps) {
       className="add-panel"
       ref={panelRef}
       tabIndex={-1}
-      aria-label={`Add ${name}`}
+      aria-label={ui.card.picker.add(name)}
       onKeyDown={(event) => {
         const target = event.target as HTMLElement
         if (event.key === 'Escape') onCancel()
@@ -113,30 +114,30 @@ export function AddCardPanel(props: AddCardPanelProps) {
         <div className="add-title">
           <h3>{printedAs?.flavorName ?? data?.name ?? name}</h3>
           {printedAs && data ? (
-            <span className="muted">printed name · official name: {data.name}</span>
+            <span className="muted">{ui.card.picker.printedName(data.name)}</span>
           ) : (
             data &&
             !data.notFound &&
-            data.name.toLowerCase() !== name.toLowerCase() && <span className="muted">matched from “{name}”</span>
+            data.name.toLowerCase() !== name.toLowerCase() && <span className="muted">{ui.card.picker.matchedFrom(name)}</span>
           )}
           {note && <span className="muted small">{note}</span>}
         </div>
         <label className="field-inline">
-          Qty <Stepper value={count} min={1} max={maxQty} maxTitle={maxTitle} onChange={setQty} label="quantity" />
+          {ui.card.picker.qty} <Stepper value={count} min={1} max={maxQty} maxTitle={maxTitle} onChange={setQty} label={ui.card.picker.quantity} />
         </label>
         <label className="check">
-          <input type="checkbox" checked={foil} onChange={(event) => setFoil(event.target.checked)} /> Foil
+          <input type="checkbox" checked={foil} onChange={(event) => setFoil(event.target.checked)} /> {ui.common.foil}
         </label>
         {sideboardChoice && (
           <label className="check">
-            <input type="checkbox" checked={side} onChange={(event) => setSide(event.target.checked)} /> Sideboard
+            <input type="checkbox" checked={side} onChange={(event) => setSide(event.target.checked)} /> {ui.card.picker.sideboard}
           </label>
         )}
         <button type="button" className="primary" onClick={submit} disabled={!ready} title={full ? maxTitle : undefined}>
           {actionLabel}
         </button>
         <button type="button" onClick={onCancel}>
-          Cancel
+          {ui.dialogs.cancel}
         </button>
       </div>
       <PickerBody name={name}>

@@ -66,7 +66,7 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
       const data = getPrintingsEntry(line.name)?.data
       if (!data || data.notFound) return
       const prices: PriceBaseline['prices'] = {}
-      for (const { id } of PRICE_BASES) {
+      for (const id of PRICE_BASES) {
         const unit = resolveLine(line, data.printings, id).unitPrice
         if (unit !== null && unit > 0) prices[id] = unit
       }

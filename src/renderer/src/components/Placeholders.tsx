@@ -1,11 +1,12 @@
 import { useSettings } from '../stores/settings'
+import { ui } from '@shared/text'
 
 /** Shimmering text placeholder. */
 export function Skeleton({ width = 64 }: { width?: number }) {
   return (
     <span className="skeleton-wrap">
       <span className="skeleton" style={{ width }} aria-hidden="true" />
-      <span className="sr-only">Loading…</span>
+      <span className="sr-only">{ui.common.loading}</span>
     </span>
   )
 }

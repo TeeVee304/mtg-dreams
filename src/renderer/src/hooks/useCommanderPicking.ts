@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { nameKey } from '@shared/decklist'
 import { allowsPartners } from '@shared/formats'
 import type { ListAnalysis } from '@shared/listModel'
+import { ui } from '@shared/text'
 import type { Row } from '../lib/summary'
 import type { CardList, LibraryActions } from '../stores/library'
 import { useToast } from '../components/Toasts'
@@ -21,7 +22,7 @@ export type PickMode = 'commander' | 'partner'
 export function useCommanderPicking(list: CardList, rows: Row[], analysis: ListAnalysis<Row>, actions: LibraryActions) {
   const toast = useToast()
   const { format, isCommander, canBeCommander, canJoin } = analysis
-  const noun = list.kind === 'deck' ? 'deck' : 'list'
+  const noun = ui.terms.noun(list.kind === 'deck')
   /** Picking mode; null while not picking. */
   const [picking, setPicking] = useState<PickMode | null>(null)
   /** nameKey of the just-chosen commander, for a brief animation. */
@@ -60,18 +61,18 @@ export function useCommanderPicking(list: CardList, rows: Row[], analysis: ListA
     if (mode === 'partner' && leader) {
       actions.setListCommanders(list, [leader.line.name, row.line.name])
       setCrowned(nameKey(row.line.name))
-      toast(`${displayName(row)} now shares command with ${displayName(leader)}`)
+      toast(ui.list.sharesCommand(displayName(row), displayName(leader)))
       return
     }
     if (isCommander(row)) {
       const rest = leaders.filter((other) => other !== row)
       actions.setListCommanders(list, rest.map((other) => other.line.name))
-      toast(`${displayName(row)} is no longer your commander${rest.length > 0 ? `; ${displayName(rest[0])} leads alone` : ''}`)
+      toast(ui.list.noLongerCommander(displayName(row), rest.length > 0 ? displayName(rest[0]) : null))
       return
     }
     actions.setListCommanders(list, [row.line.name])
     setCrowned(nameKey(row.line.name))
-    toast(`${displayName(row)} now leads this ${noun}`)
+    toast(ui.list.nowLeads(displayName(row), noun))
   }
 
   return {

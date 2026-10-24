@@ -225,7 +225,7 @@ describe('named versions', () => {
     expect(versionNameIssue(lines, 'Duel')).toBe('That name is taken.')
     expect(versionNameIssue(lines, 'Sideboard')).toBe('That name is taken.')
     expect(versionNameIssue(lines, 'All in')).toMatch(/end in/)
-    expect(versionNameIssue(lines, '  ')).toBe('Name the version.')
+    expect(versionNameIssue(lines, '  ')).toBe('Name the Version.')
     expect(versionNameIssue(lines, 'a/b')).toMatch(/Use letters/)
   })
 

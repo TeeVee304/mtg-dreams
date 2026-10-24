@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { countLines } from '@shared/decklist'
-import { counted } from '@shared/plural'
 import { sumOf } from '@shared/totals'
 import { planPurchases, sortWanted } from '@shared/wanted'
+import { ui } from '@shared/text'
 import { useStoredToggle } from '../../hooks/useStoredToggle'
 import { useStoredValue } from '../../hooks/useStoredValue'
-import { cardCount, formatEur } from '../../lib/format'
+import { formatEur } from '../../lib/format'
 import type { WantedOverview } from '../../lib/wanted'
 import type { LibraryActions } from '../../stores/library'
 import { Collapsible } from '../Collapsible'
@@ -38,12 +38,12 @@ export function BudgetPlanner({ overview, actions, onCopy }: BudgetPlannerProps)
   const copies = plan ? sumOf(plan.items, (item) => item.copies) : 0
 
   return (
-    <Collapsible open={open} onToggle={toggle} title="Budget planner" summary="The most list progress for your money">
+    <Collapsible open={open} onToggle={toggle} title={ui.wanted.planner.title} summary={ui.wanted.planner.summary}>
       {plan && (
         <div className="planner-body">
           <div className="planner-head">
             <label className="field-inline">
-              Budget
+              {ui.wanted.planner.budget}
               <input
                 type="number"
                 min={1}
@@ -53,33 +53,34 @@ export function BudgetPlanner({ overview, actions, onCopy }: BudgetPlannerProps)
                   setDraft(event.target.value)
                   if (isBudget(event.target.value)) setBudgetText(event.target.value)
                 }}
-                aria-label="Budget in euros"
+                aria-label={ui.wanted.planner.budgetLabel}
               />
               €
             </label>
             <span>
-              <strong>{cardCount(copies)}</strong> for <strong>{formatEur(plan.total)}</strong> · covers {counted(needs, 'list need')}
+              <strong>{ui.count.cards(copies)}</strong> {ui.wanted.planner.for} <strong>{formatEur(plan.total)}</strong>
+              {ui.wanted.planner.covers(needs)}
               {plan.completes.length > 0 && (
-                <span title="Every card these lists miss, basic lands aside"> · completes {plan.completes.map((list) => list.name).join(', ')}</span>
+                <span title={ui.wanted.planner.completesHint}>{ui.wanted.planner.completes(plan.completes.map((list) => list.name).join(', '))}</span>
               )}
             </span>
             <span className="spacer" />
             <button
               type="button"
               disabled={plan.items.length === 0}
-              onClick={() => onCopy(countLines(plan.items.map((item) => ({ qty: item.copies, name: item.card.name }))).join('\n'), 'Shopping list')}
+              onClick={() => onCopy(countLines(plan.items.map((item) => ({ qty: item.copies, name: item.card.name }))).join('\n'), ui.wanted.planner.shoppingList)}
             >
-              Copy as text
+              {ui.wanted.copyAsText}
             </button>
             <button
               type="button"
               disabled={plan.items.length === 0}
               onClick={() => {
                 actions.addOwned(plan.items.map((item) => ({ name: item.card.name, qty: item.copies })))
-                toast(`Marked ${cardCount(copies)} as bought (Ctrl+Z to undo)`)
+                toast(ui.wanted.markedAllBought(copies))
               }}
             >
-              <Icon name="check" /> Mark all as bought
+              <Icon name="check" /> {ui.wanted.planner.markAll}
             </button>
           </div>
           {plan.items.length > 0 ? (
@@ -95,12 +96,10 @@ export function BudgetPlanner({ overview, actions, onCopy }: BudgetPlannerProps)
               ))}
             </ol>
           ) : (
-            <p className="muted small">Nothing fits this budget.</p>
+            <p className="muted small">{ui.wanted.planner.nothingFits}</p>
           )}
           {plan.unpriced > 0 && (
-            <p className="muted small">
-              {cardCount(plan.unpriced)} without a price {overview.loading > 0 ? '(or still loading) ' : ''}are left out.
-            </p>
+            <p className="muted small">{ui.wanted.planner.unpriced(plan.unpriced, overview.loading > 0)}</p>
           )}
         </div>
       )}

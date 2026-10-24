@@ -1,4 +1,5 @@
 import { pick } from '@shared/pricing'
+import { ui } from '@shared/text'
 import type { PriceBasis, Prices, PrintingsResult } from '@shared/types'
 import { readCacheFile, writeCacheFile } from './cacheFiles'
 import { env } from './environment'
@@ -127,7 +128,7 @@ export function refreshPriceGuide(): Promise<boolean> {
       }
       const res = await fetchJson(url, 'Cardmarket', undefined, DOWNLOAD_TIMEOUT_MS)
       if (res.status >= 400 || !Array.isArray(res.data?.priceGuides)) {
-        throw new Error(`Cardmarket's price guide is unavailable (HTTP ${res.status}).`)
+        throw new Error(ui.errors.priceGuide(res.status))
       }
       const next = toGuide(res.data, res.lastModified ?? modified)
       const changed = next.createdAt !== guide?.createdAt

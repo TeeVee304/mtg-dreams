@@ -1,8 +1,7 @@
 import { COLOR_NAMES } from '@shared/cards'
 import { CURVE_TOP, deckStats, STAT_COLORS, type DeckStats as Stats, type StatsRow } from '@shared/deckStats'
-import { counted } from '@shared/plural'
+import { ui } from '@shared/text'
 import { MANA_SYMBOLS } from '../lib/artwork'
-import { cardCount } from '../lib/format'
 import { useStoredToggle } from '../hooks/useStoredToggle'
 import { Collapsible } from './Collapsible'
 import { Icon } from './Icon'
@@ -36,13 +35,13 @@ export function DeckStats({ rows, manaValue, onManaValue }: DeckStatsProps) {
       title={
         <span className="nav-icon-name">
           <MiniCurve stats={stats} />
-          Statistics
+          {ui.stats.title}
         </span>
       }
       summary={
         <>
-          {stats.averageManaValue !== null ? `Average mana value ${stats.averageManaValue.toFixed(2)}` : counted(stats.lands, 'land')}
-          {stats.pending > 0 && ` · ${cardCount(stats.pending)} loading`}
+          {stats.averageManaValue !== null ? ui.stats.average(stats.averageManaValue.toFixed(2)) : ui.count.lands(stats.lands)}
+          {stats.pending > 0 && ui.stats.loading(stats.pending)}
         </>
       }
     >
@@ -65,13 +64,13 @@ function ManaCurve({ stats, selected, onSelect }: { stats: Stats; selected: numb
   return (
     <figure className="stats-chart">
       <figcaption className="curve-caption">
-        Mana curve
+        {ui.stats.curve}
         <span className="curve-legend" aria-hidden="true">
-          <span className="curve-key creatures" /> Creatures
-          <span className="curve-key others" /> Other spells
+          <span className="curve-key creatures" /> {ui.stats.creatures}
+          <span className="curve-key others" /> {ui.stats.otherSpells}
         </span>
       </figcaption>
-      <div className={`curve${selected !== null ? ' filtering' : ''}`} role="group" aria-label="Filter the list by mana value">
+      <div className={`curve${selected !== null ? ' filtering' : ''}`} role="group" aria-label={ui.stats.filterHint}>
         {stats.curve.map((column) => {
           const total = column.creatures + column.others
           const on = selected === column.manaValue
@@ -91,9 +90,9 @@ function ManaCurve({ stats, selected, onSelect }: { stats: Stats; selected: numb
                 {column.creatures > 0 && <span className="curve-part creatures" style={{ flexGrow: column.creatures }} />}
               </span>
               <span className="tip" role="tooltip">
-                Mana Value <ManaCost manaValue={column.manaValue} />
+                {ui.stats.manaValue} <ManaCost manaValue={column.manaValue} />
                 <br />
-                <span className="muted">{on ? 'Click to show every card' : 'Click to show'}</span>
+                <span className="muted">{on ? ui.stats.showEvery : ui.stats.show}</span>
               </span>
             </button>
           )
@@ -108,7 +107,7 @@ function ManaCurve({ stats, selected, onSelect }: { stats: Stats; selected: numb
       </div>
       {stats.averageManaValue !== null && (
         <p className="curve-average">
-          Average mana value: <strong>{stats.averageManaValue.toFixed(2)}</strong>
+          {ui.stats.averageLabel} <strong>{stats.averageManaValue.toFixed(2)}</strong>
         </p>
       )}
     </figure>
@@ -132,24 +131,23 @@ function MiniCurve({ stats }: { stats: Stats }) {
 const label = (manaValue: number) => (manaValue === CURVE_TOP ? `${CURVE_TOP}+` : String(manaValue))
 
 /** Curve bar accessible name. */
-const tip = (manaValue: number, creatures: number, others: number) =>
-  `Mana value (${label(manaValue)}): ${counted(creatures + others, 'card')}, ${counted(creatures, 'creature')}`
+const tip = (manaValue: number, creatures: number, others: number) => ui.stats.bar(label(manaValue), creatures + others, creatures)
 
 /** Per-color spell bars in each color, plus colorless and multicolor counts; colors with no cards are left out. */
 function ColorBreakdown({ stats }: { stats: Stats }) {
   const bars = [
     ...STAT_COLORS.map((color) => ({ key: color, name: COLOR_NAMES[color], icon: MANA_SYMBOLS[color], count: stats.colors[color] })),
     { key: 'C', name: COLOR_NAMES.C, icon: MANA_SYMBOLS.C, count: stats.colorless },
-    { key: 'M', name: 'Multicolor', icon: null, count: stats.multicolor }
+    { key: 'M', name: ui.stats.multicolor, icon: null, count: stats.multicolor }
   ].filter((bar) => bar.count > 0)
   return (
     <figure className="stats-chart">
       <figcaption>
-        Color distribution
-        <span className="info-tip" tabIndex={0} aria-label="Multicolored cards count toward each of their colors">
+        {ui.stats.colors}
+        <span className="info-tip" tabIndex={0} aria-label={ui.stats.multicolorHint}>
           <Icon name="info" />
           <span className="tip" role="tooltip">
-            Multicolored cards count toward each of their colors
+            {ui.stats.multicolorHint}
           </span>
         </span>
       </figcaption>

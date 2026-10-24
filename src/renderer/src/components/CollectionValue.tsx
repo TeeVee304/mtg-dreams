@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { bundledBasic } from '@shared/basics'
-import { plural } from '@shared/plural'
 import { priceBasisLabel } from '@shared/pricing'
 import type { InventoryItem } from '@shared/types'
+import { ui } from '@shared/text'
 import { inventoryValue, VALUATION_BASIS } from '../lib/collection'
 import { formatEur } from '../lib/format'
 import { prefersReducedMotion } from '../lib/motion'
@@ -65,24 +65,20 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
   const priced = items.length - pending
 
   return (
-    <Modal title="Inventory Value" onClose={onClose} size="medium">
+    <Modal title={ui.value.title} onClose={onClose} size="medium">
       {items.length === 0 ? (
-        <p className="muted">Your inventory is empty. Add cards or a precon you own to see what it's worth.</p>
+        <p className="muted">{ui.value.empty}</p>
       ) : (
         <>
           <div className="value-hero">
             <span className="value-total">{formatEur(displayed)}</span>
-            <span className="muted small">
-              {items.length} unique cards · {copies} copies
-            </span>
+            <span className="muted small">{ui.value.totals(items.length, copies)}</span>
             {pending > 0 && (
               <>
                 <div className="value-progress" aria-hidden="true">
                   <div style={{ width: `${Math.round((priced / items.length) * 100)}%` }} />
                 </div>
-                <span className="muted tiny">
-                  Pricing {pending} more {plural(pending, 'card')}…
-                </span>
+                <span className="muted tiny">{ui.value.pricing(pending)}</span>
               </>
             )}
           </div>
@@ -91,7 +87,7 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
 
           {valued.length > 0 && (
             <>
-              <h3 className="value-heading">Most valuable cards</h3>
+              <h3 className="value-heading">{ui.value.mostValuable}</h3>
               <ol className="value-list">
                 {valued.slice(0, shown).map((card, index) => (
                   <li
@@ -111,8 +107,8 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
                       {card.printing && (
                         <span className="muted tiny">
                           {card.printing.set.toUpperCase()} #{card.printing.collectorNumber}
-                          {card.copy.foil && ' · foil'}
-                          {!card.copy.set && ' · cheapest version'}
+                          {card.copy.foil && ui.value.foil}
+                          {!card.copy.set && ui.value.cheapest}
                         </span>
                       )}
                     </span>
@@ -126,18 +122,13 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
               </ol>
               {valued.length > shown && (
                 <button type="button" className="value-more" onClick={() => setShown(shown + STEP)}>
-                  Show {Math.min(STEP, valued.length - shown)} more
+                  {ui.value.showMore(Math.min(STEP, valued.length - shown))}
                 </button>
               )}
             </>
           )}
 
-          <p className="muted tiny value-note">
-            Estimated at Cardmarket prices ({priceBasisLabel(VALUATION_BASIS)}): copies at the version you recorded,
-            the rest at each card's cheapest version
-            {bundleBasics ? '; bundled basic lands count as free' : ''}.
-            {unpriced > 0 && ` ${unpriced} ${unpriced === 1 ? 'card has' : 'cards have'} no price and ${unpriced === 1 ? 'is' : 'are'} left out.`}
-          </p>
+          <p className="muted tiny value-note">{ui.value.note(priceBasisLabel(VALUATION_BASIS), bundleBasics, unpriced)}</p>
         </>
       )}
     </Modal>

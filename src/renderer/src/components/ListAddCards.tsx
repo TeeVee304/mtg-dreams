@@ -5,6 +5,7 @@ import { nameKey } from '@shared/decklist'
 import type { DeckFormat } from '@shared/formats'
 import type { CopyCaps } from '@shared/listModel'
 import type { InventoryItem } from '@shared/types'
+import { ui } from '@shared/text'
 import type { CardList, LibraryActions } from '../stores/library'
 import { useSettings } from '../stores/settings'
 import { AddCardPanel } from './CardEditors'
@@ -49,7 +50,7 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
   const toast = useToast()
   const { bundleBasics } = useSettings()
   const isDeck = list.kind === 'deck'
-  const noun = isDeck ? 'deck' : 'list'
+  const noun = ui.terms.noun(isDeck)
   const [adding, setAddingState] = useState<string | null>(null)
   const setAdding = (name: string | null) => {
     setAddingState(name)
@@ -60,7 +61,7 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
     () =>
       [...inventory.values()].map((item) => {
         const inOther = pool.inOtherDecks(list, nameKey(item.name))
-        return { name: item.name, hint: inOther > 0 ? `${item.qty} owned, ${Math.min(inOther, item.qty)} in other decks` : `${item.qty} owned` }
+        return { name: item.name, hint: ui.list.add.ownedHint(item.qty, Math.min(inOther, item.qty)) }
       }),
     [inventory, pool, list]
   )
@@ -68,13 +69,13 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
   const pickCard = (name: string) => {
     const inList = copiesOf(name)
     if (capsFor(name).cap - inList <= 0) {
-      toast(`${limitFor(name)}, and this ${noun} already has ${inList}.`, 'error')
+      toast(ui.list.add.full(limitFor(name), noun, inList), 'error')
       return
     }
     const generic = bundledBasic(name, bundleBasics)
     if (generic) {
       actions.addCards(list, [{ qty: 1, name: generic.info.name, foil: false }])
-      toast(`Added 1× ${generic.info.name}`)
+      toast(ui.list.add.addedOne(generic.info.name))
       return
     }
     setAdding(name)
@@ -84,9 +85,9 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
   const addInList = adding ? copiesOf(adding) : 0
   const addRoom = addCaps ? addCaps.cap - addInList : Infinity
   const addNote = [
-    isDeck && addCaps && (addCaps.inOtherDecks > 0 ? `${addCaps.ownedCap} of your ${addCaps.ownedQty} free` : `You own ${addCaps.ownedCap}`),
-    addInList > 0 && `${addInList} already in this ${noun}`,
-    format && addCaps && Number.isFinite(addCaps.formatCap) && `${format.label}: max ${addCaps.formatCap}`
+    isDeck && addCaps && (addCaps.inOtherDecks > 0 ? ui.list.add.free(addCaps.ownedCap, addCaps.ownedQty) : ui.list.add.youOwn(addCaps.ownedCap)),
+    addInList > 0 && ui.list.add.alreadyIn(addInList, noun),
+    format && addCaps && Number.isFinite(addCaps.formatCap) && ui.list.add.formatMax(format.label, addCaps.formatCap)
   ]
     .filter(Boolean)
     .join(' · ')
@@ -98,13 +99,13 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
       maxQty={Number.isFinite(addRoom) ? addRoom : undefined}
       maxTitle={limitFor(adding)}
       note={addNote || undefined}
-      actionLabel={isDeck ? 'Add to deck' : 'Add to list'}
+      actionLabel={ui.list.add.addTo(isDeck)}
       sideboardChoice={props.sideboardAllowed}
       onCancel={() => setAdding(null)}
       onAdd={(card, side) => {
         actions.addCards(list, [{ ...card, side }])
         setAdding(null)
-        toast(`Added ${card.qty}× ${card.name}${side ? ' to the sideboard' : ''}`)
+        toast(ui.list.add.added(card.qty, card.name, side))
       }}
     />
   )
@@ -118,12 +119,12 @@ export function ListAddCards(props: ListAddCardsProps) {
     <>
       <div className="search-row">
         {choices ? (
-          <CardSearch placeholder="Add a card from your inventory…  (Ctrl+K)" choices={choices} onPick={pickCard} />
+          <CardSearch placeholder={ui.list.add.searchInventory} choices={choices} onPick={pickCard} />
         ) : (
           <>
-            <CardSearch placeholder="Add a card to this list…  (Ctrl+K)" onPick={pickCard} />
+            <CardSearch placeholder={ui.list.add.searchAny} onPick={pickCard} />
             <button type="button" onClick={props.onAddPrecon}>
-              Add precon…
+              {ui.list.add.addPrecon}
             </button>
           </>
         )}

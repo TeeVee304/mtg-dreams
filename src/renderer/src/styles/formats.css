@@ -10,10 +10,6 @@
   margin-top: 6px;
 }
 
-.format-field select {
-  padding: 4px 8px;
-}
-
 .chip.cheaper {
   background: var(--good-soft);
   color: var(--good);

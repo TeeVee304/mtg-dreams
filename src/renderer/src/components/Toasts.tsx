@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
+import { ui } from '@shared/text'
 
 type ToastKind = 'info' | 'error'
 
@@ -49,7 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 className="icon-btn toast-action"
-                title={`${toast.action.label} (Ctrl+Z)`}
+                title={ui.common.withUndoShortcut(toast.action.label)}
                 aria-label={toast.action.label}
                 onClick={(event) => {
                   event.stopPropagation()

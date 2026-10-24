@@ -1,4 +1,5 @@
 import { getRefreshProgress, usePrintingsVersion } from '../stores/printings'
+import { ui } from '@shared/text'
 
 /** Top progress bar for background printings refreshes ({@link getRefreshProgress}). */
 export function PriceProgress() {
@@ -10,14 +11,14 @@ export function PriceProgress() {
     <div
       className="price-progress"
       role="progressbar"
-      aria-label="Updating card data"
+      aria-label={ui.common.updatingCardData}
       aria-valuemin={0}
       aria-valuemax={progress.total}
       aria-valuenow={progress.done}
     >
       <div className="price-progress-fill" style={{ width: `${percent}%` }} />
       <span className="price-progress-label">
-        Updating card data {progress.done}/{progress.total}
+        {ui.common.updatingCardData} {progress.done}/{progress.total}
       </span>
     </div>
   )

@@ -1,4 +1,5 @@
 import { COLOR_NAMES, type ColorFilter } from './cards'
+import { ui } from './text'
 
 /**
  * Featured tokens: tokens, emblems and game helpers (The Monarch, The Initiative, dungeons) that a
@@ -108,9 +109,9 @@ export function featuredTokens(data: DeckTokenData, names: string[]): FeaturedTo
 
 /** @returns Short description, e.g. `1/1 white Soldier`, `Treasure`, `Elspeth emblem`. */
 export function tokenLabel({ kind, token }: Pick<FeaturedToken, 'kind' | 'token'>): string {
-  if (kind === 'emblem') return `${token.name.replace(/\s*Emblem$/i, '')} emblem`
+  if (kind === 'emblem') return ui.deckTokens.emblem(token.name.replace(/\s*Emblem$/i, ''))
   if (kind === 'helper' || !isCreature(token)) return token.name
   const colors = token.colors.map((c) => COLOR_NAMES[c as ColorFilter]?.toLowerCase()).filter(Boolean)
-  const stats = token.power !== undefined && token.toughness !== undefined ? `${token.power}/${token.toughness} ` : ''
-  return `${stats}${colors.length > 0 ? `${colors.join(' and ')} ` : 'colorless '}${token.name}`
+  const stats = token.power !== undefined && token.toughness !== undefined ? `${token.power}/${token.toughness}` : null
+  return ui.deckTokens.creature(stats, colors, token.name)
 }

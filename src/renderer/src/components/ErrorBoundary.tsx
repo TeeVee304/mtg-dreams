@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { ui } from '@shared/text'
 
 /** {@link ErrorBoundary} state. */
 interface ErrorBoundaryState {
@@ -22,18 +23,15 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBound
     if (!error) return this.props.children
     return (
       <div className="splash crash">
-        <h1>Something went wrong</h1>
-        <p className="muted">
-          MTG Dreams hit an unexpected problem. Your decks, wishlists and inventory are safe: every change was already
-          saved to your data folder.
-        </p>
+        <h1>{ui.crash.title}</h1>
+        <p className="muted">{ui.crash.body}</p>
         <pre className="crash-detail">{error.message}</pre>
         <div className="crash-actions">
           <button type="button" className="primary" onClick={() => window.location.reload()}>
-            Reload MTG Dreams
+            {ui.crash.reload}
           </button>
           <button type="button" onClick={() => this.setState({ error: null })}>
-            Try to continue
+            {ui.crash.carryOn}
           </button>
         </div>
       </div>

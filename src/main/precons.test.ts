@@ -52,7 +52,7 @@ afterAll(async () => {
 async function setup() {
   vi.resetModules()
   const { setEnvironment } = await import('./environment')
-  setEnvironment({ userData: dir, documents: dir, appData: dir, trash: async () => undefined, userAgent: 'MTGDreams/test', scryfallApi: base, mtgjsonApi: base, priceGuideUrl: base })
+  setEnvironment({ userData: dir, documents: dir, appData: dir, trash: async () => undefined, userAgent: 'MTGDreams/test', scryfallApi: base, mtgjsonApi: base, priceGuideUrl: base, edhrecJson: base })
   return import('./precons')
 }
 
@@ -66,7 +66,7 @@ describe('precons', () => {
       expect.objectContaining({ name: 'Command Tower', board: 'main' }),
       expect.objectContaining({ name: 'Island', qty: 30, basic: true })
     ])
-    await expect(precons.getPrecon('../../secrets')).rejects.toThrow('Invalid deck name.')
+    await expect(precons.getPrecon('../../secrets')).rejects.toThrow('Invalid Deck name.')
     await vi.waitFor(() => expect(readdirSync(join(dir, 'precons')).filter((f) => f.endsWith('.json'))).toHaveLength(2))
   })
 

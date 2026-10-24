@@ -3,10 +3,11 @@ import { nameKey, parseInventory, parseList, serializeInventory, serializeList }
 import { listFormat } from '@shared/formats'
 import { addCopies, itemFromCopies, withTotal, type Version } from '@shared/inventory'
 import { sameDeckName, upgradeOf, upgradeVariant, withUpgradeOf } from '@shared/listUpgrade'
-import { sameVersion, variantFor, type ListVersion } from '@shared/listVersion'
+import { baseCardLines, sameVersion, variantFor, type ListVersion } from '@shared/listVersion'
 import { addToBoard, type BoardEntry } from '@shared/sideboard'
 import { parseTradeText, tradeName, type TradeSnapshot } from '@shared/trade'
 import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
+import { ui } from '@shared/text'
 
 /**
  * The library's pure core: its state and how edits, reloads and undo change it. No React and no
@@ -15,8 +16,6 @@ import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '@sh
  * @packageDocumentation
  */
 
-/** What each kind of list is called in labels. */
-export const KIND_NOUN: Record<ListKind, string> = { deck: 'deck', wishlist: 'wishlist', brew: 'brew' }
 
 /** Deck, wishlist or brew backed by one text file. */
 export interface CardList {
@@ -72,7 +71,7 @@ export interface Conflict {
 /** @returns The conflict shown when a save of `target` is rejected. */
 export const conflictOn = (target: ChangeTarget): Conflict => ({
   target,
-  name: target.type === 'list' ? `“${target.list.name}”` : 'Your inventory'
+  name: target.type === 'list' ? `“${target.list.name}”` : ui.changes.yourInventory
 })
 
 /** Undo history metadata for an edit. */
@@ -193,10 +192,7 @@ export function mergeLoaded(previous: LibraryState, data: LoadedData, force = fa
 
 /** @returns The message for files that could not be read, naming the first. */
 export function unreadableMessage([first, ...rest]: string[]): string {
-  return (
-    `Could not read ${first}${rest.length ? ` and ${rest.length} more` : ''}, so ${rest.length ? 'they are' : 'it is'} ` +
-    'hidden for now. Close any program using it, then come back to MTG Dreams.'
-  )
+  return ui.changes.unreadable(first, rest.length)
 }
 
 // Undo history ---------------------------------------------------------------------------
@@ -259,14 +255,14 @@ export class UndoHistory {
   take(currentText: (target: ChangeTarget) => string | null, id?: number): HistoryEntry | UndoResult {
     if (id !== undefined && this.entries.at(-1)?.id !== id) {
       return this.entries.some((entry) => entry.id === id)
-        ? { message: 'You changed more since. Press Ctrl+Z to undo step by step.', kind: 'error' }
-        : { message: 'That change can no longer be undone.', kind: 'error' }
+        ? { message: ui.changes.changedSince, kind: 'error' }
+        : { message: ui.changes.tooLate, kind: 'error' }
     }
     for (let entry = this.entries.pop(); entry; entry = this.entries.pop()) {
       if (currentText(entry.target) === entry.after) return entry
-      if (id !== undefined) return { message: 'That change can no longer be undone.', kind: 'error' }
+      if (id !== undefined) return { message: ui.changes.tooLate, kind: 'error' }
     }
-    return { message: 'Nothing to undo', kind: 'info' }
+    return { message: ui.changes.nothingToUndo, kind: 'info' }
   }
 
   /** Re-targets a list's steps after rename/move; drops them if `to` is null (deleted). */
@@ -298,22 +294,21 @@ export function mergeCard(lines: ListLine[], card: BoardEntry): ListLine[] {
 export function cardName(lists: CardList[], target: ListRef, id: string): string {
   const list = lists.find((l) => sameList(l, target))
   const line = list?.lines.find((l) => l.id === id)
-  return line?.kind === 'card' ? line.name : 'a card'
+  return line?.kind === 'card' ? line.name : ui.changes.aCard
 }
 
 /** @returns Name of a list's other-format version for undo labels (`Duel`, `EDH`); `other` if it has none. */
 export function formatVersionName(lists: CardList[], target: ListRef): string {
   const list = lists.find((l) => sameList(l, target))
-  return (list && variantFor(list.lines)?.label) ?? 'other'
+  return (list && variantFor(list.lines)?.label) ?? ui.changes.otherVersion
 }
 
 /** @returns The undo label of adding `cards`. */
 export const addCardsLabel = (cards: BoardEntry[]) =>
-  cards.length === 1 ? `Added ${cards[0].qty}× ${cards[0].name}` : `Added ${cards.length} cards`
+  cards.length === 1 ? ui.changes.addedOne(cards[0].qty, cards[0].name) : ui.changes.addedCards(cards.length)
 
 /** @returns The undo label of setting the commanders to `names`. */
-export const commandersLabel = (names: string[]) =>
-  names.length === 0 ? 'Removed the commander' : names.length === 1 ? `Made ${names[0]} the commander` : `Made ${names.join(' and ')} the commanders`
+export const commandersLabel = (names: string[]) => ui.changes.commanders(names)
 
 /** @returns Lines collapsing a bundled basic's lines `ids` into one unversioned non-foil line of `qty`, at the first one's position. */
 export function withBundledQty(lines: ListLine[], ids: string[], qty: number): ListLine[] {
@@ -321,6 +316,25 @@ export function withBundledQty(lines: ListLine[], ids: string[], qty: number): L
   return lines
     .filter((line) => line.id === keep || !ids.includes(line.id))
     .map((line) => (line.id === keep && line.kind === 'card' ? { kind: 'card', id: line.id, qty, name: line.name, foil: false } : line))
+}
+
+/**
+ * @returns Lines with `qty` fewer copies of a card in the list itself (its versions' swaps aside), taken
+ * from its last lines first; a line left with none is dropped.
+ */
+export function withFewerCopies(lines: ListLine[], name: string, qty: number): ListLine[] {
+  const key = nameKey(name)
+  const own = new Set(baseCardLines(lines).map((line) => line.id))
+  let left = qty
+  return [...lines]
+    .reverse()
+    .flatMap((line): ListLine[] => {
+      if (left <= 0 || line.kind !== 'card' || !own.has(line.id) || nameKey(line.name) !== key) return [line]
+      const less = Math.min(left, line.qty)
+      left -= less
+      return line.qty > less ? [{ ...line, qty: line.qty - less }] : []
+    })
+    .reverse()
 }
 
 /** @returns `lists` with wishlist `target` moved to place `to` (0 is the top); null if it is not there or already in place. */
@@ -377,7 +391,7 @@ export function withOwned(inventory: Map<string, InventoryItem>, name: string, q
   const shown = existing?.name ?? name
   return {
     inventory: next,
-    change: qty <= 0 ? { label: `Removed ${shown} from your inventory`, announce: true } : { label: `Changed how many ${shown} you own` }
+    change: qty <= 0 ? { label: ui.changes.removedFromInventory(shown), announce: true } : { label: ui.changes.changedOwned(shown) }
   }
 }
 
@@ -405,7 +419,7 @@ export function withCopies(inventory: Map<string, InventoryItem>, name: string, 
   const item = itemFromCopies(shown, copies)
   if (item) next.set(key, item)
   else next.delete(key)
-  return { inventory: next, change: { label: `Changed the versions of ${shown} you own` } }
+  return { inventory: next, change: { label: ui.changes.changedVersions(shown) } }
 }
 
 // Trade lists ----------------------------------------------------------------------------
@@ -428,10 +442,10 @@ export const withTrade = (trades: TradeSnapshot[], saved: TradeSnapshot, replace
 export function renamedTrade(trades: TradeSnapshot[], from: string, rawTo: string): { trade: TradeSnapshot; renamed: TradeSnapshot } | null {
   const trade = trades.find((t) => t.name === from)
   const to = tradeName(rawTo, '')
-  if (!to) throw new Error('Please enter a name.')
+  if (!to) throw new Error(ui.changes.enterName)
   if (!trade || to === from) return null
   if (trades.some((t) => t !== trade && t.name.toLowerCase() === to.toLowerCase())) {
-    throw new Error(`You already have a trade list called "${to}".`)
+    throw new Error(ui.errors.tradeExists(to))
   }
   return { trade, renamed: { ...trade, name: to } }
 }

@@ -3,23 +3,30 @@ import { colorIdentityName } from '@shared/colorIdentity'
 import { commanderRule, type DeckFormat } from '@shared/formats'
 import type { PickMode } from '../hooks/useCommanderPicking'
 import { BASE, sameVersion, type ListVersion, type Variant } from '@shared/listVersion'
+import { ui } from '@shared/text'
 import { MANA_SYMBOLS } from '../lib/artwork'
-import { FormatSelect, Segmented } from './Controls'
+import { leadersLabel, THEME_TAGS, themeTagColors } from '../lib/themeTags'
+import { FORMAT_CHOICES, Segmented } from './Controls'
 import { Icon } from './Icon'
-import { HeroArt } from './HeroArt'
+import { HeroPortrait } from './HeroArt'
 import { MenuButton } from './MenuButton'
+import type { HeaderBackground } from '../lib/listFigures'
 
 /** Props of {@link ListHeader}. */
 interface ListHeaderProps {
   name: string
   /** Art crops of the commanders: the header becomes an art banner. None for a plain header. */
   arts: string[]
-  /** The commanders (two for partners), named under the title. */
+  /** The commanders (two for partners, or a commander and its Background), named over the title. */
   leaders: string[]
+  /** The commanders' themes on EDHREC, most decks first: the first three are tagged under the title. */
+  themes: string[]
+  /** The Background beside the commander, pictured as a badge by its portrait; null for none. */
+  background: HeaderBackground | null
   /** Color identity, as mana symbols named on hover: the commanders', else the cards'. */
   colors: ColorFilter[]
   /** Noun used in labels. */
-  noun: 'deck' | 'list'
+  noun: string
   format: DeckFormat | null
   /** Commander picking mode, while picking: a commander, or a partner for it. */
   picking: PickMode | null
@@ -78,104 +85,119 @@ interface ListHeaderProps {
 }
 
 /**
- * List title bar: format select, commander picking, problem badges and list actions. With the
- * commanders' art it is a banner: the art behind the title, darkened toward the text.
+ * List title bar: the commanders and their themes, commander picking, problem badges and list
+ * actions; the format is set in the ⋯ menu. With the commanders' art it is a banner: their whole art
+ * at the right, blurred behind the title.
  */
 export function ListHeader(props: ListHeaderProps) {
   const { name, noun, format, legalityErrors, ownershipErrors, onlyProblems, arts, leaders, colors } = props
   const colorName = colorIdentityName(colors)
   const { picking, hasCommander, canPickCommander, partnerKind } = props
-  const problemsTitle = onlyProblems ? 'Show all cards' : 'Show only cards with problems'
+  const text = ui.list.header
+  const problemsTitle = onlyProblems ? text.showAll : text.showProblems
   const { variants, formatVariant } = props
   const other = variants.find((variant) => sameVersion(variant.label, props.version)) ?? null
+  const leadersName = leadersLabel(leaders)
+  const tags = props.themes.slice(0, THEME_TAGS)
+  const tagColors = themeTagColors(tags, colors)
+  // Commander goes without saying under the commanders; other formats are named.
+  const formatNote = !other && format && (leaders.length === 0 || format.id !== 'commander') ? format.label : null
+  const canChangeCommander = !!format?.commander && hasCommander && canPickCommander && !picking
+  const colorSymbols = colors.length > 0 && (
+    <span
+      className="header-colors"
+      tabIndex={0}
+      aria-label={text.identity(colorName ?? text.colors, colors.map((color) => COLOR_NAMES[color]).join(', '))}
+    >
+      {colors.map((color) => (
+        <img key={color} src={MANA_SYMBOLS[color]} alt="" draggable={false} />
+      ))}
+      {colorName && (
+        <span className="tip" role="tooltip" aria-hidden="true">
+          {colorName}
+        </span>
+      )}
+    </span>
+  )
+  const brewBadge = props.onMakeWishlist && (
+    <span className="brew-badge" title={text.brewHint}>
+      {text.brew}
+    </span>
+  )
   const advanced = [
-    ...(props.onUpgrade ? [{ label: 'Upgrade of…', onSelect: props.onUpgrade }] : []),
-    ...(props.onToggleUnbuilt ? [{ label: 'Unbuilt', checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] : []),
-    ...(formatVariant ? [{ label: `Add ${formatVariant.label} Version`, onSelect: props.onAddFormatVersion }] : []),
-    { label: 'Add Version…', onSelect: props.onAddVersion },
-    ...(other && props.onRenameVersion ? [{ label: `Rename ${other.label} Version…`, onSelect: props.onRenameVersion }] : [])
+    ...(props.onUpgrade ? [{ label: text.upgradeOf, onSelect: props.onUpgrade }] : []),
+    ...(props.onToggleUnbuilt ? [{ label: text.unbuilt, checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] : []),
+    ...(formatVariant ? [{ label: text.addFormatVersion(formatVariant.label), onSelect: props.onAddFormatVersion }] : []),
+    { label: text.addVersion, onSelect: props.onAddVersion },
+    ...(other && props.onRenameVersion ? [{ label: text.renameVersion(other.label), onSelect: props.onRenameVersion }] : [])
   ]
   return (
     <header className={`view-header${arts.length > 0 ? ' art-hero' : ''}${other ? ' variant-view' : ''}`}>
-      <HeroArt arts={arts} className="hero-art" />
+      <HeroPortrait arts={arts} />
+      {arts.length > 0 && props.background?.art && (
+        <figure className="hero-background" data-mana={props.background.color} title={text.backgroundHint(props.background.name)}>
+          <img src={props.background.art} alt="" draggable={false} />
+          <figcaption>{text.background}</figcaption>
+        </figure>
+      )}
       <div className="header-title">
-        {other && <span className="duel-badge">{other.label} version</span>}
-        {props.onMakeWishlist && (
-          <span className="brew-badge" title="An idea: it counts toward nothing, not even Most Wanted">
-            Brew
-          </span>
+        {other && <span className="duel-badge">{text.versionBadge(other.label)}</span>}
+        {leaders.length > 0 ? (
+          <p className="header-leaders">
+            {colorSymbols}
+            <span title={ui.common.and(leaders)}>{leadersName}</span>
+            {brewBadge}
+          </p>
+        ) : (
+          brewBadge
         )}
         <h1>{name}</h1>
-        {leaders.length > 0 && (
-          <p className="hero-leader">
-            Led by <strong>{leaders[0]}</strong>
-            {leaders.length > 1 && (
-              <>
-                {' '}
-                and <strong>{leaders[1]}</strong>
-              </>
-            )}
-          </p>
+        {tags.length > 0 && (
+          <ul className="theme-tags" aria-label={text.themes}>
+            {tags.map((theme, i) => (
+              <li key={theme} className="theme-tag" data-mana={tagColors[i]} title={text.themeHint(leadersName)}>
+                {theme}
+              </li>
+            ))}
+          </ul>
         )}
         <div className="header-meta">
           {variants.length > 0 && (
             <Segmented
-              label="Version"
+              label={text.version}
               className="version-toggle"
               options={[
-                { id: BASE, label: props.baseLabel, title: `The ${noun} itself` },
+                { id: BASE, label: props.baseLabel, title: text.baseHint(noun) },
                 ...variants.map((variant) => ({
                   id: variant.label,
                   label: variant.label,
-                  title: `Its ${variant.label} version: the same ${noun} with its ${variant.label} swaps`
+                  title: text.variantHint(variant.label, noun)
                 }))
               ]}
               value={other?.label ?? BASE}
               onChange={props.onVersion}
             />
           )}
-          {colors.length > 0 && (
-            <span
-              className="header-colors"
-              tabIndex={0}
-              aria-label={`${colorName ?? 'Colors'}: ${colors.map((color) => COLOR_NAMES[color]).join(', ')}`}
-            >
-              {colors.map((color) => (
-                <img key={color} src={MANA_SYMBOLS[color]} alt="" draggable={false} />
-              ))}
-              {colorName && (
-                <span className="tip" role="tooltip" aria-hidden="true">
-                  {colorName}
-                </span>
-              )}
+          {leaders.length === 0 && colorSymbols}
+          {other && props.versionFormat && (
+            <span className="duel-rules">
+              <Icon name="lock" /> {props.versionFormat}
             </span>
           )}
-          {other ? (
-            props.versionFormat && (
-              <span className="duel-rules">
-                <Icon name="lock" /> {props.versionFormat}
-              </span>
-            )
-          ) : (
-            <label className="field-inline format-field">
-              Format
-              <FormatSelect value={format?.id ?? ''} onChange={(id) => props.onFormat(id || null)} label="Deck format" />
-            </label>
-          )}
-          {format?.commander && (picking === 'commander' || (!picking && canPickCommander)) && (
+          {formatNote && <span className="header-format">{formatNote}</span>}
+          {/* Sets the first commander, and cancels picking; changing it is in the ⋯ menu. */}
+          {format?.commander && (picking === 'commander' || (!picking && !hasCommander && canPickCommander)) && (
             <button
               type="button"
               className={`wand-btn${picking ? ' on' : ''}`}
               onClick={() => props.onTogglePicking('commander')}
               aria-pressed={picking === 'commander'}
               title={
-                picking
-                  ? 'Cancel (Esc)'
-                  : `Then click the card that leads this ${noun}. In ${format.label} it must be ${commanderRule(format)}.${hasCommander ? ' Click a Commander to remove it.' : ''}`
+                picking ? text.cancelPicking : text.pickHint(noun, format.label, commanderRule(format), hasCommander)
               }
             >
               <Icon name="wand" />
-              {picking ? 'Click your Commander… (Esc to cancel)' : hasCommander ? 'Change Commander' : 'Set Commander'}
+              {picking ? text.picking : text.setCommander}
             </button>
           )}
           {partnerKind && (picking === 'partner' || !picking) && (
@@ -187,14 +209,14 @@ export function ListHeader(props: ListHeaderProps) {
               disabled={!props.canPickPartner}
               title={
                 picking
-                  ? 'Cancel (Esc)'
+                  ? text.cancelPicking
                   : props.canPickPartner
-                    ? `Then click the card that joins ${props.leaderName} as your second Commander.`
-                    : `Add a card that can join ${props.leaderName} to this ${noun} first.`
+                    ? text.joinHint(props.leaderName ?? '')
+                    : text.joinFirst(props.leaderName ?? '', noun)
               }
             >
               <Icon name="wand" />
-              {picking ? `Click a ${partnerKind}… (Esc to cancel)` : `Add ${partnerKind}`}
+              {picking ? text.pickingPartner(text.partnerKinds[partnerKind]) : text.addPartner(text.partnerKinds[partnerKind])}
             </button>
           )}
           {legalityErrors > 0 && (
@@ -204,7 +226,7 @@ export function ListHeader(props: ListHeaderProps) {
               onClick={props.onToggleProblems}
               title={problemsTitle}
             >
-              {legalityErrors} {legalityErrors === 1 ? 'card breaks' : 'cards break'} {format?.label} rules
+              {text.breaksRules(legalityErrors, format?.label ?? '')}
             </button>
           )}
           {ownershipErrors > 0 && (
@@ -214,8 +236,7 @@ export function ListHeader(props: ListHeaderProps) {
               onClick={props.onToggleProblems}
               title={problemsTitle}
             >
-              {ownershipErrors}{' '}
-              {`${ownershipErrors === 1 ? 'card needs' : 'cards need'} more copies`}
+              {text.needsCopies(ownershipErrors)}
             </button>
           )}
         </div>
@@ -223,23 +244,37 @@ export function ListHeader(props: ListHeaderProps) {
       <div className="header-actions">
         {props.onMakeWishlist && (
           <button type="button" className="primary" onClick={props.onMakeWishlist}>
-            Make it a Wishlist
+            {text.makeWishlist}
           </button>
         )}
         <button type="button" onClick={props.onEditText}>
-          Edit as text
+          {text.editAsText}
         </button>
         <MenuButton
-          label={`More ${noun} actions`}
+          label={text.more(noun)}
           items={[
-            { label: 'Copy as text', onSelect: props.onCopy },
-            { label: 'Color…', onSelect: props.onColor },
-            ...(advanced.length > 0 ? [{ label: 'Advanced', items: advanced }] : []),
-            { label: 'Rename…', onSelect: props.onRename },
+            ...(canChangeCommander ? [{ label: text.changeCommander, onSelect: () => props.onTogglePicking('commander') }] : []),
+            // A version follows its own format, shown locked in the header.
+            ...(other
+              ? []
+              : [
+                  {
+                    label: text.format,
+                    items: FORMAT_CHOICES.map((choice) => ({
+                      label: choice.label,
+                      checked: (format?.id ?? '') === choice.id,
+                      onSelect: () => props.onFormat(choice.id || null)
+                    }))
+                  }
+                ]),
+            { label: text.copyAsText, onSelect: props.onCopy },
+            { label: text.color, onSelect: props.onColor },
+            ...(advanced.length > 0 ? [{ label: text.advanced, items: advanced }] : []),
+            { label: text.rename, onSelect: props.onRename },
             // In a version's view, deleting deletes that version only; the list stays.
             other && props.onDeleteVersion
-              ? { label: `Delete ${other.label} Version…`, onSelect: props.onDeleteVersion, danger: true }
-              : { label: `Delete ${noun}…`, onSelect: props.onDelete, danger: true }
+              ? { label: text.deleteVersion(other.label), onSelect: props.onDeleteVersion, danger: true }
+              : { label: text.delete(noun), onSelect: props.onDelete, danger: true }
           ]}
         />
       </div>

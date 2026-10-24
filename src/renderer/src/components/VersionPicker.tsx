@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { priceOf, resolveLine, sortPrintings } from '@shared/pricing'
 import type { Printing } from '@shared/types'
+import { ui } from '@shared/text'
 import { useStoredValue } from '../hooks/useStoredValue'
 import { formatEur } from '../lib/format'
 import { useSettings } from '../stores/settings'
@@ -19,8 +20,8 @@ const isVersionView = (value: string): value is VersionView => value === 'list' 
 
 /** Version view options. */
 const VERSION_VIEWS = [
-  { id: 'list', label: 'List' },
-  { id: 'images', label: 'Images' }
+  { id: 'list', label: ui.card.picker.views.list },
+  { id: 'images', label: ui.card.picker.views.images }
 ] as const
 
 /** Props of {@link VersionPicker}. */
@@ -66,21 +67,21 @@ export function VersionPicker({ printings, foil, selected, onSelect, onConfirm, 
           <input
             className="picker-filter"
             type="search"
-            placeholder={`Filter ${printings.length} versions by set, number or tag…`}
+            placeholder={ui.card.picker.filter(printings.length)}
             value={filter}
             onChange={(event) => setFilter(event.target.value)}
           />
         )}
         <span className="spacer" />
-        <Segmented label="Show versions as" options={VERSION_VIEWS} value={view} onChange={setView} />
+        <Segmented label={ui.card.picker.showAs} options={VERSION_VIEWS} value={view} onChange={setView} />
       </div>
-      <div className={`picker-options ${view === 'list' ? 'picker-list' : 'picker-grid'}`} role="listbox" aria-label="Card versions">
+      <div className={`picker-options ${view === 'list' ? 'picker-list' : 'picker-grid'}`} role="listbox" aria-label={ui.card.picker.list}>
         {!needle && (
           <Option
             printing={cheapest.printing}
             price={cheapest.unitPrice}
-            title="Cheapest version"
-            subtitle={cheapest.printing ? `now ${cheapest.printing.set.toUpperCase()} #${cheapest.printing.collectorNumber}` : 'no price data'}
+            title={ui.card.picker.cheapest}
+            subtitle={ui.card.picker.cheapestNow(cheapest.printing ? `${cheapest.printing.set.toUpperCase()} #${cheapest.printing.collectorNumber}` : null)}
             selected={selected === AUTO}
             onClick={() => onSelect(AUTO)}
             onDoubleClick={onConfirm}
@@ -101,7 +102,7 @@ export function VersionPicker({ printings, foil, selected, onSelect, onConfirm, 
             onPreview={onPreview}
           />
         ))}
-        {shown.length === 0 && <p className="muted">No versions match “{filter}”.</p>}
+        {shown.length === 0 && <p className="muted">{ui.card.picker.noMatch(filter)}</p>}
       </div>
     </div>
   )
@@ -155,7 +156,7 @@ function Tile({ printing, price, title, subtitle, selected, onClick, onDoubleCli
       onDoubleClick={onDoubleClick}
       {...hoverHandlers({ printing, onPreview })}
     >
-      <div className="tile-image">{image ? <img src={image} alt="" loading="lazy" /> : <span>No image</span>}</div>
+      <div className="tile-image">{image ? <img src={image} alt="" loading="lazy" /> : <span>{ui.card.picker.noImage}</span>}</div>
       <div className="tile-price">{formatEur(price)}</div>
       <div className="tile-title">{title}</div>
       <div className="tile-sub">{subtitle}</div>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { parseList, serializeList } from './decklist'
-import { appliedUpgrade, upgradeOf, upgradeTarget, upgradeVersion, withUpgradeOf } from './listUpgrade'
+import { appliedUpgrade, upgradeOf, upgradeSwaps, upgradeTarget, upgradeVersion, withUpgradeOf } from './listUpgrade'
 
 describe('list upgrade', () => {
   it('reads, sets and removes the header', () => {
@@ -61,5 +61,24 @@ describe('upgrades of a version', () => {
     expect(serializeList(appliedUpgrade(upgrade, named))).toBe(
       '// Format: Commander\n// Version: Counters\n1 Sol Ring\n1 Galactus, Devourer of Worlds\n\n// Counters in\n1 Hardened Scales\n\n// Counters out\n1 Galactus, Devourer of Worlds\n'
     )
+  })
+
+  it('works out what an upgrade changes in its deck, card by card', () => {
+    const deck = parseList('// Commander: Atraxa\n1 Atraxa\n1 Sol Ring\n1 Cultivate\n28 Forest\n1 Mind Stone')
+    const upgrade = parseList('// Upgrade of: Atraxa\n// Commander: Atraxa\n1 Atraxa\n1 Doubling Season\n1 Sol Ring\n30 Forest\n1 Hardened Scales')
+    const { ins, outs } = upgradeSwaps(upgrade, deck)
+    // Its own lines, in its order: new cards, and the copies beyond the deck's.
+    expect(ins.map((line) => `${line.qty} ${line.name}`)).toEqual(['1 Doubling Season', '2 Forest', '1 Hardened Scales'])
+    expect(ins[0].id).toBe(upgrade.find((line) => line.kind === 'card' && line.name === 'Doubling Season')?.id)
+    expect(outs.map((line) => `${line.qty} ${line.name}`)).toEqual(['1 Cultivate', '1 Mind Stone'])
+    expect(upgradeSwaps(deck, deck)).toEqual({ ins: [], outs: [] })
+  })
+
+  it('compares an upgrade of a version with that version', () => {
+    const deck = parseList('// Format: Commander\n// Duel: On\n1 Sol Ring\n1 Cultivate\n\n// Duel in\n1 Mind Stone\n\n// Duel out\n1 Cultivate')
+    const upgrade = parseList('// Upgrade of: Elves\n// Upgrade version: Duel\n1 Sol Ring\n1 Mind Stone')
+    expect(upgradeSwaps(upgrade, deck)).toEqual({ ins: [], outs: [] })
+    const plain = withUpgradeOf(upgrade, 'Elves')
+    expect(upgradeSwaps(plain, deck).outs.map((line) => line.name)).toEqual(['Cultivate'])
   })
 })

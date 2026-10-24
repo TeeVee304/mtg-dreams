@@ -77,8 +77,8 @@ describe('analyzeList', () => {
     const analysis = analyzeList('wishlist', lines, rows)
     expect(analysis.copiesOf('sol ring')).toBe(2)
     expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([
-      'Max 1 copy in Commander',
-      'Max 1 copy in Commander',
+      'Max 1 Copy in Commander',
+      'Max 1 Copy in Commander',
       null,
       null
     ])
@@ -103,16 +103,16 @@ describe('analyzeList', () => {
     const wish = rowsOf(text, owned)
     expect(analyzeList('wishlist', wish.lines, wish.rows).ownershipErrors).toBe(0)
     expect(shortfallNote(deck.rows[1]).label).toBe('Only 1 owned')
-    expect(shortfallNote(rowsOf('1 Opt').rows[0]).label).toBe('Not in inventory')
+    expect(shortfallNote(rowsOf('1 Opt').rows[0]).label).toBe('Not in Inventory')
   })
 
   it('counts deck copies other decks hold as missing, with separate copies', () => {
     const deck = rowsOf('2 Sol Ring\n1 Atraxa', { 'Sol Ring': 3, Atraxa: 1 }, {}, { 'Sol Ring': 2, Atraxa: 1 })
     const analysis = analyzeList('deck', deck.lines, deck.rows)
     expect(deck.rows.map(analysis.shortfallOf)).toEqual([1, 1])
-    expect(deck.rows.map((row) => shortfallNote(row).label)).toEqual(['Only 1 free', 'Used by other decks'])
+    expect(deck.rows.map((row) => shortfallNote(row).label)).toEqual(['Only 1 free', 'Used by other Decks'])
     const named = { ...deck.rows[1], holders: [{ kind: 'deck' as const, name: 'Burn', qty: 1 }] }
-    expect(shortfallNote(named)).toEqual({ label: 'Used by Burn', title: 'You own 1 (in Burn). Each copy belongs to one deck.' })
+    expect(shortfallNote(named)).toEqual({ label: 'Used by Burn', title: 'You own 1 (in Burn). Each Copy belongs to one Deck.' })
   })
 
   it('says where owned copies are, naming at most two lists', () => {
@@ -140,7 +140,7 @@ describe('analyzeList', () => {
     const { lines, rows } = rowsOf('// Format: Commander\n// Commander: Tymna\n// Commander: Kraum\n1 Tymna\n1 Kraum\n1 Sol Ring\n1 Worm Harvest')
     const analysis = analyzeList('deck', lines, rows)
     expect(rows.filter(analysis.isCommander).map((row) => row.line.name)).toEqual(['Tymna', 'Kraum'])
-    expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([null, null, null, "Outside your commanders' colors"])
+    expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([null, null, null, "Outside your Commanders' colors"])
     expect(sectionRows(rows, analysis)[0].rows.map((row) => row.line.name)).toEqual(['Tymna', 'Kraum'])
   })
 
@@ -151,8 +151,8 @@ describe('analyzeList', () => {
     const analysis = analyzeList('wishlist', lines, rows)
     expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([
       null,
-      "Outside your commander's colors",
-      "Outside your commander's colors",
+      "Outside your Commander's colors",
+      "Outside your Commander's colors",
       null,
       null,
       'Banned in Commander'
@@ -167,7 +167,7 @@ describe('analyzeList', () => {
     for (const text of [`// Format: Commander\n${cards}`, `// Format: Modern\n// Commander: Flubs, the Fool\n${cards}`]) {
       const { lines, rows } = rowsOf(text)
       const analysis = analyzeList('wishlist', lines, rows)
-      expect(rows.some((row) => analysis.issueOf(row)?.message === "Outside your commander's colors")).toBe(false)
+      expect(rows.some((row) => analysis.issueOf(row)?.message === "Outside your Commander's colors")).toBe(false)
     }
   })
 })
@@ -274,11 +274,11 @@ describe('copy limits', () => {
 
   it('explains the limit that applies', () => {
     expect(limitReason(commander, 'Sol Ring', copyCaps('deck', commander, 'Sol Ring', CARDS['Sol Ring'], 3))).toBe(
-      'Commander allows 1 copy of Sol Ring'
+      'Commander allows 1 Copy of Sol Ring'
     )
     expect(limitReason(modern, 'Sol Ring', copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 2))).toBe('You own 2× Sol Ring')
     expect(limitReason(modern, 'Sol Ring', copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 3, 2))).toBe(
-      'You own 3× Sol Ring, 2 in other decks'
+      'You own 3× Sol Ring, 2 in other Decks'
     )
   })
 

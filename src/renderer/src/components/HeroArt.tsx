@@ -1,19 +1,26 @@
-/** Props of {@link HeroArt}. */
-interface HeroArtProps {
+/** Props of {@link HeroPortrait}. */
+interface HeroPortraitProps {
   /** Art crops: the commander's, or two partners'. */
   arts: string[]
-  /** Class placing the art behind its banner. */
-  className: string
 }
 
-/** A banner's commander art: one crop, or two partners' side by side, fading into each other. */
-export function HeroArt({ arts, className }: HeroArtProps) {
+/**
+ * A banner's commander art (list headers, the Deck Wizard): the whole art as a portrait at the
+ * right, two partners' side by side, over the first art blurred to fill the banner with its colors.
+ * The banner is an `art-hero`, which shades it toward its text.
+ */
+export function HeroPortrait({ arts }: HeroPortraitProps) {
   if (arts.length === 0) return null
-  if (arts.length === 1) return <img className={className} src={arts[0]} alt="" draggable={false} />
   return (
-    <div className={`${className} hero-pair`}>
-      <img src={arts[0]} alt="" draggable={false} />
-      <img src={arts[1]} alt="" draggable={false} />
-    </div>
+    <>
+      <div className="hero-backdrop" aria-hidden="true">
+        <img src={arts[0]} alt="" draggable={false} />
+      </div>
+      <div className={`hero-portrait${arts.length > 1 ? ' pair' : ''}`} aria-hidden="true">
+        {arts.map((art) => (
+          <img key={art} src={art} alt="" draggable={false} />
+        ))}
+      </div>
+    </>
   )
 }

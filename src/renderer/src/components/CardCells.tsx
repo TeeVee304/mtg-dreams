@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { ThemeColor } from '@shared/themes'
 import type { Printing } from '@shared/types'
+import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
 import { previewHandlers } from './HoverPreview'
 import { Icon } from './Icon'
@@ -30,15 +31,15 @@ interface PriceProps {
 export function Price({ unit, qty = 1, total, free, title }: PriceProps) {
   if (free) {
     return (
-      <span className="muted" title="Bundled basic lands count as free">
-        Free
+      <span className="muted" title={ui.card.price.freeHint}>
+        {ui.card.price.free}
       </span>
     )
   }
   if (total === undefined && unit === undefined) return <Skeleton width={52} />
   if (total === undefined && unit === null) {
     return (
-      <span className="muted" title={title ?? 'No Cardmarket price'}>
+      <span className="muted" title={title ?? ui.card.price.none}>
         —
       </span>
     )
@@ -46,7 +47,7 @@ export function Price({ unit, qty = 1, total, free, title }: PriceProps) {
   return (
     <span className="value-cell" title={title}>
       <strong>{formatEur(total ?? unit! * qty)}</strong>
-      {qty > 1 && typeof unit === 'number' && <span className="muted small">{formatEur(unit)} each</span>}
+      {qty > 1 && typeof unit === 'number' && <span className="muted small">{ui.card.price.each(formatEur(unit))}</span>}
     </span>
   )
 }
@@ -81,12 +82,12 @@ export function CardmarketButton({ url, labeled }: { url: string | null | undefi
   if (labeled) {
     return (
       <button type="button" disabled={!url} onClick={open}>
-        Open on Cardmarket <Icon name="external" />
+        {ui.card.openCardmarket} <Icon name="external" />
       </button>
     )
   }
   return (
-    <button type="button" className="icon-btn" disabled={!url} onClick={open} title="Open on Cardmarket" aria-label="Open on Cardmarket">
+    <button type="button" className="icon-btn" disabled={!url} onClick={open} title={ui.card.openCardmarket} aria-label={ui.card.openCardmarket}>
       <Icon name="external" />
     </button>
   )

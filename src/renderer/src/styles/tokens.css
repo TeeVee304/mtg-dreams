@@ -31,13 +31,22 @@
   --bad: #f47a7a;
   --bad-soft: rgba(244, 122, 122, 0.14);
   --foil: linear-gradient(100deg, #7dd3fc, #c4b5fd, #f9a8d4, #fde68a);
+  /* The mana colors as they read on ink, in light mode too (theme tags, the Background badge), and
+     the ink that reads on them. */
+  --glow-w: #e3a94f;
+  --glow-u: #7fb2ea;
+  --glow-b: #a98ad8;
+  --glow-r: #ec7680;
+  --glow-g: #6fcf9f;
+  --glow-c: #b0b0b0;
+  --glow-ink: #14121f;
   /* The mana colors, the same in every color theme (the Stats panel's color bars). */
-  --mana-w: #e3a94f;
-  --mana-u: #7fb2ea;
-  --mana-b: #a98ad8;
-  --mana-r: #ec7680;
-  --mana-g: #6fcf9f;
-  --mana-c: #b0b0b0;
+  --mana-w: var(--glow-w);
+  --mana-u: var(--glow-u);
+  --mana-b: var(--glow-b);
+  --mana-r: var(--glow-r);
+  --mana-g: var(--glow-g);
+  --mana-c: var(--glow-c);
   /* Type scale; body text is --fs-base. --fs-stat is large text (bold, over 18.66px), which
      needs only 3:1, so summary numbers can use the bright --accent. */
   --fs-xs: 11px;
@@ -226,5 +235,5 @@
   --accent: var(--glow);
   --accent-text: var(--glow);
   --accent-soft: color-mix(in srgb, var(--glow) 13%, transparent);
-  --accent-ink: #14121f;
+  --accent-ink: var(--glow-ink);
 }

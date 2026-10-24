@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { isCardSort, sortOptionsFor, type SortKey, type SortView } from '@shared/cards'
 import { FORMATS } from '@shared/formats'
 import { THEME_COLORS, type ThemeColor } from '@shared/themes'
+import { ui } from '@shared/text'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
 import { updateSettings } from '../stores/settings'
 
@@ -62,7 +63,7 @@ interface SortSelectProps<T extends string> {
 export function SortSelect<T extends string>({ value, options, onChange, title }: SortSelectProps<T>) {
   return (
     <label className="field-inline">
-      Sort
+      {ui.common.sort}
       <select
         value={value}
         onChange={(event) => onChange(event.target.value as T)}
@@ -83,9 +84,9 @@ export function CardSortSelect({ view, value }: { view: SortView; value: SortKey
   return (
     <SortSelect
       value={value}
-      options={sortOptionsFor(view)}
+      options={sortOptionsFor(view).map((option) => ({ id: option.id, label: ui.sorts[option.id] }))}
       onChange={(sort) => void updateSettings({ sort, sortReverse: false })}
-      title="Applies to all decks, wishlists and the inventory"
+      title={ui.common.sortAppliesEverywhere}
     />
   )
 }
@@ -132,14 +133,16 @@ interface FormatSelectProps {
   label?: string
 }
 
+/** Format choices by id, `No format` (`''`) first. */
+export const FORMAT_CHOICES = [{ id: '', label: ui.common.noFormat }, ...FORMATS.map(({ id, label }) => ({ id, label }))]
+
 /** Format dropdown, `No format` first. */
 export function FormatSelect({ value, onChange, label }: FormatSelectProps) {
   return (
     <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
-      <option value="">No format</option>
-      {FORMATS.map((format) => (
-        <option key={format.id} value={format.id}>
-          {format.label}
+      {FORMAT_CHOICES.map((choice) => (
+        <option key={choice.id} value={choice.id}>
+          {choice.label}
         </option>
       ))}
     </select>
@@ -172,8 +175,8 @@ export function ColorOptions({ value, onChange, inherit }: ColorOptionsProps) {
     </button>
   )
   return (
-    <div className={`color-options${inherit ? ' list-colors' : ''}`} role="radiogroup" aria-label="Color">
-      {inherit && option(null, THEME_ICONS[inherit], 'Default', 'Follow the app color (Settings)')}
+    <div className={`color-options${inherit ? ' list-colors' : ''}`} role="radiogroup" aria-label={ui.common.color}>
+      {inherit && option(null, THEME_ICONS[inherit], ui.common.colorDefault, ui.common.colorDefaultHint)}
       {THEME_COLORS.map((color) =>
         option(
           color.id,

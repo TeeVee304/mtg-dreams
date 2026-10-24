@@ -1,4 +1,5 @@
 import { simplifyCardName } from '@shared/precons'
+import { ui } from '@shared/text'
 import type { PreconCard, PreconDeck, PreconSummary } from '@shared/types'
 import { cacheEntries, cachedFetch } from './cacheFiles'
 import { env } from './environment'
@@ -46,7 +47,7 @@ const BOARDS: Array<[string, PreconCard['board']]> = [
 /** @throws Error on HTTP error status or non-JSON body. */
 async function getJson(url: string): Promise<any> {
   const res = await fetchJson(url, 'MTGJSON')
-  if (res.status >= 400 || res.data === null) throw new Error(`MTGJSON responded with HTTP ${res.status}.`)
+  if (res.status >= 400 || res.data === null) throw new Error(ui.errors.http('MTGJSON', res.status))
   return res.data
 }
 
@@ -97,7 +98,7 @@ function toCard(card: any, board: PreconCard['board']): PreconCard | null {
  * @throws Error if `fileName` is invalid, or the fetch fails without a cached copy.
  */
 export async function getPrecon(fileName: string): Promise<PreconDeck> {
-  if (!FILE_NAME_RE.test(fileName)) throw new Error('Invalid deck name.')
+  if (!FILE_NAME_RE.test(fileName)) throw new Error(ui.errors.invalid('Deck name'))
   return cachedFetch(`precons/deck-v${DECK_CACHE_VERSION}-${fileName}.json`, DECK_TTL_MS, () => fetchPrecon(fileName))
 }
 
@@ -107,7 +108,7 @@ export async function getPrecon(fileName: string): Promise<PreconDeck> {
  * @throws Error if `fileName` is invalid, or the fetch fails.
  */
 export async function fetchPrecon(fileName: string): Promise<PreconDeck> {
-  if (!FILE_NAME_RE.test(fileName)) throw new Error('Invalid deck name.')
+  if (!FILE_NAME_RE.test(fileName)) throw new Error(ui.errors.invalid('Deck name'))
   const { data } = await getJson(`${env().mtgjsonApi}/decks/${fileName}.json`)
   return {
     fileName,

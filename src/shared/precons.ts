@@ -1,6 +1,7 @@
 import { nameKey } from './decklist'
 import { safeFileName } from './filenames'
 import type { BoardEntry } from './sideboard'
+import { ui } from './text'
 import type { PreconDeck } from './types'
 
 /** Precon import options. */
@@ -42,7 +43,7 @@ export function preconEntries(deck: PreconDeck, options: PreconOptions): PreconE
 
 /** @returns Sanitized list name, suffixed ` (n)` if taken (case-insensitive); `Precon` if empty. */
 export function preconListName(deckName: string, existingNames: string[]): string {
-  const base = safeFileName(deckName) || 'Precon'
+  const base = safeFileName(deckName) || ui.names.defaultPrecon
   const taken = new Set(existingNames.map((name) => name.toLowerCase()))
   if (!taken.has(base.toLowerCase())) return base
   for (let i = 2; ; i++) {

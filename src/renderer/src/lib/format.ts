@@ -1,4 +1,4 @@
-import { counted } from '@shared/plural'
+import { ui } from '@shared/text'
 
 /** Locale EUR currency formatter; always groups thousands, so 1 234 and 12 345 read alike. */
 const eur = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR', useGrouping: 'always' })
@@ -6,11 +6,6 @@ const eur = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR
 /** @returns Locale EUR string; `—` for null/undefined. */
 export function formatEur(value: number | null | undefined): string {
   return value === null || value === undefined ? '—' : eur.format(value)
-}
-
-/** @returns Pluralized count, e.g. `1 card`, `2 cards`. */
-export function cardCount(n: number): string {
-  return counted(n, 'card')
 }
 
 /** @returns Local date as `dd-mm-yyyy`, the app's date format. */
@@ -29,11 +24,11 @@ export function formatIsoDate(iso: string): string {
 /** @returns Relative time: `just now`, minutes, hours (< 48), or days. */
 export function timeAgo(timestamp: number): string {
   const minutes = Math.round((Date.now() - timestamp) / 60_000)
-  if (minutes < 1) return 'just now'
-  if (minutes < 60) return `${minutes} min ago`
+  if (minutes < 1) return ui.time.justNow
+  if (minutes < 60) return ui.time.minutesAgo(minutes)
   const hours = Math.round(minutes / 60)
-  if (hours < 48) return `${hours} h ago`
-  return `${Math.round(hours / 24)} days ago`
+  if (hours < 48) return ui.time.hoursAgo(hours)
+  return ui.time.daysAgo(Math.round(hours / 24))
 }
 
 /** @returns Error message without Electron's IPC `Error invoking remote method` prefix. */

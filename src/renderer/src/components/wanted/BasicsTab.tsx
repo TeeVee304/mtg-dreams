@@ -1,5 +1,6 @@
 import { bundledBasic } from '@shared/basics'
 import type { WantedCard } from '@shared/wanted'
+import { ui } from '@shared/text'
 import type { WantedOverview } from '../../lib/wanted'
 import type { ListRef } from '../../stores/library'
 import { NameCell, Price } from '../CardCells'
@@ -21,24 +22,21 @@ export function BasicsTab({ overview, basics, bundleBasics, meta, onBought, onOp
   if (basics.length === 0) {
     return (
       <div className="empty">
-        <p>No basic lands needed.</p>
+        <p>{ui.wanted.basics.none}</p>
       </div>
     )
   }
   return (
     <>
-      <p className="muted small wanted-note">
-        Basic lands your lists still need. They're left out of Cards and of list completion
-        {bundleBasics ? '; bundled basic lands count as free (Settings).' : '.'}
-      </p>
+      <p className="muted small wanted-note">{ui.wanted.basics.hint(bundleBasics)}</p>
       <table className="cards-table wanted-table">
         <thead>
           <tr>
-            <th>Card</th>
-            <th>Wanted in</th>
-            <th className="col-num">To buy</th>
-            <th className="col-num">Cost</th>
-            <th className="col-actions" aria-label="Actions" />
+            <th>{ui.wanted.columns.card}</th>
+            <th>{ui.wanted.columns.wantedIn}</th>
+            <th className="col-num">{ui.wanted.columns.toBuy}</th>
+            <th className="col-num">{ui.wanted.columns.cost}</th>
+            <th className="col-actions" aria-label={ui.wanted.columns.actions} />
           </tr>
         </thead>
         <tbody>

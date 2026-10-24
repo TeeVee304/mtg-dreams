@@ -1,9 +1,9 @@
 import type { AppSettings, PriceBaseline } from '@shared/api'
-import type { ColorFilter } from '@shared/cards'
+import { COLOR_LETTERS, type ColorFilter } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { STAT_COLORS } from '@shared/deckStats'
 import { nameKey } from '@shared/decklist'
-import { deckSizeCheck, listCommanders, listFormat } from '@shared/formats'
+import { deckSizeCheck, isBackground, listCommanders, listFormat } from '@shared/formats'
 import { sumOf } from '@shared/totals'
 import type { InventoryItem, Printing } from '@shared/types'
 import type { CardList } from '../stores/library'
@@ -90,4 +90,42 @@ export function listColors(
   if (identity.size > 0) return STAT_COLORS.filter((color) => identity.has(color))
   const loaded = rows.length > 0 && rows.every((row) => row.info !== undefined) && rows.some((row) => row.info)
   return loaded ? ['C'] : []
+}
+
+/** A commander's Background, as a list header pictures it: a badge by the commander's portrait. */
+export interface HeaderBackground {
+  name: string
+  /** Its art crop; null without card images, or until it loads. */
+  art: string | null
+  /** Its color, ringing the badge. */
+  color: ColorFilter
+}
+
+/** @returns Whether a row is a Background, which joins a commander. */
+const isBackgroundRow = (row: Row) => !!row.info && isBackground(row.info)
+
+/**
+ * @param leaderRows - A list's commander rows, as listed.
+ * @param cardImages - Card images are shown (Settings).
+ * @returns How a list header pictures its commanders: the commander first, then its partner or
+ * Background (`rows`, `names` as shown); the art of those with a portrait (one, or both partners';
+ * none until all load, so a pair never shows half); a Background apart, as a badge.
+ */
+export function headerLeaders(leaderRows: Row[], cardImages: boolean) {
+  const rows = [...leaderRows].sort((a, b) => Number(isBackgroundRow(a)) - Number(isBackgroundRow(b)))
+  const backgroundRow = rows.length > 1 ? (rows.find(isBackgroundRow) ?? null) : null
+  const portraits = rows.filter((row) => row !== backgroundRow)
+  const crops = cardImages ? portraits.flatMap((row) => artCrop(row.resolution?.printing) ?? []) : []
+  const firstColor = backgroundRow?.info?.colorIdentity.find((color): color is ColorFilter => COLOR_LETTERS.includes(color as ColorFilter))
+  const background: HeaderBackground | null = backgroundRow && {
+    name: backgroundRow.flavorName ?? backgroundRow.line.name,
+    art: cardImages ? artCrop(backgroundRow.resolution?.printing) : null,
+    color: firstColor ?? 'C'
+  }
+  return {
+    rows,
+    names: rows.map((row) => row.flavorName ?? row.line.name),
+    arts: crops.length === portraits.length ? crops : [],
+    background
+  }
 }

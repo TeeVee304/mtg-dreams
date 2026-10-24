@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react'
 import type { CardFilters, SortKey } from '@shared/cards'
 import type { Section } from '@shared/listModel'
-import { cardCount, formatEur } from '../lib/format'
+import { ui } from '@shared/text'
+import { formatEur } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { summarize, type Row, type Summary } from '../lib/summary'
 import { useNarrowTables } from '../hooks/useNarrow'
@@ -11,8 +12,8 @@ import { Icon } from './Icon'
 
 /** Card view options. */
 const CARD_VIEWS = [
-  { id: 'table', label: 'Table', title: 'Cards as table rows' },
-  { id: 'grid', label: 'Cards', title: 'Cards as images' }
+  { id: 'table', ...ui.list.table.views.table },
+  { id: 'grid', ...ui.list.table.views.grid }
 ] as const
 
 /** Session-only folded section ids per list key. */
@@ -71,12 +72,12 @@ export function ListTable(props: ListTableProps) {
       <FilterBar
         filters={props.filters}
         onChange={props.onFilters}
-        namePlaceholder="Filter by name…"
-        loadingNote={props.dataLoading ? 'Some cards are still loading and are hidden by these filters.' : undefined}
+        namePlaceholder={ui.list.table.filterByName}
+        loadingNote={props.dataLoading ? ui.list.table.stillLoading : undefined}
         end={
           <>
             <Segmented
-              label="View"
+              label={ui.list.table.view}
               options={CARD_VIEWS}
               value={cardView}
               onChange={(view) => void updateSettings({ cardView: view })}
@@ -88,13 +89,16 @@ export function ListTable(props: ListTableProps) {
         {!isDeck && (
           <label className="check">
             <input type="checkbox" checked={props.hideOwned} onChange={(event) => props.onHideOwned(event.target.checked)} />
-            Hide owned
+            {ui.list.table.hideOwned}
           </label>
         )}
         {filtering && (
           <span className="muted small">
-            Showing {visibleSummary.cards} of {cardCount(props.totalCards)} ·{' '}
-            {isDeck ? `${formatEur(visibleSummary.total)} value` : `${formatEur(visibleSummary.neededValue)} still needed`}
+            {ui.list.table.showing(
+              visibleSummary.cards,
+              ui.count.cards(props.totalCards),
+              isDeck ? ui.list.table.value(formatEur(visibleSummary.total)) : ui.list.table.stillNeeded(formatEur(visibleSummary.neededValue))
+            )}
           </span>
         )}
       </FilterBar>
@@ -119,17 +123,17 @@ export function ListTable(props: ListTableProps) {
               {!isDeck && (
                 <SortHeader
                   id="owned"
-                  label="Owned"
+                  label={ui.list.table.columns.owned}
                   className="col-owned"
-                  title="Copies you own, shared by all lists through the Inventory"
+                  title={ui.list.table.ownedHint}
                   {...sortProps}
                 />
               )}
-              <SortHeader id="qty" label={isDeck ? 'Qty' : 'Wanted'} className="col-qty" {...sortProps} />
-              <SortHeader id="name" label="Card" {...sortProps} />
-              {!narrow && <th className="col-version">Version</th>}
-              <SortHeader id="unit" label="Price" className="col-num" title="Sorts by unit price" {...sortProps} />
-              <th className="col-actions" aria-label="Actions" />
+              <SortHeader id="qty" label={isDeck ? ui.list.table.columns.qty : ui.list.table.columns.wanted} className="col-qty" {...sortProps} />
+              <SortHeader id="name" label={ui.list.table.columns.card} {...sortProps} />
+              {!narrow && <th className="col-version">{ui.list.table.columns.version}</th>}
+              <SortHeader id="unit" label={ui.list.table.columns.price} className="col-num" title={ui.list.table.priceHint} {...sortProps} />
+              <th className="col-actions" aria-label={ui.list.table.columns.actions} />
             </tr>
           </thead>
           {sections.map((section) => {
@@ -151,7 +155,7 @@ export function ListTable(props: ListTableProps) {
           })}
         </table>
       )}
-      {props.visibleRows === 0 && <p className="muted empty-filter">No cards match the current filters.</p>}
+      {props.visibleRows === 0 && <p className="muted empty-filter">{ui.list.table.noMatch}</p>}
     </>
   )
 }
@@ -189,7 +193,7 @@ function SectionTitle({ section, open, onToggle }: SectionHeadProps) {
         className="section-toggle"
         onClick={onToggle}
         aria-expanded={open}
-        title={open ? `Fold ${section.label.toLowerCase()}` : `Show ${section.label.toLowerCase()}`}
+        title={open ? ui.list.table.fold(section.label) : ui.list.table.show(section.label)}
       >
         <span className="section-chevron" aria-hidden="true">
           <Icon name="chevron" />

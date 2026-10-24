@@ -1,16 +1,14 @@
 import { useState } from 'react'
 import type { AppSettings, Theme } from '@shared/api'
 import { PRICE_BASES } from '@shared/pricing'
+import { ui } from '@shared/text'
 import { cleanError, formatDate } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
 import { ColorOptions } from './Controls'
 import { Modal } from './Modal'
 
-const THEMES: Array<{ id: Theme; label: string; hint: string }> = [
-  { id: 'system', label: 'System', hint: 'Follow Windows' },
-  { id: 'light', label: 'Light', hint: 'Always light' },
-  { id: 'dark', label: 'Dark', hint: 'Always dark' }
-]
+/** Window modes, in the order offered; their names are `ui.settings.themes`. */
+const THEMES: Theme[] = ['system', 'light', 'dark']
 
 /** Props of {@link SettingsDialog}. */
 interface SettingsDialogProps {
@@ -31,6 +29,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const settings = useSettings()
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const text = ui.settings
 
   const change = (patch: Partial<AppSettings>) => {
     setError(null)
@@ -38,52 +37,52 @@ export function SettingsDialog(props: SettingsDialogProps) {
   }
 
   return (
-    <Modal title="Settings" onClose={onClose}>
+    <Modal title={text.title} onClose={onClose}>
       <section className="settings-section">
-        <h3>Color</h3>
+        <h3>{text.color}</h3>
         <ColorOptions value={settings.color} onChange={(color) => color && change({ color })} />
       </section>
 
       <section className="settings-section">
-        <h3>Mode</h3>
-        <div className="theme-options" role="radiogroup" aria-label="Mode">
-          {THEMES.map((option) => (
+        <h3>{text.mode}</h3>
+        <div className="theme-options" role="radiogroup" aria-label={text.mode}>
+          {THEMES.map((theme) => (
             <button
-              key={option.id}
+              key={theme}
               type="button"
               role="radio"
-              aria-checked={settings.theme === option.id}
-              className={`theme-option theme-${option.id}${settings.theme === option.id ? ' selected' : ''}`}
-              onClick={() => change({ theme: option.id })}
+              aria-checked={settings.theme === theme}
+              className={`theme-option theme-${theme}${settings.theme === theme ? ' selected' : ''}`}
+              onClick={() => change({ theme })}
             >
               <span className="theme-swatch" aria-hidden="true" />
-              <span className="theme-label">{option.label}</span>
-              <span className="muted tiny">{option.hint}</span>
+              <span className="theme-label">{text.themes[theme].label}</span>
+              <span className="muted tiny">{text.themes[theme].hint}</span>
             </button>
           ))}
         </div>
       </section>
 
       <section className="settings-section">
-        <h3>Prices</h3>
-        <div className="radio-options" role="radiogroup" aria-label="Price basis">
+        <h3>{text.prices}</h3>
+        <div className="radio-options" role="radiogroup" aria-label={text.priceBasis}>
           {PRICE_BASES.map((basis) => (
-            <label key={basis.id} className="radio-option">
+            <label key={basis} className="radio-option">
               <input
                 type="radio"
                 name="price-basis"
-                checked={settings.priceBasis === basis.id}
-                onChange={() => change({ priceBasis: basis.id })}
+                checked={settings.priceBasis === basis}
+                onChange={() => change({ priceBasis: basis })}
               />
               <span className="setting-text">
-                <span className="setting-label">{basis.label}</span>
-                <span className="muted small">{basis.hint}</span>
+                <span className="setting-label">{ui.priceBases[basis].label}</span>
+                <span className="muted small">{ui.priceBases[basis].hint}</span>
               </span>
             </label>
           ))}
         </div>
         <p className="muted tiny settings-note">
-          Cardmarket’s daily price guide, in EUR{pricedAt ? `, from ${formatDate(pricedAt)}` : ''}.{' '}
+          {text.priceSource(pricedAt ? formatDate(pricedAt) : null)}{' '}
           <button
             type="button"
             className="link-btn"
@@ -93,28 +92,26 @@ export function SettingsDialog(props: SettingsDialogProps) {
               void onRefreshPrices().finally(() => setRefreshing(false))
             }}
           >
-            {refreshing ? 'Checking…' : 'Check now'}
+            {refreshing ? text.checking : text.checkNow}
           </button>
           <br />
-          Inventory Value always uses Typical.
+          {text.inventoryUsesTypical}
         </p>
         <div className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Price change alerts</span>
-            <span className="muted small">
-              Flags wishlist cards whose price moved since you added them, by both the percentage and the amount.
-            </span>
+            <span className="setting-label">{text.alerts}</span>
+            <span className="muted small">{text.alertsHint}</span>
           </span>
           <span className="alert-fields">
             <span className="percent-field">
-              At least
+              {text.atLeast}
               <input
                 type="number"
                 min={1}
                 max={90}
                 step={1}
                 value={settings.dropAlertPercent}
-                aria-label="Price change alert threshold in percent"
+                aria-label={text.thresholdLabel}
                 onChange={(event) => {
                   const percent = Math.round(Number(event.target.value))
                   if (percent >= 1 && percent <= 90) change({ dropAlertPercent: percent })
@@ -123,14 +120,14 @@ export function SettingsDialog(props: SettingsDialogProps) {
               %
             </span>
             <span className="percent-field">
-              <span className="move-down">↓ cheaper</span> by
+              <span className="move-down">{text.cheaper}</span> {text.by}
               <input
                 type="number"
                 min={0}
                 max={100}
                 step={0.05}
                 value={settings.dropAlertMinEur}
-                aria-label="Smallest price drop for an alert, in euros"
+                aria-label={text.dropLabel}
                 onChange={(event) => {
                   const euros = Math.round(Number(event.target.value) * 100) / 100
                   if (euros >= 0 && euros <= 100) change({ dropAlertMinEur: euros })
@@ -139,14 +136,14 @@ export function SettingsDialog(props: SettingsDialogProps) {
               €
             </span>
             <span className="percent-field">
-              <span className="move-up">↑ pricier</span> by
+              <span className="move-up">{text.pricier}</span> {text.by}
               <input
                 type="number"
                 min={0}
                 max={100}
                 step={0.05}
                 value={settings.riseAlertMinEur}
-                aria-label="Smallest price rise for an alert, in euros"
+                aria-label={text.riseLabel}
                 onChange={(event) => {
                   const euros = Math.round(Number(event.target.value) * 100) / 100
                   if (euros >= 0 && euros <= 100) change({ riseAlertMinEur: euros })
@@ -159,11 +156,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
       </section>
 
       <section className="settings-section">
-        <h3>Decks &amp; wishlists</h3>
+        <h3>{text.lists}</h3>
         <label className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Card Images</span>
-            <span className="muted small">A thumbnail beside each card.</span>
+            <span className="setting-label">{text.cardImages}</span>
+            <span className="muted small">{text.cardImagesHint}</span>
           </span>
           <input
             type="checkbox"
@@ -175,10 +172,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
         </label>
         <label className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Simple Basic Lands</span>
-            <span className="muted small">
-              Every basic land version counts as one free card. Faster; your files keep their versions.
-            </span>
+            <span className="setting-label">{text.basics}</span>
+            <span className="muted small">{text.basicsHint}</span>
           </span>
           <input
             type="checkbox"
@@ -191,14 +186,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
       </section>
 
       <section className="settings-section">
-        <h3>Copies</h3>
+        <h3>{text.copies}</h3>
         <label className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Wishlists reserve Copies</span>
-            <span className="muted small">
-              After built decks, wishlists hold copies from the top down. Off: each wishlist uses every copy decks
-              don&apos;t hold.
-            </span>
+            <span className="setting-label">{text.wishlistsReserve}</span>
+            <span className="muted small">{text.wishlistsReserveHint}</span>
           </span>
           <input
             type="checkbox"
@@ -210,8 +202,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
         </label>
         <label className="setting-toggle">
           <span className="setting-text">
-            <span className="setting-label">Brews ignore Inventory</span>
-            <span className="muted small">Brews show only their cards and prices, with nothing owned.</span>
+            <span className="setting-label">{text.plainBrews}</span>
+            <span className="muted small">{text.plainBrewsHint}</span>
           </span>
           <input
             type="checkbox"
@@ -224,27 +216,22 @@ export function SettingsDialog(props: SettingsDialogProps) {
       </section>
 
       <section className="settings-section">
-        <h3>Data folder</h3>
+        <h3>{text.dataFolder}</h3>
         <p className="data-dir" title={dataDir}>
           {dataDir}
         </p>
         <div className="foot-row">
           <button type="button" onClick={onOpenDataDir}>
-            Open
+            {text.open}
           </button>
           <button type="button" onClick={onChangeDataDir}>
-            Change…
+            {text.change}
           </button>
         </div>
-        <p className="muted tiny settings-note">
-          Your lists, inventory and trades, as text files.
-        </p>
+        <p className="muted tiny settings-note">{text.dataFolderHint}</p>
       </section>
       {error && <p className="warn">{error}</p>}
-      <p className="muted tiny settings-credits">
-        Card data &amp; images © Scryfall / Wizards of the Coast. Prices from Cardmarket. MTG Dreams is not affiliated
-        with them.
-      </p>
+      <p className="muted tiny settings-credits">{text.credits}</p>
     </Modal>
   )
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   compareCards,
+  compareInListOrder,
   curveSlot,
   isBasicLand,
   isSortKey,
@@ -109,6 +110,15 @@ describe('compareCards', () => {
   it('puts cards without data last', () => {
     const sorted = [{ name: 'Unknown' }, { name: 'Bolt', info: bolt }].sort((a, b) => compareCards('mana', a, b))
     expect(sorted[0].name).toBe('Bolt')
+  })
+
+  it("sorts in a list's order: type section, then mana value, then name", () => {
+    const ponder = info({ name: 'Ponder', typeLine: 'Sorcery', manaValue: 1 })
+    const shock = info({ name: 'Shock', typeLine: 'Instant', manaValue: 1 })
+    const all = [tower, ponder, shock, bolt, niv, delver].map((card) => ({ name: card.name, info: card }))
+    const sorted = [{ name: 'Unknown' }, ...all].sort(compareInListOrder).map((c) => c.name.split(' ')[0])
+    // Creatures first, by mana value; Instants by name at the same mana value; then Sorceries, Lands, cards without data.
+    expect(sorted).toEqual(['Delver', 'Niv-Mizzet,', 'Lightning', 'Shock', 'Ponder', 'Command', 'Unknown'])
   })
 })
 

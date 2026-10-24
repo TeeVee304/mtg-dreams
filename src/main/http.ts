@@ -1,3 +1,4 @@
+import { ui } from '@shared/text'
 import { env } from './environment'
 
 /**
@@ -41,9 +42,7 @@ async function request<T>(
     return await read(res)
   } catch (error) {
     throw new Error(
-      (error as Error).name === 'TimeoutError'
-        ? `${service} took too long to answer. Try again in a moment.`
-        : `Could not reach ${service}. Are you offline?`
+      (error as Error).name === 'TimeoutError' ? ui.errors.slow(service) : ui.errors.offline(service)
     )
   }
 }
@@ -94,7 +93,7 @@ export async function* fetchLines(
   let received = 0
   try {
     const res = await fetch(url, { headers: { 'User-Agent': env().userAgent }, signal: controller.signal })
-    if (!res.ok || !res.body) throw new HttpError(`${service} responded with HTTP ${res.status}.`)
+    if (!res.ok || !res.body) throw new HttpError(ui.errors.http(service, res.status))
     // A transfer encoding is undone by fetch already; a .gz file is not.
     const gzipped =
       !res.headers.get('content-encoding') &&
@@ -119,8 +118,8 @@ export async function* fetchLines(
     if (rest.trim()) yield rest.replace(/\r$/, '')
   } catch (error) {
     if (error instanceof HttpError) throw error
-    if (controller.signal.aborted) throw new Error(`${service} stopped sending data. Try again in a moment.`)
-    throw new Error(received > 0 ? `The download from ${service} broke off. Try again in a moment.` : `Could not reach ${service}. Are you offline?`)
+    if (controller.signal.aborted) throw new Error(ui.errors.stalled(service))
+    throw new Error(received > 0 ? ui.errors.brokeOff(service) : ui.errors.offline(service))
   } finally {
     clearTimeout(timer)
     controller.abort()

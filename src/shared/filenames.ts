@@ -5,6 +5,8 @@
  * @packageDocumentation
  */
 
+import { ui } from './text'
+
 /** Max name length, in characters. */
 export const MAX_NAME_LENGTH = 100
 
@@ -15,11 +17,12 @@ const RESERVED = /^(con|prn|aux|nul|com\d|lpt\d)$/i
 
 /** @returns User-facing reason `name` is an invalid file name; null if valid. */
 export function fileNameProblem(name: string): string | null {
-  if (!name) return 'Name cannot be empty.'
-  if (name.length > MAX_NAME_LENGTH) return `Name is too long (max ${MAX_NAME_LENGTH} characters).`
-  if (FORBIDDEN.test(name)) return 'Name cannot contain < > : " / \\ | ? *'
-  if (/[. ]$/.test(name)) return 'Name cannot end with a dot or space.'
-  if (RESERVED.test(name)) return `"${name}" is a reserved name on Windows.`
+  const problems = ui.names.file
+  if (!name) return problems.empty
+  if (name.length > MAX_NAME_LENGTH) return problems.tooLong(MAX_NAME_LENGTH)
+  if (FORBIDDEN.test(name)) return problems.forbidden
+  if (/[. ]$/.test(name)) return problems.endsWithDot
+  if (RESERVED.test(name)) return problems.reserved(name)
   return null
 }
 

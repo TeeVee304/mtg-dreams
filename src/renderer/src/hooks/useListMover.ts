@@ -1,4 +1,5 @@
 import type { ListKind } from '@shared/types'
+import { ui } from '@shared/text'
 import { useToast } from '../components/Toasts'
 import { cleanError } from '../lib/format'
 import type { LibraryActions, ListRef } from '../stores/library'
@@ -16,7 +17,7 @@ export function useListMover(actions: LibraryActions) {
       toast(describe(moved))
       return moved
     } catch (error) {
-      toast(`Could not move the list: ${cleanError(error)}`, 'error')
+      toast(ui.sidebar.moveFailed(cleanError(error)), 'error')
       return null
     }
   }

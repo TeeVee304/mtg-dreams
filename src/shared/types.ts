@@ -3,6 +3,7 @@ import type { Language } from './languages'
 /** List category: decks draw from the inventory; wishlists track cards to acquire. */
 export type ListKind = 'deck' | 'wishlist' | 'brew'
 
+
 /** Parsed card line of a list file, e.g. `4 Lightning Bolt <141> [A25] (F)`. */
 export interface CardLine {
   kind: 'card'

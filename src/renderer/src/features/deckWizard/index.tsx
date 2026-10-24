@@ -1,4 +1,5 @@
 import { lazy, Suspense, type ComponentProps } from 'react'
+import { ui } from '@shared/text'
 import { WizardHat } from './WizardHat'
 import './hat.css'
 
@@ -8,6 +9,8 @@ import './hat.css'
  *
  * @packageDocumentation
  */
+
+export { useCommanderThemes } from './themes'
 
 const DeckWizard = lazy(() => import('./DeckWizard').then((module) => ({ default: module.DeckWizard })))
 
@@ -35,15 +38,15 @@ export function DeckWizardNavItem({ onOpen, open, rail }: DeckWizardNavItemProps
     <button
       type="button"
       className={`nav-item hat-host${open ? ' wizard-open' : ''}`}
-      title={rail ? 'Deck Wizard: plan a Commander deck' : undefined}
+      title={rail ? ui.wizard.navTitle : undefined}
       onClick={onOpen}
     >
       <span className="nav-thumb nav-tile nav-tile-foil" aria-hidden="true">
         <WizardHat />
       </span>
       <span className="nav-text">
-        <span className="nav-name">Deck Wizard</span>
-        <span className="nav-meta">Plan a Commander deck</span>
+        <span className="nav-name">{ui.wizard.name}</span>
+        <span className="nav-meta">{ui.wizard.navHint}</span>
       </span>
     </button>
   )

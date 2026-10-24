@@ -4,6 +4,7 @@ import { basename, extname, join } from 'node:path'
 import type { PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '@shared/api'
 import { isPriceBasis } from '@shared/pricing'
 import { settingsPatch } from '@shared/settings'
+import { ui } from '@shared/text'
 import { TRADE_EXTENSION } from '@shared/trade'
 import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
@@ -46,7 +47,7 @@ export function openExternalSafe(raw: string): void {
  * @throws Error if `value` is not an object.
  */
 function baselines(value: unknown): Record<string, PriceBaseline> {
-  if (typeof value !== 'object' || value === null) throw new Error('Invalid baselines.')
+  if (typeof value !== 'object' || value === null) throw new Error(ui.errors.invalid('baselines'))
   const valid: Record<string, PriceBaseline> = {}
   for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
     const entry = raw as { at?: unknown; prices?: Record<string, unknown> }
@@ -96,7 +97,7 @@ export function registerIpc(): void {
     storage.deleteList(storage.validateKind(kind), storage.validateListName(name))
   )
   ipcMain.handle('list:order', (_e, names: unknown) => {
-    if (!Array.isArray(names) || !names.every((name) => typeof name === 'string')) throw new Error('Invalid wishlist order.')
+    if (!Array.isArray(names) || !names.every((name) => typeof name === 'string')) throw new Error(ui.errors.invalid('Wishlist order'))
     return storage.writeWishlistOrder(names)
   })
   ipcMain.handle('inventory:write', (_e, body: unknown, force: unknown) =>
@@ -109,24 +110,24 @@ export function registerIpc(): void {
   ipcMain.handle('trade:delete', (_e, name: unknown) => storage.deleteTrade(storage.validateListName(name)))
   ipcMain.handle('trade:open', async (event) => {
     const result = await showOpenDialog(event, {
-      title: 'Import a trade list',
+      title: ui.fileDialogs.importTrade,
       defaultPath: app.getPath('downloads'),
       properties: ['openFile'],
       filters: [
-        { name: 'Trade lists and collection exports', extensions: [TRADE_EXTENSION, 'txt', 'csv'] },
-        { name: 'All files', extensions: ['*'] }
+        { name: ui.fileDialogs.tradeFiles, extensions: [TRADE_EXTENSION, 'txt', 'csv'] },
+        { name: ui.fileDialogs.allFiles, extensions: ['*'] }
       ]
     })
     if (result.canceled || result.filePaths.length === 0) return null
     const path = result.filePaths[0]
-    if ((await stat(path)).size > MAX_TRADE_FILE_BYTES) throw new Error('That file is too big to be a trade list.')
+    if ((await stat(path)).size > MAX_TRADE_FILE_BYTES) throw new Error(ui.errors.tradeTooBig)
     return { fileName: basename(path, extname(path)), text: await readFile(path, 'utf8') }
   })
   ipcMain.handle('trade:saveAs', async (event, name: unknown, body: unknown) => {
     const result = await showSaveDialog(event, {
-      title: 'Save my trade list',
+      title: ui.fileDialogs.saveTrade,
       defaultPath: join(app.getPath('documents'), `${storage.validateListName(name)}.${TRADE_EXTENSION}`),
-      filters: [{ name: 'MTG Dreams trade list', extensions: [TRADE_EXTENSION] }]
+      filters: [{ name: ui.fileDialogs.tradeFile, extensions: [TRADE_EXTENSION] }]
     })
     if (result.canceled || !result.filePath) return null
     await writeFile(result.filePath, text(body, 'trade list'), 'utf8')
@@ -135,7 +136,7 @@ export function registerIpc(): void {
 
   ipcMain.handle('data:chooseDir', async (event) => {
     const result = await showOpenDialog(event, {
-      title: 'Choose data folder',
+      title: ui.fileDialogs.chooseDataFolder,
       defaultPath: storage.dataDir(),
       properties: ['openDirectory', 'createDirectory']
     })

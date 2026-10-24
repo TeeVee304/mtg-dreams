@@ -1,3 +1,5 @@
+import { ui } from '@shared/text'
+
 /**
  * Checks for values sent by the renderer over IPC, shared by every IPC handler: anything that
  * arrives is untrusted until checked here.
@@ -10,7 +12,7 @@
  * @throws Error if not an array, longer than `max`, or with an item failing `valid`.
  */
 export function arrayOf<T>(value: unknown, valid: (item: unknown) => boolean, what: string, max: number): T[] {
-  if (!Array.isArray(value) || value.length > max || !value.every((item) => valid(item))) throw new Error(`Invalid ${what}.`)
+  if (!Array.isArray(value) || value.length > max || !value.every((item) => valid(item))) throw new Error(ui.errors.invalid(what))
   return value as T[]
 }
 
@@ -23,6 +25,6 @@ export const cardNames = (value: unknown, max: number, maxLength = Infinity) =>
 
 /** @throws Error if `value` is not a string. */
 export function text(value: unknown, what: string): string {
-  if (typeof value !== 'string') throw new Error(`Invalid ${what}.`)
+  if (typeof value !== 'string') throw new Error(ui.errors.invalid(what))
   return value
 }
