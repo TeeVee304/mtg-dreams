@@ -6,8 +6,8 @@ import { withColor } from '@shared/listColor'
 import { withUnbuilt } from '@shared/listUnbuilt'
 import { appliedUpgrade, upgradeOf, upgradeTarget, withUpgradeOf } from '@shared/listUpgrade'
 import {
+  withAbsorbedIns,
   withNamedVersion,
-  withoutSwapPair,
   withoutVersion,
   withVariant,
   withVariantCount,
@@ -275,9 +275,12 @@ export class LibraryStore {
     undo: (id?: number) => this.undo(id),
     resolveConflict: (keepMine: boolean) => this.resolveConflict(keepMine),
 
-    /** Adds cards in one write, each to its board (`side`), merging into identical lines there. */
+    /**
+     * Adds cards in one write, each to its board (`side`), merging into identical lines there; versions
+     * that swapped them in keep their copies ({@link withAbsorbedIns}).
+     */
     addCards: (target: ListRef, cards: BoardEntry[]) => {
-      this.updateLines(target, (lines) => cards.reduce(mergeCard, lines), { label: addCardsLabel(cards) })
+      this.updateLines(target, (lines) => withAbsorbedIns(lines, cards.reduce(mergeCard, lines)), { label: addCardsLabel(cards) })
     },
 
     /** Moves lines to the sideboard (`side`) or main deck, merging into identical lines there. */
@@ -374,11 +377,6 @@ export class LibraryStore {
       this.updateLines(target, (lines) => withVariantCount(lines, version, card, qty), {
         label: ui.changes.changedIn(card.name, version)
       })
-    },
-
-    /** Undoes a pair of a version's swaps ({@link withoutSwapPair}). */
-    removeSwapPair: (target: ListRef, version: ListVersion, index: number) => {
-      this.updateLines(target, (lines) => withoutSwapPair(lines, version, index), { label: ui.changes.undidSwap(version, target.name) })
     },
 
     /** Sets or clears (`null`) the color header. */

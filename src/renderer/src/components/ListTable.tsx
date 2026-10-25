@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import type { CardFilters, SortKey } from '@shared/cards'
+import type { CardFilters, ColorFilter, SortKey } from '@shared/cards'
 import type { Section } from '@shared/listModel'
 import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
@@ -42,6 +42,8 @@ interface ListTableProps {
   sortReverse: boolean
   filters: CardFilters
   onFilters: (filters: CardFilters) => void
+  /** The commanders' color identity, which limits the color filter; empty without commanders. */
+  identity: ColorFilter[]
   /** Wishlists: hide fully owned lines. */
   hideOwned: boolean
   onHideOwned: (hide: boolean) => void
@@ -72,6 +74,7 @@ export function ListTable(props: ListTableProps) {
       <FilterBar
         filters={props.filters}
         onChange={props.onFilters}
+        identity={props.identity}
         namePlaceholder={ui.list.table.filterByName}
         loadingNote={props.dataLoading ? ui.list.table.stillLoading : undefined}
         end={

@@ -2,10 +2,6 @@
 
 /* Trades ------------------------------------------------------------------------------ */
 
-.share-item .nav-name {
-  color: var(--accent-text);
-}
-
 .trade-summary {
   display: flex;
   gap: 24px;

@@ -7,6 +7,7 @@ import {
   isSortKey,
   matchesColors,
   matchesFilters,
+  pairByType,
   NO_FILTERS,
   sortFor,
   typeGroup,
@@ -119,6 +120,22 @@ describe('compareCards', () => {
     const sorted = [{ name: 'Unknown' }, ...all].sort(compareInListOrder).map((c) => c.name.split(' ')[0])
     // Creatures first, by mana value; Instants by name at the same mana value; then Sorceries, Lands, cards without data.
     expect(sorted).toEqual(['Delver', 'Niv-Mizzet,', 'Lightning', 'Shock', 'Ponder', 'Command', 'Unknown'])
+  })
+})
+
+describe('pairByType', () => {
+  it('lines up cards out and in by type, blank where a type has more on one side', () => {
+    const card = (c: CardInfo) => ({ name: c.name, info: c })
+    const ponder = info({ name: 'Ponder', typeLine: 'Sorcery' })
+    const rows = pairByType([tower, bolt, delver, niv].map(card), [ponder, niv, bolt].map(card), (c) => c)
+    const named = rows.map((row) => [row.out?.name.split(' ')[0] ?? '-', row.in?.name.split(' ')[0] ?? '-'])
+    expect(named).toEqual([
+      ['Delver', 'Niv-Mizzet,'],
+      ['Niv-Mizzet,', '-'],
+      ['Lightning', 'Lightning'],
+      ['-', 'Ponder'],
+      ['Command', '-']
+    ])
   })
 })
 

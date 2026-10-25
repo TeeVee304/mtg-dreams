@@ -164,7 +164,7 @@ function CardRowView(props: CardRowProps) {
           label={ui.card.quantityOf(line.name)}
         />
       </td>
-      <NameCell images={printing} loading={loading}>
+      <NameCell images={printing} loading={loading} foil={line.foil}>
         {row.bundledIds ? (
           <span className="card-name" title={ui.card.bundledHint}>
             {line.name}

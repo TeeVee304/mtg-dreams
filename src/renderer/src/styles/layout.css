@@ -133,18 +133,6 @@
   min-height: 0;
 }
 
-/* Trades sit under the scrolling lists, always in view; many friends scroll within them. */
-.sidebar .nav-trades {
-  flex: none;
-  max-height: 34vh;
-  overflow-y: auto;
-  border-top: 1px solid var(--border);
-}
-
-.sidebar .nav-trades .nav-section {
-  margin-top: 8px;
-}
-
 /* The sidebar scrolls when it's full; its items keep their size. */
 .sidebar nav > * {
   flex-shrink: 0;
@@ -518,6 +506,33 @@
 
 .art-hero .header-meta {
   color: #c9cadb;
+}
+
+/* The starting hand button: at the portrait's foot, shown while the banner is hovered. */
+.hero-art-picks {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.art-hero:hover .hero-art-picks,
+.hero-art-picks:focus-within {
+  opacity: 1;
+}
+
+.hero-art-picks .icon-btn {
+  background: rgba(12, 14, 26, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f4f2fa;
+  backdrop-filter: blur(8px);
+}
+
+.hero-art-picks .icon-btn:hover {
+  background: rgba(12, 14, 26, 0.75);
 }
 
 /* The commanders over the title: their colors and names, in spaced capitals. */

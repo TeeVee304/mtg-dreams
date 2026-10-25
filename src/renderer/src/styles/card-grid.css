@@ -103,15 +103,6 @@
 }
 
 /* Foil: the same sheen as the Foil chip, lightly over the picture. */
-.card-tile-foil {
-  position: absolute;
-  inset: 0;
-  background: var(--foil);
-  mix-blend-mode: soft-light;
-  opacity: 0.55;
-  pointer-events: none;
-}
-
 .card-tile-qty,
 .card-tile-owned,
 .card-tile-problem,
@@ -226,5 +217,115 @@
 
   .card-tile:hover:not(:disabled) .card-tile-image {
     transform: none;
+  }
+}
+
+/* A starting hand, held as a fan, free over the blurred page (a stage). Each
+   card sits at its place in the fan (--x, --y, --rot) and moves there when the hand changes; it is
+   dealt in one by one (--deal), a drawn card slides in from the library at the right. */
+.starting-hand {
+  position: relative;
+  /* Room for the outer cards, lower and turned, and a hovered card, raised and larger. */
+  width: min(1040px, 100vw - 48px);
+  height: min(520px, 100vh - 140px);
+}
+
+.hand-card {
+  --w: 232px;
+  position: absolute;
+  left: 50%;
+  bottom: 90px;
+  width: var(--w);
+  margin-left: calc(var(--w) / -2);
+  padding: 0;
+  border: none;
+  aspect-ratio: 488 / 680;
+  border-radius: 4.75% / 3.5%;
+  overflow: hidden;
+  background: var(--panel-2);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  z-index: var(--z);
+  transform: translate(var(--x), var(--y)) rotate(var(--rot));
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.2s;
+  animation: hand-deal 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--deal) * 60ms) backwards;
+}
+
+.hand-card.drawn {
+  animation: hand-draw 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+.hand-card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.starting-hand:not(.bottoming) .hand-card {
+  cursor: default;
+}
+
+/* A hovered card comes to the front, a little larger, to read. */
+.hand-card:hover {
+  --lift: translate(var(--x), calc(var(--y) - 16px));
+  z-index: 100;
+  transform: var(--lift) rotate(var(--rot)) scale(1.18);
+}
+
+/* While cards must go to the bottom, the hovered card trembles, ringed (as apps do before deleting),
+   turning around its own center: the turn is part of its transform, after it moves to its place (the
+   rotate property would turn it before, around the fan's middle). The deal keeps its place in the
+   list, so it isn't played again. */
+.bottoming .hand-card:hover {
+  animation:
+    hand-deal 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) calc(var(--deal) * 60ms) backwards,
+    hand-tremble 0.14s ease-in-out infinite alternate;
+  box-shadow:
+    0 0 0 2px var(--warn),
+    0 8px 22px rgba(0, 0, 0, 0.55);
+}
+
+/* Stronger than the hovered card's rule: it is hovered as it's clicked away. */
+.bottoming .hand-card.leaving:hover,
+.hand-card.leaving {
+  animation: hand-leave 0.3s ease-in forwards;
+}
+
+@keyframes hand-deal {
+  from {
+    translate: 0 320px;
+    opacity: 0;
+  }
+}
+
+@keyframes hand-draw {
+  from {
+    translate: 280px 40px;
+    opacity: 0;
+  }
+}
+
+@keyframes hand-tremble {
+  from {
+    transform: var(--lift) rotate(calc(var(--rot) - 1.4deg)) scale(1.18);
+  }
+  to {
+    transform: var(--lift) rotate(calc(var(--rot) + 1.4deg)) scale(1.18);
+  }
+}
+
+@keyframes hand-leave {
+  to {
+    translate: 0 320px;
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hand-card,
+  .hand-card.drawn,
+  .bottoming .hand-card:hover {
+    animation: none;
+    transition: none;
   }
 }

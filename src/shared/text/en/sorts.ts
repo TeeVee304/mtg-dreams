@@ -36,6 +36,6 @@ export const wantedSorts = {
 /** Which Cardmarket price the app shows, with what it means. */
 export const priceBases = {
   trend: { label: 'Typical', hint: 'Cardmarket’s price trend.' },
-  low: { label: 'Lowest listing', hint: 'The cheapest Copy on offer, any condition.' },
+  low: { label: 'Lowest listing', hint: 'The cheapest Copy on offer.' },
   avg30: { label: '30-day average', hint: 'The average sale over the last month.' }
 } satisfies Record<PriceBasis, { label: string; hint: string }>

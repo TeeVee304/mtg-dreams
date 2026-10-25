@@ -105,10 +105,13 @@ export function addToBoard(lines: ListLine[], entry: BoardEntry, board: Board): 
   const { side: _side, ...card } = entry
   const inSide = sideboardIds(lines)
   const key = nameKey(card.name)
+  const end = boardEnd(lines, board)
+  // Only the board's own lines: a version's swap of the card (after the main deck) stays as it is.
   const index = lines.findIndex(
-    (line) =>
+    (line, i) =>
       line.kind === 'card' &&
       inSide.has(line.id) === (board === 'side') &&
+      (board === 'side' || i < end) &&
       nameKey(line.name) === key &&
       line.set === card.set &&
       (line.collector ?? '') === (card.collector ?? '') &&
@@ -118,7 +121,6 @@ export function addToBoard(lines: ListLine[], entry: BoardEntry, board: Board): 
     return lines.map((line, i) => (i === index && line.kind === 'card' ? { ...line, qty: line.qty + card.qty } : line))
   }
   const added: CardLine = { kind: 'card', id: newLineId(), ...card }
-  const end = boardEnd(lines, board)
   if (end < 0) {
     const spacer: ListLine[] = lines.length > 0 && !isBlank(lines.at(-1)) ? [{ kind: 'text', id: newLineId(), text: '' }] : []
     return [...lines, ...spacer, { kind: 'text', id: newLineId(), text: SIDEBOARD_TEXT }, added]

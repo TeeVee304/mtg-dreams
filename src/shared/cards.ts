@@ -281,3 +281,36 @@ const sectionIndex = (card: Sortable) =>
 export function compareInListOrder(a: Sortable, b: Sortable): number {
   return sectionIndex(a) - sectionIndex(b) || compareCards('mana', a, b)
 }
+
+/** A row of swaps: a card out beside a card in of its type; either is null when the other side has more of it. */
+export interface SwapRow<T> {
+  out: T | null
+  in: T | null
+}
+
+/**
+ * Lines up cards out and cards in by type, so each card cut sits beside a card of its type added
+ * instead: section by section in a list's order ({@link compareInListOrder}), the nth card out of a
+ * section beside its nth card in.
+ * @param card - A card's name and data, for sorting.
+ */
+export function pairByType<T>(outs: T[], ins: T[], card: (item: T) => Sortable): SwapRow<T>[] {
+  const sorted = (items: T[]) => [...items].sort((a, b) => compareInListOrder(card(a), card(b)))
+  const bySection = (items: T[]) => {
+    const sections = new Map<number, T[]>()
+    for (const item of sorted(items)) {
+      const at = sectionIndex(card(item))
+      sections.set(at, [...(sections.get(at) ?? []), item])
+    }
+    return sections
+  }
+  const out = bySection(outs)
+  const into = bySection(ins)
+  const rows: SwapRow<T>[] = []
+  for (const at of [...new Set([...out.keys(), ...into.keys()])].sort((a, b) => a - b)) {
+    const cut = out.get(at) ?? []
+    const added = into.get(at) ?? []
+    for (let i = 0; i < Math.max(cut.length, added.length); i++) rows.push({ out: cut[i] ?? null, in: added[i] ?? null })
+  }
+  return rows
+}

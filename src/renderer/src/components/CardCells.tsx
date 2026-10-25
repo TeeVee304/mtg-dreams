@@ -60,16 +60,18 @@ interface NameCellProps {
   name?: string
   /** Shimmers the thumbnail. */
   loading?: boolean
+  /** A foil copy: its thumbnail and preview have a sheen. */
+  foil?: boolean
   /** Name and the chips and notes below it. */
   children: ReactNode
 }
 
 /** Card table name cell: art thumbnail beside the name; hovering shows the card. */
-export function NameCell({ images, name, loading, children }: NameCellProps) {
+export function NameCell({ images, name, loading, foil, children }: NameCellProps) {
   return (
-    <td className="col-name" {...previewHandlers({ src: images?.imageNormal, back: images?.imageBack, name })}>
+    <td className="col-name" {...previewHandlers({ src: images?.imageNormal, back: images?.imageBack, name, foil })}>
       <div className="name-cell">
-        <CardThumb src={images?.imageSmall} loading={loading} />
+        <CardThumb src={images?.imageSmall} loading={loading} foil={foil} />
         <div className="name-main">{children}</div>
       </div>
     </td>

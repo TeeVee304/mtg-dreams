@@ -2,6 +2,17 @@ import { count } from './terms'
 
 /** Trading with friends: their page, sharing yours, importing theirs. */
 export const trades = {
+  /** The Trades page: every friend's list. */
+  hub: {
+    summary: "Share your Trade list with friends and import theirs to see what you can swap.",
+    import: "Import a friend's list…",
+    none: 'No Trade lists yet.',
+    noneHint: 'Share yours, and import the one a friend sends you.',
+    friend: 'Friend',
+    listFrom: 'List from',
+    forYou: 'For you',
+    forThem: 'For them'
+  },
   title: (friend: string) => `Trading with ${friend}`,
   listFrom: (friend: string, date: string, ago: string, haves: number, wants: number) =>
     `${friend}'s list from ${date} (${ago}) · ${count.cards(haves)} they have · ${count.cards(wants)} they want`,

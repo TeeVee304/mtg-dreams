@@ -19,7 +19,7 @@ const DECK_TTL_MS = 7 * 24 * 60 * 60 * 1000
 /** Allowed MTGJSON deck file names (also guards URL and path construction). */
 const FILE_NAME_RE = /^[A-Za-z0-9_-]+$/
 /** Deck cache schema version; bump to invalidate cached decks. */
-const DECK_CACHE_VERSION = 3
+const DECK_CACHE_VERSION = 5
 
 /** MTGJSON deck types of digital-only products (excluded). */
 const DIGITAL_TYPES = new Set([

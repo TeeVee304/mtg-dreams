@@ -8,6 +8,7 @@ import {
   unionCardLines,
   versionCardLines,
   versionLines,
+  withAbsorbedIns,
   withVariant,
   withVariantCards,
   withVariantCount,
@@ -17,8 +18,6 @@ import {
   baseText,
   withBaseText,
   withVariantText,
-  swapPairs,
-  withoutSwapPair,
   listVariants,
   versionNameIssue,
   withNamedVersion,
@@ -88,22 +87,31 @@ describe('Duel version', () => {
     expect(serializeList(lines)).toMatch(/\/\/ Duel in\n1 Dreamtide Whale\n1 Flux Channeler <WAR-52> \[PLST\]\n\n\/\/ Duel out\n/)
   })
 
-  it('pairs cards out with cards in, in order, and keeps pairs when a swap changes', () => {
+  it("lets a card added to the list take the place of a version's swap in, not add to it", () => {
+    const before = parseList('// Format: Commander\n// Duel: On\n1 Sol Ring\n\n// Duel in\n1 Lightning Bolt\n')
+    const after = withAbsorbedIns(before, addToBoard(before, { qty: 1, name: 'Lightning Bolt', foil: false }, 'main'))
+    expect(serializeList(after)).toBe('// Format: Commander\n// Duel: On\n1 Sol Ring\n1 Lightning Bolt\n')
+    expect(names(versionCardLines(after, 'Duel'))).toEqual(['1 Sol Ring', '1 Lightning Bolt'])
+  })
+
+  it('keeps swaps in place when one changes, and puts a card back when its swap is undone', () => {
     let lines = withVariantCount(parseList(DECK), 'Duel', { name: 'Alicia Masters, Skilled Sculptor', foil: false }, 0)
     lines = withVariantCount(lines, 'Duel', { name: 'Flux Channeler', foil: false }, 1)
     lines = withVariantCount(lines, 'Duel', { name: 'Island', foil: false }, 9)
-    const pair = (lines: Parameters<typeof variantSwaps>[0]) =>
-      swapPairs(variantSwaps(lines, 'Duel')).map((p) => `${p.out?.name ?? '-'} > ${p.in?.name ?? '-'}`)
-    expect(pair(lines)).toEqual(['Galactus, Devourer of Worlds > Dreamtide Whale', 'Alicia Masters, Skilled Sculptor > Flux Channeler', 'Island > -'])
-    // More copies of a card out keeps its place.
+    const outs = (lines: Parameters<typeof variantSwaps>[0]) => variantSwaps(lines, 'Duel').outs.map((line) => line.name)
+    expect(outs(lines)).toEqual(['Galactus, Devourer of Worlds', 'Alicia Masters, Skilled Sculptor', 'Island'])
+    // Cutting more copies of a card keeps its place.
     lines = withVariantCount(lines, 'Duel', { name: 'Galactus, Devourer of Worlds', foil: false }, 0)
-    expect(pair(lines)[0]).toBe('Galactus, Devourer of Worlds > Dreamtide Whale')
-    lines = withoutSwapPair(lines, 'Duel', 0)
-    expect(pair(lines)).toEqual(['Alicia Masters, Skilled Sculptor > Flux Channeler', 'Island > -'])
+    expect(outs(lines)[0]).toBe('Galactus, Devourer of Worlds')
+    // Undoing a card out (all its copies back) and a card in (none left).
+    lines = withVariantCount(lines, 'Duel', { name: 'Galactus, Devourer of Worlds', foil: false }, 1)
+    lines = withVariantCount(lines, 'Duel', { name: 'Flux Channeler', foil: false }, 0)
+    expect(outs(lines)).toEqual(['Alicia Masters, Skilled Sculptor', 'Island'])
+    expect(names(variantSwaps(lines, 'Duel').ins)).toEqual(['1 Dreamtide Whale'])
     expect(names(versionCardLines(lines, 'Duel'))).toContain('1 Galactus, Devourer of Worlds')
   })
 
-  it('keeps pairs in order when the version is edited as text', () => {
+  it('keeps swaps in order when the version is edited as text', () => {
     let lines = withVariantCount(parseList(DECK), 'Duel', { name: 'Alicia Masters, Skilled Sculptor', foil: false }, 0)
     lines = withVariantCount(lines, 'Duel', { name: 'Flux Channeler', foil: false }, 1)
     lines = withVariantText(lines, 'Duel', ['1 Invisible Woman', '1 Galactus, Devourer of Worlds', '10 Island', '1 Flux Channeler', '1 Dreamtide Whale', '1 Sol Ring'].join('\n'))

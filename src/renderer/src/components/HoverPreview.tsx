@@ -1,12 +1,15 @@
 import { useEffect, useSyncExternalStore, type MouseEvent } from 'react'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
+import { FoilSheen } from './Placeholders'
 
 /** Preview source: image URL (plus back face for two-sided cards), or card name resolved to its cheapest printing. */
 interface Target {
   src?: string | null
   back?: string | null
   name?: string
+  /** A foil copy: the preview has a sheen. */
+  foil?: boolean
 }
 
 /** Preview store state; `x`/`y` are cursor client coordinates. */
@@ -96,6 +99,7 @@ export function HoverPreview() {
     <div className={`hover-preview${back ? ' two-sided' : ''}`} style={{ left, top, width, height: HEIGHT }}>
       <img src={src} alt="" />
       {back && <img src={back} alt="" />}
+      {target.foil && !back && <FoilSheen />}
     </div>
   )
 }

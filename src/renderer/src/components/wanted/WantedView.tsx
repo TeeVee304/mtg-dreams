@@ -125,7 +125,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   const tabs = (
     [
       { id: 'cards', label: ui.wanted.tabs.cards(toBuy(overview.cards)) },
-      { id: 'basics', label: ui.wanted.tabs.basics(toBuy(overview.basics)) },
+      { id: 'basics', label: ui.wanted.tabs.basics },
       { id: 'tokens', label: ui.wanted.tokens }
     ] as const
   ).filter(({ id }) => id === 'cards' || (id === 'basics' ? basics.length > 0 : wishlists.length > 0))

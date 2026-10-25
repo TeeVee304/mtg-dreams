@@ -5,7 +5,8 @@ import { featuredTokens, tokenLabel } from '@shared/tokens'
 import { ui } from '@shared/text'
 import type { CardList, ListRef } from '../../stores/library'
 import { useDeckTokens } from '../../stores/tokens'
-import { NameCell } from '../CardCells'
+import { useSettings } from '../../stores/settings'
+import { previewHandlers } from '../HoverPreview'
 import { Skeleton } from '../Placeholders'
 import { ListChips, type ListMeta } from './parts'
 
@@ -17,11 +18,12 @@ interface TokensTabProps {
   onCopy: (text: string, what: string) => void
 }
 
-/** Tokens tab: tokens, emblems and helpers wishlist cards create, by the lists that want them. */
+/** Tokens tab: a gallery of the tokens, emblems and helpers wishlist cards create, by the lists that want them. */
 export function TokensTab({ wishlists, meta, onOpenList, onCopy }: TokensTabProps) {
   const perList = wishlists.map((list) => ({ name: list.name, keys: new Set(cardLines(list.lines).map((line) => nameKey(line.name))) }))
   const names = [...new Set(wishlists.flatMap((list) => cardLines(list.lines).map((line) => line.name)))]
   const data = useDeckTokens(names)
+  const { cardImages } = useSettings()
   if (!data) return <Skeleton width={200} />
   const weights = listWeights(wishlists)
   const weightOf = (name: string) => weights.get(listId({ kind: 'wishlist', name })) ?? 1
@@ -46,28 +48,30 @@ export function TokensTab({ wishlists, meta, onOpenList, onCopy }: TokensTabProp
           {ui.wanted.copyAsText}
         </button>
       </div>
-      <table className="cards-table wanted-table">
-        <thead>
-          <tr>
-            <th>{ui.wanted.columns.token}</th>
-            <th>{ui.wanted.columns.madeBy}</th>
-            <th>{ui.wanted.columns.wantedIn}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tokens.map(({ entry, lists }) => (
-            <tr key={entry.key}>
-              <NameCell images={entry.token}>
-                <span className="card-name">{tokenLabel(entry)}</span>
-              </NameCell>
-              <td className="muted small">{entry.makers.join(', ')}</td>
-              <td>
-                <ListChips lists={lists} meta={meta} onOpenList={onOpenList} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <div className="card-grid token-gallery">
+        {tokens.map(({ entry, lists }) => {
+          const label = tokenLabel(entry)
+          return (
+            <div key={entry.key} className={`card-tile token-card ${entry.kind}`}>
+              <span
+                className="card-tile-image"
+                {...previewHandlers({ src: entry.token.imageNormal, back: entry.token.imageBack })}
+              >
+                {cardImages && entry.token.imageNormal ? (
+                  <img src={entry.token.imageNormal} alt={label} loading="lazy" draggable={false} />
+                ) : (
+                  <span className="card-tile-name-only">{label}</span>
+                )}
+              </span>
+              <span className="token-name">{label}</span>
+              <span className="token-makers" title={entry.makers.join(', ')}>
+                {entry.makers.join(', ')}
+              </span>
+              <ListChips lists={lists} meta={meta} onOpenList={onOpenList} />
+            </div>
+          )
+        })}
+      </div>
     </>
   )
 }

@@ -12,6 +12,7 @@ import { PriceProgress } from './components/PriceProgress'
 import { Sidebar, type View } from './components/Sidebar'
 import { useToast } from './components/Toasts'
 import { TradeView } from './components/TradeView'
+import { TradesView } from './components/TradesView'
 import { WantedView } from './components/wanted/WantedView'
 import { Welcome } from './components/Welcome'
 import { plannedLists, useCopyPool } from './hooks/useCopyPool'
@@ -53,14 +54,19 @@ export default function App() {
     return onWindowFocus(() => void actions.reload())
   }, [actions])
 
-  // A page whose list or trade is gone falls back to the first list.
+  // The app opens on Most Wanted (the welcome page without lists); a page whose list is gone falls back
+  // to the first list, and one whose trade is gone to Trades.
   useEffect(() => {
     if (state.status !== 'ready') return
-    if (view?.page === 'inventory' || view?.page === 'wanted') return
+    if (view?.page === 'inventory' || view?.page === 'wanted' || view?.page === 'trades') return
     if (view?.page === 'list' && state.lists.some((list) => sameList(list, view.list))) return
-    if (view?.page === 'trade' && state.trades.some((trade) => trade.name === view.friend)) return
+    if (view?.page === 'trade') {
+      if (!state.trades.some((trade) => trade.name === view.friend)) setView({ page: 'trades' })
+      return
+    }
     const first = state.lists[0]
-    setView(first ? { page: 'list', list: { kind: first.kind, name: first.name } } : null)
+    if (view === null) setView(first ? { page: 'wanted' } : null)
+    else setView(first ? { page: 'list', list: { kind: first.kind, name: first.name } } : null)
   }, [state.status, state.lists, state.trades, view])
 
   const openList = (list: ListRef) => setView({ page: 'list', list })
@@ -110,9 +116,6 @@ export default function App() {
         pricedAt={pricedAt}
         onRefreshPrices={refreshPrices}
         trades={state.trades}
-        myTrade={myTrade}
-        onShareTrade={() => setDialog({ kind: 'share-trade' })}
-        onImportTrade={() => setDialog({ kind: 'import-trade' })}
         onWizard={() => setDialog({ kind: 'wizard' })}
         wizardOpen={dialog?.kind === 'wizard'}
       />
@@ -141,6 +144,15 @@ export default function App() {
           />
         )}
         {list && <ListView key={`${list.kind}/${list.name}`} list={list} lists={state.lists} inventory={state.inventory} pool={pool} actions={actions} onOpenList={openList} />}
+        {view?.page === 'trades' && (
+          <TradesView
+            trades={state.trades}
+            myTrade={myTrade}
+            onOpenTrade={openTrade}
+            onShareTrade={() => setDialog({ kind: 'share-trade' })}
+            onImportTrade={() => setDialog({ kind: 'import-trade' })}
+          />
+        )}
         {trade && (
           <TradeView
             key={trade.name}

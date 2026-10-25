@@ -1,11 +1,10 @@
-import { counted } from '../../plural'
+import { counted, ordinal } from '../../plural'
 import { count } from './terms'
 
-/** A Version's swaps against the list it varies. */
+/** What a Version or an Upgrade swaps: its Cards out beside its Cards in. */
 export const swaps = {
   title: 'Swaps',
-  nothingCut: 'Nothing cut',
-  nothingIn: 'Nothing instead',
+  blank: 'N/A',
   changes: (version: string, base: string) => `What the ${version} Version changes from the ${base} Version`,
   counts: (out: number, inn: number) => `${out} out · ${inn} in`,
   out: 'Out',
@@ -13,14 +12,30 @@ export const swaps = {
   cutFrom: (base: string) => `Cut from the ${base} Version`,
   onlyIn: (version: string) => `Only in the ${version} Version`,
   none: (version: string) => `No swaps yet: the ${version} Version plays the same Cards. Cut a Card and add another instead below.`,
-  undo: (cards: string) => `Undo the swap of ${cards}`,
-  undoHint: 'Undo this swap',
-  swapFor: ' for ',
+  /** A Version, for undo labels: `Duel Version`. */
+  version: (version: string) => `${version} Version`,
+  keep: (card: string, target: string) => `Keep ${card} in the ${target}`,
+  keepHint: 'Keep this Card',
+  drop: (card: string, target: string) => `Take ${card} out of the ${target}`,
+  dropHint: 'Take this Card out',
+  owned: 'Owned',
+  need: (copies: number) => `Need ${copies}`,
+  toFinish: (copies: number) => `To finish (${count.cards(copies)}):`,
   cut: 'Cut a Card from the Deck…',
   addFromInventory: 'Add a Card from your Inventory…  (Ctrl+K)',
   addInstead: 'Add a Card instead…  (Ctrl+K)',
   totalOut: (cards: number) => `${count.cards(cards)} out`,
   totalIn: (cards: number) => `${count.cards(cards)} in`
+}
+
+/** The Starting Hand: seven random Cards, mulligans and draws. */
+export const startingHand = {
+  title: 'Starting Hand',
+  mulligan: 'Mulligan',
+  draw: 'Draw',
+  bottomCard: (card: string) => `Put ${card} on the bottom`,
+  status: (mulligans: number, left: number) =>
+    `${mulligans === 0 ? 'Opening Hand' : `${ordinal(mulligans)} Mulligan`} · ${left} left in the Library`
 }
 
 /** An Upgrade's changes to the Deck it upgrades. */
@@ -32,13 +47,7 @@ export const upgradeSwaps = {
   cutFrom: (deck: string) => `Cut from ${deck}`,
   added: 'Added by the Upgrade',
   add: 'Add a Card…  (Ctrl+K)',
-  keep: (card: string) => `Keep ${card} in the Upgrade`,
-  keepHint: 'Keep this Card',
-  drop: (card: string) => `Take ${card} out of the Upgrade`,
-  dropHint: 'Take this Card out',
-  owned: 'Owned',
-  need: (copies: number) => `Need ${copies}`,
-  toFinish: (copies: number) => `To finish (${count.cards(copies)}):`,
+  target: 'Upgrade',
   fullList: 'Full Upgrade List'
 }
 
@@ -86,6 +95,5 @@ export const filters = {
   rarity: 'Rarity',
   legendary: 'Legendary',
   manaValueHint: 'Set from the mana curve in Statistics. Click to remove.',
-  manaValue: (value: string) => `Mana value ${value} ×`,
-  clear: 'Clear filters'
+  manaValue: (value: string) => `Mana value ${value} ×`
 }

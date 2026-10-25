@@ -233,9 +233,6 @@ export function InventoryView(props: InventoryViewProps) {
             action={
               <button type="button" className="value-details-btn" onClick={onValueDetails} aria-label={text.details}>
                 <Icon name="sparkle" />
-                <span className="tip tip-end" role="tooltip" aria-hidden="true">
-                  {text.details}
-                </span>
               </button>
             }
           />

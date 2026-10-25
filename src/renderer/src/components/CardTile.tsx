@@ -4,6 +4,7 @@ import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
 import type { Row } from '../lib/summary'
 import { Icon } from './Icon'
+import { FoilSheen } from './Placeholders'
 
 /** Props of {@link CardTile}. */
 interface CardTileProps {
@@ -63,7 +64,7 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
     >
       <span className={`card-tile-image${loading ? ' skeleton' : ''}`}>
         {image ? <img src={image} alt="" loading="lazy" draggable={false} /> : !loading && <span className="card-tile-name-only">{name}</span>}
-        {line.foil && <span className="card-tile-foil" aria-hidden="true" />}
+        {line.foil && <FoilSheen />}
         {line.qty > 1 && <span className="card-tile-qty">×{line.qty}</span>}
         {!isDeck && (
           <span className={`card-tile-owned${complete ? ' done' : ''}`} title={ui.card.ownedOf(owned, line.qty)}>

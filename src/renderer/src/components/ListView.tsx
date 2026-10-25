@@ -3,9 +3,8 @@ import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } f
 import { cardLines, nameKey } from '@shared/decklist'
 import { otherVersions, type Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
-import { stripMeta } from '@shared/listMeta'
 import { isUnbuilt } from '@shared/listUnbuilt'
-import { activeVariant, BASE, baseLabel, swapPairs, variantSwaps, versionFormatLabel } from '@shared/listVersion'
+import { activeVariant, BASE, baseLabel, variantSwaps, versionFormatLabel } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
 import { deckSizeCheck, FORMATS, listFormat } from '@shared/formats'
 import {
@@ -25,6 +24,7 @@ import { ui } from '@shared/text'
 import { getCardInfo } from '../stores/cardinfo'
 import { useCommanderThemes } from '../features/deckWizard'
 import { headerLeaders, listColors } from '../lib/listFigures'
+import { HAND_SIZE } from '../lib/startingHand'
 import { cleanError } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceChange, useBaselines } from '../stores/history'
@@ -51,9 +51,8 @@ import { ListDialogs, type ListDialog } from './ListDialogs'
 import { ListHeader } from './ListHeader'
 import { ListTable } from './ListTable'
 import { ListValueCards } from './ListValueCards'
-import { SwapTable, UpgradeSwapTable } from './SwapTable'
+import { SwapTable } from './SwapTable'
 import { useToast } from './Toasts'
-import { useCopy } from '../hooks/useCopy'
 
 /** Props of {@link ListView}. */
 interface ListViewProps {
@@ -77,7 +76,6 @@ interface ListViewProps {
 export function ListView({ list, lists, inventory, pool, actions, onOpenList }: ListViewProps) {
   const toast = useToast()
   const moveListTo = useListMover(actions)
-  const copy = useCopy()
   usePrintingsVersion()
   const isDeck = list.kind === 'deck'
   const isBrew = list.kind === 'brew'
@@ -131,6 +129,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     useCommanderPicking(list, rows, analysis, actions)
 
   const leaders = headerLeaders(rows.filter(isCommander), settings.cardImages)
+  /** Cards a starting hand draws from: the main deck, its commanders aside. */
+  const drawable = mainRows.reduce((sum, row) => sum + (isCommander(row) ? 0 : row.line.qty), 0)
   const leaderRows = leaders.rows
   // The commanders' color identity, else the colors of all the cards.
   const colors = listColors(rows, leaderRows.map((row) => row.line.name))
@@ -320,6 +320,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       sortReverse={sortReverse}
       filters={filters}
       onFilters={setFilters}
+      identity={leaderRows.length > 0 ? colors : []}
       hideOwned={hideOwned}
       onHideOwned={setHideOwned}
       filtering={filtering}
@@ -350,7 +351,6 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         onlyProblems={onlyProblems}
         onToggleProblems={() => setOnlyProblems(!onlyProblems)}
         onTogglePicking={togglePicking}
-        onFormat={changeFormat}
         variants={variants}
         baseLabel={baseLabel(list.lines)}
         version={version}
@@ -361,10 +361,9 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         onAddVersion={() => setDialog({ kind: 'version-name', version: null })}
         onRenameVersion={other && !other.format ? () => setDialog({ kind: 'version-name', version: other.label }) : undefined}
         onDeleteVersion={other ? deleteVersion : undefined}
+        onFormat={changeFormat}
         onEditText={() => setDialog({ kind: 'text' })}
-        onCopy={() =>
-          copy(stripMeta(shown.text), other ? ui.list.versionCopied(other.label) : ui.list.copied(isDeck))
-        }
+        onStartingHand={drawable >= HAND_SIZE ? () => setDialog({ kind: 'hand' }) : undefined}
         onColor={() => setDialog({ kind: 'color' })}
         onUpgrade={list.kind === 'wishlist' ? () => setDialog({ kind: 'upgrade' }) : undefined}
         onMakeWishlist={isBrew ? () => void makeWishlist() : undefined}
@@ -423,27 +422,38 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
       {other && (
         <SwapTable
-          pairs={swapPairs(swaps)}
-          variant={other}
-          baseLabel={baseLabel(list.lines)}
+          swaps={swaps}
+          changes={ui.swaps.changes(other.label, baseLabel(list.lines))}
+          outLabel={ui.swaps.cutFrom(baseLabel(list.lines))}
+          inLabel={ui.swaps.onlyIn(other.label)}
+          target={ui.swaps.version(other.label)}
+          none={ui.swaps.none(other.label)}
           rows={rows}
           outChoices={outChoices}
           onCut={(name) => versionEdits?.setCopies({ name, foil: false, qty: 0 }, copiesOf(name) - 1)}
-          onUndo={(index) => actions.removeSwapPair(list, version, index)}
+          onKeep={(line) => versionEdits?.setCopies(line, copiesOf(line.name) + line.qty)}
+          onDrop={(line) => versionEdits?.setCopies(line, copiesOf(line.name) - line.qty)}
           adder={{ list, inventory, pool, actions: viewActions, format, copiesOf, capsFor, limitFor, sideboardAllowed: false }}
+          addPlaceholder={ui.swaps.addInstead}
         />
       )}
 
       {upgradeChanges && (
-        <UpgradeSwapTable
+        <SwapTable
           swaps={upgradeChanges.swaps}
-          deckLabel={upgradeChanges.deckLabel}
+          changes={ui.upgradeSwaps.changes(upgradeChanges.deckLabel)}
+          outLabel={ui.upgradeSwaps.cutFrom(upgradeChanges.deckLabel)}
+          inLabel={ui.upgradeSwaps.added}
+          target={ui.upgradeSwaps.target}
+          none={ui.upgradeSwaps.none(upgradeChanges.deckLabel)}
           rows={rows}
+          ownership
           outChoices={upgradeChanges.outChoices}
           onCut={(name) => actions.removeCopies(list, name, 1)}
           onKeep={({ id: _id, kind: _kind, ...card }) => actions.addCards(list, [card])}
           onDrop={(line) => actions.removeCopies(list, line.name, line.qty)}
           adder={{ list, inventory, pool, actions, format, copiesOf, capsFor, limitFor, sideboardAllowed }}
+          addPlaceholder={ui.upgradeSwaps.add}
         />
       )}
 

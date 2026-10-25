@@ -16,13 +16,13 @@ export const wanted = {
   tokens: 'Tokens',
   tabs: {
     cards: (n: number) => `Cards · ${n}`,
-    basics: (n: number) => `Basic Lands · ${n}`
+    basics: 'Basic Lands'
   },
   bought: 'Bought',
   boughtHint: (n: number) => `Add ${n} to your Inventory`,
   markedBought: (qty: number, card: string) => `Marked ${qty}× ${card} as bought (Ctrl+Z to undo)`,
   markedAllBought: (cards: number) => `Marked ${count.cards(cards)} as bought (Ctrl+Z to undo)`,
-  columns: { card: 'Card', wantedIn: 'Wanted in', toBuy: 'To buy', cost: 'Cost', actions: 'Actions', token: 'Token', madeBy: 'Made by' },
+  columns: { card: 'Card', wantedIn: 'Wanted in', toBuy: 'To buy', cost: 'Cost', actions: 'Actions' },
   toBuyHint: 'Copies to buy so every list is covered: each built Deck needs its own; Wishlists, upgrades and unbuilt Decks share',
   noLists: 'No Decks or Wishlists yet.',
   noListsHint: 'Most Wanted gathers the Cards your Decks and Wishlists still miss.',

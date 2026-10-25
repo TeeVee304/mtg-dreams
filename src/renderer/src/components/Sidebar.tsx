@@ -1,7 +1,7 @@
 import { useMemo, useState, type CSSProperties, type DragEvent } from 'react'
 import { listColor } from '@shared/listColor'
-import { sumOf, totalCopies } from '@shared/totals'
-import { matchTrades, type TradeCard, type TradeSnapshot, type Want } from '@shared/trade'
+import { sumOf } from '@shared/totals'
+import type { TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { ui } from '@shared/text'
 import { inventoryValue } from '../lib/collection'
@@ -30,6 +30,7 @@ export type View =
   | { page: 'inventory'; paste?: boolean }
   | { page: 'wanted' }
   | { page: 'list'; list: ListRef }
+  | { page: 'trades' }
   | { page: 'trade'; friend: string }
 
 /** Props of {@link Sidebar}. */
@@ -49,10 +50,6 @@ interface SidebarProps {
   /** Checks Cardmarket for newer prices. */
   onRefreshPrices: () => Promise<void>
   trades: TradeSnapshot[]
-  /** Own trade side ({@link myTradeSide}). */
-  myTrade: { haves: TradeCard[]; wants: Want[] }
-  onShareTrade: () => void
-  onImportTrade: () => void
   /** Opens the Deck Wizard. */
   onWizard: () => void
   /** The Deck Wizard is open; its item shines. */
@@ -60,15 +57,15 @@ interface SidebarProps {
 }
 
 /**
- * Navigation: inventory and Most Wanted stay in place; decks, wishlists and brews (collapsible sections
- * with price-drop counts and color symbols on hover; wishlists in your order, dragged to reorder; brews
- * by name, the first few until all are shown, with a filter for many; a list dragged between Wishlists
- * and Brews changes kind) and trades scroll below them. The footer holds the price status and settings. In narrow windows it is an icon rail: icons and list initials, with
+ * Navigation: Most Wanted, inventory and Trades stay in place; decks, wishlists and brews (collapsible
+ * sections with price-drop counts and color symbols on hover; wishlists in your order, dragged to reorder;
+ * brews by name, the first few until all are shown, with a filter for many; a list dragged between
+ * Wishlists and Brews changes kind) scroll below them. The footer holds the price status and settings. In narrow windows it is an icon rail: icons and list initials, with
  * every list shown and names in tooltips (and for screen readers).
  */
 export function Sidebar(props: SidebarProps) {
   const { lists, inventory, view, onSelect, onNew, onMoveWishlist, onMoveKind, onSettings, pricedAt, onRefreshPrices } = props
-  const { trades, myTrade, onShareTrade, onImportTrade, onWizard, wizardOpen } = props
+  const { trades, onWizard, wizardOpen } = props
   const [refreshing, setRefreshing] = useState(false)
   /**
    * Wishlist or brew being dragged (`from`: a wishlist's place in the order), and where it would drop:
@@ -93,10 +90,6 @@ export function Sidebar(props: SidebarProps) {
     () => new Map(lists.map((list) => [list, listFigures(list, inventory, settings, baselines, pool)])),
     // `version` stands for the prices the figures are read from.
     [lists, inventory, settings, baselines, pool, version]
-  )
-  const tradeCounts = useMemo(
-    () => trades.map((trade) => matchTrades(myTrade.haves, myTrade.wants, trade)),
-    [trades, myTrade]
   )
 
   /** Drops the dragged list where it is over: in its new place among the wishlists, or into Brews. */
@@ -295,6 +288,23 @@ export function Sidebar(props: SidebarProps) {
       <nav className="nav-fixed">
         <button
           type="button"
+          className={`nav-item${view?.page === 'wanted' ? ' active' : ''}`}
+          title={rail ? ui.sidebar.mostWanted : undefined}
+          onClick={() => onSelect({ page: 'wanted' })}
+        >
+          <span className="nav-thumb nav-tile" aria-hidden="true">
+            <Icon name="cart" />
+          </span>
+          <span className="nav-text">
+            <span className="nav-name">{ui.sidebar.mostWanted}</span>
+            <span className="nav-meta">
+              {ui.count.cards(sumOf(wanted.cards, (card) => card.toBuy))}
+              {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
+            </span>
+          </span>
+        </button>
+        <button
+          type="button"
           className={`nav-item${view?.page === 'inventory' ? ' active' : ''}`}
           title={rail ? ui.sidebar.inventory : undefined}
           onClick={() => onSelect({ page: 'inventory' })}
@@ -312,19 +322,16 @@ export function Sidebar(props: SidebarProps) {
         </button>
         <button
           type="button"
-          className={`nav-item${view?.page === 'wanted' ? ' active' : ''}`}
-          title={rail ? ui.sidebar.mostWanted : undefined}
-          onClick={() => onSelect({ page: 'wanted' })}
+          className={`nav-item${view?.page === 'trades' || view?.page === 'trade' ? ' active' : ''}`}
+          title={rail ? ui.sidebar.trades : undefined}
+          onClick={() => onSelect({ page: 'trades' })}
         >
           <span className="nav-thumb nav-tile" aria-hidden="true">
-            <Icon name="cart" />
+            <Icon name="swap" />
           </span>
           <span className="nav-text">
-            <span className="nav-name">{ui.sidebar.mostWanted}</span>
-            <span className="nav-meta">
-              {ui.count.cards(sumOf(wanted.cards, (card) => card.toBuy))}
-              {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
-            </span>
+            <span className="nav-name">{ui.sidebar.trades}</span>
+            <span className="nav-meta">{ui.sidebar.friends(trades.length)}</span>
           </span>
         </button>
         <DeckWizardNavItem onOpen={onWizard} open={wizardOpen} rail={rail} />
@@ -334,53 +341,6 @@ export function Sidebar(props: SidebarProps) {
         {section('deck', ui.terms.kindsPlural.deck, ui.sidebar.noDecks)}
         {section('wishlist', ui.terms.kindsPlural.wishlist, ui.sidebar.noWishlists)}
         {section('brew', ui.terms.kindsPlural.brew, ui.sidebar.brewsHint)}
-      </nav>
-
-      {/* Trades stay in view under the lists, however long those get. */}
-      <nav className="nav-trades" aria-label={ui.sidebar.trades}>
-        <div className="nav-section">
-          <span className="nav-section-title">{ui.sidebar.trades}</span>
-          <button
-            type="button"
-            className="icon-btn"
-            onClick={onImportTrade}
-            title={ui.sidebar.importTrade}
-            aria-label={ui.sidebar.importTrade}
-          >
-            <Icon name="plus" />
-          </button>
-        </div>
-        <button type="button" className="nav-item share-item" onClick={onShareTrade} title={rail ? ui.sidebar.shareTrade : undefined}>
-          <span className="nav-thumb nav-tile" aria-hidden="true">
-            <Icon name="share" />
-          </span>
-          <span className="nav-text">
-            <span className="nav-name">{ui.sidebar.shareTrade}</span>
-          </span>
-        </button>
-        {trades.map((trade, index) => {
-          const { forMe, forThem } = tradeCounts[index]
-          const active = view?.page === 'trade' && view.friend === trade.name
-          return (
-            <button
-              key={trade.name}
-              type="button"
-              className={`nav-item${active ? ' active' : ''}`}
-              title={rail ? ui.sidebar.tradeWith(trade.name) : undefined}
-              onClick={() => onSelect({ page: 'trade', friend: trade.name })}
-            >
-              <span className="nav-thumb" aria-hidden="true">
-                <Initials name={trade.name} />
-              </span>
-              <span className="nav-text">
-                <span className="nav-name">{trade.name}</span>
-                <span className="nav-meta">
-                  {ui.sidebar.tradeCounts(totalCopies(forMe), totalCopies(forThem))}
-                </span>
-              </span>
-            </button>
-          )
-        })}
       </nav>
 
       <footer className="sidebar-foot">

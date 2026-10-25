@@ -5,9 +5,8 @@ import {
   COLOR_LETTERS,
   COLOR_NAMES,
   CURVE_TOP,
-  filtersActive,
-  NO_FILTERS,
   type CardFilters,
+  type ColorFilter,
   type ColorMode
 } from '@shared/cards'
 import { MANA_SYMBOLS } from '../lib/artwork'
@@ -39,11 +38,20 @@ interface FilterBarProps {
   children?: ReactNode
   /** Controls kept together at the end of the row (view, sort); they wrap as one when the row is full. */
   end?: ReactNode
+  /**
+   * Color identity the cards share (a commander's): only its colors and colorless are offered, plus any
+   * already selected. Every color when omitted or empty.
+   */
+  identity?: ColorFilter[]
 }
 
 /** Name, color, type, rarity and legendary filters, with the page's own controls on the same row. */
-export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, children, end }: FilterBarProps) {
+export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, children, end, identity = [] }: FilterBarProps) {
   const set = (patch: Partial<CardFilters>) => onChange({ ...filters, ...patch })
+  const offered =
+    identity.length > 0
+      ? COLOR_LETTERS.filter((color) => color === 'C' || identity.includes(color) || filters.colors.includes(color))
+      : COLOR_LETTERS
 
   return (
     <div className="filter-bar">
@@ -57,7 +65,7 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
         />
         <div className="filter-group">
           <div className="toggle-group" role="group" aria-label={ui.filters.colors} title={ui.filters.colorsHint}>
-            {COLOR_LETTERS.map((color) => {
+            {offered.map((color) => {
               const on = filters.colors.includes(color)
               return (
                 <button
@@ -129,11 +137,6 @@ export function FilterBar({ filters, onChange, namePlaceholder, loadingNote, chi
             title={ui.filters.manaValueHint}
           >
             {ui.filters.manaValue(filters.manaValue === CURVE_TOP ? `${CURVE_TOP}+` : String(filters.manaValue))}
-          </button>
-        )}
-        {filtersActive(filters) && (
-          <button type="button" className="link-btn" onClick={() => onChange(NO_FILTERS)}>
-            {ui.filters.clear}
           </button>
         )}
         {children}

@@ -94,65 +94,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
           >
             {refreshing ? text.checking : text.checkNow}
           </button>
-          <br />
-          {text.inventoryUsesTypical}
         </p>
-        <div className="setting-toggle">
-          <span className="setting-text">
-            <span className="setting-label">{text.alerts}</span>
-            <span className="muted small">{text.alertsHint}</span>
-          </span>
-          <span className="alert-fields">
-            <span className="percent-field">
-              {text.atLeast}
-              <input
-                type="number"
-                min={1}
-                max={90}
-                step={1}
-                value={settings.dropAlertPercent}
-                aria-label={text.thresholdLabel}
-                onChange={(event) => {
-                  const percent = Math.round(Number(event.target.value))
-                  if (percent >= 1 && percent <= 90) change({ dropAlertPercent: percent })
-                }}
-              />
-              %
-            </span>
-            <span className="percent-field">
-              <span className="move-down">{text.cheaper}</span> {text.by}
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.05}
-                value={settings.dropAlertMinEur}
-                aria-label={text.dropLabel}
-                onChange={(event) => {
-                  const euros = Math.round(Number(event.target.value) * 100) / 100
-                  if (euros >= 0 && euros <= 100) change({ dropAlertMinEur: euros })
-                }}
-              />
-              €
-            </span>
-            <span className="percent-field">
-              <span className="move-up">{text.pricier}</span> {text.by}
-              <input
-                type="number"
-                min={0}
-                max={100}
-                step={0.05}
-                value={settings.riseAlertMinEur}
-                aria-label={text.riseLabel}
-                onChange={(event) => {
-                  const euros = Math.round(Number(event.target.value) * 100) / 100
-                  if (euros >= 0 && euros <= 100) change({ riseAlertMinEur: euros })
-                }}
-              />
-              €
-            </span>
-          </span>
-        </div>
       </section>
 
       <section className="settings-section">
@@ -216,6 +158,65 @@ export function SettingsDialog(props: SettingsDialogProps) {
       </section>
 
       <section className="settings-section">
+        <div className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.alerts}</span>
+            <span className="muted small">{text.alertsHint}</span>
+          </span>
+          <span className="alert-fields">
+            <span className="percent-field">
+              {text.atLeast}
+              <input
+                type="number"
+                min={1}
+                max={90}
+                step={1}
+                value={settings.dropAlertPercent}
+                aria-label={text.thresholdLabel}
+                onChange={(event) => {
+                  const percent = Math.round(Number(event.target.value))
+                  if (percent >= 1 && percent <= 90) change({ dropAlertPercent: percent })
+                }}
+              />
+              %
+            </span>
+            <span className="percent-field">
+              <span className="move-down">{text.cheaper}</span> {text.by}
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.05}
+                value={settings.dropAlertMinEur}
+                aria-label={text.dropLabel}
+                onChange={(event) => {
+                  const euros = Math.round(Number(event.target.value) * 100) / 100
+                  if (euros >= 0 && euros <= 100) change({ dropAlertMinEur: euros })
+                }}
+              />
+              €
+            </span>
+            <span className="percent-field">
+              <span className="move-up">{text.pricier}</span> {text.by}
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step={0.05}
+                value={settings.riseAlertMinEur}
+                aria-label={text.riseLabel}
+                onChange={(event) => {
+                  const euros = Math.round(Number(event.target.value) * 100) / 100
+                  if (euros >= 0 && euros <= 100) change({ riseAlertMinEur: euros })
+                }}
+              />
+              €
+            </span>
+          </span>
+        </div>
+      </section>
+
+      <section className="settings-section">
         <h3>{text.dataFolder}</h3>
         <p className="data-dir" title={dataDir}>
           {dataDir}
@@ -228,7 +229,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
             {text.change}
           </button>
         </div>
-        <p className="muted tiny settings-note">{text.dataFolderHint}</p>
       </section>
       {error && <p className="warn">{error}</p>}
       <p className="muted tiny settings-credits">{text.credits}</p>

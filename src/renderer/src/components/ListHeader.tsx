@@ -48,8 +48,8 @@ interface ListHeaderProps {
   leaderName: string | null
   onFormat: (formatId: string | null) => void
   onEditText: () => void
-  /** Copies the list text to the clipboard. */
-  onCopy: () => void
+  /** Opens a starting hand, from the banner; absent while the list has fewer than seven cards to draw. */
+  onStartingHand?: () => void
   /** Opens the color picker. */
   onColor: () => void
   /** Wishlists: opens the picker of the deck it upgrades. */
@@ -134,6 +134,13 @@ export function ListHeader(props: ListHeaderProps) {
   return (
     <header className={`view-header${arts.length > 0 ? ' art-hero' : ''}${other ? ' variant-view' : ''}`}>
       <HeroPortrait arts={arts} />
+      {arts.length > 0 && props.onStartingHand && (
+        <div className="hero-art-picks">
+          <button type="button" className="icon-btn" onClick={props.onStartingHand} aria-label={ui.startingHand.title} title={ui.startingHand.title}>
+            <Icon name="hand" />
+          </button>
+        </div>
+      )}
       {arts.length > 0 && props.background?.art && (
         <figure className="hero-background" data-mana={props.background.color} title={text.backgroundHint(props.background.name)}>
           <img src={props.background.art} alt="" draggable={false} />
@@ -254,6 +261,12 @@ export function ListHeader(props: ListHeaderProps) {
           label={text.more(noun)}
           items={[
             ...(canChangeCommander ? [{ label: text.changeCommander, onSelect: () => props.onTogglePicking('commander') }] : []),
+            { label: text.color, onSelect: props.onColor },
+            { label: text.rename, onSelect: props.onRename },
+            // In a version's view, deleting deletes that version only; the list stays.
+            other && props.onDeleteVersion
+              ? { label: text.deleteVersion(other.label), onSelect: props.onDeleteVersion, danger: true }
+              : { label: text.delete, onSelect: props.onDelete, danger: true },
             // A version follows its own format, shown locked in the header.
             ...(other
               ? []
@@ -267,14 +280,7 @@ export function ListHeader(props: ListHeaderProps) {
                     }))
                   }
                 ]),
-            { label: text.copyAsText, onSelect: props.onCopy },
-            { label: text.color, onSelect: props.onColor },
-            ...(advanced.length > 0 ? [{ label: text.advanced, items: advanced }] : []),
-            { label: text.rename, onSelect: props.onRename },
-            // In a version's view, deleting deletes that version only; the list stays.
-            other && props.onDeleteVersion
-              ? { label: text.deleteVersion(other.label), onSelect: props.onDeleteVersion, danger: true }
-              : { label: text.delete(noun), onSelect: props.onDelete, danger: true }
+            ...(advanced.length > 0 ? [{ label: text.advanced, items: advanced }] : [])
           ]}
         />
       </div>

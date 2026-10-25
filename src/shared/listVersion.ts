@@ -375,8 +375,8 @@ export type CardPick = Omit<CardLine, 'id' | 'kind' | 'qty'>
 
 /**
  * Sets how many copies of a card a version has, as swaps against the list: copies beyond the list's
- * are in, copies short of them out. Other swaps are kept, in place, so their pairs stay
- * ({@link swapPairs}); a new swap goes last. Outs of cards no longer in the list are dropped.
+ * are in, copies short of them out. Other swaps are kept, in place, so the file changes little; a
+ * new swap goes last. Outs of cards no longer in the list are dropped.
  * @param card - The card; a new card in keeps this printing.
  */
 export function withVariantCount(lines: ListLine[], version: ListVersion, card: CardPick, target: number): ListLine[] {
@@ -389,6 +389,24 @@ export function withVariantCount(lines: ListLine[], version: ListVersion, card: 
   return withVersionSwaps(lines, version, { ins: placed(ins, key, added), outs: placed(outs, key, cut) })
 }
 
+/**
+ * @returns `after` (the list with cards added) where a version that already swapped one of them in
+ * plays no more copies than before or than the list now has: the list's new copies take the place of
+ * its swap, rather than adding to it.
+ */
+export function withAbsorbedIns(before: ListLine[], after: ListLine[]): ListLine[] {
+  let lines = after
+  for (const { label } of listVariants(before)) {
+    const had = copiesByName(versionCardLines(before, label))
+    for (const line of variantSwaps(before, label).ins) {
+      const key = nameKey(line.name)
+      const own = copiesByName(baseCardLines(lines)).get(key) ?? 0
+      lines = withVariantCount(lines, label, line, Math.max(had.get(key) ?? 0, own))
+    }
+  }
+  return lines
+}
+
 /** @returns `list` with a card's lines replaced by `line` where the first stood (last for a new card), or dropped for null. */
 function placed(list: CardLine[], key: string, line: CardLine | null): CardLine[] {
   const at = list.findIndex((other) => nameKey(other.name) === key)
@@ -396,29 +414,6 @@ function placed(list: CardLine[], key: string, line: CardLine | null): CardLine[
   if (!line) return rest
   const index = at < 0 ? rest.length : at
   return [...rest.slice(0, index), line, ...rest.slice(index)]
-}
-
-/** A card a version cuts and the card it plays instead; either is null when the other side has more swaps. */
-export interface SwapPair {
-  out: CardLine | null
-  in: CardLine | null
-}
-
-/** @returns A version's swaps as pairs, in order: the first card out with the first card in, and so on. */
-export function swapPairs({ ins, outs }: Swaps): SwapPair[] {
-  return Array.from({ length: Math.max(ins.length, outs.length) }, (_, index) => ({
-    out: outs[index] ?? null,
-    in: ins[index] ?? null
-  }))
-}
-
-/** @returns Lines without one pair of a version's swaps ({@link swapPairs}): its card is back in the version, the card instead gone. */
-export function withoutSwapPair(lines: ListLine[], version: ListVersion, index: number): ListLine[] {
-  const { ins, outs } = variantSwaps(lines, version)
-  return withVersionSwaps(lines, version, {
-    ins: ins.filter((_, at) => at !== index),
-    outs: outs.filter((_, at) => at !== index)
-  })
 }
 
 /**
@@ -445,7 +440,7 @@ export function withVariantCards(lines: ListLine[], version: ListVersion, target
     const less = (own.get(key) ?? 0) - (wanted.get(key) ?? 0)
     if (less > 0) outs.push({ kind: 'card', id: '', name: line.name, foil: false, qty: less })
   }
-  // Swaps the version already had keep their order, so their pairs stay; new ones go last.
+  // Swaps the version already had keep their order, so the file changes little; new ones go last.
   const before = variantSwaps(lines, version)
   return withVersionSwaps(lines, version, { ins: inOrderOf(ins, before.ins), outs: inOrderOf(outs, before.outs) })
 }

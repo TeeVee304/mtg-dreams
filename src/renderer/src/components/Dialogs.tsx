@@ -4,6 +4,7 @@ import { totalCopies } from '@shared/totals'
 import type { ListKind } from '@shared/types'
 import { ui } from '@shared/text'
 import { useAsyncAction } from '../hooks/useAsyncAction'
+import { useCopy } from '../hooks/useCopy'
 import { FormatSelect } from './Controls'
 import { Modal } from './Modal'
 
@@ -162,13 +163,16 @@ interface TextEditorDialogProps {
   initial: string
   /** Parse mode for the live summary. */
   mode: 'list' | 'inventory'
+  /** Offers a Copy button, copying the text as it stands, and says this once copied. */
+  copied?: string
   onSave: (text: string) => void
   onClose: () => void
 }
 
 /** Raw text editor for a list or the inventory. */
-export function TextEditorDialog({ title, initial, mode, onSave, onClose }: TextEditorDialogProps) {
+export function TextEditorDialog({ title, initial, mode, copied, onSave, onClose }: TextEditorDialogProps) {
   const [text, setText] = useState(initial)
+  const copy = useCopy()
   const save = () => {
     onSave(text)
     onClose()
@@ -182,6 +186,11 @@ export function TextEditorDialog({ title, initial, mode, onSave, onClose }: Text
         <>
           <ParseStats text={text} mode={mode} />
           <span className="spacer" />
+          {copied && (
+            <button type="button" onClick={() => void copy(text, copied)}>
+              {ui.dialogs.editor.copy}
+            </button>
+          )}
           <button type="button" onClick={onClose}>
             {ui.dialogs.cancel}
           </button>

@@ -30,6 +30,7 @@ import { ColorOptions } from './Controls'
 import { ConfirmDialog, PromptDialog, TextEditorDialog } from './Dialogs'
 import { Modal } from './Modal'
 import { PreconDialog } from './PreconDialog'
+import { StartingHand } from './StartingHand'
 import { useToast } from './Toasts'
 
 /** Dialog open on a list page; `unown` confirms reducing inventory below other lists' needs. */
@@ -39,6 +40,8 @@ export type ListDialog =
   | { kind: 'text' }
   | { kind: 'card'; lineId: string }
   | { kind: 'precon' }
+  /** A starting hand of the shown version. */
+  | { kind: 'hand' }
   | { kind: 'color' }
   | { kind: 'upgrade' }
   | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
@@ -121,6 +124,7 @@ export function ListDialogs(props: ListDialogsProps) {
           title={text.editVersion(shown.label, list.name)}
           initial={variantText(list.lines, shown.label)}
           mode="list"
+          copied={ui.list.versionCopied(shown.label)}
           onClose={onClose}
           onSave={(text) => actions.replaceVariantText(list, shown.label, text)}
         />
@@ -130,6 +134,7 @@ export function ListDialogs(props: ListDialogsProps) {
           title={text.edit(list.name)}
           initial={stripMeta(baseText(list.lines))}
           mode="list"
+          copied={ui.list.copied(isDeck)}
           onClose={onClose}
           onSave={(text) => actions.replaceListText(list, serializeList(withBaseText(list.lines, withMetaOf(text, list.text))))}
         />
@@ -139,11 +144,14 @@ export function ListDialogs(props: ListDialogsProps) {
           title={text.edit(list.name)}
           initial={stripMeta(list.text)}
           mode="list"
+          copied={ui.list.copied(isDeck)}
           onClose={onClose}
           onSave={(text) => actions.replaceListText(list, withMetaOf(text, list.text))}
         />
       )
     }
+    case 'hand':
+      return <StartingHand rows={props.rows.filter((row) => !row.side && !analysis.isCommander(row))} onClose={onClose} />
     case 'card':
       return cardRow ? (
         <CardDialog

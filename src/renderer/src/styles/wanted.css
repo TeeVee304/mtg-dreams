@@ -249,3 +249,14 @@
 .shelf-moves {
   font-size: var(--fs-xs);
 }
+
+/* Tokens tab: a gallery of token cards, each with what makes it and the lists that want it. */
+.token-gallery .token-card {
+  gap: 4px;
+  min-width: 0;
+}
+
+.token-card.emblem .token-name,
+.token-card.helper .token-name {
+  color: var(--accent-text);
+}
