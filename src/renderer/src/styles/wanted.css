@@ -260,3 +260,11 @@
 .token-card.helper .token-name {
   color: var(--accent-text);
 }
+
+/* The Budget Planner's title, its wallet beside it. */
+.planner-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: center;
+}

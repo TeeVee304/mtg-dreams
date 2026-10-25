@@ -29,10 +29,6 @@ interface CardsTabProps {
   onFilters: (filters: CardFilters) => void
   sort: WantedSort
   onSort: (sort: WantedSort) => void
-  /** Whether any friend shared a trade list, and the "a friend has it" filter. */
-  hasTrades: boolean
-  friendsOnly: boolean
-  onFriendsOnly: (on: boolean) => void
   friends: FriendHaves
   /** Price change since added to a wishlist, by card key. */
   changes: Map<string, CardPriceChange>
@@ -81,13 +77,7 @@ export function CardsTab(props: CardsTabProps) {
         loadingNote={needsCardData(filters) && overview.cards.some((card) => props.infoOf(card) === undefined) ? ui.wanted.loadingCardData : undefined}
         end={<SortSelect value={props.sort} options={WANTED_SORTS.map((id) => ({ id, ...ui.wantedSorts[id] }))} onChange={props.onSort} />}
       >
-        {props.hasTrades && (
-          <label className="check" title={ui.wanted.friendHasItHint}>
-            <input type="checkbox" checked={props.friendsOnly} onChange={(event) => props.onFriendsOnly(event.target.checked)} />
-            {ui.wanted.friendHasIt}
-          </label>
-        )}
-        {(filtersActive(filters) || props.friendsOnly) && (
+        {filtersActive(filters) && (
           <span className="muted small">{ui.wanted.showing(visible.length, overview.cards.length)}</span>
         )}
       </FilterBar>

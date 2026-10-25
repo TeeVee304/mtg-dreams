@@ -178,7 +178,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
                   if (percent >= 1 && percent <= 90) change({ dropAlertPercent: percent })
                 }}
               />
-              %
+              <span className="field-unit">%</span>
             </span>
             <span className="percent-field">
               <span className="move-down">{text.cheaper}</span> {text.by}
@@ -194,7 +194,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
                   if (euros >= 0 && euros <= 100) change({ dropAlertMinEur: euros })
                 }}
               />
-              €
+              <span className="field-unit">€</span>
             </span>
             <span className="percent-field">
               <span className="move-up">{text.pricier}</span> {text.by}
@@ -210,7 +210,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
                   if (euros >= 0 && euros <= 100) change({ riseAlertMinEur: euros })
                 }}
               />
-              €
+              <span className="field-unit">€</span>
             </span>
           </span>
         </div>

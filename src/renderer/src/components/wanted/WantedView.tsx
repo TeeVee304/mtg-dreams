@@ -103,7 +103,6 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   const [storedTab, setTab] = useStoredValue<WantedTab>('mtg-dreams.wantedTab', 'cards', isTab)
   const [sort, setSort] = useStoredValue<WantedSort>('mtg-dreams.wantedSort', DEFAULT_WANTED_SORT, isWantedSort)
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
-  const [friendsOnly, setFriendsOnly] = useState(false)
 
   const pool = useCopyPool(lists)
   const wishlists = lists.filter((list) => list.kind === 'wishlist')
@@ -114,7 +113,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   const friends = friendHaves(trades)
 
   const visible = sortWanted(
-    overview.cards.filter((card) => matchesFilters(card.name, infoOf(card), undefined, filters) && (!friendsOnly || friends.has(card.key))),
+    overview.cards.filter((card) => matchesFilters(card.name, infoOf(card), undefined, filters)),
     sort,
     overview.unitOf,
     infoOf
@@ -181,9 +180,6 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
           onFilters={setFilters}
           sort={sort}
           onSort={setSort}
-          hasTrades={trades.length > 0}
-          friendsOnly={friendsOnly}
-          onFriendsOnly={setFriendsOnly}
           friends={friends}
           changes={priceChanges(wishlists, inventory, settings, pool, baselines)}
           pool={pool}

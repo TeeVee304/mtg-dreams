@@ -14,7 +14,7 @@ interface CollapsibleProps {
 }
 
 /**
- * Panel folded to its title bar (Statistics, Tokens, Budget planner). The caller keeps the open
+ * Panel folded to its title bar (Statistics, Tokens, Budget Planner). The caller keeps the open
  * state, usually with {@link useStoredToggle}, so it can skip work while folded.
  */
 export function Collapsible({ open, onToggle, title, summary, className, children }: CollapsibleProps) {

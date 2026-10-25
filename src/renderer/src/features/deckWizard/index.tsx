@@ -37,7 +37,7 @@ export function DeckWizardNavItem({ onOpen, open, rail }: DeckWizardNavItemProps
   return (
     <button
       type="button"
-      className={`nav-item hat-host${open ? ' wizard-open' : ''}`}
+      className={`nav-item nav-wizard hat-host${open ? ' wizard-open' : ''}`}
       title={rail ? ui.wizard.navTitle : undefined}
       onClick={onOpen}
     >
@@ -46,7 +46,6 @@ export function DeckWizardNavItem({ onOpen, open, rail }: DeckWizardNavItemProps
       </span>
       <span className="nav-text">
         <span className="nav-name">{ui.wizard.name}</span>
-        <span className="nav-meta">{ui.wizard.navHint}</span>
       </span>
     </button>
   )

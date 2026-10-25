@@ -15,6 +15,24 @@ import { useToast } from '../Toasts'
 /** Valid stored budget: a positive number. */
 const isBudget = (value: string): value is string => /^\d+(\.\d+)?$/.test(value) && Number(value) > 0
 
+/** Euros the budget's arrows, wheel and spinner move it by. */
+const BUDGET_STEP = 5
+
+/**
+ * @param value - The budget field's value after a change.
+ * @param before - Its value before.
+ * @param typed - The change was typed, not a step (arrow key, wheel or spinner).
+ * @returns The value to show: a step moves to the previous or next multiple of {@link BUDGET_STEP}
+ * (1 at least), since the field itself steps by 1 to accept any amount.
+ */
+function stepped(value: string, before: string, typed: boolean): string {
+  const from = Number(before)
+  const delta = Number(value) - from
+  if (typed || before === '' || !Number.isFinite(from) || Math.abs(delta) !== 1) return value
+  const next = delta > 0 ? Math.floor(from / BUDGET_STEP) * BUDGET_STEP + BUDGET_STEP : Math.ceil(from / BUDGET_STEP) * BUDGET_STEP - BUDGET_STEP
+  return String(Math.max(1, next))
+}
+
 /** Props of {@link BudgetPlanner}. */
 interface BudgetPlannerProps {
   overview: WantedOverview
@@ -38,7 +56,12 @@ export function BudgetPlanner({ overview, actions, onCopy }: BudgetPlannerProps)
   const copies = plan ? sumOf(plan.items, (item) => item.copies) : 0
 
   return (
-    <Collapsible open={open} onToggle={toggle} title={ui.wanted.planner.title} summary={ui.wanted.planner.summary}>
+    <Collapsible open={open} onToggle={toggle} title={
+        <span className="planner-title">
+          <Icon name="wallet" />
+          {ui.wanted.planner.title}
+        </span>
+      } summary={ui.wanted.planner.summary}>
       {plan && (
         <div className="planner-body">
           <div className="planner-head">
@@ -47,11 +70,16 @@ export function BudgetPlanner({ overview, actions, onCopy }: BudgetPlannerProps)
               <input
                 type="number"
                 min={1}
-                step={5}
+                // Any amount: with a step, the browser flags amounts off it ("enter a valid value"). Steps
+                // still go by 5 ({@link stepped}).
+                step="any"
                 value={draft}
                 onChange={(event) => {
-                  setDraft(event.target.value)
-                  if (isBudget(event.target.value)) setBudgetText(event.target.value)
+                  // Typing has an input type; arrow keys, the wheel and the spinner have none.
+                  const typed = !!(event.nativeEvent as InputEvent).inputType
+                  const value = stepped(event.target.value, draft, typed)
+                  setDraft(value)
+                  if (isBudget(value)) setBudgetText(value)
                 }}
                 aria-label={ui.wanted.planner.budgetLabel}
               />

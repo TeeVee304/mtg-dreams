@@ -2,7 +2,6 @@
 export const wizard = {
   name: 'Deck Wizard',
   navTitle: 'Deck Wizard: plan a Commander Deck',
-  navHint: 'Plan a Commander Deck',
   listName: 'Name',
   brewHint: 'A Brew counts toward nothing until you make it a Wishlist.',
   saveAs: { deck: 'Save as Deck', wishlist: 'Save as Wishlist', brew: 'Save as Brew' },

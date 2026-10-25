@@ -32,8 +32,6 @@ export const wanted = {
   nothingToBuyHint: 'Every Deck and Wishlist Card is in your Inventory, basic Lands aside.',
   filterByName: 'Filter by name…',
   loadingCardData: 'Loading Card data…',
-  friendHasIt: 'A friend has it',
-  friendHasItHint: "Cards on a friend's Trade list: ask before buying",
   showing: (shown: number, total: number) => `Showing ${shown} of ${total}`,
   completes: (lists: string) => `✓ Completes ${lists}`,
   completesHint: 'The last Card these lists miss (basic Lands aside)',
@@ -59,8 +57,8 @@ export const wanted = {
     hint: 'Tokens, emblems and helpers your Wishlist Cards create, owned or not.'
   },
   planner: {
-    title: 'Budget planner',
-    summary: 'The most list progress for your money',
+    title: 'Budget Planner',
+    summary: 'How many Cards can you get with this?',
     budget: 'Budget',
     budgetLabel: 'Budget in euros',
     for: 'for',

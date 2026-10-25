@@ -209,6 +209,22 @@
   color: #1a1430;
 }
 
+/* The Deck Wizard has a name and no figures: its tile is sized to the one line. */
+.nav-item.nav-wizard {
+  padding-block: 4px;
+}
+
+.nav-item.nav-wizard .nav-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.nav-item.nav-wizard .nav-tile svg {
+  width: 15px;
+  height: 15px;
+}
+
 .nav-text {
   display: flex;
   flex-direction: column;

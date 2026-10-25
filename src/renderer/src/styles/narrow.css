@@ -109,6 +109,18 @@
   justify-content: center;
 }
 
+/* In the rail every tile is the same size, the Deck Wizard's too. */
+.sidebar.rail .nav-item.nav-wizard .nav-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius);
+}
+
+.sidebar.rail .nav-item.nav-wizard .nav-tile svg {
+  width: 18px;
+  height: 18px;
+}
+
 .sidebar.rail .nav-section {
   justify-content: center;
   margin: 8px 0 2px;

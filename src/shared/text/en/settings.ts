@@ -15,7 +15,7 @@ export const settings = {
   priceSource: (date: string | null) => `Cardmarket’s daily price guide, in EUR${date ? `, from ${date}` : ''}.`,
   checking: 'Checking…',
   checkNow: 'Check now',
-  alerts: 'Price change alerts',
+  alerts: 'Price change Alerts',
   alertsHint: 'Flags Wishlist Cards whose price moved since you added them, by both the percentage and the amount.',
   atLeast: 'At least',
   thresholdLabel: 'Price change alert threshold in percent',

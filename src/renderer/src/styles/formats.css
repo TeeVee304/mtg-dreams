@@ -60,6 +60,13 @@
   flex: none;
 }
 
+/* % and € differ in width: a fixed-width unit keeps the inputs in one column. */
+.alert-fields .field-unit {
+  display: inline-block;
+  width: 1em;
+  text-align: left;
+}
+
 .alert-fields .move-down,
 .alert-fields .move-up {
   font-weight: 600;
