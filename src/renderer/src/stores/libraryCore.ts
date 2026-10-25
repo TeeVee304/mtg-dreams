@@ -1,6 +1,5 @@
 import type { ListFile, LoadedData } from '@shared/api'
 import { nameKey, parseInventory, parseList, serializeInventory, serializeList } from '@shared/decklist'
-import { listFormat } from '@shared/formats'
 import { addCopies, itemFromCopies, withTotal, type Version } from '@shared/inventory'
 import { sameDeckName, upgradeOf, upgradeVariant, withUpgradeOf } from '@shared/listUpgrade'
 import { baseCardLines, sameVersion, variantFor, type ListVersion } from '@shared/listVersion'
@@ -283,11 +282,10 @@ export class UndoHistory {
 
 /**
  * @returns Lines with `card` added to its board ({@link addToBoard}); commander formats have no
- * sideboard, so everything goes to the main deck there.
+ * sideboard, so its Cards go to the maybeboard there.
  */
 export function mergeCard(lines: ListLine[], card: BoardEntry): ListLine[] {
-  const side = card.side === true && !listFormat(lines)?.commander
-  return addToBoard(lines, card, side ? 'side' : 'main')
+  return addToBoard(lines, card, card.board ?? 'main')
 }
 
 /** @returns Card name of a line for undo labels; `a card` if not found. */

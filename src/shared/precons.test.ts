@@ -28,7 +28,7 @@ describe('preconEntries', () => {
     expect(preconEntries(deck, { exact: false, skipBasics: true })).toEqual([
       { qty: 1, name: 'Giada, Font of Hope', foil: false },
       { qty: 1, name: 'Sol Ring', foil: false },
-      { qty: 1, name: 'Sol Ring', foil: false, side: true }
+      { qty: 1, name: 'Sol Ring', foil: false, board: 'side' }
     ])
   })
 

@@ -1,5 +1,6 @@
 import { listId, listWeights } from '@shared/copies'
-import { cardLines, nameKey } from '@shared/decklist'
+import { nameKey } from '@shared/decklist'
+import { baseCardLines } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
 import { featuredTokens, tokenLabel } from '@shared/tokens'
 import { ui } from '@shared/text'
@@ -20,8 +21,9 @@ interface TokensTabProps {
 
 /** Tokens tab: a gallery of the tokens, emblems and helpers wishlist cards create, by the lists that want them. */
 export function TokensTab({ wishlists, meta, onOpenList, onCopy }: TokensTabProps) {
-  const perList = wishlists.map((list) => ({ name: list.name, keys: new Set(cardLines(list.lines).map((line) => nameKey(line.name))) }))
-  const names = [...new Set(wishlists.flatMap((list) => cardLines(list.lines).map((line) => line.name)))]
+  // The list's own Cards: its maybeboard's are only considered.
+  const perList = wishlists.map((list) => ({ name: list.name, keys: new Set(baseCardLines(list.lines).map((line) => nameKey(line.name))) }))
+  const names = [...new Set(wishlists.flatMap((list) => baseCardLines(list.lines).map((line) => line.name)))]
   const data = useDeckTokens(names)
   const { cardImages } = useSettings()
   if (!data) return <Skeleton width={200} />

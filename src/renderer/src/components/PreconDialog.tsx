@@ -194,7 +194,8 @@ function DeckPreview({ deck, skipBasics }: { deck: PreconDeck; skipBasics: boole
       {boards.map(({ board, cards }) => (
         <section key={board} className="precon-board">
           <h4>
-            {ui.precons.boards[board]} ({totalCopies(cards)})
+            {/* Commander has no sideboard: a Commander precon's goes to the maybeboard. */}
+            {board === 'side' && deck.type === 'Commander Deck' ? ui.boards.labels.maybe : ui.precons.boards[board]} ({totalCopies(cards)})
           </h4>
           {cards.map((card, i) => (
             <div

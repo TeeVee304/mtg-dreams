@@ -31,6 +31,15 @@ describe('list upgrade', () => {
   })
 })
 
+describe('maybeboards of upgrades', () => {
+  it("keep the deck's maybeboard Cards beside the upgrade's", () => {
+    const upgrade = parseList('// Upgrade of: Elves\n1 Sol Ring\n\nMaybeboard\n1 Mana Vault')
+    expect(serializeList(appliedUpgrade(upgrade, parseList('1 Llanowar Elves\n\nMaybeboard\n1 Mana Crypt')))).toBe(
+      '1 Sol Ring\n\nMaybeboard\n1 Mana Vault\n1 Mana Crypt\n'
+    )
+  })
+})
+
 describe('upgrades of a version', () => {
   const deck = parseList('// Format: Commander\n// Duel: On\n1 Sol Ring\n1 Galactus, Devourer of Worlds\n\n// Duel out\n1 Galactus, Devourer of Worlds\n')
 

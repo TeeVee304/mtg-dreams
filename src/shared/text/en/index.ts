@@ -4,7 +4,7 @@ import { names } from './names'
 import { ownership, rules, sections } from './rules'
 import { priceBases, sorts, wantedSorts } from './sorts'
 import { app, contextMenu, errors, fileDialogs, printingTags } from './system'
-import { count, terms } from './terms'
+import { boards, count, terms } from './terms'
 import { sidebar, welcome } from './sidebar'
 import { wizard } from './wizard'
 import { changes } from './changes'
@@ -21,6 +21,7 @@ import { deckTokens, filters, startingHand, stats, swaps, upgradeSwaps } from '.
 /** The English catalog: every text the app shows, by area. */
 export const en = {
   terms,
+  boards,
   count,
   common,
   crash,

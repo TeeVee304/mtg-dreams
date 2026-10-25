@@ -12,7 +12,7 @@ export interface PreconOptions {
   skipBasics: boolean
 }
 
-/** List line fields produced from a precon card; `side` marks sideboard cards. */
+/** List line fields produced from a precon card; `board` marks sideboard cards. */
 export type PreconEntry = BoardEntry
 
 /** Collapses identical-face names (`X // X`, reversible cards) to `X`. */
@@ -22,7 +22,7 @@ export function simplifyCardName(name: string): string {
 }
 
 /**
- * @returns List entries; sideboard cards get `side`. Duplicates on the same board (main, commander and
+ * @returns List entries; sideboard cards get `board: 'side'`. Duplicates on the same board (main, commander and
  * other boards count as main) with the same name and printing are summed.
  */
 export function preconEntries(deck: PreconDeck, options: PreconOptions): PreconEntry[] {
@@ -32,8 +32,8 @@ export function preconEntries(deck: PreconDeck, options: PreconOptions): PreconE
     const entry: PreconEntry = options.exact
       ? { qty: card.qty, name: card.name, set: card.set, collector: card.collector, foil: card.foil }
       : { qty: card.qty, name: card.name, foil: false }
-    if (card.board === 'side') entry.side = true
-    const key = [nameKey(entry.name), entry.set ?? '', entry.collector ?? '', entry.foil, !!entry.side].join('|')
+    if (card.board === 'side') entry.board = 'side'
+    const key = [nameKey(entry.name), entry.set ?? '', entry.collector ?? '', entry.foil, entry.board ?? 'main'].join('|')
     const existing = merged.get(key)
     if (existing) existing.qty += entry.qty
     else merged.set(key, entry)

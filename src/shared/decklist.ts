@@ -37,17 +37,45 @@ const GOLDFISH_SET_RE = /\s*\[([A-Za-z0-9]{2,8})\]$/
 const GOLDFISH_TAG_RE = /\s*<([^<>]+)>$/
 /** Arena/Moxfield suffix: `Lightning Bolt (2XM) 141`. */
 const ARENA_SET_RE = /\s+\(([A-Za-z0-9]{2,8})\)(?:\s+(\S+))?$/
+/** Archidekt category suffix: `[Maybeboard{noDeck}{noPrice}]`, `[Ramp,Removal]`, `[Ramp]`. */
+const ARCHIDEKT_CATEGORY_RE = /\s+\[([^[\]]+)\]$/
+/** Archidekt label suffix: `^Have,#37d67a^`. */
+const ARCHIDEKT_LABEL_RE = /\s+\^[^^]*\^$/
 /** Language suffix: `{DE}`. */
 const LANGUAGE_RE = /\s*\{([A-Za-z]{2,3})\}$/
 /** Worthless suffix: `{Worthless}` (or `{No value}`, as it was first called). */
 const WORTHLESS_RE = /\s*\{(?:worthless|no value)\}$/i
 
 /**
+ * @param inner - A bracketed suffix's text.
+ * @param before - The line before it.
+ * @returns Whether it is an Archidekt category rather than a Goldfish `[SET]`: it has braces, commas
+ * or spaces, or follows an Arena-style `(SET) num` (Goldfish lines never have one).
+ */
+function isArchidektCategory(inner: string, before: string): boolean {
+  return /[{},\s]/.test(inner) || ARENA_SET_RE.test(before.replace(FOIL_RE, ''))
+}
+
+/** Sideboard section header the app writes. */
+export const SIDEBOARD_TEXT = 'Sideboard'
+/** Maybeboard section header the app writes. */
+export const MAYBEBOARD_TEXT = 'Maybeboard'
+
+/**
  * Parses `N[x] Name` with optional suffixes in any order: `<tag>`, `[SET]`, `(F)`/`*F*`, `(SET) num`,
- * `{DE}` (a language besides English), `{Worthless}`.
+ * `{DE}` (a language besides English), `{Worthless}`. Archidekt's `[Category]` and `^Label^` are
+ * dropped.
  * @returns Card fields; null if not a card line.
  */
 export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | null {
+  return parseTaggedLine(line)?.card ?? null
+}
+
+/**
+ * {@link parseCardLine}, with the board an Archidekt category puts the card on: a `{noDeck}` category
+ * keeps it out of the deck, on the sideboard (`[Sideboard{noDeck}]`) or else the maybeboard.
+ */
+function parseTaggedLine(line: string): { card: Omit<CardLine, 'id' | 'kind'>; board: 'main' | 'side' | 'maybe' } | null {
   const match = LINE_RE.exec(line.trim())
   if (!match) return null
   const qty = Number.parseInt(match[1], 10)
@@ -59,10 +87,16 @@ export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | nul
   let collector: string | undefined
   let lang: Language | undefined
   let worthless = false
+  let labelled = false
+  let category: string | null = null
 
   for (;;) {
     let m: RegExpExecArray | null
-    if ((m = FOIL_RE.exec(rest))) {
+    if (!labelled && (m = ARCHIDEKT_LABEL_RE.exec(rest))) {
+      labelled = true
+    } else if (category === null && (m = ARCHIDEKT_CATEGORY_RE.exec(rest)) && isArchidektCategory(m[1], rest.slice(0, m.index))) {
+      category = m[1]
+    } else if ((m = FOIL_RE.exec(rest))) {
       foil = true
     } else if (!worthless && (m = WORTHLESS_RE.exec(rest))) {
       worthless = true
@@ -83,18 +117,34 @@ export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | nul
 
   const name = rest.replace(/\s+/g, ' ').trim()
   if (!name) return null
-  return { qty, name, set, collector: collector || undefined, foil, ...(lang && { lang }), ...(worthless && { worthless: true as const }) }
+  const card = { qty, name, set, collector: collector || undefined, foil, ...(lang && { lang }), ...(worthless && { worthless: true as const }) }
+  const board = !category || !/\{nodeck\}/i.test(category) ? 'main' : /^sideboard(?![a-z])/i.test(category) ? 'side' : 'maybe'
+  return { card, board }
 }
 
-/** Parses a list file (BOM-tolerant, trailing blank lines dropped); non-card lines become {@link TextLine}s. */
+/**
+ * Parses a list file (BOM-tolerant, trailing blank lines dropped); non-card lines become {@link TextLine}s.
+ * Cards an Archidekt category keeps out of the deck (`{noDeck}`) move to a Sideboard or Maybeboard
+ * section at the end.
+ */
 export function parseList(text: string): ListLine[] {
-  const rows = text.replace(/^﻿/, '').split(/\r?\n/)
+  const rows = text.replace(/^\uFEFF/, '').split(/\r?\n/)
   while (rows.length > 0 && rows[rows.length - 1].trim() === '') rows.pop()
-  return rows.map((row): ListLine => {
-    const card = parseCardLine(row)
-    if (card) return { kind: 'card', id: newLineId(), ...card }
-    return { kind: 'text', id: newLineId(), text: row.trimEnd() }
+  const aside = { side: [] as ListLine[], maybe: [] as ListLine[] }
+  const lines = rows.flatMap((row): ListLine[] => {
+    const tagged = parseTaggedLine(row)
+    if (!tagged) return [{ kind: 'text', id: newLineId(), text: row.trimEnd() }]
+    const line: ListLine = { kind: 'card', id: newLineId(), ...tagged.card }
+    if (tagged.board === 'main') return [line]
+    aside[tagged.board].push(line)
+    return []
   })
+  for (const [header, cards] of [[SIDEBOARD_TEXT, aside.side], [MAYBEBOARD_TEXT, aside.maybe]] as const) {
+    if (cards.length === 0) continue
+    if (lines.length > 0) lines.push({ kind: 'text', id: newLineId(), text: '' })
+    lines.push({ kind: 'text', id: newLineId(), text: header }, ...cards)
+  }
+  return lines
 }
 
 /** @returns Canonical line: `N Name <collector> [SET] (F) {DE} {Worthless}`. */

@@ -11,6 +11,17 @@ import { scryfallCache, scryfallCacheChanged, scryfallCacheReady } from './scryf
 
 /** Card data TTL; changes only with bans and errata. */
 const CARD_INFO_TTL_MS = 7 * 24 * 60 * 60 * 1000
+/** Age after which a name Scryfall didn't know is looked up again (a new card, or a fixed name). */
+const NOT_FOUND_TTL_MS = 24 * 60 * 60 * 1000
+
+/**
+ * @returns Whether a cached "not found" result should be looked up again for `name`: it was cached
+ * for another line that shares the name key (an unparsed suffix: `Name (SET) 1 [Category]`), or
+ * long enough ago that the card may exist now.
+ */
+function staleMiss(entry: PrintingsResult, name: string): boolean {
+  return entry.notFound === true && (entry.name !== name || Date.now() - entry.fetchedAt > NOT_FOUND_TTL_MS)
+}
 /** Max identifiers per `/cards/collection` request. */
 const COLLECTION_BATCH = 75
 /** Max search result pages (175 cards each) per lookup. */
@@ -317,7 +328,7 @@ export async function getPrintings(name: string, options: PrintingsOptions = {})
   const priority = options.priority ?? 'low'
   const cached = scryfallCache.entries[key]
   const upgrade = options.full === true && cached?.partial === true
-  if (cached && !options.force && !upgrade) return Promise.resolve(cached)
+  if (cached && !options.force && !upgrade && !staleMiss(cached, name)) return Promise.resolve(cached)
 
   const full = options.full === true || cached?.partial === false
   const flightKey = full ? `${key}#full` : key
@@ -362,7 +373,7 @@ export async function getCardInfos(names: string[]): Promise<Record<string, Card
     const key = nameKey(name)
     if (!key || key in result || missing.has(key)) continue
     const printings = scryfallCache.entries[key]
-    if (printings && now - printings.fetchedAt < CARD_INFO_TTL_MS && (printings.card || printings.notFound)) {
+    if (printings && now - printings.fetchedAt < CARD_INFO_TTL_MS && (printings.card || (printings.notFound && !staleMiss(printings, name)))) {
       result[key] = printings.card ?? null
     } else if (scryfallCache.cards[key] && now - scryfallCache.cards[key].fetchedAt < CARD_INFO_TTL_MS) {
       result[key] = scryfallCache.cards[key].card

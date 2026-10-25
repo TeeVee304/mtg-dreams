@@ -19,6 +19,8 @@ export interface VersionPage {
 /**
  * Edits as a version's view shows them: quantities, additions and removals become that version's
  * swaps against the list, while other changes (printing, name) apply to the card in every version.
+ * The maybeboard is the list's in every version: its lines (not among the version's `rows`) and Cards
+ * added to it are edited in the list itself.
  * @returns `actions` with those edits, and `setCopies`, which sets a card's copies in the version.
  */
 export function versionActions(actions: LibraryActions, page: VersionPage) {
@@ -37,16 +39,23 @@ export function versionActions(actions: LibraryActions, page: VersionPage) {
   }
   const edits: LibraryActions = {
     ...actions,
-    addCards: (_target, entries) => {
-      for (const { side: _side, ...entry } of entries) setCopies(entry, copiesOf(entry.name) + entry.qty)
+    addCards: (target, entries) => {
+      const maybe = entries.filter((entry) => entry.board === 'maybe')
+      if (maybe.length > 0) actions.addCards(target, maybe)
+      for (const { board, ...entry } of entries) if (board !== 'maybe') setCopies(entry, copiesOf(entry.name) + entry.qty)
     },
     updateCard: (target, id, patch) => {
-      const { qty, ...rest } = patch
       const row = rowOf(id)
-      if (row && qty !== undefined) setCopies(row.line, copiesOf(row.line.name) - row.line.qty + qty)
+      if (!row) return actions.updateCard(target, id, patch)
+      const { qty, ...rest } = patch
+      if (qty !== undefined) setCopies(row.line, copiesOf(row.line.name) - row.line.qty + qty)
       if (Object.keys(rest).length > 0) actions.updateCard(target, id, rest)
     },
-    removeCard: (_target, id) => cut(rowOf(id)),
+    removeCard: (target, id) => {
+      const row = rowOf(id)
+      if (row) cut(row)
+      else actions.removeCard(target, id)
+    },
     removeCards: (_target, ids) => cut(rowOf(ids[0])),
     setBundledQty: (_target, ids, qty) => {
       const row = rowOf(ids[0])

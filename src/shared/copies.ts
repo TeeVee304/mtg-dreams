@@ -261,6 +261,18 @@ export function copiesToAdd(
     .filter((card) => card.qty > 0)
 }
 
+/**
+ * @param lines - A list's lines; its maybeboard is left out ({@link cardTotals}).
+ * @param free - Owned copies of a card (by nameKey) the list may use: those the lists ahead leave.
+ * @returns The list's Cards you don't own enough of, in list order, each with the copies missing.
+ */
+export function unownedCards(lines: ListLine[], free: (key: string) => number): Array<{ name: string; qty: number }> {
+  return [...cardTotals(lines)].flatMap(([key, total]) => {
+    const missing = total.qty - free(key)
+    return missing > 0 ? [{ name: total.name, qty: missing }] : []
+  })
+}
+
 /** Copies of a card a list still lacks. */
 export interface CardNeed {
   /** nameKey. */

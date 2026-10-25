@@ -1,3 +1,5 @@
+import { count } from './terms'
+
 /** A Card in a list: its row or tile, price, Version and problems. */
 export const card = {
   /** Picking a Commander by clicking a Card. */
@@ -25,6 +27,8 @@ export const card = {
   matched: (name: string) => `Scryfall matched this to “${name}”. Click to use that name.`,
   useName: (name: string) => `Use “${name}”`,
   ownedWhere: (owned: number, where: string) => `${owned} owned · ${where}`,
+  /** A Deck's maybeboard Card: the Copies no built Deck holds. */
+  freeCopies: (copies: number) => `${count.copies(copies)} free in your Inventory`,
   noPrice: 'No Cardmarket price for this Version and finish',
   cachedPrice: (error: string) => `Showing cached price: ${error}`,
   remove: (isDeck: boolean) => (isDeck ? 'Remove from Deck' : 'Remove from list'),
@@ -73,9 +77,7 @@ export const card = {
     quantity: 'Quantity',
     quantityLabel: 'quantity',
     board: 'Board',
-    sideboard: 'Sideboard',
-    mainDeck: 'Main Deck',
-    moveTo: (toSideboard: boolean) => `Move to ${toSideboard ? 'Sideboard' : 'main Deck'}`,
+    moveTo: (board: string) => `Move to the ${board}`,
     price: 'Price',
     noPrice: ' (no Cardmarket price for this Version and finish)',
     commander: 'Commander',
@@ -110,6 +112,6 @@ export const card = {
     matchedFrom: (typed: string) => `matched from “${typed}”`,
     qty: 'Qty',
     quantity: 'quantity',
-    sideboard: 'Sideboard'
+    board: 'Board'
   }
 }

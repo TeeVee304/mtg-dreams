@@ -33,7 +33,7 @@ describe("a version's view", () => {
     const { actions, edits } = setup()
     edits.updateCard(list, 'a', { qty: 2 })
     expect(actions.setVariantCount).toHaveBeenLastCalledWith(list, 'Duel', expect.objectContaining({ name: 'Llanowar Elves', foil: false }), 2)
-    edits.addCards(list, [{ name: 'Elvish Mystic', qty: 1, foil: false, side: true }])
+    edits.addCards(list, [{ name: 'Elvish Mystic', qty: 1, foil: false, board: 'side' }])
     expect(actions.setVariantCount).toHaveBeenLastCalledWith(list, 'Duel', expect.objectContaining({ name: 'Elvish Mystic', foil: false }), 1)
     edits.removeCard(list, 'a')
     expect(actions.setVariantCount).toHaveBeenLastCalledWith(list, 'Duel', expect.objectContaining({ name: 'Llanowar Elves', foil: false }), 0)

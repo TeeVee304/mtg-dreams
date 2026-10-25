@@ -17,13 +17,16 @@ import {
   type ListVersion,
   type Variant
 } from '@shared/listVersion'
-import { serializeList } from '@shared/decklist'
+import { unownedCards } from '@shared/copies'
+import { countLines, parseList, serializeList } from '@shared/decklist'
 import type { ListAnalysis } from '@shared/listModel'
+import type { Board } from '@shared/sideboard'
 import { totalCopies } from '@shared/totals'
 import type { CardLine } from '@shared/types'
 import { ui } from '@shared/text'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import type { Row } from '../lib/summary'
+import { useCopy } from '../hooks/useCopy'
 import { useSettings } from '../stores/settings'
 import { CardDialog } from './CardDialog'
 import { ColorOptions } from './Controls'
@@ -69,6 +72,8 @@ interface ListDialogsProps {
   maxFor: (line: CardLine) => number | undefined
   /** Limit reason per card. */
   limitFor: (name: string) => string
+  /** Owned copies of a card (by nameKey) the list may use: those the lists ahead leave. */
+  freeCopies: (key: string) => number
   /** Called with the new ref after a rename. */
   onOpenList: (list: ListRef) => void
   /** The version the page shows; null for the list itself. */
@@ -86,6 +91,24 @@ export function ListDialogs(props: ListDialogsProps) {
   const noun = ui.terms.noun(isDeck)
   const text = ui.listDialogs
   const cardRow = dialog?.kind === 'card' ? props.rows.find((row) => row.line.id === dialog.lineId) : undefined
+  const copy = useCopy()
+  /** Copies the Cards of the editor's text you don't own, as many as are missing. */
+  const copyUnowned = (text: string) => {
+    const cards = unownedCards(parseList(text), props.freeCopies)
+    if (cards.length === 0) toast(ui.dialogs.editor.allOwned)
+    else void copy(countLines(cards).join('\n'), ui.dialogs.editor.unownedCopied(totalCopies(cards)))
+  }
+  /**
+   * The card's board and where it can move: the main deck, the sideboard (not in commander formats)
+   * and the maybeboard. Commanders stay; a version's view moves only maybeboard Cards, as the
+   * maybeboard is the list's.
+   */
+  const cardBoard = (row: Row): { current: Board; options: Board[] } | undefined => {
+    const current: Board = row.maybe ? 'maybe' : row.side ? 'side' : 'main'
+    if (analysis.isCommander(row) || (props.shownVariant && current !== 'maybe')) return undefined
+    const boards: Board[] = ['main', ...(format?.commander ? [] : (['side'] as const)), 'maybe']
+    return { current, options: boards.filter((board) => board !== current) }
+  }
 
   switch (dialog?.kind) {
     case 'rename':
@@ -124,6 +147,7 @@ export function ListDialogs(props: ListDialogsProps) {
           title={text.editVersion(shown.label, list.name)}
           initial={variantText(list.lines, shown.label)}
           mode="list"
+          onCopyUnowned={copyUnowned}
           copied={ui.list.versionCopied(shown.label)}
           onClose={onClose}
           onSave={(text) => actions.replaceVariantText(list, shown.label, text)}
@@ -134,6 +158,7 @@ export function ListDialogs(props: ListDialogsProps) {
           title={text.edit(list.name)}
           initial={stripMeta(baseText(list.lines))}
           mode="list"
+          onCopyUnowned={copyUnowned}
           copied={ui.list.copied(isDeck)}
           onClose={onClose}
           onSave={(text) => actions.replaceListText(list, serializeList(withBaseText(list.lines, withMetaOf(text, list.text))))}
@@ -144,6 +169,7 @@ export function ListDialogs(props: ListDialogsProps) {
           title={text.edit(list.name)}
           initial={stripMeta(list.text)}
           mode="list"
+          onCopyUnowned={copyUnowned}
           copied={ui.list.copied(isDeck)}
           onClose={onClose}
           onSave={(text) => actions.replaceListText(list, withMetaOf(text, list.text))}
@@ -151,7 +177,7 @@ export function ListDialogs(props: ListDialogsProps) {
       )
     }
     case 'hand':
-      return <StartingHand rows={props.rows.filter((row) => !row.side && !analysis.isCommander(row))} onClose={onClose} />
+      return <StartingHand rows={props.rows.filter((row) => !row.side && !row.maybe && !analysis.isCommander(row))} onClose={onClose} />
     case 'card':
       return cardRow ? (
         <CardDialog
@@ -162,16 +188,14 @@ export function ListDialogs(props: ListDialogsProps) {
           maxTitle={limitFor(cardRow.line.name)}
           onUpdate={(patch) => actions.updateCard(list, cardRow.line.id, patch)}
           board={
-            format?.commander
-              ? undefined
-              : {
-                  side: cardRow.side,
-                  onMove: () => {
-                    actions.moveCards(list, cardRow.bundledIds ?? [cardRow.line.id], !cardRow.side)
-                    onClose()
-                    toast(text.moved(cardRow.line.name, !cardRow.side))
-                  }
-                }
+            cardBoard(cardRow) && {
+              ...cardBoard(cardRow)!,
+              onMove: (to) => {
+                actions.moveCards(list, cardRow.bundledIds ?? [cardRow.line.id], to)
+                onClose()
+                toast(text.moved(cardRow.line.name, ui.boards.inSentence[to]))
+              }
+            }
           }
           commander={
             format?.commander

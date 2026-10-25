@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cardLines, parseList, serializeList } from './decklist'
-import { addToBoard, entriesToLines, moveToBoard, sideboardIds } from './sideboard'
+import { addToBoard, boardIds, entriesToLines, maybeboardIds, moveToBoard, sideboardIds, withMaybeboardOf } from './sideboard'
 
 const names = (text: string, side: boolean) => {
   const lines = parseList(text)
@@ -18,8 +18,12 @@ describe('sideboard sections', () => {
     expect(names('4 Lightning Bolt\n// Sideboard\n2 Pyroblast', false)).toEqual(['Lightning Bolt'])
   })
 
-  it('is disabled on request (commander formats)', () => {
-    expect(sideboardIds(parseList('1 Sol Ring\nSideboard\n1 Mana Crypt'), false).size).toBe(0)
+  it('is part of the maybeboard in commander formats, which have no sideboard', () => {
+    const lines = parseList('// Format: Commander\n1 Sol Ring\nSideboard\n1 Mana Crypt')
+    expect(sideboardIds(lines).size).toBe(0)
+    expect([...maybeboardIds(lines)]).toEqual([cardLines(lines)[1].id])
+    const added = addToBoard(parseList('// Format: Commander\n1 Sol Ring\n'), { qty: 1, name: 'Mana Crypt', foil: false }, 'side')
+    expect(serializeList(added)).toBe('// Format: Commander\n1 Sol Ring\n\nMaybeboard\n1 Mana Crypt\n')
   })
 
   it('adds to the right board, merging only within it', () => {
@@ -44,10 +48,50 @@ describe('sideboard sections', () => {
   it('builds lines from entries', () => {
     const lines = entriesToLines([
       { qty: 4, name: 'Lightning Bolt', foil: false },
-      { qty: 2, name: 'Pyroblast', foil: false, side: true },
+      { qty: 2, name: 'Pyroblast', foil: false, board: 'side' },
       { qty: 1, name: 'Fireblast', foil: false }
     ])
     expect(serializeList(lines)).toBe('4 Lightning Bolt\n1 Fireblast\n\nSideboard\n2 Pyroblast\n')
-    expect(cardLines(lines).every((line) => !('side' in line))).toBe(true)
+    expect(cardLines(lines).every((line) => !('board' in line))).toBe(true)
+  })
+})
+
+describe('maybeboard sections', () => {
+  const boardsOf = (text: string) => {
+    const lines = parseList(text)
+    const ids = boardIds(lines)
+    return cardLines(lines).map((line) => `${ids.get(line.id) ?? 'main'} ${line.name}`)
+  }
+
+  it('reads maybeboard headers until the next section, in every format', () => {
+    expect(boardsOf('1 Sol Ring\nMaybeboard\n1 Mana Crypt\nSideboard\n1 Pyroblast')).toEqual(['main Sol Ring', 'maybe Mana Crypt', 'side Pyroblast'])
+    expect(boardsOf('1 Sol Ring\n// Maybe\n1 Mana Crypt\n\n// Duel in\n1 Mana Vault')).toEqual([
+      'main Sol Ring',
+      'maybe Mana Crypt',
+      'main Mana Vault'
+    ])
+    expect(maybeboardIds(parseList('1 Sol Ring\nSideboard\n1 Mana Crypt')).size).toBe(0)
+  })
+
+  it('adds a section after the sideboard and before the version swaps', () => {
+    let lines = parseList('// Duel: On\n1 Sol Ring\n\n// Duel in\n1 Mana Vault\n')
+    lines = addToBoard(lines, { qty: 1, name: 'Mana Crypt', foil: false }, 'maybe')
+    lines = addToBoard(lines, { qty: 1, name: 'Arcane Signet', foil: false }, 'main')
+    expect(serializeList(lines)).toBe('// Duel: On\n1 Sol Ring\n1 Arcane Signet\n\nMaybeboard\n1 Mana Crypt\n\n// Duel in\n1 Mana Vault\n')
+    lines = addToBoard(parseList('4 Lightning Bolt\n\nMaybeboard\n1 Fireblast\n'), { qty: 2, name: 'Pyroblast', foil: false }, 'side')
+    expect(serializeList(lines)).toBe('4 Lightning Bolt\n\nSideboard\n2 Pyroblast\n\nMaybeboard\n1 Fireblast\n')
+  })
+
+  it('moves Cards in and out, dropping the header once empty', () => {
+    const lines = parseList('1 Sol Ring\n\nMaybeboard\n1 Mana Crypt\n')
+    const crypt = cardLines(lines)[1].id
+    const promoted = moveToBoard(lines, [crypt], 'main')
+    expect(serializeList(promoted)).toBe('1 Sol Ring\n1 Mana Crypt\n')
+    expect(serializeList(moveToBoard(promoted, [cardLines(promoted)[0].id], 'maybe'))).toBe('1 Mana Crypt\n\nMaybeboard\n1 Sol Ring\n')
+  })
+
+  it("adds another list's maybeboard Cards it lacks", () => {
+    const lines = withMaybeboardOf(parseList('1 Sol Ring\n\nMaybeboard\n1 Mana Crypt\n'), parseList('1 Sol Ring\nMaybeboard\n1 Mana Crypt\n1 Mana Vault'))
+    expect(serializeList(lines)).toBe('1 Sol Ring\n\nMaybeboard\n1 Mana Crypt\n1 Mana Vault\n')
   })
 })

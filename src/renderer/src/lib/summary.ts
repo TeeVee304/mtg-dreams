@@ -1,10 +1,9 @@
 import { bundleBasicLines, genericBasic } from '@shared/basics'
-import { allocateOwned, nameKey, serializeList } from '@shared/decklist'
+import { allocateOwned, cardLines, nameKey, serializeList } from '@shared/decklist'
 import { BASE, baseCardLines, versionLines, type ListVersion } from '@shared/listVersion'
-import { listFormat } from '@shared/formats'
 import { ownedVersion } from '@shared/inventory'
 import { resolveLine, type Resolution } from '@shared/pricing'
-import { sideboardIds } from '@shared/sideboard'
+import { maybeboardIds, sideboardIds } from '@shared/sideboard'
 import type { AppSettings } from '@shared/api'
 import type { CopyPool, HeldCopies } from '@shared/copies'
 import type { CardInfo, CardLine, InventoryItem, PriceBasis } from '@shared/types'
@@ -39,6 +38,8 @@ export interface Row {
   bundledIds?: string[]
   /** Line is in the sideboard. */
   side: boolean
+  /** Line is on the maybeboard ({@link maybeRows}): considered, counting toward nothing. */
+  maybe?: boolean
   /** Printed name of a pinned printing, if different from the oracle name. */
   flavorName?: string
 }
@@ -140,7 +141,7 @@ export function listRows(
         baseCardLines(list.lines),
         items,
         { bundleBasics, priceBasis },
-        sideboardIds(list.lines, !listFormat(list.lines)?.commander),
+        sideboardIds(list.lines),
         (key) => claims.held(list, key, items.get(key)?.qty ?? 0)
       )
     )
@@ -148,6 +149,34 @@ export function listRows(
   }
   const items = list.kind === 'brew' && settings.plainBrews ? NO_INVENTORY : inventory
   return rows(items, settings.bundleBasics, settings.priceBasis, pool, getPrintingsVersion())
+}
+
+/** Per list: its maybeboard rows, kept like {@link listRowsCache}. */
+const maybeRowsCache = new WeakMap<CardList, (...args: [Map<string, InventoryItem>, PriceBasis, CopyPool, number]) => Row[]>()
+
+/**
+ * Rows of a list's maybeboard, apart from {@link listRows}: they count toward nothing. Their owned
+ * copies are those the built decks leave free ({@link CopyPool.claimed}); basic lands stay unbundled.
+ */
+export function maybeRows(
+  list: CardList,
+  inventory: Map<string, InventoryItem>,
+  settings: PricingSettings & Partial<Pick<AppSettings, 'plainBrews'>>,
+  pool: CopyPool
+): Row[] {
+  let rows = maybeRowsCache.get(list)
+  if (!rows) {
+    rows = memoLast((items, priceBasis, claims, _version) => {
+      const maybe = maybeboardIds(list.lines)
+      const lines = cardLines(list.lines).filter((line) => maybe.has(line.id))
+      return buildRows(lines, items, { bundleBasics: false, priceBasis }, NO_IDS, (key) =>
+        claims.claimed(key, items.get(key)?.qty ?? 0)
+      ).map((row) => ({ ...row, maybe: true }))
+    })
+    maybeRowsCache.set(list, rows)
+  }
+  const items = list.kind === 'brew' && settings.plainBrews ? NO_INVENTORY : inventory
+  return rows(items, settings.priceBasis, pool, getPrintingsVersion())
 }
 
 /** List totals. Values are EUR over priced rows. */

@@ -118,6 +118,15 @@ describe('Duel version', () => {
     expect(names(variantSwaps(lines, 'Duel').ins)).toEqual(['1 Dreamtide Whale', '1 Flux Channeler', '1 Sol Ring'])
   })
 
+  it('keeps the maybeboard out of the list and its versions, but in every view of it', () => {
+    const lines = withVariantCount(parseList(`${DECK}\nMaybeboard\n1 Mana Crypt\n`), 'Duel', { name: 'Arcane Signet', foil: false }, 1)
+    expect(names(baseCardLines(lines))).not.toContain('1 Mana Crypt')
+    expect(names(versionCardLines(lines, 'Duel'))).not.toContain('1 Mana Crypt')
+    // The version's cards in join its main deck, before the maybeboard.
+    const shown = serializeList(versionLines(lines, 'Duel'))
+    expect(shown).toMatch(/1 Arcane Signet\n+Maybeboard\n1 Mana Crypt\n/)
+  })
+
   it('keeps new list cards out of the swap sections, so they are in both versions', () => {
     const lines = addToBoard(parseList(DECK), { qty: 1, name: 'Sol Ring', foil: false }, 'main')
     expect(names(versionCardLines(lines, 'Duel'))).toContain('1 Sol Ring')

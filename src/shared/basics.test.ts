@@ -3,10 +3,11 @@ import { bundleBasicLines, genericBasic } from './basics'
 import { cardLines, parseList } from './decklist'
 
 describe('genericBasic', () => {
-  it('covers the five regular basics only', () => {
+  it('covers the five regular basics and Wastes only', () => {
     expect(genericBasic('island')?.info.typeLine).toBe('Basic Land — Island')
     expect(genericBasic('Forest')?.printing.set).toBe('fdn')
-    expect(genericBasic('Wastes')).toBeUndefined()
+    expect(genericBasic('Wastes')?.info).toMatchObject({ typeLine: 'Basic Land', colorIdentity: [] })
+    expect(genericBasic('wastes')?.printing).toMatchObject({ set: 'm3c', collectorNumber: '408' })
     expect(genericBasic('Snow-Covered Island')).toBeUndefined()
     expect(genericBasic('Command Tower')).toBeUndefined()
   })

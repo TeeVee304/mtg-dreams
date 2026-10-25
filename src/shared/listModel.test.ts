@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { NO_FILTERS } from './cards'
 import { parseList } from './decklist'
 import { findFormat } from './formats'
-import { sideboardIds } from './sideboard'
+import { maybeboardIds, sideboardIds } from './sideboard'
 import {
   analyzeList,
   copyCaps,
@@ -72,6 +72,23 @@ function rowsOf(text: string, owned: Record<string, number> = {}, prices: Record
 const names = (rows: ModelRow[]) => rows.map((row) => row.line.name)
 
 describe('analyzeList', () => {
+  it('checks maybeboard Cards as if added, with warnings only, never counting them', () => {
+    const { lines, rows } = rowsOf('// Format: Commander\n1 Sol Ring\n1 Atraxa\n\nMaybeboard\n1 Sol Ring')
+    const ids = maybeboardIds(lines)
+    const marked = rows.map((row) => ({ ...row, maybe: ids.has(row.line.id) }))
+    const analysis = analyzeList('deck', lines, marked)
+    expect(analysis.copiesOf('Sol Ring')).toBe(1)
+    expect(analysis.issueOf(marked[0])).toBeNull()
+    expect(analysis.issueOf(marked[2])).toEqual({ severity: 'warning', message: 'Max 1 Copy in Commander' })
+    expect(analysis.shortfallOf(marked[2])).toBe(0)
+    expect(analysis.legalityErrors).toBe(0)
+    expect(sectionRows(marked, analysis).map((s) => [s.id, names(s.rows)])).toEqual([
+      ['Creature', ['Atraxa']],
+      ['Artifact', ['Sol Ring']],
+      ['Maybeboard', ['Sol Ring']]
+    ])
+  })
+
   it('flags cards that break the format, counting copies across lines', () => {
     const { lines, rows } = rowsOf('// Format: Commander\n1 Sol Ring\n1 Sol Ring <1> [CMM]\n1 Atraxa\n30 Island')
     const analysis = analyzeList('wishlist', lines, rows)

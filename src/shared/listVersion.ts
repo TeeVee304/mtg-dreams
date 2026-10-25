@@ -1,6 +1,6 @@
 import { cardLines, listHeader, nameKey, newLineId, parseList, serializeList } from './decklist'
 import { findFormat, listCommanders, listFormat, withFormat } from './formats'
-import { swapSection, VERSION_HEADER, versionSectionNames } from './sideboard'
+import { mainDeckEnd, maybeboardIds, swapSection, VERSION_HEADER, versionSectionNames } from './sideboard'
 import { ui } from './text'
 import type { CardLine, ListLine } from './types'
 
@@ -167,10 +167,14 @@ export function linesBeyond(lines: CardLine[], other: CardLine[]): CardLine[] {
   return result
 }
 
-/** @returns The list's own card lines: every card line outside the swap sections. */
+/**
+ * @returns The list's own card lines: every card line outside the swap sections and the maybeboard
+ * (Cards only considered, which count toward nothing).
+ */
 export function baseCardLines(lines: ListLine[]): CardLine[] {
   const swaps = swapsById(lines)
-  return cardLines(lines).filter((line) => !swaps.has(line.id))
+  const maybe = maybeboardIds(lines)
+  return cardLines(lines).filter((line) => !swaps.has(line.id) && !maybe.has(line.id))
 }
 
 /** Cards a version adds and cuts, against the list. */
@@ -220,7 +224,8 @@ export function versionCardLines(lines: ListLine[], version: ListVersion): CardL
 
 /**
  * @returns A version as a whole list: its headers and card lines, without swap sections; an
- * other-format version follows its own format. Card lines keep the list's order, cards in come last.
+ * other-format version follows its own format. Card lines keep the list's order, cards in come last in
+ * the main deck. The maybeboard is the list's, the same in every version.
  */
 export function versionLines(lines: ListLine[], version: ListVersion): ListLine[] {
   const swaps = swapsById(lines)
@@ -230,9 +235,15 @@ export function versionLines(lines: ListLine[], version: ListVersion): ListLine[
   if (!variant) return own
   const cards = versionCardLines(lines, version)
   const kept = new Map(cards.map((line) => [line.id, line]))
-  const resolved = own.flatMap((line): ListLine[] => (line.kind !== 'card' ? [line] : kept.has(line.id) ? [kept.get(line.id)!] : []))
+  const maybe = maybeboardIds(lines)
+  const resolved = own.flatMap((line): ListLine[] =>
+    line.kind !== 'card' || maybe.has(line.id) ? [line] : kept.has(line.id) ? [kept.get(line.id)!] : []
+  )
   const ins = cards.filter((line) => !own.some((other) => other.id === line.id))
-  return variant.format ? withFormat([...resolved, ...ins], variant.format) : [...resolved, ...ins]
+  // Cards in join the main deck, before any sideboard or maybeboard.
+  const at = mainDeckEnd(resolved)
+  const result = [...resolved.slice(0, at), ...ins, ...resolved.slice(at)]
+  return variant.format ? withFormat(result, variant.format) : result
 }
 
 /**
@@ -475,7 +486,7 @@ export function variantText(lines: ListLine[], version: ListVersion): string {
  * Headers and other text are ignored; the commanders stay, as they lead every version.
  */
 export function withVariantText(lines: ListLine[], version: ListVersion, text: string): ListLine[] {
-  const target = cardLines(parseList(text))
+  const target = baseCardLines(parseList(text))
   const kept = new Set(target.map((line) => nameKey(line.name)))
   const missing = listCommanders(lines).map(nameKey).filter((key) => !kept.has(key))
   const leaders = baseCardLines(lines).filter((line) => missing.includes(nameKey(line.name)))

@@ -49,11 +49,12 @@ const ALLOWED: Record<string, true | string[]> = {
   // List files: the headers and markers the app writes and reads back.
   'shared/listMeta.ts': ['Color', 'Unbuilt', 'Upgrade of', 'Upgrade version'],
   'shared/listUnbuilt.ts': ['Yes'],
-  'shared/sideboard.ts': ['Sideboard'],
+  'shared/decklist.ts': ['Sideboard', 'Maybeboard'],
   'shared/listVersion.ts': ['Duel', 'Commander', '// {} : On', '// Version: {}'],
   'shared/trade.ts': ['// MTG Dreams trade list: {} ( {} )', '// Have', '// Want', 'card name'],
   'shared/api.ts': ['Changed outside MTG Dreams:'],
   // Ids and keys, not shown as they are.
+  'shared/listModel.ts': ['Maybeboard'],
   'renderer/src/App.tsx': ['list/ {} / {}'],
   'renderer/src/components/CardSearch.tsx': ['{} -list'],
   'renderer/src/features/deckWizard/DeckWizard.tsx': ['Other'],
@@ -144,7 +145,7 @@ function inlineText(): string[] {
 }
 
 /** The app's terms, capitalized wherever they name its things. */
-const TERMS = /\b(card|commander|deck|land|wishlist|brew|inventory|version|copy|copies|trade|precon|sideboard|partner|background|format|collection|theme|token)(s|es)?\b/
+const TERMS = /\b(card|commander|deck|land|wishlist|brew|inventory|version|copy|copies|trade|precon|sideboard|maybeboard|partner|background|format|collection|theme|token)(s|es)?\b/
 /** Catalog text where a term is plain English: an action, a Card's own name, or a game rule. */
 const PLAIN = ['Copy as text', 'Copy image', 'Copy image address', 'Copy', 'colorless', 'Trade list copied. Paste it in a chat with your friend.']
 

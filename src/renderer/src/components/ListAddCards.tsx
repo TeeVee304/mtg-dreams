@@ -4,6 +4,7 @@ import type { CopyPool } from '@shared/copies'
 import { nameKey } from '@shared/decklist'
 import type { DeckFormat } from '@shared/formats'
 import type { CopyCaps } from '@shared/listModel'
+import type { Board } from '@shared/sideboard'
 import type { InventoryItem } from '@shared/types'
 import { ui } from '@shared/text'
 import type { CardList, LibraryActions } from '../stores/library'
@@ -25,6 +26,8 @@ interface ListAddCardsProps {
   limitFor: (name: string) => string
   /** Whether the list's format allows a sideboard. */
   sideboardAllowed: boolean
+  /** Whether Cards can go to the maybeboard (not in a swap table). */
+  maybeboard?: boolean
   /** Shows the precon dialog (wishlists). */
   onAddPrecon: () => void
   /** Called with whether the add panel is open, so the page can hide its empty note. */
@@ -35,15 +38,16 @@ interface ListAddCardsProps {
 interface CardAdder {
   /** Decks: the inventory, to search instead of Scryfall; undefined for wishlists. */
   choices: SearchChoice[] | undefined
-  pickCard: (name: string) => void
-  /** Copies, printing and sideboard of the card picked; null when none is. */
+  /** @param maybe - Picked to consider: it goes to the maybeboard, whatever you own. */
+  pickCard: (name: string, maybe?: boolean) => void
+  /** Copies, printing and board of the card picked; null when none is. */
   panel: ReactNode
 }
 
 /**
  * Adding cards to a list: a search pick (decks search the inventory) opens a panel for copies,
- * printing and sideboard, within the copies the format and inventory allow. Bundled basic lands go
- * in at once.
+ * printing and board, within the copies the format and inventory allow; the maybeboard takes any
+ * Card, as many as you like. Bundled basic lands go in at once.
  */
 export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): CardAdder {
   const { list, inventory, pool, actions, format, copiesOf, capsFor, limitFor } = props
@@ -51,11 +55,16 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
   const { bundleBasics } = useSettings()
   const isDeck = list.kind === 'deck'
   const noun = ui.terms.noun(isDeck)
-  const [adding, setAddingState] = useState<string | null>(null)
-  const setAdding = (name: string | null) => {
-    setAddingState(name)
+  /** The Card picked, and whether it was picked for the maybeboard. */
+  const [picked, setPicked] = useState<{ name: string; maybe: boolean } | null>(null)
+  const adding = picked?.name ?? null
+  const setAdding = (name: string | null, maybe = false) => {
+    setPicked(name === null ? null : { name, maybe })
     props.onAdding(name !== null)
   }
+  const boards: Board[] = picked?.maybe
+    ? ['maybe']
+    : ['main', ...(props.sideboardAllowed ? (['side'] as const) : []), ...(props.maybeboard ? (['maybe'] as const) : [])]
 
   const inventoryChoices = useMemo<SearchChoice[]>(
     () =>
@@ -66,7 +75,11 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
     [inventory, pool, list]
   )
 
-  const pickCard = (name: string) => {
+  const pickCard = (name: string, maybe = false) => {
+    if (maybe) {
+      setAdding(name, true)
+      return
+    }
     const inList = copiesOf(name)
     if (capsFor(name).cap - inList <= 0) {
       toast(ui.list.add.full(limitFor(name), noun, inList), 'error')
@@ -94,18 +107,18 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
 
   const panel = adding && (
     <AddCardPanel
-      key={adding}
+      key={`${adding}/${picked?.maybe}`}
       name={adding}
       maxQty={Number.isFinite(addRoom) ? addRoom : undefined}
       maxTitle={limitFor(adding)}
       note={addNote || undefined}
-      actionLabel={ui.list.add.addTo(isDeck)}
-      sideboardChoice={props.sideboardAllowed}
+      actionLabel={picked?.maybe ? ui.list.add.addToMaybeboard : ui.list.add.addTo(isDeck)}
+      boards={boards}
       onCancel={() => setAdding(null)}
-      onAdd={(card, side) => {
-        actions.addCards(list, [{ ...card, side }])
+      onAdd={(card, board) => {
+        actions.addCards(list, [{ ...card, board }])
         setAdding(null)
-        toast(ui.list.add.added(card.qty, card.name, side))
+        toast(ui.list.add.added(card.qty, card.name, board === 'main' ? null : ui.boards.inSentence[board]))
       }}
     />
   )
@@ -119,10 +132,13 @@ export function ListAddCards(props: ListAddCardsProps) {
     <>
       <div className="search-row">
         {choices ? (
-          <CardSearch placeholder={ui.list.add.searchInventory} choices={choices} onPick={pickCard} />
+          <>
+            <CardSearch placeholder={ui.list.add.searchInventory} choices={choices} onPick={(name) => pickCard(name)} />
+            <CardSearch placeholder={ui.list.add.searchMaybe} onPick={(name) => pickCard(name, true)} />
+          </>
         ) : (
           <>
-            <CardSearch placeholder={ui.list.add.searchAny} onPick={pickCard} />
+            <CardSearch placeholder={ui.list.add.searchAny} onPick={(name) => pickCard(name)} />
             <button type="button" onClick={props.onAddPrecon}>
               {ui.list.add.addPrecon}
             </button>

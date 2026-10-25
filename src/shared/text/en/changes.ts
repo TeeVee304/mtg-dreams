@@ -22,7 +22,7 @@ export const changes = {
   enterName: 'Please enter a name.',
   saveFailed: (error: string) => `Could not save: ${error}`,
   orderFailed: (error: string) => `Could not save the Wishlist order: ${error}`,
-  moved: (card: string, toSideboard: boolean) => `Moved ${card} to the ${toSideboard ? 'Sideboard' : 'main Deck'}`,
+  moved: (card: string, board: string) => `Moved ${card} to the ${board}`,
   changed: (what: string) => `Changed ${what}`,
   removed: (card: string) => `Removed ${card}`,
   addedVersion: (version: string, list: string) => `Added the ${version} Version of ${list}`,

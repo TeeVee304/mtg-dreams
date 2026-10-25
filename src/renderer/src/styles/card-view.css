@@ -103,6 +103,14 @@
   margin: 0;
 }
 
+/* The card's board, then a link to each board it can move to. */
+.card-facts .board-moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+
 .card-facts .chips {
   display: inline-flex;
   margin-left: 6px;

@@ -44,5 +44,6 @@ export const ownership = {
 /** A list's sections beyond its type groups. */
 export const sections = {
   commander: (n: number) => (n > 1 ? 'Commanders' : 'Commander'),
-  sideboard: 'Sideboard'
+  sideboard: 'Sideboard',
+  maybeboard: 'Maybeboard'
 }

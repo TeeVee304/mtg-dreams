@@ -13,6 +13,14 @@ export const terms = {
   mainVersion: 'Main'
 }
 
+/** A list's boards: where a Card is (Main Deck, Sideboard, Maybeboard). */
+export const boards = {
+  /** Each board, as labelled. */
+  labels: { main: 'Main Deck', side: 'Sideboard', maybe: 'Maybeboard' } as Record<'main' | 'side' | 'maybe', string>,
+  /** Each board in a sentence: `to the main Deck`. */
+  inSentence: { main: 'main Deck', side: 'Sideboard', maybe: 'Maybeboard' } as Record<'main' | 'side' | 'maybe', string>
+}
+
 /** Counts with their noun, plural when not 1: `1 Card`, `2 Cards`. */
 export const count = {
   cards: (n: number) => counted(n, 'Card'),

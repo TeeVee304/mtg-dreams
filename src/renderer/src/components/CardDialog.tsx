@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FORMATS, type DeckFormat, type LegalityIssue } from '@shared/formats'
 import { finishFor, hasFoil, singleFinish } from '@shared/pricing'
+import type { Board } from '@shared/sideboard'
 import type { Printing } from '@shared/types'
 import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
@@ -28,8 +29,8 @@ interface CardDialogProps {
   maxTitle?: string
   /** Applies a line patch immediately. */
   onUpdate: (patch: Partial<NewCard>) => void
-  /** Board controls; absent where there is no sideboard (commander formats). */
-  board?: { side: boolean; onMove: () => void }
+  /** The card's board and the boards it can move to (the list's, its own aside); absent where it has none to move to. */
+  board?: { current: Board; options: Board[]; onMove: (to: Board) => void }
   /**
    * Commander formats: whether the card leads the list or could, and how to make it lead: alone, or
    * beside the list's only commander (`onJoin`, when it can partner with it).
@@ -160,11 +161,13 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
             {board && (
               <>
                 <dt>{text.board}</dt>
-                <dd>
-                  {board.side ? text.sideboard : text.mainDeck}{' '}
-                  <button type="button" className="link-btn" onClick={board.onMove}>
-                    {text.moveTo(!board.side)}
-                  </button>
+                <dd className="board-moves">
+                  {ui.boards.labels[board.current]}
+                  {board.options.map((to) => (
+                    <button key={to} type="button" className="link-btn" onClick={() => board.onMove(to)}>
+                      {text.moveTo(ui.boards.inSentence[to])}
+                    </button>
+                  ))}
                 </dd>
               </>
             )}

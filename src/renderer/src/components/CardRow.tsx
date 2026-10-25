@@ -220,6 +220,7 @@ function CardRowView(props: CardRowProps) {
             {ui.card.useName(matchedName)}
           </button>
         )}
+        {isDeck && row.maybe && owned > 0 && <span className="muted small owned-note">{ui.card.freeCopies(owned)}</span>}
         {!isDeck && row.holders && row.holders.length > 0 && !complete && (
           <span className="muted small owned-note">
             {ui.card.ownedWhere(row.inventoryQty, heldWhere(row.holders, row.inventoryQty))}

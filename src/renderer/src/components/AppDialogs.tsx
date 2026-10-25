@@ -54,12 +54,13 @@ export function AppDialogs(props: AppDialogsProps) {
 
   /**
    * Creates a list from a precon. Decks also add their cards to the inventory. Commander decks get
-   * the Commander format and their commanders (two at most: partners).
+   * the Commander format and their commanders (two at most: partners), and their sideboard Cards go
+   * to the maybeboard, as Commander has no sideboard.
    */
   const createFromPrecon = async (kind: ListKind, deck: PreconDeck, entries: PreconEntry[]) => {
     const name = preconListName(deck.name, state.lists.filter((list) => list.kind === kind).map((list) => list.name))
-    const lines = entriesToLines(entries)
     const format = deck.type === 'Commander Deck' ? 'commander' : null
+    const lines = entriesToLines(format ? entries.map((entry) => (entry.board === 'side' ? { ...entry, board: 'maybe' as const } : entry)) : entries)
     const leaders = format ? deck.cards.filter((card) => card.board === 'commander').map((card) => card.name) : []
     const text = serializeList(withCommanders(withFormat(lines, format), leaders))
     const created = await actions.createList(kind, name, text)

@@ -11,7 +11,7 @@ export interface AppSettings {
   theme: Theme
   /** Accent color theme and app icon. */
   color: ThemeColor
-  /** Treat all printings of the five basic lands as one generic, zero-cost card. */
+  /** Treat all printings of each regular basic land (the five, and Wastes) as one generic, zero-cost card. */
   bundleBasics: boolean
   /**
    * Wishlists reserve the copies they use, after built decks, from the top of the wishlist order

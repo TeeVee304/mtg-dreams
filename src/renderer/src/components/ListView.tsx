@@ -6,7 +6,8 @@ import { listColor } from '@shared/listColor'
 import { isUnbuilt } from '@shared/listUnbuilt'
 import { activeVariant, BASE, baseLabel, variantSwaps, versionFormatLabel } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
-import { deckSizeCheck, FORMATS, listFormat } from '@shared/formats'
+import { deckSizeCheck, FORMATS } from '@shared/formats'
+import { hasSideboard } from '@shared/sideboard'
 import {
   analyzeList,
   copyCaps,
@@ -37,7 +38,7 @@ import { useListVersion } from '../hooks/useListVersion'
 import { useUpgradeSwaps } from '../hooks/useUpgradeSwaps'
 import { useStableHandlers } from '../hooks/useStableHandlers'
 import { versionActions } from '../lib/versionActions'
-import { listRows, summarize, type Row } from '../lib/summary'
+import { listRows, maybeRows, summarize, type Row } from '../lib/summary'
 import { CardRow, type RowHandlers } from './CardRow'
 import { CardTile } from './CardTile'
 import { Collapsible } from './Collapsible'
@@ -104,7 +105,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const sort = sortFor(sortView, settings.sort)
   /** Reversed only when the view has the chosen sort, not a stand-in for it. */
   const sortReverse = settings.sortReverse && sort === settings.sort
-  const sideboardAllowed = !listFormat(shown.lines)?.commander
+  const sideboardAllowed = hasSideboard(shown.lines)
   // Kept while the list, prices and copies are unchanged, so unchanged table rows skip re-rendering.
   const listedRows = listRows(shown, inventory, settings, pool)
   const rows = useMemo(
@@ -113,13 +114,16 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   )
   const mainRows = rows.filter((row) => !row.side)
   const summary = summarize(rows)
+  /** The table's rows: the list's, then its maybeboard's, which count toward none of its figures. */
+  const listedMaybe = maybeRows(shown, inventory, settings, pool)
+  const tableRows = useMemo(() => (listedMaybe.length > 0 ? [...rows, ...listedMaybe] : rows), [rows, listedMaybe])
   const baselines = useBaselines()
   const changeOf = (row: Row) =>
     isDeck || row.bundledIds
       ? null
       : priceChange(row.line, row.unit, row.owned, settings, baselines)
 
-  const analysis = useMemo(() => analyzeList(list.kind, shown.lines, rows), [list.kind, shown.lines, rows])
+  const analysis = useMemo(() => analyzeList(list.kind, shown.lines, tableRows), [list.kind, shown.lines, tableRows])
   const { format, copiesOf, isCommander, hasCommander, legalityErrors, ownershipErrors } = analysis
   const mainCards = summary.cards - analysis.sideboardCards
   // A plain brew shows its card count alone, without a target size.
@@ -140,11 +144,11 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     if (legalityErrors + ownershipErrors === 0) setOnlyProblems(false)
   }, [legalityErrors, ownershipErrors])
 
-  const visibleRows = sortRows(filterRows(rows, list.kind, analysis, { filters, hideOwned, onlyProblems }), sort, sortReverse)
+  const visibleRows = sortRows(filterRows(tableRows, list.kind, analysis, { filters, hideOwned, onlyProblems }), sort, sortReverse)
   const sections = sectionRows(visibleRows, analysis)
 
   const filtering = filtersActive(filters) || hideOwned || onlyProblems
-  const dataLoading = needsCardData(filters) && rows.some((row) => !row.info && !row.entry?.data?.notFound)
+  const dataLoading = needsCardData(filters) && tableRows.some((row) => !row.info && !row.entry?.data?.notFound)
 
   const capsFor = (name: string) =>
     copyCaps(
@@ -156,6 +160,12 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       pool.inOtherDecks(list, nameKey(name))
     )
   const limitFor = (name: string) => limitReason(format, name, capsFor(name))
+  /** Owned copies of a card the list may use: those the lists ahead leave; none for a brew that ignores your collection. */
+  const freeCopies = (key: string) => {
+    if (plain) return 0
+    const owned = inventory.get(key)?.qty ?? 0
+    return Math.max(0, owned - pool.held(list, key, owned))
+  }
   const maxFor = (line: CardLine) => lineMax(line, capsFor(line.name), copiesOf(line.name))
 
   // In a version's view (Duel, Counters…), edits become that version's swaps.
@@ -236,7 +246,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       isDeck={asDeck}
       issue={analysis.issueOf(row)}
       shortfall={analysis.shortfallOf(row)}
-      change={changeOf(row)}
+      change={row.maybe ? null : changeOf(row)}
       swapTag={swapTag(row)}
       swapLabel={other?.label}
       otherVersions={otherVersionsOf(row)}
@@ -250,7 +260,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     <CardTile
       key={row.line.id}
       row={row}
-      isDeck={asDeck}
+      // A maybeboard tile shows the copies you have free, in a Deck too.
+      isDeck={asDeck && !(row.maybe && !plain)}
       pick={pickOf(row)}
       leader={isCommander(row)}
       crowned={isCrowned(row)}
@@ -261,7 +272,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     />
   )
 
-  const needAllVersions = rows
+  const needAllVersions = tableRows
     .filter((row) => row.resolution?.pinMissing && row.entry?.data?.partial && !row.entry.refreshing)
     .map((row) => row.line.name)
     .join('\n')
@@ -313,7 +324,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       renderRow={renderRow}
       renderTile={renderTile}
       visibleRows={visibleRows.length}
-      visibleSummary={summarize(visibleRows)}
+      visibleSummary={summarize(visibleRows.filter((row) => !row.maybe))}
       totalCards={summary.cards}
       sortView={sortView}
       sort={sort}
@@ -415,6 +426,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
           capsFor={capsFor}
           limitFor={limitFor}
           sideboardAllowed={sideboardAllowed}
+          maybeboard
           onAddPrecon={() => setDialog({ kind: 'precon' })}
           onAdding={setAdding}
         />
@@ -487,11 +499,12 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         lists={lists}
         format={format}
         analysis={analysis}
-        rows={rows}
+        rows={tableRows}
         actions={viewActions}
         formatCap={(name) => capsFor(name).formatCap}
         maxFor={maxFor}
         limitFor={limitFor}
+        freeCopies={freeCopies}
         onOpenList={onOpenList}
         shownVariant={other}
         onVersion={setVersion}

@@ -21,6 +21,10 @@ export const dialogs = {
     placeholder: 'Paste a Goldfish / Arena / Moxfield list here, e.g.\n4 Lightning Bolt\n1 Sol Ring [CMM]',
     syntax: 'One Card per line: “4 Lightning Bolt”. Optional Version: “4 Lightning Bolt <141> [A25]”, foil: “(F)”.',
     copy: 'Copy',
+    copyUnowned: 'Copy (Unowned)',
+    copyUnownedHint: "Copies only the Cards you don't own, as many as are missing, e.g. for a Cardmarket wants list",
+    unownedCopied: (cards: number) => `${count.cards(cards)} you don't own copied to clipboard`,
+    allOwned: 'You own every Card on this list',
     /** The live summary under the editor: `12 Cards · 10 lines`. */
     stats: (cards: number, unique: number, inventory: boolean) => `${count.cards(cards)} · ${unique} ${inventory ? 'unique names' : 'lines'}`,
     unrecognized: (n: number, kept: boolean, first: string, more: boolean) =>

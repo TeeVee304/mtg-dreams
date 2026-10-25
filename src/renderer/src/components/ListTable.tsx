@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import type { CardFilters, ColorFilter, SortKey } from '@shared/cards'
-import type { Section } from '@shared/listModel'
+import { MAYBEBOARD_SECTION, type Section } from '@shared/listModel'
 import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
 import { updateSettings, useSettings } from '../stores/settings'
@@ -15,6 +15,9 @@ const CARD_VIEWS = [
   { id: 'table', ...ui.list.table.views.table },
   { id: 'grid', ...ui.list.table.views.grid }
 ] as const
+
+/** Sections folded until opened: the maybeboard, which only holds ideas. */
+const FOLDED_AT_FIRST = [MAYBEBOARD_SECTION]
 
 /** Session-only folded section ids per list key. */
 const folded = new Map<string, Set<string>>()
@@ -61,7 +64,7 @@ export function ListTable(props: ListTableProps) {
   const { cardView } = useSettings()
   const narrow = useNarrowTables()
   const sortProps = { sort: props.sort, reverse: props.sortReverse }
-  const [closed, setClosed] = useState<Set<string>>(() => folded.get(props.listKey) ?? new Set())
+  const [closed, setClosed] = useState<Set<string>>(() => folded.get(props.listKey) ?? new Set(FOLDED_AT_FIRST))
   const toggle = (id: string) => {
     const next = new Set(closed)
     if (next.has(id)) next.delete(id)

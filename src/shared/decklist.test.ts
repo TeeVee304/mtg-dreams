@@ -29,6 +29,30 @@ describe('parseCardLine', () => {
     expect(parseCardLine('2x Counterspell')).toMatchObject({ qty: 2, name: 'Counterspell' })
   })
 
+  it('parses Archidekt exports, dropping categories and labels', () => {
+    expect(parseCardLine('1x Wandering Archaic // Explore the Vastlands (stx) 6 [Maybeboard{noDeck}{noPrice}]')).toMatchObject({
+      qty: 1, name: 'Wandering Archaic // Explore the Vastlands', set: 'stx', collector: '6', foil: false
+    })
+    expect(parseCardLine('1x Sol Ring (cmm) 410 *F* [Ramp]')).toMatchObject({ name: 'Sol Ring', set: 'cmm', collector: '410', foil: true })
+    expect(parseCardLine('1x Sol Ring (cmm) 410 [Ramp,Artifact] ^Have,#37d67a^')).toMatchObject({ name: 'Sol Ring', set: 'cmm', collector: '410' })
+    expect(parseCardLine('1x Atraxa, Grand Unifier [Commander{top}]')).toMatchObject({ name: 'Atraxa, Grand Unifier', set: undefined })
+    // A bare one-word tag without an Arena set is still a Goldfish set.
+    expect(parseCardLine('1 Island [DMU]')).toMatchObject({ name: 'Island', set: 'dmu' })
+  })
+
+  it("moves Archidekt's {noDeck} Cards to a Sideboard or Maybeboard section", () => {
+    const text = [
+      '1x Sol Ring (cmm) 410 [Ramp]',
+      '1x Wandering Archaic // Explore the Vastlands (stx) 6 [Maybeboard{noDeck}{noPrice}]',
+      '1x Pyroblast (ice) 213 [Sideboard{noDeck}]',
+      '1x Fireblast (all) 100 [Removal{noDeck}]'
+    ].join('\n')
+    expect(serializeList(parseList(text))).toBe(
+      '1 Sol Ring <410> [CMM]\n\nSideboard\n1 Pyroblast <213> [ICE]\n\nMaybeboard\n' +
+        '1 Wandering Archaic // Explore the Vastlands <6> [STX]\n1 Fireblast <100> [ALL]\n'
+    )
+  })
+
   it('keeps parenthesised words that are part of the card name', () => {
     expect(parseCardLine('1 B.F.M. (Big Furry Monster)')).toMatchObject({ name: 'B.F.M. (Big Furry Monster)', set: undefined })
   })

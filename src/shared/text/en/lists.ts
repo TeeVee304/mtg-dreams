@@ -79,9 +79,11 @@ export const list = {
     alreadyIn: (n: number, noun: string) => `${n} already in this ${noun}`,
     formatMax: (format: string, max: number) => `${format}: max ${max}`,
     addTo: (isDeck: boolean) => (isDeck ? 'Add to Deck' : 'Add to list'),
-    added: (qty: number, card: string, sideboard: boolean) => `Added ${qty}× ${card}${sideboard ? ' to the Sideboard' : ''}`,
+    added: (qty: number, card: string, board: string | null) => `Added ${qty}× ${card}${board ? ` to the ${board}` : ''}`,
     searchInventory: 'Add a Card from your Inventory…  (Ctrl+K)',
     searchAny: 'Add a Card to this list…  (Ctrl+K)',
+    searchMaybe: 'Consider any Card for the Maybeboard…',
+    addToMaybeboard: 'Add to Maybeboard',
     addPrecon: 'Add Precon…',
     inTheDeck: (n: number) => `${n} in the Deck`
   },
@@ -145,7 +147,7 @@ export const listDialogs = {
   deleted: (list: string) => `Deleted ${list}`,
   editVersion: (version: string, list: string) => `Edit the ${version} Version of “${list}” as text`,
   edit: (list: string) => `Edit “${list}” as text`,
-  moved: (card: string, toSideboard: boolean) => `Moved ${card} to the ${toSideboard ? 'Sideboard' : 'main Deck'}`,
+  moved: (card: string, board: string) => `Moved ${card} to the ${board}`,
   addedFrom: (cards: number, deck: string, skipped: number, format: string | null) =>
     `Added ${count.cards(cards)} from ${deck}${skipped > 0 ? ` · skipped ${skipped} extra ${count.copyWord(skipped)} (${format} limit)` : ''}`,
   unown: {

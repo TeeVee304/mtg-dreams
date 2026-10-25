@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { allocationOrder, copiesToAdd, copyPool, listNeeds, listWeights } from './copies'
+import { allocationOrder, copiesToAdd, copyPool, listNeeds, listWeights, unownedCards } from './copies'
 import { parseInventory, parseList } from './decklist'
 
 // Wishlists in your order: Goblins, Angels, Someday.
@@ -74,7 +74,23 @@ describe('copiesToAdd', () => {
   })
 })
 
+describe('unownedCards', () => {
+  it('lists the copies missing beyond the free ones, in list order, the maybeboard aside', () => {
+    const lines = parseList('2 Lightning Bolt\n1 Sol Ring\n1 Lightning Bolt\n3 Island\n\nMaybeboard\n1 Mana Crypt')
+    const free: Record<string, number> = { 'lightning bolt': 1, 'sol ring': 1 }
+    expect(unownedCards(lines, (key) => free[key] ?? 0)).toEqual([
+      { name: 'Lightning Bolt', qty: 2 },
+      { name: 'Island', qty: 3 }
+    ])
+  })
+})
+
 describe('listNeeds', () => {
+  it('leaves maybeboard Cards out: they are only considered', () => {
+    const wishlist = { kind: 'wishlist' as const, name: 'Elves', lines: parseList('1 Llanowar Elves\n\nMaybeboard\n1 Mana Crypt') }
+    expect(listNeeds([wishlist], parseInventory('')).flatMap(({ needs }) => needs.map((need) => need.name))).toEqual(['Llanowar Elves'])
+  })
+
   it('hands owned copies out to decks, and lets each wishlist use what they leave', () => {
     expect(
       listNeeds(lists, parseInventory('3 Sol Ring')).map(({ list, needs: cards }) => [list.name, cards.map((c) => `${c.missing}/${c.wants} ${c.name}`)])

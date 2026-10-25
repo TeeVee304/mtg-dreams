@@ -4,20 +4,34 @@ import { cardImageUrl } from './images'
 import type { CardInfo, CardLine, Printing } from './types'
 
 /**
- * Generic basic lands for the `bundleBasics` setting: each of the five regular basics is one
- * zero-cost card, any printing, shown as its Foundations printing, never queried on Scryfall.
- * Wastes and snow-covered basics are excluded.
+ * Generic basic lands for the `bundleBasics` setting: each regular basic (the five, and Wastes) is
+ * one zero-cost card, any printing, shown as one printing of it, never queried on Scryfall.
+ * Snow-covered basics are excluded.
  *
  * @packageDocumentation
  */
 
-/** Foundations printing of each regular basic. */
+/** Foundations, where the five basics are. */
+const FOUNDATIONS = { set: 'fdn', setName: 'Foundations', releasedAt: '2024-11-15' }
+
+/** The printing shown for each regular basic: Foundations for the five, Modern Horizons 3 Commander for Wastes. */
 const DEFINITIONS = [
-  { name: 'Plains', color: 'W', collector: '272', id: '4ef17ed4-a9b5-4b8e-b4cb-2ecb7e5898c3' },
-  { name: 'Island', color: 'U', collector: '274', id: '17e2b637-72b1-4457-aaba-66d51107be4c' },
-  { name: 'Swamp', color: 'B', collector: '276', id: '319bc1f0-ee42-44e5-b08b-735613ded2ba' },
-  { name: 'Mountain', color: 'R', collector: '278', id: '279df7e2-2a3b-464a-a7df-e91da28e3a8c' },
-  { name: 'Forest', color: 'G', collector: '280', id: 'd232fcc2-12f6-401a-b1aa-ddff11cb9378' }
+  { name: 'Plains', colors: ['W'], subtype: true, collector: '272', id: '4ef17ed4-a9b5-4b8e-b4cb-2ecb7e5898c3', ...FOUNDATIONS },
+  { name: 'Island', colors: ['U'], subtype: true, collector: '274', id: '17e2b637-72b1-4457-aaba-66d51107be4c', ...FOUNDATIONS },
+  { name: 'Swamp', colors: ['B'], subtype: true, collector: '276', id: '319bc1f0-ee42-44e5-b08b-735613ded2ba', ...FOUNDATIONS },
+  { name: 'Mountain', colors: ['R'], subtype: true, collector: '278', id: '279df7e2-2a3b-464a-a7df-e91da28e3a8c', ...FOUNDATIONS },
+  { name: 'Forest', colors: ['G'], subtype: true, collector: '280', id: 'd232fcc2-12f6-401a-b1aa-ddff11cb9378', ...FOUNDATIONS },
+  // Colorless, and with no land type.
+  {
+    name: 'Wastes',
+    colors: [],
+    subtype: false,
+    collector: '408',
+    id: '475be6db-6541-412b-a07e-5357b25a499f',
+    set: 'm3c',
+    setName: 'Modern Horizons 3 Commander',
+    releasedAt: '2024-06-14'
+  }
 ]
 
 /** Scryfall legalities of basics: legal in every format except Old School. */
@@ -37,8 +51,8 @@ const GENERIC = new Map<string, GenericBasic>(
       info: {
         name: d.name,
         colors: [],
-        colorIdentity: [d.color],
-        typeLine: `Basic Land — ${d.name}`,
+        colorIdentity: d.colors,
+        typeLine: d.subtype ? `Basic Land — ${d.name}` : 'Basic Land',
         manaValue: 0,
         rarity: 'common',
         legalities: LEGALITIES
@@ -46,11 +60,11 @@ const GENERIC = new Map<string, GenericBasic>(
       printing: {
         id: d.id,
         name: d.name,
-        set: 'fdn',
-        setName: 'Foundations',
+        set: d.set,
+        setName: d.setName,
         collectorNumber: d.collector,
         rarity: 'common',
-        releasedAt: '2024-11-15',
+        releasedAt: d.releasedAt,
         lang: 'en',
         finishes: ['nonfoil', 'foil'],
         cardmarketId: null,

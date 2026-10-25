@@ -165,12 +165,14 @@ interface TextEditorDialogProps {
   mode: 'list' | 'inventory'
   /** Offers a Copy button, copying the text as it stands, and says this once copied. */
   copied?: string
+  /** Offers a Copy (Unowned) button: called with the text as it stands, to copy the Cards you don't own. */
+  onCopyUnowned?: (text: string) => void
   onSave: (text: string) => void
   onClose: () => void
 }
 
 /** Raw text editor for a list or the inventory. */
-export function TextEditorDialog({ title, initial, mode, copied, onSave, onClose }: TextEditorDialogProps) {
+export function TextEditorDialog({ title, initial, mode, copied, onCopyUnowned, onSave, onClose }: TextEditorDialogProps) {
   const [text, setText] = useState(initial)
   const copy = useCopy()
   const save = () => {
@@ -189,6 +191,11 @@ export function TextEditorDialog({ title, initial, mode, copied, onSave, onClose
           {copied && (
             <button type="button" onClick={() => void copy(text, copied)}>
               {ui.dialogs.editor.copy}
+            </button>
+          )}
+          {onCopyUnowned && (
+            <button type="button" onClick={() => onCopyUnowned(text)} title={ui.dialogs.editor.copyUnownedHint}>
+              {ui.dialogs.editor.copyUnowned}
             </button>
           )}
           <button type="button" onClick={onClose}>

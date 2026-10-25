@@ -16,7 +16,7 @@ import {
   type CardPick,
   type ListVersion
 } from '@shared/listVersion'
-import { moveToBoard, type BoardEntry } from '@shared/sideboard'
+import { moveToBoard, type Board, type BoardEntry } from '@shared/sideboard'
 import type { ThemeColor } from '@shared/themes'
 import { serializeSnapshot, type TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
@@ -283,10 +283,10 @@ export class LibraryStore {
       this.updateLines(target, (lines) => withAbsorbedIns(lines, cards.reduce(mergeCard, lines)), { label: addCardsLabel(cards) })
     },
 
-    /** Moves lines to the sideboard (`side`) or main deck, merging into identical lines there. */
-    moveCards: (target: ListRef, ids: string[], side: boolean) => {
-      this.updateLines(target, (lines) => moveToBoard(lines, ids, side ? 'side' : 'main'), {
-        label: ui.changes.moved(cardName(this.state.lists, target, ids[0]), side)
+    /** Moves lines to a board (main deck, sideboard or maybeboard), merging into identical lines there. */
+    moveCards: (target: ListRef, ids: string[], board: Board) => {
+      this.updateLines(target, (lines) => moveToBoard(lines, ids, board), {
+        label: ui.changes.moved(cardName(this.state.lists, target, ids[0]), ui.boards.inSentence[board])
       })
     },
 

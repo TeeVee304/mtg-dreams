@@ -22,7 +22,7 @@ import {
   type LegalityIssue
 } from './formats'
 import { ui } from './text'
-import { SIDEBOARD_MAX } from './sideboard'
+import { maybeboardIds, SIDEBOARD_MAX } from './sideboard'
 import { sumOf } from './totals'
 import type { CardInfo, CardLine, ListKind, ListLine, Printing } from './types'
 
@@ -60,12 +60,14 @@ export interface ModelRow {
   bundledIds?: string[]
   /** Line is in the sideboard. */
   side?: boolean
+  /** Line is on the maybeboard: considered, counting toward nothing. */
+  maybe?: boolean
 }
 
 /** Derived list state from {@link analyzeList}. */
 export interface ListAnalysis<R extends ModelRow> {
   format: DeckFormat | null
-  /** Total copies of a card across all lines. */
+  /** Total copies of a card across all lines, the maybeboard aside. */
   copiesOf(name: string): number
   /** Commander nameKeys: two for partners; none outside commander formats or if unset. */
   commanderKeys: string[]
@@ -77,9 +79,9 @@ export interface ListAnalysis<R extends ModelRow> {
   canJoin(row: R): boolean
   /** Some row is a commander. */
   hasCommander: boolean
-  /** Format issue; null if none, no format, or no card data. */
+  /** Format issue; null if none, no format, or no card data. Only ever a warning on the maybeboard. */
   issueOf(row: R): LegalityIssue | null
-  /** Decks: list copies exceeding the inventory copies left by lists ahead. Wishlists: 0. */
+  /** Decks: list copies exceeding the inventory copies left by lists ahead. Wishlists and the maybeboard: 0. */
   shortfallOf(row: R): number
   /** Rows with an error-severity issue. */
   legalityErrors: number
@@ -93,22 +95,28 @@ export interface ListAnalysis<R extends ModelRow> {
   sideboardIssue: string | null
 }
 
-/** Computes format, commander, legality and ownership state for a list. */
+/**
+ * Computes format, commander, legality and ownership state for a list. Maybeboard rows (`maybe`) are
+ * checked as if added to the list, with warnings only, and never lead it or fall short.
+ */
 export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[], rows: R[]): ListAnalysis<R> {
   const format = listFormat(lines)
   const copies = new Map<string, number>()
-  for (const line of cardLines(lines)) copies.set(nameKey(line.name), (copies.get(nameKey(line.name)) ?? 0) + line.qty)
+  const maybe = maybeboardIds(lines)
+  for (const line of cardLines(lines)) {
+    if (!maybe.has(line.id)) copies.set(nameKey(line.name), (copies.get(nameKey(line.name)) ?? 0) + line.qty)
+  }
   const copiesOf = (name: string) => copies.get(nameKey(name)) ?? 0
 
   const commanderKeys = format?.commander ? listCommanders(lines).map(nameKey) : []
-  const isCommander = (row: R) => !row.bundledIds && commanderKeys.includes(nameKey(row.line.name))
+  const isCommander = (row: R) => !row.bundledIds && !row.maybe && commanderKeys.includes(nameKey(row.line.name))
   const canBeCommander = (row: R) =>
-    !!format?.commander && !row.bundledIds && !!row.info && canLead(format, row.info, row.entry?.data?.printings)
+    !!format?.commander && !row.bundledIds && !row.maybe && !!row.info && canLead(format, row.info, row.entry?.data?.printings)
 
   const leaders = rows.filter(isCommander)
   const leader = leaders.length === 1 ? leaders[0].info : null
   const joins = (row: R) =>
-    !!format && !!leader && !row.bundledIds && !!row.info && !isCommander(row) && canJoin(format, leader, row.info, row.entry?.data?.printings)
+    !!format && !!leader && !row.bundledIds && !row.maybe && !!row.info && !isCommander(row) && canJoin(format, leader, row.info, row.entry?.data?.printings)
   // The commanders' colors together, once all have loaded.
   const identity = leaders.length > 0 && leaders.every((row) => row.info)
     ? [...new Set(leaders.flatMap((row) => row.info!.colorIdentity))]
@@ -117,7 +125,8 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
   if (format) {
     for (const row of rows) {
       if (!row.info) continue
-      const count = copiesOf(row.line.name)
+      // A maybeboard Card is checked as if added: the list's copies and its own.
+      const count = copiesOf(row.line.name) + (row.maybe ? row.line.qty : 0)
       const partner = leaders.find((other) => other !== row)?.info ?? null
       // A pair is checked once both commanders have loaded.
       if (isCommander(row) && leaders.length > 1 && !partner) continue
@@ -129,9 +138,12 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
       )
     }
   }
-  const issueOf = (row: R) => issues.get(row) ?? null
+  const issueOf = (row: R): LegalityIssue | null => {
+    const issue = issues.get(row) ?? null
+    return issue && row.maybe ? { ...issue, severity: 'warning' } : issue
+  }
   const sideboardCards = sumOf(rows, (row) => (row.side ? row.line.qty : 0))
-  const shortfallOf = (row: R) => (kind === 'deck' ? Math.max(0, copiesOf(row.line.name) - freeCopies(row)) : 0)
+  const shortfallOf = (row: R) => (kind === 'deck' && !row.maybe ? Math.max(0, copiesOf(row.line.name) - freeCopies(row)) : 0)
 
   return {
     format,
@@ -242,6 +254,9 @@ export function shortfallNote(row: ModelRow): { label: string; title: string } {
   return { label: used, title: ownership.ownedWhere(row.inventoryQty, where) }
 }
 
+/** Id of the maybeboard's section ({@link sectionRows}). */
+export const MAYBEBOARD_SECTION = 'Maybeboard'
+
 /** Rendered list section. */
 export interface Section<R> {
   id: string
@@ -253,7 +268,7 @@ export interface Section<R> {
 
 /**
  * @returns Commander section, one per {@link TYPE_GROUPS} entry for the main deck, then the sideboard
- * (not split by type); empty sections omitted.
+ * and the maybeboard (neither split by type); empty sections omitted.
  */
 export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysis<R>): Section<R>[] {
   const { isCommander } = analysis
@@ -262,9 +277,10 @@ export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysi
     ...TYPE_GROUPS.map((group) => ({
       id: group.id as string,
       label: group.label as string,
-      rows: rows.filter((row) => !row.side && !isCommander(row) && typeGroup(row.info) === group.id)
+      rows: rows.filter((row) => !row.side && !row.maybe && !isCommander(row) && typeGroup(row.info) === group.id)
     })),
-    { id: 'Sideboard', label: ui.sections.sideboard, rows: rows.filter((row) => row.side), warning: analysis.sideboardIssue }
+    { id: 'Sideboard', label: ui.sections.sideboard, rows: rows.filter((row) => row.side), warning: analysis.sideboardIssue },
+    { id: MAYBEBOARD_SECTION, label: ui.sections.maybeboard, rows: rows.filter((row) => row.maybe) }
   ]
   return sections.filter((section) => section.rows.length > 0)
 }

@@ -245,10 +245,12 @@
   flex: 1;
 }
 
+/* No taller than the name, so hiding them on hover leaves the row's height as it is. */
 .nav-title-row .price-moves {
   flex: none;
   gap: 5px;
   font-size: var(--fs-sm);
+  line-height: 1.25;
 }
 
 /* The color symbols take their place on hover. */
