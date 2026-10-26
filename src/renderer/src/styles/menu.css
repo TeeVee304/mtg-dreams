@@ -61,6 +61,20 @@
   background: var(--bad-soft);
 }
 
+/* An entry with an icon at its right end, lined up with the submenu arrows. */
+.menu-list button.menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.menu-list button.menu-icon svg {
+  width: 15px;
+  height: 15px;
+  color: var(--muted);
+}
+
 /* An entry opening a submenu or showing a check mark, and the way back from a submenu. */
 .menu-list button.menu-sub {
   display: flex;

@@ -18,6 +18,7 @@ import { priceChange, useBaselines } from '../../stores/history'
 import type { CardList, LibraryActions, ListRef } from '../../stores/library'
 import { usePrintingsVersion } from '../../stores/printings'
 import { useSettings } from '../../stores/settings'
+import { preferredGroup } from '../../stores/setGroups'
 import { Segmented } from '../Controls'
 import { useToast } from '../Toasts'
 import { BasicsTab } from './BasicsTab'
@@ -61,9 +62,10 @@ function priceChanges(
 ): Map<string, CardPriceChange> {
   const changes = new Map<string, CardPriceChange>()
   for (const list of wishlists) {
+    const group = preferredGroup(list)?.name
     for (const row of listRows(list, inventory, settings, pool)) {
       if (row.bundledIds) continue
-      const change = priceChange(row.line, row.unit, row.owned, settings, baselines)
+      const change = priceChange(row.line, row.unit, row.owned, settings, baselines, group)
       if (!change) continue
       const key = nameKey(row.line.name)
       const known = changes.get(key)

@@ -217,6 +217,19 @@ tr:hover .owned-adjust,
   color: var(--muted);
 }
 
+/* The version is the cheapest of the list's preferred set group; long group names are cut short. */
+.auto-badge.preferred {
+  display: inline-block;
+  max-width: 11em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-style: italic;
+}
+
 /* The version shown is the one in your inventory. */
 .auto-badge.yours {
   background: var(--accent-soft);

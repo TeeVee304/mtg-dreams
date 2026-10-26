@@ -113,6 +113,10 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
                     <span className="auto-badge yours" title={text.yoursHint}>
                       {text.yours}
                     </span>
+                  ) : resolution?.preferred && row.preferredFrom ? (
+                    <span className="auto-badge preferred" title={text.preferredHint(row.preferredFrom)}>
+                      {row.preferredFrom}
+                    </span>
                   ) : (
                     <span className="auto-badge">{text.cheapest}</span>
                   )}{' '}

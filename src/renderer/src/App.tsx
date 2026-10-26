@@ -21,6 +21,7 @@ import { usePrices } from './hooks/usePrices'
 import { useScrollMemory } from './hooks/useScrollMemory'
 import { useShortcuts } from './hooks/useShortcuts'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
+import { loadSetGroups, STARTUP_DELAY_MS } from './stores/setGroups'
 import { onWindowFocus } from './lib/desktop'
 
 /** @returns Identity of a page, for remembering its scroll position. */
@@ -53,6 +54,12 @@ export default function App() {
     void actions.reload(true)
     return onWindowFocus(() => void actions.reload())
   }, [actions])
+
+  // Set groups load in the background soon after startup, so the Preferred Versions picker is ready.
+  useEffect(() => {
+    const timer = setTimeout(() => void loadSetGroups(), STARTUP_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [])
 
   // The app opens on Most Wanted (the welcome page without lists); a page whose list is gone falls back
   // to the first list, and one whose trade is gone to Trades.

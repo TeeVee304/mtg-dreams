@@ -33,6 +33,8 @@ export const changes = {
   format: 'Changed the Format',
   color: 'Changed the color',
   unbuilt: (list: string, unbuilt: boolean) => (unbuilt ? `Made ${list} unbuilt` : `Made ${list} built`),
+  preferredVersions: (list: string, group: string | null) =>
+    group ? `Made ${list} prefer ${group} Versions` : `Made ${list} stop preferring Versions`,
   upgrade: (list: string, deck: string | null) => (deck ? `Made ${list} an upgrade of ${deck}` : `Made ${list} a plain Wishlist`),
   applied: (upgrade: string, deck: string) => `Applied ${upgrade} to ${deck}`,
   addedToInventory: (cards: number) => `Added ${count.cards(cards)} to your Inventory`,

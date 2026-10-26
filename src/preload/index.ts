@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { TrackerApi } from '@shared/api'
+import type { SetGroupsProgress, TrackerApi } from '@shared/api'
 import { deckWizardApi } from './deckWizard'
 
 /** {@link TrackerApi} implementation over `ipcRenderer`, exposed as `window.api`. */
@@ -36,6 +36,12 @@ const api: TrackerApi = {
   getBaselines: () => ipcRenderer.invoke('history:baselines'),
   updateBaselines: (set, remove) => ipcRenderer.invoke('history:updateBaselines', set, remove),
   getDeckTokens: (names) => ipcRenderer.invoke('tokens:deck', names),
+  getSetGroups: () => ipcRenderer.invoke('scryfall:setGroups'),
+  onSetGroupsProgress: (callback) => {
+    const listener = (_event: unknown, progress: SetGroupsProgress) => callback(progress)
+    ipcRenderer.on('setGroups:progress', listener)
+    return () => ipcRenderer.removeListener('setGroups:progress', listener)
+  },
   getPreconIndex: () => ipcRenderer.invoke('precons:index'),
   getPrecon: (fileName) => ipcRenderer.invoke('precons:deck', fileName),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),

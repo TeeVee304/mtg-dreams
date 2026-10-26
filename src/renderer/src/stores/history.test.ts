@@ -27,6 +27,14 @@ describe('wishlist price changes', () => {
     expect(priceChange(line(1), 100, 1, alert('trend'), baselines)).toBeNull()
   })
 
+  it('compares a line showing Preferred Versions only with its price under that preference', () => {
+    expect(priceChange(line(1), 200, 0, alert('trend'), baselines, 'Avatar')).toBeNull()
+    const preferred = { [lineKey(line(1), 'Avatar')]: { at: 1000, prices: { trend: 200 } } }
+    expect(priceChange(line(1), 150, 0, alert('trend'), preferred, 'Avatar')?.direction).toBe('down')
+    expect(lineKey(line(1, { set: 'one' }), 'Avatar')).toBe(lineKey(line(1, { set: 'one' })))
+    expect(lineKey(line(1, { name: 'Island' }), 'Avatar')).toBe(lineKey(line(1, { name: 'Island' })))
+  })
+
   it('needs the euro minimum too, so cent moves of cheap cards do not count', () => {
     const cheap = { [lineKey(line(1))]: { at: 1000, prices: { trend: 0.03 } } }
     expect(priceChange(line(1), 0.04, 0, alert('trend'), cheap)?.percent).toBe(33)

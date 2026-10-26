@@ -8,6 +8,7 @@ import { sumOf } from '@shared/totals'
 import type { InventoryItem, Printing } from '@shared/types'
 import type { CardList } from '../stores/library'
 import { priceChange } from '../stores/history'
+import { preferredGroup } from '../stores/setGroups'
 import { artCrop } from './artwork'
 import { listRows, summarize, type Row } from './summary'
 
@@ -30,7 +31,7 @@ export function listFigures(
     list.kind === 'wishlist'
       ? rows.flatMap((row) => {
           if (row.bundledIds) return []
-          const change = priceChange(row.line, row.unit, row.owned, settings, baselines)
+          const change = priceChange(row.line, row.unit, row.owned, settings, baselines, preferredGroup(list)?.name)
           return change ? [change.direction] : []
         })
       : []

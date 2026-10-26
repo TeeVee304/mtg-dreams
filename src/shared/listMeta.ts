@@ -1,6 +1,7 @@
 /**
  * Personal list settings: how you keep a list, not what the deck is. They are written as header lines
- * (`// Color: Blue`, `// Unbuilt: Yes`, `// Upgrade of: …`, `// Upgrade version: Duel`) while the
+ * (`// Color: Blue`, `// Unbuilt: Yes`, `// Upgrade of: …`, `// Upgrade version: Duel`,
+ * `// Preferred Versions: Innistrad`) while the
  * app works with a list, but stored apart from its file, in `lists.json`, so the file holds only the
  * deck: copying, sharing or opening it elsewhere gives no personal settings. A file that has such
  * headers (an old file, or text pasted with them) gives them up to `lists.json` when saved.
@@ -12,14 +13,15 @@
 export type ListMeta = Partial<Record<MetaField, string>>
 
 /** A personal setting. */
-export type MetaField = 'color' | 'unbuilt' | 'upgradeOf' | 'upgradeVersion'
+export type MetaField = 'color' | 'unbuilt' | 'upgradeOf' | 'upgradeVersion' | 'preferredVersions'
 
 /** Each setting's header label, as written, and the label pattern read back; in the order written. */
 const FIELDS: { field: MetaField; label: string; pattern: string }[] = [
   { field: 'color', label: 'Color', pattern: 'colou?r' },
   { field: 'unbuilt', label: 'Unbuilt', pattern: 'unbuilt' },
   { field: 'upgradeOf', label: 'Upgrade of', pattern: 'upgrade\\s+of' },
-  { field: 'upgradeVersion', label: 'Upgrade version', pattern: 'upgrade\\s+version' }
+  { field: 'upgradeVersion', label: 'Upgrade version', pattern: 'upgrade\\s+version' },
+  { field: 'preferredVersions', label: 'Preferred Versions', pattern: 'preferred\\s+versions' }
 ]
 
 /** Matches a personal header line; group 1 is the label, group 2 the value. */

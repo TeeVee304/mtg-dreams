@@ -162,3 +162,6 @@ export const getPrintingsVersion = changes.version
 
 /** Hook re-rendering on any entry change. @returns Store version. */
 export const usePrintingsVersion = changes.useVersion
+
+/** Notifies that what printings resolve to changed (set groups loaded), as an entry change does. */
+export const printingsResolutionChanged = () => changes.emit()

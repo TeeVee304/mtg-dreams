@@ -1,5 +1,6 @@
 import type { AppSettings, PriceBaseline, PriceSnapshot, TrackerApi } from '@shared/api'
 import { bundledBasic } from '@shared/basics'
+import { isBasicLand } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { allocateOwned, nameKey } from '@shared/decklist'
 import { unionCardLines } from '@shared/listVersion'
@@ -8,7 +9,9 @@ import type { CardLine, InventoryItem } from '@shared/types'
 import { inventoryValue, type ValuedCopy } from '../lib/collection'
 import { createSignal } from '../lib/signal'
 import type { CardList } from './library'
+import { preferredVersions } from '@shared/listPreference'
 import { getPrintingsEntry } from './printings'
+import { preferredGroup } from './setGroups'
 
 /**
  * Renderer side of price history: wishlist baselines and price-change detection, tracked product ids,
@@ -41,9 +44,15 @@ export function useBaselines(): Record<string, PriceBaseline> {
 /** @returns Prices now and `ago` milliseconds back of the Cardmarket products `ids`; null without history. */
 export const pricesAt = (ids: number[], ago: number[]) => window.api.pricesAt(ids, ago)
 
-/** @returns Baseline key: `nameKey|set|collector|foil`. */
-export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foil'>) =>
-  `${nameKey(line.name)}|${line.set ?? ''}|${line.collector ?? ''}|${line.foil}`
+/**
+ * @param group - Name of the set group the list prefers Versions from: a line it applies to (no
+ *   Version chosen, not a basic Land) gets its own baseline, so switching Versions isn't a price change.
+ * @returns Baseline key: `nameKey|set|collector|foil`, plus `|@group` for a preferred line.
+ */
+export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foil'>, group?: string) => {
+  const key = `${nameKey(line.name)}|${line.set ?? ''}|${line.collector ?? ''}|${line.foil}`
+  return group && !line.set && !isBasicLand(line.name) ? `${key}|@${group}` : key
+}
 
 /**
  * Records baselines (all price bases) for loaded, not fully owned wishlist lines lacking one, and
@@ -53,13 +62,21 @@ export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foi
 export function syncBaselines(wishlists: CardList[], inventory: Map<string, InventoryItem>, bundleBasics: boolean, pool: CopyPool): void {
   if (!baselinesLoaded) return
   const onWishlists = new Set<string>()
+  let waiting = false
   const set: Record<string, PriceBaseline> = {}
   const now = Date.now()
   for (const list of wishlists) {
+    // Until the set groups load, a list preferring some can't tell its prices or keys: it waits, and
+    // no baseline is removed meanwhile.
+    const group = preferredGroup(list)
+    if (preferredVersions(list.lines) && !group) {
+      waiting = true
+      continue
+    }
     const lines = unionCardLines(list.lines)
     const allocations = allocateOwned(lines, inventory, (key) => pool.held(list, key, inventory.get(key)?.qty ?? 0))
     lines.forEach((line, index) => {
-      const key = lineKey(line)
+      const key = lineKey(line, group?.name)
       onWishlists.add(key)
       if (key in baselines || key in set || allocations[index].owned >= line.qty) return
       if (bundledBasic(line.name, bundleBasics)) return
@@ -67,13 +84,13 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
       if (!data || data.notFound) return
       const prices: PriceBaseline['prices'] = {}
       for (const id of PRICE_BASES) {
-        const unit = resolveLine(line, data.printings, id).unitPrice
+        const unit = resolveLine(line, data.printings, id, isBasicLand(line.name) ? undefined : group).unitPrice
         if (unit !== null && unit > 0) prices[id] = unit
       }
       if (Object.keys(prices).length > 0) set[key] = { at: now, prices }
     })
   }
-  const remove = Object.keys(baselines).filter((key) => !onWishlists.has(key))
+  const remove = waiting ? [] : Object.keys(baselines).filter((key) => !onWishlists.has(key))
   if (Object.keys(set).length === 0 && remove.length === 0) return
   baselines = { ...baselines, ...set }
   for (const key of remove) delete baselines[key]
@@ -102,16 +119,18 @@ export type PriceAlert = Pick<AppSettings, 'priceBasis' | 'dropAlertPercent' | '
  * @returns Change if the line is still needed and its price fell or rose since it was added by at
  * least the alert's percentage and its euro amount for that direction (both, so neither cent moves of
  * cheap cards nor small drifts of expensive ones count); else null.
+ * @param group - Name of the set group the line's list prefers Versions from ({@link lineKey}).
  */
 export function priceChange(
   line: CardLine,
   unit: number | null,
   owned: number,
   { priceBasis, dropAlertPercent, dropAlertMinEur, riseAlertMinEur }: PriceAlert,
-  known: Record<string, PriceBaseline>
+  known: Record<string, PriceBaseline>,
+  group?: string
 ): PriceChange | null {
   if (unit === null || owned >= line.qty) return null
-  const baseline = known[lineKey(line)]
+  const baseline = known[lineKey(line, group)]
   const was = baseline?.prices[priceBasis]
   if (!baseline || !was) return null
   const percent = ((unit - was) / was) * 100

@@ -8,6 +8,7 @@ import { ui } from '@shared/text'
 import { TRADE_EXTENSION } from '@shared/trade'
 import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
+import { getSetGroups } from './setGroups'
 import { getDeckTokens } from './tokens'
 import { loadPriceGuide, priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
 import { getBaselines, pricesAt, recordCurrentPrices, trackPrices, updateBaselines } from './priceHistory'
@@ -194,6 +195,11 @@ export function registerIpc(): void {
     updateBaselines(baselines(set), arrayOf<string>(remove, (key) => typeof key === 'string', 'baselines', Infinity))
   )
   ipcMain.handle('tokens:deck', (_e, names: unknown) => getDeckTokens(cardNames(names, 3000, 200)))
+  ipcMain.handle('scryfall:setGroups', () =>
+    getSetGroups((progress) => {
+      for (const window of BrowserWindow.getAllWindows()) window.webContents.send('setGroups:progress', progress)
+    })
+  )
   ipcMain.handle('precons:index', () => getPreconIndex())
   ipcMain.handle('precons:deck', (_e, fileName: unknown) => getPrecon(text(fileName, 'deck')))
 

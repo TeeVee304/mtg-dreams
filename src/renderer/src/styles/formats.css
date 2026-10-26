@@ -263,3 +263,97 @@
     background: transparent;
   }
 }
+
+/* Preferred Versions picker: one row per set group, its symbol and name left, coverage and price change right. */
+.preferred-intro {
+  margin: 0 0 4px;
+}
+
+/* The rules: below the ⓘ and wrapped, as the dialog's scrolling body clips anything above it. */
+.preferred-intro .tip {
+  top: calc(100% + 6px);
+  bottom: auto;
+  width: 300px;
+  white-space: normal;
+  line-height: 1.45;
+}
+
+.preferred-options {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 55vh;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+
+.preferred-option {
+  display: grid;
+  grid-template-columns: auto 22px 1fr auto;
+  column-gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.preferred-option:hover:not(.placeholder) {
+  background: var(--hover);
+}
+
+.preferred-option.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.preferred-option.placeholder {
+  grid-template-columns: 22px 1fr auto;
+  cursor: default;
+}
+
+.preferred-option input {
+  margin: 0;
+}
+
+.preferred-name {
+  font-weight: 600;
+}
+
+/* The set's symbol in the text color (common rarity), the highlight color when chosen. */
+.set-symbol {
+  width: 22px;
+  height: 22px;
+  background: var(--text);
+  mask: center / contain no-repeat;
+  -webkit-mask: center / contain no-repeat;
+}
+
+.preferred-option.on .set-symbol:not(.none) {
+  background: var(--accent-text);
+}
+
+.set-symbol.none {
+  background: none;
+}
+
+/* Where a symbol will be, while loading. */
+.symbol-placeholder {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.preferred-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.preferred-status {
+  margin: 8px 0 0;
+}

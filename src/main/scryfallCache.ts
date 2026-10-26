@@ -19,7 +19,7 @@ const SAVE_DELAY_MS = 2_000
 /** Max time changes stay unsaved under continuous updates. */
 const MAX_SAVE_DELAY_MS = 60_000
 /** Cache schema version. */
-const VERSION = 9
+const VERSION = 10
 
 /** Cached card data with fetch time. */
 export interface CachedCardInfo {
@@ -104,7 +104,7 @@ function fromOldFormat(stored: unknown): Printing {
 
 /** On-disk cache. */
 interface CacheFile {
-  /** 9: as 8, with partner abilities. 8: compact. 7: compact, no back images. 6: as 7, null prices. 3–5: full printings (3–4 lack newer card data). */
+  /** 10: as 9, with artwork ids. 9: as 8, with partner abilities. 8: compact. 7: compact, no back images. 6: as 7, null prices. 3–5: full printings (3–4 lack newer card data). */
   version: number
   /** Printings results by nameKey. */
   entries: Record<string, Omit<PrintingsResult, 'printings'> & { printings: StoredPrinting[] }>
@@ -146,7 +146,8 @@ export function loadScryfallCache(): Promise<void> {
         try {
           const printings = file.version >= 6 ? entry.printings.map(unpackPrinting) : entry.printings.map(fromOldFormat)
           if (!Array.isArray(printings)) continue
-          const fetchedAt = file.version < 8 || outdated(entry.card) ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
+          // Before v10, printings had no artwork ids: all refresh, in the background.
+      const fetchedAt = file.version < 10 || outdated(entry.card) ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
           scryfallCache.entries[key] = { ...entry, printings, fetchedAt }
         } catch {}
       }

@@ -17,6 +17,9 @@ export const list = {
     identity: (name: string, colors: string) => `${name}: ${colors}`,
     brew: 'Brew',
     brewHint: 'An idea: it counts toward nothing, not even Most Wanted',
+    preferredVersions: 'Universes…',
+    preferredSticker: (group: string) => `${group} Versions`,
+    preferredStickerHint: 'Click to change',
     upgradeOf: 'Upgrade of…',
     unbuilt: 'Unbuilt',
     addFormatVersion: (version: string) => `Add ${version} Version`,
@@ -173,6 +176,24 @@ export const listDialogs = {
     message: (version: string, base: string, noun: string, swaps: number) =>
       `${version} Versions belong to ${base} ${noun}s. This ${noun}’s ${version} Version and its ${count.swaps(swaps)} will be deleted.`,
     confirm: 'Change and delete'
+  },
+  preferred: {
+    title: 'Preferred Versions',
+    intro: 'Show Cards in the art of a set you love.',
+    rules: 'Cards with no Version chosen show the cheapest Version from the sets you pick, when one has art first printed there. Versions you chose, Cards you own and basic Lands stay as they are.',
+    none: 'None',
+    noneHint: 'The cheapest Version of each Card',
+    coverage: (cards: number, of: number) => `${cards} of ${count.cards(of)}`,
+    priceChange: (change: string) => `${change} for the Cards you still need`,
+    sameCost: 'Same cost',
+    loading: 'Looking up sets…',
+    checking: (checked: number, of: number) => `Checking new sets · ${checked + 1} of ${of}`,
+    unavailable: 'Couldn’t reach Scryfall to look up sets. Try again later.',
+    noMatch: 'No set group has its own Versions of these Cards.',
+    cardsLoading: 'Some Cards are still loading, so the counts may grow.',
+    current: (group: string) => `Preferring ${group} Versions`,
+    preferring: (list: string, group: string) => `“${list}” now prefers ${group} Versions`,
+    stopped: (list: string) => `“${list}” shows the cheapest Versions again`
   },
   upgrade: {
     title: 'Upgrade of…',

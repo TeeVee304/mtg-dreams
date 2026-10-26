@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 
 /** Menu entry: an action, or a submenu of more entries. */
 export type MenuItem =
@@ -10,6 +10,8 @@ export type MenuItem =
       danger?: boolean
       /** An on/off setting: shown with a check mark when on. */
       checked?: boolean
+      /** Shown at the right end, where submenus show their arrow. */
+      icon?: IconName
     }
   | { label: string; items: MenuItem[]; danger?: undefined; checked?: undefined }
 
@@ -102,11 +104,12 @@ export function MenuButton({ label, items, trigger }: MenuButtonProps) {
               type="button"
               role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
               aria-checked={item.checked}
-              className={'items' in item || item.checked !== undefined ? 'menu-sub' : undefined}
+              className={'items' in item || item.checked !== undefined ? 'menu-sub' : 'icon' in item && item.icon ? 'menu-icon' : undefined}
               aria-haspopup={'items' in item ? 'menu' : undefined}
               onClick={() => choose(item)}
             >
               {item.label}
+              {'icon' in item && item.icon && <Icon name={item.icon} />}
               {'items' in item && <span aria-hidden="true">›</span>}
               {item.checked && <span aria-hidden="true">✓</span>}
             </button>

@@ -800,3 +800,82 @@
   font-size: var(--fs-md);
   color: #c9cadb;
 }
+
+/* The set group a wishlist or brew prefers Versions from: a die-cut sticker with its set symbol,
+   slapped on the art's edge (at its top when a Background sits below); opens the picker. */
+.set-sticker {
+  --sticker-size: 64px;
+  position: absolute;
+  right: calc(var(--portrait-width, 46%) - var(--sticker-size) / 2);
+  bottom: 22px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--sticker-size);
+  height: var(--sticker-size);
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  background: #f4f1e6;
+  color: #1d1d24;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 6px 14px rgba(0, 0, 0, 0.45);
+  transform: rotate(-12deg);
+  transition: transform 0.15s ease-out;
+  cursor: pointer;
+}
+
+.set-sticker.high {
+  top: 22px;
+  bottom: auto;
+}
+
+.set-sticker:hover,
+.set-sticker:focus-visible {
+  background: #f4f1e6;
+  transform: rotate(-6deg) scale(1.06);
+}
+
+.set-sticker-symbol {
+  width: 58%;
+  height: 58%;
+  background: currentColor;
+  mask: center / contain no-repeat;
+  -webkit-mask: center / contain no-repeat;
+}
+
+.set-sticker svg {
+  width: 50%;
+  height: 50%;
+}
+
+/* Its name, upright above the tilted sticker. */
+.set-sticker .tip {
+  transform: translateX(-50%) rotate(12deg);
+  font-weight: 400;
+}
+
+/* Without art: smaller, beside the title. */
+h1 .set-sticker {
+  --sticker-size: 38px;
+  position: relative;
+  right: auto;
+  bottom: auto;
+  display: inline-grid;
+  margin-left: 14px;
+  vertical-align: middle;
+  border-width: 2px;
+}
+
+@media (max-width: 1100px) {
+  .art-hero .set-sticker {
+    --sticker-size: 54px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .set-sticker {
+    transition: none;
+  }
+}

@@ -96,6 +96,8 @@ export interface Printing {
   flavorName?: string
   /** False for gold-bordered and memorabilia printings; never selected as cheapest. */
   autoEligible: boolean
+  /** Scryfall id of the artwork (front face), shared by printings reusing it; absent in older caches. */
+  illustrationId?: string
 }
 
 /** Index entry of an official preconstructed product (Commander, Challenger, Secret Lair...). */

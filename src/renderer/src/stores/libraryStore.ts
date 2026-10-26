@@ -3,6 +3,7 @@ import { parseInventory, parseList, serializeList } from '@shared/decklist'
 import { listFormat, withCommanders, withFormat, withoutMissingCommanders } from '@shared/formats'
 import type { Version } from '@shared/inventory'
 import { withColor } from '@shared/listColor'
+import { withPreferredVersions } from '@shared/listPreference'
 import { withUnbuilt } from '@shared/listUnbuilt'
 import { appliedUpgrade, upgradeOf, upgradeTarget, withUpgradeOf } from '@shared/listUpgrade'
 import {
@@ -397,6 +398,13 @@ export class LibraryStore {
     setUnbuilt: (target: ListRef, unbuilt: boolean) => {
       this.updateLines(target, (lines) => withUnbuilt(lines, unbuilt), {
         label: ui.changes.unbuilt(target.name, unbuilt)
+      })
+    },
+
+    /** Makes a wishlist or brew prefer the Versions of a set group (by name) for Cards with no Version chosen, or none (`null`). */
+    setPreferredVersions: (target: ListRef, group: string | null) => {
+      this.updateLines(target, (lines) => withPreferredVersions(lines, group), {
+        label: ui.changes.preferredVersions(target.name, group)
       })
     },
 

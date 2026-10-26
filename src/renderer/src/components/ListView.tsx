@@ -3,6 +3,7 @@ import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } f
 import { cardLines, nameKey } from '@shared/decklist'
 import { otherVersions, type Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
+import { preferredVersions } from '@shared/listPreference'
 import { isUnbuilt } from '@shared/listUnbuilt'
 import { activeVariant, BASE, baseLabel, variantSwaps, versionFormatLabel } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
@@ -31,6 +32,7 @@ import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceChange, useBaselines } from '../stores/history'
 import { requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
+import { preferredGroup } from '../stores/setGroups'
 import { useCommanderPicking } from '../hooks/useCommanderPicking'
 import { useListMover } from '../hooks/useListMover'
 import { useStoredToggle } from '../hooks/useStoredToggle'
@@ -121,7 +123,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const changeOf = (row: Row) =>
     isDeck || row.bundledIds
       ? null
-      : priceChange(row.line, row.unit, row.owned, settings, baselines)
+      : priceChange(row.line, row.unit, row.owned, settings, baselines, preferredGroup(list)?.name)
 
   const analysis = useMemo(() => analyzeList(list.kind, shown.lines, tableRows), [list.kind, shown.lines, tableRows])
   const { format, copiesOf, isCommander, hasCommander, legalityErrors, ownershipErrors } = analysis
@@ -297,6 +299,10 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     if (moved) onOpenList(moved)
   }
 
+  /** The set group the list prefers Versions from, for the banner's sticker: by its stored name until the groups load. */
+  const preferredName = isDeck ? null : preferredVersions(list.lines)
+  const preferred = preferredName ? { name: preferredGroup(list)?.name ?? preferredName, icon: preferredGroup(list)?.icon } : null
+
   const toggleUnbuilt = () => {
     const unbuilt = !isUnbuilt(list.lines)
     actions.setUnbuilt(list, unbuilt)
@@ -377,6 +383,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         onStartingHand={drawable >= HAND_SIZE ? () => setDialog({ kind: 'hand' }) : undefined}
         onColor={() => setDialog({ kind: 'color' })}
         onUpgrade={list.kind === 'wishlist' ? () => setDialog({ kind: 'upgrade' }) : undefined}
+        preferred={preferred}
+        onPreferredVersions={isDeck ? undefined : () => setDialog({ kind: 'preferred' })}
         onMakeWishlist={isBrew ? () => void makeWishlist() : undefined}
         unbuilt={isDeck && isUnbuilt(list.lines)}
         onToggleUnbuilt={isDeck ? toggleUnbuilt : undefined}

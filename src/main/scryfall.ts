@@ -163,6 +163,11 @@ function labelsFor(card: any): string[] {
   return labels
 }
 
+/** Artwork id of the card or its first face. */
+function illustrationOf(card: any): string | undefined {
+  return card.illustration_id ?? card.card_faces?.[0]?.illustration_id ?? undefined
+}
+
 /** Flavor name of the card or its first face. */
 function flavorNameOf(card: any): string | undefined {
   return card.flavor_name ?? card.card_faces?.[0]?.flavor_name ?? undefined
@@ -198,7 +203,8 @@ function toPrinting(card: any): Printing {
     cardmarketUrl: card.purchase_uris?.cardmarket ?? null,
     labels: labelsFor(card),
     autoEligible: card.border_color !== 'gold' && card.set_type !== 'memorabilia',
-    ...(flavorNameOf(card) && { flavorName: flavorNameOf(card) })
+    ...(flavorNameOf(card) && { flavorName: flavorNameOf(card) }),
+    ...(illustrationOf(card) && { illustrationId: illustrationOf(card) })
   }
 }
 
@@ -496,4 +502,24 @@ export async function autocomplete(query: string): Promise<string[]> {
   if (autocompleteCache.size > 500) autocompleteCache.clear()
   autocompleteCache.set(key, names)
   return names
+}
+
+/**
+ * @returns All Scryfall sets.
+ * @throws Error on network failure or an HTTP error.
+ */
+export async function fetchSets(): Promise<any[]> {
+  const body = await generalQueue.run(() => getJson(`${env().scryfallApi}/sets`), 'low').promise
+  return body?.data ?? []
+}
+
+/**
+ * Asked ahead of card lookups: the Preferred Versions picker waits on it.
+ * @returns How many printings of a set are Universes Beyond Cards.
+ * @throws Error on network failure or an HTTP error.
+ */
+export async function countUniversesBeyond(set: string): Promise<number> {
+  const query = encodeURIComponent(`e:${set} is:universesbeyond`)
+  const body = await searchQueue.run(() => getJson(`${env().scryfallApi}/cards/search?unique=prints&q=${query}`), 'high').promise
+  return body?.total_cards ?? 0
 }

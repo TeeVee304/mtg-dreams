@@ -18,7 +18,8 @@ import {
   type Variant
 } from '@shared/listVersion'
 import { unownedCards } from '@shared/copies'
-import { countLines, parseList, serializeList } from '@shared/decklist'
+import { countLines, nameKey, parseList, serializeCard, serializeList } from '@shared/decklist'
+import { withPreferredPrintings } from '@shared/listPreference'
 import type { ListAnalysis } from '@shared/listModel'
 import type { Board } from '@shared/sideboard'
 import { totalCopies } from '@shared/totals'
@@ -33,6 +34,7 @@ import { ColorOptions } from './Controls'
 import { ConfirmDialog, PromptDialog, TextEditorDialog } from './Dialogs'
 import { Modal } from './Modal'
 import { PreconDialog } from './PreconDialog'
+import { PreferredVersionsDialog } from './PreferredVersionsDialog'
 import { StartingHand } from './StartingHand'
 import { useToast } from './Toasts'
 
@@ -47,6 +49,8 @@ export type ListDialog =
   | { kind: 'hand' }
   | { kind: 'color' }
   | { kind: 'upgrade' }
+  /** Picks the set group whose Versions the list prefers. */
+  | { kind: 'preferred' }
   | { kind: 'unown'; line: CardLine; inventoryQty: number; target: number }
   /** Confirms deleting one of the list's versions, and its `swaps`. */
   | { kind: 'variant-off'; variant: Variant; swaps: number }
@@ -92,11 +96,22 @@ export function ListDialogs(props: ListDialogsProps) {
   const text = ui.listDialogs
   const cardRow = dialog?.kind === 'card' ? props.rows.find((row) => row.line.id === dialog.lineId) : undefined
   const copy = useCopy()
+  /** Printing each Card shows from the list's Preferred Versions, by nameKey. */
+  const preferred = new Map(
+    props.rows.flatMap((row) => (row.preferredFrom && row.resolution?.printing ? [[nameKey(row.line.name), row.resolution.printing] as const] : []))
+  )
+  /** Editor text as copied: with the Preferred Versions written in, so a site it's pasted into gets them. */
+  const copyText = (text: string) => (preferred.size === 0 ? text : serializeList(withPreferredPrintings(parseList(text), preferred)))
   /** Copies the Cards of the editor's text you don't own, as many as are missing. */
   const copyUnowned = (text: string) => {
     const cards = unownedCards(parseList(text), props.freeCopies)
+    // Cards showing a Preferred Version carry it, so a wants list asks for that Version.
+    const lines = cards.map((card) => {
+      const pick = preferred.get(nameKey(card.name))
+      return pick ? serializeCard({ ...card, set: pick.set, collector: pick.collectorNumber, foil: false }) : countLines([card])[0]
+    })
     if (cards.length === 0) toast(ui.dialogs.editor.allOwned)
-    else void copy(countLines(cards).join('\n'), ui.dialogs.editor.unownedCopied(totalCopies(cards)))
+    else void copy(lines.join('\n'), ui.dialogs.editor.unownedCopied(totalCopies(cards)))
   }
   /**
    * The card's board and where it can move: the main deck, the sideboard (not in commander formats)
@@ -148,6 +163,7 @@ export function ListDialogs(props: ListDialogsProps) {
           initial={variantText(list.lines, shown.label)}
           mode="list"
           onCopyUnowned={copyUnowned}
+          copyText={copyText}
           copied={ui.list.versionCopied(shown.label)}
           onClose={onClose}
           onSave={(text) => actions.replaceVariantText(list, shown.label, text)}
@@ -159,6 +175,7 @@ export function ListDialogs(props: ListDialogsProps) {
           initial={stripMeta(baseText(list.lines))}
           mode="list"
           onCopyUnowned={copyUnowned}
+          copyText={copyText}
           copied={ui.list.copied(isDeck)}
           onClose={onClose}
           onSave={(text) => actions.replaceListText(list, serializeList(withBaseText(list.lines, withMetaOf(text, list.text))))}
@@ -170,6 +187,7 @@ export function ListDialogs(props: ListDialogsProps) {
           initial={stripMeta(list.text)}
           mode="list"
           onCopyUnowned={copyUnowned}
+          copyText={copyText}
           copied={ui.list.copied(isDeck)}
           onClose={onClose}
           onSave={(text) => actions.replaceListText(list, withMetaOf(text, list.text))}
@@ -260,6 +278,8 @@ export function ListDialogs(props: ListDialogsProps) {
           />
         </Modal>
       )
+    case 'preferred':
+      return <PreferredVersionsDialog list={list} rows={props.rows} actions={actions} onClose={onClose} />
     case 'upgrade':
       return <UpgradeDialog list={list} lists={props.lists} actions={actions} onClose={onClose} />
     case 'variant-off':

@@ -49,7 +49,9 @@ export const card = {
     yoursHint: (set: string, labels: string) => `The Version in your Inventory: ${set}${labels}`,
     yours: 'Yours',
     cheapestHint: (set: string, labels: string) => `Cheapest Version: ${set}${labels}. Pick a Version to keep it.`,
-    cheapest: 'Cheapest'
+    cheapest: 'Cheapest',
+    preferredHint: (group: string, set: string, labels: string) =>
+      `Cheapest ${group} Version, from this list’s Preferred Versions: ${set}${labels}. Pick a Version to keep it.`
   },
   /** Price cells. */
   price: {
@@ -71,6 +73,7 @@ export const card = {
     yoursHint: 'The Version in your Inventory',
     yours: 'Yours',
     cheapest: 'Cheapest',
+    preferredHint: (group: string) => `The cheapest ${group} Version, from this list’s Preferred Versions`,
     finish: 'Finish',
     oneFinish: 'This Version only exists in one finish',
     foilOnly: (foil: boolean) => ` (this Version is ${foil ? 'foil only' : 'non-foil only'})`,

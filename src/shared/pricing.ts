@@ -1,4 +1,5 @@
 import type { CardLine, PriceBasis, Prices, Printing } from './types'
+import { groupPrintings, type SetGroup } from './setGroups'
 import { ui } from './text'
 
 /** Max age of cached printings (1 week). Prices are refreshed separately from Cardmarket's daily price guide. */
@@ -82,18 +83,22 @@ export interface Resolution {
   collectorMissing: boolean
   /** Unpinned line resolved to the owned printing. */
   fromInventory?: boolean
+  /** Unpinned line resolved to a printing of the list's preferred set group. */
+  preferred?: boolean
 }
 
 /**
  * Resolves a line to a printing. Pinned: cheapest matching set and collector tag; non-numeric
- * tags (e.g. `<borderless>`) are ignored. Unpinned: cheapest `autoEligible` printing.
+ * tags (e.g. `<borderless>`) are ignored. Unpinned: cheapest printing the preferred group offers
+ * ({@link groupPrintings}), else the cheapest `autoEligible` one.
  * Without any price, falls back to the first candidate for preview.
  * @param printings - Card printings, newest first.
  */
 export function resolveLine(
   line: Pick<CardLine, 'set' | 'collector' | 'foil'>,
   printings: Printing[],
-  basis: PriceBasis
+  basis: PriceBasis,
+  prefer?: Pick<SetGroup, 'sets'>
 ): Resolution {
   if (line.set) {
     let candidates = printings.filter((p) => p.set === line.set)
@@ -113,6 +118,10 @@ export function resolveLine(
       : { printing: candidates[0], unitPrice: null, pinned: true, pinMissing: false, collectorMissing }
   }
 
+  const preferred = prefer && cheapestPrinting(groupPrintings(printings, prefer), line.foil, basis)
+  if (preferred) {
+    return { printing: preferred.printing, unitPrice: preferred.price, pinned: false, pinMissing: false, collectorMissing: false, preferred: true }
+  }
   const best = cheapestPrinting(
     printings.filter((p) => p.autoEligible),
     line.foil,

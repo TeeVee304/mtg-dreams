@@ -315,6 +315,14 @@ function VersionCell({ row, otherVersions }: { row: Row; otherVersions?: string 
       </span>
     )
   }
+  if (resolution.preferred && row.preferredFrom) {
+    return (
+      <span className="version" title={text.preferredHint(row.preferredFrom, printing.setName, labels)}>
+        <span className="auto-badge preferred">{row.preferredFrom}</span>
+        <span className="muted">{where}</span>
+      </span>
+    )
+  }
   if (!resolution.pinned) {
     return (
       <span className="version" title={text.cheapestHint(printing.setName, labels)}>

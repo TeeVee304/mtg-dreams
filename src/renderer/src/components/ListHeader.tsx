@@ -54,6 +54,13 @@ interface ListHeaderProps {
   onColor: () => void
   /** Wishlists: opens the picker of the deck it upgrades. */
   onUpgrade?: () => void
+  /**
+   * Wishlists and brews: the set group whose Versions they prefer, with its set symbol, shown as a
+   * sticker slapped on the banner; null for none.
+   */
+  preferred?: { name: string; icon?: string } | null
+  /** Wishlists and brews: opens the Preferred Versions picker. */
+  onPreferredVersions?: () => void
   /** Decks: whether it is unbuilt, using your cards without reserving them. */
   unbuilt?: boolean
   /** Decks: toggles unbuilt. */
@@ -131,6 +138,25 @@ export function ListHeader(props: ListHeaderProps) {
     { label: text.addVersion, onSelect: props.onAddVersion },
     ...(other && props.onRenameVersion ? [{ label: text.renameVersion(other.label), onSelect: props.onRenameVersion }] : [])
   ]
+  // A sticker on the art's edge, tilted as if slapped on; beside the title in a header without art.
+  const sticker = props.preferred && (
+    <button
+      type="button"
+      className={`set-sticker${arts.length > 0 && props.background?.art ? ' high' : ''}`}
+      onClick={props.onPreferredVersions}
+      aria-label={text.preferredSticker(props.preferred.name)}
+    >
+      {props.preferred.icon ? (
+        <span className="set-sticker-symbol" style={{ maskImage: `url("${props.preferred.icon}")`, WebkitMaskImage: `url("${props.preferred.icon}")` }} />
+      ) : (
+        <Icon name="star" />
+      )}
+      <span className="tip" role="tooltip" aria-hidden="true">
+        {text.preferredSticker(props.preferred.name)}
+        <span className="muted"> · {text.preferredStickerHint}</span>
+      </span>
+    </button>
+  )
   return (
     <header className={`view-header${arts.length > 0 ? ' art-hero' : ''}${other ? ' variant-view' : ''}`}>
       <HeroPortrait arts={arts} />
@@ -141,6 +167,7 @@ export function ListHeader(props: ListHeaderProps) {
           </button>
         </div>
       )}
+      {arts.length > 0 && sticker}
       {arts.length > 0 && props.background?.art && (
         <figure className="hero-background" data-mana={props.background.color} title={text.backgroundHint(props.background.name)}>
           <img src={props.background.art} alt="" draggable={false} />
@@ -158,7 +185,10 @@ export function ListHeader(props: ListHeaderProps) {
         ) : (
           brewBadge
         )}
-        <h1>{name}</h1>
+        <h1>
+          {name}
+          {arts.length === 0 && sticker}
+        </h1>
         {tags.length > 0 && (
           <ul className="theme-tags" aria-label={text.themes}>
             {tags.map((theme, i) => (
@@ -267,6 +297,7 @@ export function ListHeader(props: ListHeaderProps) {
             other && props.onDeleteVersion
               ? { label: text.deleteVersion(other.label), onSelect: props.onDeleteVersion, danger: true }
               : { label: text.delete, onSelect: props.onDelete, danger: true },
+            ...(props.onPreferredVersions ? [{ label: text.preferredVersions, icon: 'star' as const, onSelect: props.onPreferredVersions }] : []),
             // A version follows its own format, shown locked in the header.
             ...(other
               ? []

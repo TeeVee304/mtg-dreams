@@ -39,6 +39,8 @@ const ALLOWED: Record<string, true | string[]> = {
   'shared/colorIdentity.ts': true,
   'shared/basics.ts': true,
   'shared/languages.ts': true,
+  // Magic's worlds, named as Preferred Versions in list files.
+  'shared/setGroups.ts': true,
   'shared/formats.ts': ['Standard', 'Pioneer', 'Modern', 'Premodern', 'Legacy', 'Vintage', 'Pauper', 'Old School', 'Commander',
     'Duel Commander', 'Pauper Commander', 'Oathbreaker', 'PreDH', '// Commander: {}', 'Creature', 'Vehicle', 'Spacecraft',
     'Friends forever', 'Time', 'Lord', 'Doctor'],
@@ -47,7 +49,7 @@ const ALLOWED: Record<string, true | string[]> = {
     '{} /DeckList.json', '{} /decks/ {} .json', 'Deck name'],
   'shared/deckWizard/averageDeck.ts': ['Exhibition', 'Core', 'Upgraded', 'Optimized'],
   // List files: the headers and markers the app writes and reads back.
-  'shared/listMeta.ts': ['Color', 'Unbuilt', 'Upgrade of', 'Upgrade version'],
+  'shared/listMeta.ts': ['Color', 'Unbuilt', 'Upgrade of', 'Upgrade version', 'Preferred Versions'],
   'shared/listUnbuilt.ts': ['Yes'],
   'shared/decklist.ts': ['Sideboard', 'Maybeboard'],
   'shared/listVersion.ts': ['Duel', 'Commander', '// {} : On', '// Version: {}'],

@@ -1,5 +1,6 @@
 import type { SortKey } from './cards'
 import type { DeckTokenData } from './tokens'
+import type { SetGroup } from './setGroups'
 import type { ThemeColor } from './themes'
 import type { CardInfo, ListKind, PreconDeck, PreconSummary, PriceBasis, PrintingsResult } from './types'
 
@@ -85,6 +86,14 @@ export interface LoadedData {
 export const CONFLICT_ERROR = 'Changed outside MTG Dreams:'
 
 /** Options for {@link TrackerApi.getPrintings}. */
+/** Progress of checking sets Scryfall published since the app was built, while set groups load. */
+export interface SetGroupsProgress {
+  /** Sets checked so far. */
+  checked: number
+  /** Sets to check. */
+  of: number
+}
+
 export interface PrintingsOptions {
   /** Bypass the cache. */
   force?: boolean
@@ -169,6 +178,10 @@ export interface TrackerApi {
    * @param names - At most 3000 names.
    */
   getDeckTokens(names: string[]): Promise<DeckTokenData>
+  /** @returns Set groups a list can prefer Versions from; none if Scryfall can't be reached. */
+  getSetGroups(): Promise<SetGroup[]>
+  /** Progress of checking new sets while set groups load. @returns Unsubscribe function. */
+  onSetGroupsProgress(callback: (progress: SetGroupsProgress) => void): () => void
   getPreconIndex(): Promise<PreconSummary[]>
   getPrecon(fileName: string): Promise<PreconDeck>
   openExternal(url: string): Promise<void>
