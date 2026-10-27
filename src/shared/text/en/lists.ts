@@ -178,7 +178,7 @@ export const listDialogs = {
     confirm: 'Change and delete'
   },
   preferred: {
-    title: 'Preferred Versions',
+    title: 'Universes',
     intro: 'Show Cards in the art of a set you love.',
     rules: 'Cards with no Version chosen show the cheapest Version from the sets you pick, when one has art first printed there. Versions you chose, Cards you own and basic Lands stay as they are.',
     none: 'None',

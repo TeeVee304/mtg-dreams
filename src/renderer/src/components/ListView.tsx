@@ -123,7 +123,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const changeOf = (row: Row) =>
     isDeck || row.bundledIds
       ? null
-      : priceChange(row.line, row.unit, row.owned, settings, baselines, preferredGroup(list)?.name)
+      : priceChange(row.line, row.unit, row.owned, settings, baselines, preferredGroup(list)?.name, settings)
 
   const analysis = useMemo(() => analyzeList(list.kind, shown.lines, tableRows), [list.kind, shown.lines, tableRows])
   const { format, copiesOf, isCommander, hasCommander, legalityErrors, ownershipErrors } = analysis

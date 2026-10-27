@@ -27,6 +27,11 @@ export function updateSettings(patch: Partial<AppSettings>): Promise<void> {
   return window.api.updateSettings(patch)
 }
 
+/** @returns Current settings, outside components; components use {@link useSettings}. */
+export function getSettings(): AppSettings {
+  return current
+}
+
 /** Hook returning current settings. */
 export function useSettings(): AppSettings {
   changes.useVersion()

@@ -1,6 +1,6 @@
 import { isBasicLand } from './cards'
 import { listHeader, nameKey } from './decklist'
-import { resolveLine } from './pricing'
+import { resolveLine, type PickSkips } from './pricing'
 import type { SetGroup } from './setGroups'
 import type { CardLine, ListLine, PriceBasis, Printing } from './types'
 
@@ -43,19 +43,20 @@ export interface GroupCoverage {
 }
 
 /**
+ * @param skips - Printings the cheapest Version skips, as the price compared with.
  * @returns Per set group, the Cards that would show one of its Versions and the price change; only
  * groups with some, most first.
  */
-export function groupCoverage(cards: CoverageCard[], groups: SetGroup[], basis: PriceBasis): GroupCoverage[] {
+export function groupCoverage(cards: CoverageCard[], groups: SetGroup[], basis: PriceBasis, skips: PickSkips = {}): GroupCoverage[] {
   const eligible = cards.filter((card) => !isBasicLand(card.line.name))
   const changeable = eligible.filter((card) => !card.line.set && !card.showsOwned)
-  const base = changeable.map((card) => resolveLine(card.line, card.printings, basis).unitPrice)
+  const base = changeable.map((card) => resolveLine(card.line, card.printings, basis, skips).unitPrice)
   return groups
     .map((group) => {
       let count = 0
       let change = 0
       changeable.forEach((card, i) => {
-        const preferred = resolveLine(card.line, card.printings, basis, group)
+        const preferred = resolveLine(card.line, card.printings, basis, { prefer: group, ...skips })
         if (!preferred.preferred) return
         count += 1
         const was = base[i]

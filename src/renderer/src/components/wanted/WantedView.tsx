@@ -65,7 +65,7 @@ function priceChanges(
     const group = preferredGroup(list)?.name
     for (const row of listRows(list, inventory, settings, pool)) {
       if (row.bundledIds) continue
-      const change = priceChange(row.line, row.unit, row.owned, settings, baselines, group)
+      const change = priceChange(row.line, row.unit, row.owned, settings, baselines, group, settings)
       if (!change) continue
       const key = nameKey(row.line.name)
       const known = changes.get(key)

@@ -801,81 +801,48 @@
   color: #c9cadb;
 }
 
-/* The set group a wishlist or brew prefers Versions from: a die-cut sticker with its set symbol,
-   slapped on the art's edge (at its top when a Background sits below); opens the picker. */
-.set-sticker {
-  --sticker-size: 64px;
-  position: absolute;
-  right: calc(var(--portrait-width, 46%) - var(--sticker-size) / 2);
-  bottom: 22px;
-  z-index: 1;
-  display: grid;
-  place-items: center;
-  width: var(--sticker-size);
-  height: var(--sticker-size);
-  padding: 0;
-  border-radius: 50%;
-  border: 3px solid #fff;
-  background: #f4f1e6;
-  color: #1d1d24;
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.35),
-    0 6px 14px rgba(0, 0, 0, 0.45);
-  transform: rotate(-12deg);
-  transition: transform 0.15s ease-out;
-  cursor: pointer;
-}
-
-.set-sticker.high {
-  top: 22px;
-  bottom: auto;
-}
-
-.set-sticker:hover,
-.set-sticker:focus-visible {
-  background: #f4f1e6;
-  transform: rotate(-6deg) scale(1.06);
-}
-
-.set-sticker-symbol {
-  width: 58%;
-  height: 58%;
+/* A list's Universe: its set symbol, in the text color. */
+.universe-symbol {
+  display: inline-block;
+  width: 1.15em;
+  height: 1.15em;
   background: currentColor;
   mask: center / contain no-repeat;
   -webkit-mask: center / contain no-repeat;
 }
 
-.set-sticker svg {
-  width: 50%;
-  height: 50%;
+/* The list's Universe as a tag after the theme tags: the same label, in white with the set symbol;
+   it opens the Universes picker. */
+.theme-tag.universe-tag {
+  padding: 0;
+  background: #fff;
+  color: #14121f;
+  transform: rotate(1.5deg) translateY(-1px);
 }
 
-/* Its name, upright above the tilted sticker. */
-.set-sticker .tip {
-  transform: translateX(-50%) rotate(12deg);
-  font-weight: 400;
+.universe-tag button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 3px;
+  border: none;
+  border-radius: inherit;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
 }
 
-/* Without art: smaller, beside the title. */
-h1 .set-sticker {
-  --sticker-size: 38px;
-  position: relative;
-  right: auto;
-  bottom: auto;
-  display: inline-grid;
-  margin-left: 14px;
-  vertical-align: middle;
-  border-width: 2px;
+/* Hovered: in the list's color, as the theme's accent. */
+.universe-tag button:hover:not(:disabled),
+.universe-tag button:focus-visible {
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
-@media (max-width: 1100px) {
-  .art-hero .set-sticker {
-    --sticker-size: 54px;
-  }
+.universe-tag svg {
+  width: 1em;
+  height: 1em;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .set-sticker {
-    transition: none;
-  }
-}

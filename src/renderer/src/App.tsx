@@ -55,7 +55,7 @@ export default function App() {
     return onWindowFocus(() => void actions.reload())
   }, [actions])
 
-  // Set groups load in the background soon after startup, so the Preferred Versions picker is ready.
+  // Set groups load in the background soon after startup, so the Universes picker is ready.
   useEffect(() => {
     const timer = setTimeout(() => void loadSetGroups(), STARTUP_DELAY_MS)
     return () => clearTimeout(timer)

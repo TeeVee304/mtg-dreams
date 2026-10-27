@@ -21,6 +21,13 @@ export interface AppSettings {
   wishlistsReserve: boolean
   /** Brews ignore the inventory: no owned copies, just their cards and prices. */
   plainBrews: boolean
+  /**
+   * The cheapest Version the app picks for a Card skips Universes Beyond printings, unless the Card
+   * has no other, or the list's Universe is that franchise.
+   */
+  skipUniversesBeyond: boolean
+  /** As {@link skipUniversesBeyond}, for Secret Lair printings. */
+  skipSecretLair: boolean
   /** Show card thumbnails in lists and search. */
   cardImages: boolean
   /** List layout for decks and wishlists. */

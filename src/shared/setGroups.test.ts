@@ -63,7 +63,7 @@ describe('set groups', () => {
       { name: 'Warhammer 40,000', kind: 'franchise', sets: ['40k'], aliases: ['Warhammer 40,000 Commander'] }
     ])
     expect(findSetGroup(groups, 'Avatar: The Last Airbender')?.name).toBe('Avatar')
-    expect(shortSetName({ code: 'ltr', name: 'The Lord of the Rings: Tales of Middle-earth' })).toBe('The Lord of the Rings')
+    expect(shortSetName({ code: 'ltr', name: 'The Lord of the Rings: Tales of Middle-earth' })).toBe('Lord of the Rings')
     expect(shortSetName({ code: 'spm', name: "Marvel's Spider-Man" })).toBe("Marvel's Spider-Man")
     expect([{ name: 'Tarkir' }, { name: 'The Hobbit' }, { name: 'Avatar' }].sort((a, b) => sortName(a).localeCompare(sortName(b)))).toEqual([
       { name: 'Avatar' },
@@ -73,6 +73,28 @@ describe('set groups', () => {
     expect(findSetGroup(groups, 'innistrad')).toEqual({ name: 'Innistrad', kind: 'world', sets: ['isd', 'mid', 'mic'] })
     expect(findSetGroup(groups, 'Duskmourn')?.sets).toEqual(['dsk'])
     expect(findSetGroup(groups, 'Ravnica')).toBeUndefined()
+  })
+
+  it('merges the sets of one universe into one group, and shows the symbol chosen for it', () => {
+    const icon = (code: string) => `https://svgs.scryfall.io/sets/${code}.svg?1`
+    const universe: SetSummary[] = [
+      { code: 'ltr', name: 'The Lord of the Rings: Tales of Middle-earth', set_type: 'draft_innovation', icon_svg_uri: icon('ltr') },
+      { code: 'ltc', name: 'Tales of Middle-earth Commander', set_type: 'commander', parent_set_code: 'ltr' },
+      { code: 'hob', name: 'The Hobbit', set_type: 'expansion', icon_svg_uri: icon('hob') },
+      { code: 'msh', name: 'Marvel Super Heroes', set_type: 'expansion', icon_svg_uri: icon('msh') },
+      { code: 'spm', name: "Marvel's Spider-Man", set_type: 'expansion', icon_svg_uri: icon('spm') },
+      { code: 'mar', name: 'Marvel Universe', set_type: 'masterpiece', icon_svg_uri: icon('mar') },
+      { code: 'isd', name: 'Innistrad', set_type: 'expansion', icon_svg_uri: icon('isd') },
+      { code: 'soi', name: 'Shadows over Innistrad', set_type: 'expansion', icon_svg_uri: icon('soi') }
+    ]
+    const groups = buildSetGroups(universe, ['spm', 'hob', 'ltr', 'msh'])
+    expect(groups.filter((group) => group.kind === 'franchise').map((group) => group.name)).toEqual(['Marvel', 'Middle-earth'])
+    const marvel = findSetGroup(groups, "Marvel's Spider-Man")!
+    expect(marvel).toMatchObject({ name: 'Marvel', sets: ['msh', 'spm', 'mar'], icon: 'https://svgs.scryfall.io/sets/msh.svg' })
+    const tolkien = findSetGroup(groups, 'The Hobbit')!
+    expect(tolkien).toMatchObject({ name: 'Middle-earth', sets: ['ltr', 'ltc', 'hob'], icon: 'https://svgs.scryfall.io/sets/ltr.svg' })
+    expect(findSetGroup(groups, 'The Lord of the Rings')).toBe(tolkien)
+    expect(findSetGroup(groups, 'Innistrad')?.icon).toBe('https://svgs.scryfall.io/sets/soi.svg')
   })
 
   it('offers only Versions whose art was first printed in the group', () => {
@@ -93,15 +115,15 @@ describe('preferred Versions', () => {
   const avatarGroup = { name: 'Avatar', kind: 'franchise' as const, sets: ['tla', 'tle'] }
 
   it('resolves a Card with no Version chosen to the cheapest Version of the preferred group', () => {
-    const resolution = resolveLine({ foil: false }, [cheap, avatar, pricier], 'trend', avatarGroup)
+    const resolution = resolveLine({ foil: false }, [cheap, avatar, pricier], 'trend', { prefer: avatarGroup })
     expect(resolution).toMatchObject({ printing: avatar, unitPrice: 3, preferred: true, pinned: false })
   })
 
   it('falls back to the cheapest Version, and keeps a chosen one', () => {
-    const fallback = resolveLine({ foil: false }, [cheap], 'trend', avatarGroup)
+    const fallback = resolveLine({ foil: false }, [cheap], 'trend', { prefer: avatarGroup })
     expect(fallback.printing).toBe(cheap)
     expect(fallback.preferred).toBeFalsy()
-    expect(resolveLine({ foil: false, set: 'cmm' }, [cheap, avatar], 'trend', avatarGroup)).toMatchObject({ printing: cheap, pinned: true })
+    expect(resolveLine({ foil: false, set: 'cmm' }, [cheap, avatar], 'trend', { prefer: avatarGroup })).toMatchObject({ printing: cheap, pinned: true })
   })
 
   it('is a personal setting, kept apart from the deck', () => {

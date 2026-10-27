@@ -247,14 +247,14 @@ describe('lists on disk', () => {
 describe('settings', () => {
   it('defaults, saves, and survives a restart; bad values fall back', async () => {
     const first = await setup()
-    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, wishlistsReserve: false, plainBrews: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
+    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, wishlistsReserve: false, plainBrews: false, skipUniversesBeyond: false, skipSecretLair: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     first.storage.updateAppSettings({ theme: 'dark', color: 'G', sort: 'mana' })
     const settingsFile = join(first.base, 'userData', 'settings.json')
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).toMatchObject({ theme: 'dark', color: 'G', sort: 'mana' })
 
     writeFileSync(settingsFile, JSON.stringify({ theme: 'neon', color: 'teal', sort: 'price', bundleBasics: false, copies: 'some' }))
     const restarted = await setup(first.base)
-    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, wishlistsReserve: false, plainBrews: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
+    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, wishlistsReserve: false, plainBrews: false, skipUniversesBeyond: false, skipSecretLair: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     restarted.storage.updateAppSettings({ theme: 'light' })
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).not.toHaveProperty('copies')
   })

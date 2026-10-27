@@ -58,6 +58,7 @@ const ALLOWED: Record<string, true | string[]> = {
   // Ids and keys, not shown as they are.
   'shared/listModel.ts': ['Maybeboard'],
   'renderer/src/App.tsx': ['list/ {} / {}'],
+  'renderer/src/stores/history.ts': ['|noub', '|nosl'],
   'renderer/src/components/CardSearch.tsx': ['{} -list'],
   'renderer/src/features/deckWizard/DeckWizard.tsx': ['Other'],
   'renderer/src/hooks/useCommanderPicking.ts': ['Background', 'Partner'],

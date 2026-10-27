@@ -15,8 +15,8 @@ import { countUniversesBeyond, fetchSets } from './scryfall'
 /** Cache file name. */
 const FILE = 'set-groups.json'
 
-/** Cache schema version; 2 added short names and icons. */
-const VERSION = 2
+/** Cache schema version; 2 added short names and icons, 3 merged universes (Marvel, Middle-earth), 4 added Edge of Eternities, 5 Forgotten Realms, 6 more worlds and sets. */
+const VERSION = 6
 
 /** Groups TTL: new sets appear a few times a year. */
 const TTL_MS = 7 * 24 * 60 * 60 * 1000

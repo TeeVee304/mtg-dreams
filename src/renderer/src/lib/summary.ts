@@ -3,7 +3,7 @@ import { isBasicLand } from '@shared/cards'
 import { allocateOwned, cardLines, nameKey, serializeList } from '@shared/decklist'
 import { BASE, baseCardLines, versionLines, type ListVersion } from '@shared/listVersion'
 import { ownedVersion } from '@shared/inventory'
-import { resolveLine, type Resolution } from '@shared/pricing'
+import { resolveLine, type PickSkips, type Resolution } from '@shared/pricing'
 import { maybeboardIds, sideboardIds } from '@shared/sideboard'
 import type { AppSettings } from '@shared/api'
 import type { CopyPool, HeldCopies } from '@shared/copies'
@@ -50,7 +50,7 @@ export interface Row {
 }
 
 /** Settings affecting list pricing. */
-export type PricingSettings = Pick<AppSettings, 'bundleBasics' | 'priceBasis'>
+export type PricingSettings = Pick<AppSettings, 'bundleBasics' | 'priceBasis'> & PickSkips
 
 /** Inventory a list sees when it ignores yours: none. */
 const NO_INVENTORY = new Map<string, InventoryItem>()
@@ -68,7 +68,7 @@ const NO_IDS: ReadonlySet<string> = new Set()
 export function buildRows(
   lines: CardLine[],
   inventory: Map<string, InventoryItem>,
-  { bundleBasics, priceBasis }: PricingSettings,
+  { bundleBasics, priceBasis, ...skips }: PricingSettings,
   sideIds: ReadonlySet<string> = NO_IDS,
   held?: (key: string) => number,
   prefer?: SetGroup
@@ -106,7 +106,7 @@ export function buildRows(
     const entry = getPrintingsEntry(line.name)
     const data = entry?.data
     const group = prefer && !isBasicLand(line.name) ? prefer : undefined
-    let resolution = data && !data.notFound ? resolveLine(line, data.printings, priceBasis, group) : null
+    let resolution = data && !data.notFound ? resolveLine(line, data.printings, priceBasis, { prefer: group, ...skips }) : null
     const yours = !line.set && allocations[index].owned > 0 ? ownedVersion(inventory.get(nameKey(line.name)), line.foil) : null
     if (yours && data && !data.notFound) {
       const owned = resolveLine(yours, data.printings, priceBasis)
@@ -131,7 +131,7 @@ export function buildRows(
 /** Per list: its rows, kept until the inventory, settings, copy claims or prices change. */
 const listRowsCache = new WeakMap<
   CardList,
-  (...args: [Map<string, InventoryItem>, boolean, PriceBasis, CopyPool, SetGroup | undefined, number]) => Row[]
+  (...args: [Map<string, InventoryItem>, boolean, PriceBasis, boolean, boolean, CopyPool, SetGroup | undefined, number]) => Row[]
 >()
 
 /**
@@ -147,11 +147,11 @@ export function listRows(
 ): Row[] {
   let rows = listRowsCache.get(list)
   if (!rows) {
-    rows = memoLast((items, bundleBasics, priceBasis, claims, prefer, _version) =>
+    rows = memoLast((items, bundleBasics, priceBasis, skipUniversesBeyond, skipSecretLair, claims, prefer, _version) =>
       buildRows(
         baseCardLines(list.lines),
         items,
-        { bundleBasics, priceBasis },
+        { bundleBasics, priceBasis, skipUniversesBeyond, skipSecretLair },
         sideboardIds(list.lines),
         (key) => claims.held(list, key, items.get(key)?.qty ?? 0),
         prefer
@@ -160,13 +160,13 @@ export function listRows(
     listRowsCache.set(list, rows)
   }
   const items = list.kind === 'brew' && settings.plainBrews ? NO_INVENTORY : inventory
-  return rows(items, settings.bundleBasics, settings.priceBasis, pool, preferredGroup(list), getPrintingsVersion())
+  return rows(items, settings.bundleBasics, settings.priceBasis, !!settings.skipUniversesBeyond, !!settings.skipSecretLair, pool, preferredGroup(list), getPrintingsVersion())
 }
 
 /** Per list: its maybeboard rows, kept like {@link listRowsCache}. */
 const maybeRowsCache = new WeakMap<
   CardList,
-  (...args: [Map<string, InventoryItem>, PriceBasis, CopyPool, SetGroup | undefined, number]) => Row[]
+  (...args: [Map<string, InventoryItem>, PriceBasis, boolean, boolean, CopyPool, SetGroup | undefined, number]) => Row[]
 >()
 
 /**
@@ -181,10 +181,10 @@ export function maybeRows(
 ): Row[] {
   let rows = maybeRowsCache.get(list)
   if (!rows) {
-    rows = memoLast((items, priceBasis, claims, prefer, _version) => {
+    rows = memoLast((items, priceBasis, skipUniversesBeyond, skipSecretLair, claims, prefer, _version) => {
       const maybe = maybeboardIds(list.lines)
       const lines = cardLines(list.lines).filter((line) => maybe.has(line.id))
-      return buildRows(lines, items, { bundleBasics: false, priceBasis }, NO_IDS, (key) =>
+      return buildRows(lines, items, { bundleBasics: false, priceBasis, skipUniversesBeyond, skipSecretLair }, NO_IDS, (key) =>
         claims.claimed(key, items.get(key)?.qty ?? 0),
         prefer
       ).map((row) => ({ ...row, maybe: true }))
@@ -192,7 +192,7 @@ export function maybeRows(
     maybeRowsCache.set(list, rows)
   }
   const items = list.kind === 'brew' && settings.plainBrews ? NO_INVENTORY : inventory
-  return rows(items, settings.priceBasis, pool, preferredGroup(list), getPrintingsVersion())
+  return rows(items, settings.priceBasis, !!settings.skipUniversesBeyond, !!settings.skipSecretLair, pool, preferredGroup(list), getPrintingsVersion())
 }
 
 /** List totals. Values are EUR over priced rows. */

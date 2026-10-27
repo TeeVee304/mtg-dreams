@@ -31,7 +31,7 @@ export function listFigures(
     list.kind === 'wishlist'
       ? rows.flatMap((row) => {
           if (row.bundledIds) return []
-          const change = priceChange(row.line, row.unit, row.owned, settings, baselines, preferredGroup(list)?.name)
+          const change = priceChange(row.line, row.unit, row.owned, settings, baselines, preferredGroup(list)?.name, settings)
           return change ? [change.direction] : []
         })
       : []

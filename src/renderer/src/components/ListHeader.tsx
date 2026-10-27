@@ -59,7 +59,7 @@ interface ListHeaderProps {
    * sticker slapped on the banner; null for none.
    */
   preferred?: { name: string; icon?: string } | null
-  /** Wishlists and brews: opens the Preferred Versions picker. */
+  /** Wishlists and brews: opens the Universes picker. */
   onPreferredVersions?: () => void
   /** Decks: whether it is unbuilt, using your cards without reserving them. */
   unbuilt?: boolean
@@ -138,24 +138,22 @@ export function ListHeader(props: ListHeaderProps) {
     { label: text.addVersion, onSelect: props.onAddVersion },
     ...(other && props.onRenameVersion ? [{ label: text.renameVersion(other.label), onSelect: props.onRenameVersion }] : [])
   ]
-  // A sticker on the art's edge, tilted as if slapped on; beside the title in a header without art.
-  const sticker = props.preferred && (
-    <button
-      type="button"
-      className={`set-sticker${arts.length > 0 && props.background?.art ? ' high' : ''}`}
-      onClick={props.onPreferredVersions}
-      aria-label={text.preferredSticker(props.preferred.name)}
-    >
-      {props.preferred.icon ? (
-        <span className="set-sticker-symbol" style={{ maskImage: `url("${props.preferred.icon}")`, WebkitMaskImage: `url("${props.preferred.icon}")` }} />
-      ) : (
-        <Icon name="star" />
-      )}
-      <span className="tip" role="tooltip" aria-hidden="true">
-        {text.preferredSticker(props.preferred.name)}
-        <span className="muted"> · {text.preferredStickerHint}</span>
-      </span>
-    </button>
+  // The list's Universe: its set symbol, or a star while the groups load.
+  const preferred = props.preferred
+  const symbol = () =>
+    preferred?.icon ? (
+      <span className="universe-symbol" style={{ maskImage: `url("${preferred.icon}")`, WebkitMaskImage: `url("${preferred.icon}")` }} aria-hidden="true" />
+    ) : (
+      <Icon name="star" />
+    )
+  // A tag after the theme tags, in white with the set symbol.
+  const universeTag = preferred && (
+    <li className="theme-tag universe-tag">
+      <button type="button" onClick={props.onPreferredVersions} title={`${text.preferredSticker(preferred.name)} · ${text.preferredStickerHint}`}>
+        {symbol()}
+        {preferred.name}
+      </button>
+    </li>
   )
   return (
     <header className={`view-header${arts.length > 0 ? ' art-hero' : ''}${other ? ' variant-view' : ''}`}>
@@ -167,7 +165,6 @@ export function ListHeader(props: ListHeaderProps) {
           </button>
         </div>
       )}
-      {arts.length > 0 && sticker}
       {arts.length > 0 && props.background?.art && (
         <figure className="hero-background" data-mana={props.background.color} title={text.backgroundHint(props.background.name)}>
           <img src={props.background.art} alt="" draggable={false} />
@@ -185,17 +182,15 @@ export function ListHeader(props: ListHeaderProps) {
         ) : (
           brewBadge
         )}
-        <h1>
-          {name}
-          {arts.length === 0 && sticker}
-        </h1>
-        {tags.length > 0 && (
+        <h1>{name}</h1>
+        {(tags.length > 0 || universeTag) && (
           <ul className="theme-tags" aria-label={text.themes}>
             {tags.map((theme, i) => (
               <li key={theme} className="theme-tag" data-mana={tagColors[i]} title={text.themeHint(leadersName)}>
                 {theme}
               </li>
             ))}
+            {universeTag}
           </ul>
         )}
         <div className="header-meta">

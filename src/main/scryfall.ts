@@ -204,7 +204,8 @@ function toPrinting(card: any): Printing {
     labels: labelsFor(card),
     autoEligible: card.border_color !== 'gold' && card.set_type !== 'memorabilia',
     ...(flavorNameOf(card) && { flavorName: flavorNameOf(card) }),
-    ...(illustrationOf(card) && { illustrationId: illustrationOf(card) })
+    ...(illustrationOf(card) && { illustrationId: illustrationOf(card) }),
+    ...((card.promo_types ?? []).includes('universesbeyond') && { universesBeyond: true as const })
   }
 }
 

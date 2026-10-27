@@ -18,7 +18,7 @@ export const STARTUP_DELAY_MS = 4000
 
 /**
  * Loads the set groups once; rows resolve again when they arrive. Called at startup, so the
- * Preferred Versions picker rarely waits.
+ * Universes picker rarely waits.
  * @returns The groups.
  */
 export function loadSetGroups(): Promise<SetGroup[]> {

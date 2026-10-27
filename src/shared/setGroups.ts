@@ -61,23 +61,37 @@ export const KNOWN_FRANCHISES: Record<string, boolean> = Object.fromEntries([
 const SHORT_NAMES: Record<string, string> = {}
 
 /**
- * @returns A franchise set's name, short: without a subtitle after a colon or a trailing "Commander"
- * ("The Lord of the Rings: Tales of Middle-earth" → "The Lord of the Rings"), unless {@link SHORT_NAMES}
- * names it.
+ * @returns A franchise set's name, short: without a leading "The", a subtitle after a colon or a
+ * trailing "Commander" ("The Hobbit" → "Hobbit"), unless {@link SHORT_NAMES} names it.
  */
 export function shortSetName(set: Pick<SetSummary, 'code' | 'name'>): string {
-  return SHORT_NAMES[set.code] ?? set.name.split(':')[0].replace(/\s+Commander$/i, '').trim()
+  return SHORT_NAMES[set.code] ?? set.name.split(':')[0].replace(/\s+Commander$/i, '').replace(/^The\s+/i, '').trim()
 }
 
 /** @returns Scryfall's set symbol URL, without its version query. */
 const iconOf = (set: SetSummary | undefined) => set?.icon_svg_uri?.split('?')[0]
 
-/** Magic's worlds, by the sets set there; each set brings its promos, Commander decks and bonus sheets. */
-export const WORLDS: { name: string; sets: string[] }[] = [
-  { name: 'Innistrad', sets: ['isd', 'dka', 'avr', 'soi', 'emn', 'mid', 'vow', 'dbl', 'inr'] },
-  { name: 'Ravnica', sets: ['rav', 'gpt', 'dis', 'rtr', 'gtc', 'dgm', 'grn', 'rna', 'war', 'mkm', 'rvr'] },
+/**
+ * Universes Beyond franchises spread over several sets, each one group: its sets (with their own
+ * spin-offs) and the set whose symbol it shows. A set joining one needs adding here.
+ */
+export const UNIVERSES: { name: string; sets: string[]; icon: string }[] = [
+  { name: 'Marvel', sets: ['msh', 'spm', 'mar', 'mdd'], icon: 'msh' },
+  { name: 'Middle-earth', sets: ['ltr', 'hob'], icon: 'ltr' }
+]
+
+/**
+ * Magic's worlds, by the sets set there; each set brings its promos, Commander decks and bonus sheets.
+ * `icon`: the set whose symbol the world shows, its first set's by default.
+ */
+export const WORLDS: { name: string; sets: string[]; icon?: string }[] = [
+  { name: 'Innistrad', sets: ['isd', 'dka', 'avr', 'soi', 'emn', 'mid', 'vow', 'dbl', 'inr'], icon: 'soi' },
+  { name: 'Ravnica', sets: ['rav', 'gpt', 'dis', 'rtr', 'gtc', 'dgm', 'grn', 'rna', 'war', 'mkm', 'rvr'], icon: 'rna' },
   { name: 'Theros', sets: ['ths', 'bng', 'jou', 'thb'] },
-  { name: 'Dominaria', sets: ['dom', 'dmu'] },
+  {
+    name: 'Dominaria',
+    sets: ['dom', 'dmu', 'ice', 'all', 'csp', 'mir', 'vis', 'wth', 'usg', 'ulg', 'uds', 'inv', 'pls', 'apc', 'ody', 'tor', 'jud', 'ons', 'lgn', 'scg', 'tsp', 'plc', 'fut', 'bro']
+  },
   { name: 'Zendikar', sets: ['zen', 'wwk', 'roe', 'bfz', 'ogw', 'znr'] },
   { name: 'Kaldheim', sets: ['khm'] },
   { name: 'Kamigawa', sets: ['chk', 'bok', 'sok', 'neo'] },
@@ -86,14 +100,19 @@ export const WORLDS: { name: string; sets: string[] }[] = [
   { name: 'Tarkir', sets: ['ktk', 'frf', 'dtk', 'tdm'] },
   { name: 'Amonkhet', sets: ['akh', 'hou'] },
   { name: 'Kaladesh', sets: ['kld', 'aer'] },
-  { name: 'Strixhaven', sets: ['stx', 'sos'] },
-  { name: 'Mirrodin & Phyrexia', sets: ['som', 'mbs', 'nph', 'one'] },
+  { name: 'Strixhaven', sets: ['stx', 'sos'], icon: 'stx' },
+  { name: 'Mirrodin & Phyrexia', sets: ['som', 'mbs', 'nph', 'one', 'mrd', 'dst', '5dn'] },
   { name: 'Alara', sets: ['ala', 'con', 'arb'] },
   { name: 'Lorwyn & Shadowmoor', sets: ['lrw', 'mor', 'shm', 'eve', 'ecl'] },
   { name: 'Bloomburrow', sets: ['blb'] },
   { name: 'Duskmourn', sets: ['dsk'] },
   { name: 'Thunder Junction', sets: ['otj'] },
-  { name: 'New Capenna', sets: ['snc'] }
+  { name: 'New Capenna', sets: ['snc'] },
+  { name: 'Edge of Eternities', sets: ['eoe'] },
+  { name: 'Forgotten Realms', sets: ['afr', 'clb'] },
+  { name: 'Ikoria', sets: ['iko'] },
+  { name: 'Fiora', sets: ['cns', 'cn2'] },
+  { name: 'Rath', sets: ['tmp', 'sth', 'exo', 'nem'] }
 ]
 
 /** Sets that may be Universes Beyond franchises, to check: recent, paper, top-level sets. */
@@ -128,29 +147,49 @@ export function setFamily(root: string, sets: SetSummary[]): string[] {
 
 /**
  * @param franchises - Codes of the Universes Beyond sets.
- * @returns Franchise groups ({@link shortSetName}, known by their full name too), then worlds.
+ * @returns Franchise groups ({@link shortSetName}; one per {@link UNIVERSES} entry, at its first
+ * set's place), known by their earlier names too, then worlds.
  */
 export function buildSetGroups(sets: SetSummary[], franchises: string[]): SetGroup[] {
   const known = new Set(sets.map((set) => set.code))
   const byCode = new Map(sets.map((set) => [set.code, set]))
-  const groups: SetGroup[] = franchises
-    .filter((code) => known.has(code))
-    .map((code) => {
-      const set = byCode.get(code)!
-      const name = shortSetName(set)
-      const icon = iconOf(set)
-      return {
-        name,
-        kind: 'franchise' as const,
-        sets: setFamily(code, sets),
+  const groups: SetGroup[] = []
+  const merged = new Set<string>()
+  for (const code of franchises.filter((code) => known.has(code))) {
+    const universe = UNIVERSES.find((universe) => universe.sets.includes(code))
+    if (universe) {
+      if (merged.has(universe.name)) continue
+      merged.add(universe.name)
+      const members = universe.sets.filter((member) => known.has(member)).map((member) => byCode.get(member)!)
+      const icon = iconOf(byCode.get(universe.icon))
+      // Lists may have stored a member's own name, short or full.
+      const aliases = [...new Set(members.flatMap((set) => [set.name, set.name.split(':')[0].replace(/\s+Commander$/i, '').trim(), shortSetName(set)]))]
+      groups.push({
+        name: universe.name,
+        kind: 'franchise',
+        sets: members.flatMap((set) => setFamily(set.code, sets)),
         ...(icon && { icon }),
-        ...(name !== set.name && { aliases: [set.name] })
-      }
+        aliases: aliases.filter((alias) => alias !== universe.name)
+      })
+      continue
+    }
+    const set = byCode.get(code)!
+    const name = shortSetName(set)
+    const icon = iconOf(set)
+    const shortBefore = set.name.split(':')[0].replace(/\s+Commander$/i, '').trim()
+    const aliases = [...new Set([set.name, shortBefore])].filter((alias) => alias !== name)
+    groups.push({
+      name,
+      kind: 'franchise',
+      sets: setFamily(code, sets),
+      ...(icon && { icon }),
+      ...(aliases.length > 0 && { aliases })
     })
+  }
   for (const world of WORLDS) {
     const roots = world.sets.filter((code) => known.has(code))
     if (roots.length === 0) continue
-    const icon = iconOf(byCode.get(roots[0]))
+    const icon = iconOf(byCode.get(world.icon && known.has(world.icon) ? world.icon : roots[0]))
     groups.push({ name: world.name, kind: 'world', sets: roots.flatMap((code) => setFamily(code, sets)), ...(icon && { icon }) })
   }
   return groups

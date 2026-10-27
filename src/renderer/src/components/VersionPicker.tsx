@@ -48,9 +48,12 @@ interface VersionPickerProps {
 export function VersionPicker({ printings, foil, selected, onSelect, onConfirm, onPreview }: VersionPickerProps) {
   const [filter, setFilter] = useState('')
   const [view, setView] = useStoredValue<VersionView>('mtg-dreams.versionView', 'list', isVersionView)
-  const { priceBasis } = useSettings()
+  const { priceBasis, skipUniversesBeyond, skipSecretLair } = useSettings()
   const sorted = useMemo(() => sortPrintings(printings, foil, priceBasis), [printings, foil, priceBasis])
-  const cheapest = useMemo(() => resolveLine({ foil }, printings, priceBasis), [printings, foil, priceBasis])
+  const cheapest = useMemo(
+    () => resolveLine({ foil }, printings, priceBasis, { skipUniversesBeyond, skipSecretLair }),
+    [printings, foil, priceBasis, skipUniversesBeyond, skipSecretLair]
+  )
 
   const needle = filter.trim().toLowerCase()
   const shown = needle

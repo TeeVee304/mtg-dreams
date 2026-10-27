@@ -1,3 +1,4 @@
+import type { AppSettings } from './api'
 import type { CardLine, PriceBasis, Prices, Printing } from './types'
 import { groupPrintings, type SetGroup } from './setGroups'
 import { ui } from './text'
@@ -88,9 +89,28 @@ export interface Resolution {
 }
 
 /**
+ * Printings the app's cheapest pick leaves out while a Card has others (Settings): Universes Beyond
+ * ({@link AppSettings.skipUniversesBeyond}) and Secret Lair ({@link AppSettings.skipSecretLair}).
+ */
+export type PickSkips = Partial<Pick<AppSettings, 'skipUniversesBeyond' | 'skipSecretLair'>>
+
+/** @returns Just the skips of some settings, to pass on. */
+export const pickSkips = ({ skipUniversesBeyond, skipSecretLair }: PickSkips): PickSkips => ({ skipUniversesBeyond, skipSecretLair })
+
+/** A Secret Lair printing: the Drop series, or another Secret Lair set (Showdown, Countdown…). */
+export const isSecretLair = (printing: Pick<Printing, 'set' | 'setName'>) => printing.set === 'sld' || /^Secret Lair\b/i.test(printing.setName)
+
+/** How a line with no Version chosen gets one. */
+export interface PickRules extends PickSkips {
+  /** The list's Universe: the cheapest of its Versions comes first ({@link groupPrintings}). */
+  prefer?: Pick<SetGroup, 'sets'>
+}
+
+/**
  * Resolves a line to a printing. Pinned: cheapest matching set and collector tag; non-numeric
  * tags (e.g. `<borderless>`) are ignored. Unpinned: cheapest printing the preferred group offers
- * ({@link groupPrintings}), else the cheapest `autoEligible` one.
+ * ({@link groupPrintings}), else the cheapest `autoEligible` one, without the printings skipped
+ * ({@link PickSkips}) while the Card has others.
  * Without any price, falls back to the first candidate for preview.
  * @param printings - Card printings, newest first.
  */
@@ -98,7 +118,7 @@ export function resolveLine(
   line: Pick<CardLine, 'set' | 'collector' | 'foil'>,
   printings: Printing[],
   basis: PriceBasis,
-  prefer?: Pick<SetGroup, 'sets'>
+  { prefer, skipUniversesBeyond, skipSecretLair }: PickRules = {}
 ): Resolution {
   if (line.set) {
     let candidates = printings.filter((p) => p.set === line.set)
@@ -122,11 +142,9 @@ export function resolveLine(
   if (preferred) {
     return { printing: preferred.printing, unitPrice: preferred.price, pinned: false, pinMissing: false, collectorMissing: false, preferred: true }
   }
-  const best = cheapestPrinting(
-    printings.filter((p) => p.autoEligible),
-    line.foil,
-    basis
-  )
+  const eligible = printings.filter((p) => p.autoEligible)
+  const others = eligible.filter((p) => !(skipUniversesBeyond && p.universesBeyond) && !(skipSecretLair && isSecretLair(p)))
+  const best = cheapestPrinting(others.length > 0 ? others : eligible, line.foil, basis)
   if (best) {
     return { printing: best.printing, unitPrice: best.price, pinned: false, pinMissing: false, collectorMissing: false }
   }

@@ -98,6 +98,8 @@ export interface Printing {
   autoEligible: boolean
   /** Scryfall id of the artwork (front face), shared by printings reusing it; absent in older caches. */
   illustrationId?: string
+  /** A Universes Beyond printing (Fallout, Marvel…), by Scryfall's promo types; absent in older caches. */
+  universesBeyond?: true
 }
 
 /** Index entry of an official preconstructed product (Commander, Challenger, Secret Lair...). */

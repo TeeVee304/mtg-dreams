@@ -4,7 +4,7 @@ import { isBasicLand } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { allocateOwned, nameKey } from '@shared/decklist'
 import { unionCardLines } from '@shared/listVersion'
-import { hasNonfoil, PRICE_BASES, resolveLine } from '@shared/pricing'
+import { hasNonfoil, PRICE_BASES, resolveLine, type PickSkips } from '@shared/pricing'
 import type { CardLine, InventoryItem } from '@shared/types'
 import { inventoryValue, type ValuedCopy } from '../lib/collection'
 import { createSignal } from '../lib/signal'
@@ -45,13 +45,16 @@ export function useBaselines(): Record<string, PriceBaseline> {
 export const pricesAt = (ids: number[], ago: number[]) => window.api.pricesAt(ids, ago)
 
 /**
- * @param group - Name of the set group the list prefers Versions from: a line it applies to (no
- *   Version chosen, not a basic Land) gets its own baseline, so switching Versions isn't a price change.
- * @returns Baseline key: `nameKey|set|collector|foil`, plus `|@group` for a preferred line.
+ * A line the app picks a Version for (none chosen, not a basic Land) gets its own baseline under each
+ * way of picking, so a switch of Versions isn't a price change.
+ * @param group - Name of the set group the list prefers Versions from.
+ * @param skips - Printings the pick skips.
+ * @returns Baseline key: `nameKey|set|collector|foil`, plus `|@group`, `|noub` and `|nosl` for a picked line.
  */
-export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foil'>, group?: string) => {
+export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foil'>, group?: string, skips: PickSkips = {}) => {
   const key = `${nameKey(line.name)}|${line.set ?? ''}|${line.collector ?? ''}|${line.foil}`
-  return group && !line.set && !isBasicLand(line.name) ? `${key}|@${group}` : key
+  if (line.set || isBasicLand(line.name)) return key
+  return `${key}${group ? `|@${group}` : ''}${skips.skipUniversesBeyond ? '|noub' : ''}${skips.skipSecretLair ? '|nosl' : ''}`
 }
 
 /**
@@ -59,7 +62,13 @@ export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foi
  * removes baselines of lines no longer on any wishlist. Persists changes; save errors are ignored.
  * @param pool - Copy claims of all lists.
  */
-export function syncBaselines(wishlists: CardList[], inventory: Map<string, InventoryItem>, bundleBasics: boolean, pool: CopyPool): void {
+export function syncBaselines(
+  wishlists: CardList[],
+  inventory: Map<string, InventoryItem>,
+  bundleBasics: boolean,
+  pool: CopyPool,
+  skips: PickSkips
+): void {
   if (!baselinesLoaded) return
   const onWishlists = new Set<string>()
   let waiting = false
@@ -76,7 +85,7 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
     const lines = unionCardLines(list.lines)
     const allocations = allocateOwned(lines, inventory, (key) => pool.held(list, key, inventory.get(key)?.qty ?? 0))
     lines.forEach((line, index) => {
-      const key = lineKey(line, group?.name)
+      const key = lineKey(line, group?.name, skips)
       onWishlists.add(key)
       if (key in baselines || key in set || allocations[index].owned >= line.qty) return
       if (bundledBasic(line.name, bundleBasics)) return
@@ -84,7 +93,7 @@ export function syncBaselines(wishlists: CardList[], inventory: Map<string, Inve
       if (!data || data.notFound) return
       const prices: PriceBaseline['prices'] = {}
       for (const id of PRICE_BASES) {
-        const unit = resolveLine(line, data.printings, id, isBasicLand(line.name) ? undefined : group).unitPrice
+        const unit = resolveLine(line, data.printings, id, { prefer: isBasicLand(line.name) ? undefined : group, ...skips }).unitPrice
         if (unit !== null && unit > 0) prices[id] = unit
       }
       if (Object.keys(prices).length > 0) set[key] = { at: now, prices }
@@ -120,6 +129,7 @@ export type PriceAlert = Pick<AppSettings, 'priceBasis' | 'dropAlertPercent' | '
  * least the alert's percentage and its euro amount for that direction (both, so neither cent moves of
  * cheap cards nor small drifts of expensive ones count); else null.
  * @param group - Name of the set group the line's list prefers Versions from ({@link lineKey}).
+ * @param skips - Printings picks skip ({@link lineKey}).
  */
 export function priceChange(
   line: CardLine,
@@ -127,10 +137,11 @@ export function priceChange(
   owned: number,
   { priceBasis, dropAlertPercent, dropAlertMinEur, riseAlertMinEur }: PriceAlert,
   known: Record<string, PriceBaseline>,
-  group?: string
+  group?: string,
+  skips: PickSkips = {}
 ): PriceChange | null {
   if (unit === null || owned >= line.qty) return null
-  const baseline = known[lineKey(line, group)]
+  const baseline = known[lineKey(line, group, skips)]
   const was = baseline?.prices[priceBasis]
   if (!baseline || !was) return null
   const percent = ((unit - was) / was) * 100

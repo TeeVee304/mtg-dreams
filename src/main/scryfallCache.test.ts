@@ -105,7 +105,7 @@ describe('the cache file', () => {
     first.cache.scryfallCache.entries['sol ring'] = result([printing('aaa'), printing('bbb')])
     first.cache.scryfallCacheChanged()
     first.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(10)
+    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(11)
 
     const restarted = await setup(first.userData)
     await restarted.cache.loadScryfallCache()
@@ -121,7 +121,7 @@ describe('the cache file', () => {
     expect(v5.cache.scryfallCache.entries['sol ring'].printings).toEqual(entry.printings)
     expect(Date.now() - v5.cache.scryfallCache.entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
     v5.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(10)
+    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(11)
 
     const v6Printing = { ...v5.cache.packPrinting(printing('aaa')), eurFoil: null }
     writeFileSync(file, JSON.stringify({ version: 6, entries: { 'sol ring': { ...entry, printings: [v6Printing] } }, cards: {} }))
@@ -135,7 +135,7 @@ describe('the cache file', () => {
     expect(Date.now() - v4.cache.scryfallCache.entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
   })
 
-  it('refreshes everything cached before artwork ids (version 10), and legendary card data before partner abilities (version 9)', async () => {
+  it('refreshes everything cached before artwork ids and Universes Beyond flags (version 11), and legendary card data before partner abilities (version 9)', async () => {
     const { userData, file } = await setup()
     const card = (name: string, typeLine: string) => ({ name, colors: [], colorIdentity: [], typeLine, manaValue: 1, rarity: 'rare', legalities: {} })
     const tymna = { ...result([]), card: card('Tymna the Weaver', 'Legendary Creature — Human Cleric'), printings: [] }

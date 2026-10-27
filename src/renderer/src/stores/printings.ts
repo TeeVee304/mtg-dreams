@@ -1,9 +1,10 @@
 import type { PrintingsOptions } from '@shared/api'
 import { nameKey } from '@shared/decklist'
-import { PRINTINGS_MAX_AGE_MS, resolveLine } from '@shared/pricing'
+import { pickSkips, PRINTINGS_MAX_AGE_MS, resolveLine } from '@shared/pricing'
 import type { PriceBasis, Printing, PrintingsResult } from '@shared/types'
 import { cleanError } from '../lib/format'
 import { createSignal } from '../lib/signal'
+import { getSettings } from './settings'
 
 /**
  * Session store of printings by nameKey. Rate limiting, caching and prices live in the main process.
@@ -58,7 +59,8 @@ export function getPrintingsEntry(name: string): PrintingsEntry | undefined {
 }
 
 /**
- * Cheapest non-foil printing, for valuing cards without a known printing.
+ * Cheapest non-foil printing, for valuing cards without a known printing; without the printings the
+ * settings skip.
  * @returns Unit price (null if unpriced or unknown card) and printing; undefined until loaded.
  */
 export function cheapestVersion(
@@ -68,7 +70,7 @@ export function cheapestVersion(
   const data = getPrintingsEntry(name)?.data
   if (!data) return undefined
   if (data.notFound) return { unit: null, printing: null }
-  const { unitPrice, printing } = resolveLine({ foil: false }, data.printings, basis)
+  const { unitPrice, printing } = resolveLine({ foil: false }, data.printings, basis, pickSkips(getSettings()))
   return { unit: unitPrice, printing }
 }
 

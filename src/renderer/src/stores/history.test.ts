@@ -33,6 +33,9 @@ describe('wishlist price changes', () => {
     expect(priceChange(line(1), 150, 0, alert('trend'), preferred, 'Avatar')?.direction).toBe('down')
     expect(lineKey(line(1, { set: 'one' }), 'Avatar')).toBe(lineKey(line(1, { set: 'one' })))
     expect(lineKey(line(1, { name: 'Island' }), 'Avatar')).toBe(lineKey(line(1, { name: 'Island' })))
+    // Picks skipping Universes Beyond keep their own baselines too.
+    expect(priceChange(line(1), 200, 0, alert('trend'), baselines, undefined, { skipUniversesBeyond: true })).toBeNull()
+    expect(lineKey(line(1, { set: 'one' }), undefined, { skipUniversesBeyond: true, skipSecretLair: true })).toBe(lineKey(line(1, { set: 'one' })))
   })
 
   it('needs the euro minimum too, so cent moves of cheap cards do not count', () => {

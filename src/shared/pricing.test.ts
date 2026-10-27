@@ -79,6 +79,24 @@ describe('resolveLine', () => {
     expect(resolveLine({ foil: false }, [gold, m11], 'trend').printing?.set).toBe('m11')
   })
 
+  it('skips Universes Beyond printings for "cheapest" if asked, unless the card has no other', () => {
+    const marvel = printing({ set: 'mar', collectorNumber: '78', price: { trend: 0.1 }, universesBeyond: true })
+    expect(resolveLine({ foil: false }, [marvel, m11], 'trend').printing?.set).toBe('mar')
+    expect(resolveLine({ foil: false }, [marvel, m11], 'trend', { skipUniversesBeyond: true }).printing?.set).toBe('m11')
+    expect(resolveLine({ foil: false }, [marvel], 'trend', { skipUniversesBeyond: true }).printing?.set).toBe('mar')
+    expect(resolveLine({ foil: false, set: 'mar' }, [marvel, m11], 'trend', { skipUniversesBeyond: true }).printing?.set).toBe('mar')
+    const fallout = { sets: ['mar'] }
+    expect(resolveLine({ foil: false }, [marvel, m11], 'trend', { prefer: fallout, skipUniversesBeyond: true })).toMatchObject({ preferred: true })
+  })
+
+  it('skips Secret Lair printings for "cheapest" if asked, any Secret Lair set, unless the card has no other', () => {
+    const drop = printing({ set: 'sld', collectorNumber: '1', price: { trend: 0.1 } })
+    const showdown = printing({ set: 'slp', setName: 'Secret Lair Showdown', collectorNumber: '2', price: { trend: 0.2 } })
+    expect(resolveLine({ foil: false }, [drop, showdown, m11], 'trend').printing?.set).toBe('sld')
+    expect(resolveLine({ foil: false }, [drop, showdown, m11], 'trend', { skipSecretLair: true }).printing?.set).toBe('m11')
+    expect(resolveLine({ foil: false }, [drop], 'trend', { skipSecretLair: true }).printing?.set).toBe('sld')
+  })
+
   it('respects foil when picking the cheapest', () => {
     expect(resolveLine({ foil: true }, [m11, a25], 'trend').printing?.set).toBe('a25')
   })

@@ -3,6 +3,7 @@ import type { AppSettings, Theme } from '@shared/api'
 import { PRICE_BASES } from '@shared/pricing'
 import { ui } from '@shared/text'
 import { cleanError, formatDate } from '../lib/format'
+import { printingsResolutionChanged } from '../stores/printings'
 import { updateSettings, useSettings } from '../stores/settings'
 import { ColorOptions } from './Controls'
 import { Modal } from './Modal'
@@ -34,6 +35,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
   const change = (patch: Partial<AppSettings>) => {
     setError(null)
     updateSettings(patch).catch((e) => setError(cleanError(e)))
+    // Which Version each Card resolves to changes: rows and Most Wanted price again.
+    if ('skipUniversesBeyond' in patch || 'skipSecretLair' in patch) printingsResolutionChanged()
   }
 
   return (
@@ -64,40 +67,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
       </section>
 
       <section className="settings-section">
-        <h3>{text.prices}</h3>
-        <div className="radio-options" role="radiogroup" aria-label={text.priceBasis}>
-          {PRICE_BASES.map((basis) => (
-            <label key={basis} className="radio-option">
-              <input
-                type="radio"
-                name="price-basis"
-                checked={settings.priceBasis === basis}
-                onChange={() => change({ priceBasis: basis })}
-              />
-              <span className="setting-text">
-                <span className="setting-label">{ui.priceBases[basis].label}</span>
-                <span className="muted small">{ui.priceBases[basis].hint}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-        <p className="muted tiny settings-note">
-          {text.priceSource(pricedAt ? formatDate(pricedAt) : null)}{' '}
-          <button
-            type="button"
-            className="link-btn"
-            disabled={refreshing}
-            onClick={() => {
-              setRefreshing(true)
-              void onRefreshPrices().finally(() => setRefreshing(false))
-            }}
-          >
-            {refreshing ? text.checking : text.checkNow}
-          </button>
-        </p>
-      </section>
-
-      <section className="settings-section">
         <h3>{text.lists}</h3>
         <label className="setting-toggle">
           <span className="setting-text">
@@ -123,6 +92,32 @@ export function SettingsDialog(props: SettingsDialogProps) {
             className="switch"
             checked={settings.bundleBasics}
             onChange={(event) => change({ bundleBasics: event.target.checked })}
+          />
+        </label>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.skipUniversesBeyond}</span>
+            <span className="muted small">{text.skipUniversesBeyondHint}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.skipUniversesBeyond}
+            onChange={(event) => change({ skipUniversesBeyond: event.target.checked })}
+          />
+        </label>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.skipSecretLair}</span>
+            <span className="muted small">{text.skipSecretLairHint}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.skipSecretLair}
+            onChange={(event) => change({ skipSecretLair: event.target.checked })}
           />
         </label>
       </section>
@@ -158,6 +153,37 @@ export function SettingsDialog(props: SettingsDialogProps) {
       </section>
 
       <section className="settings-section">
+        <h3>{text.prices}</h3>
+        <div className="radio-options" role="radiogroup" aria-label={text.priceBasis}>
+          {PRICE_BASES.map((basis) => (
+            <label key={basis} className="radio-option">
+              <input
+                type="radio"
+                name="price-basis"
+                checked={settings.priceBasis === basis}
+                onChange={() => change({ priceBasis: basis })}
+              />
+              <span className="setting-text">
+                <span className="setting-label">{ui.priceBases[basis].label}</span>
+                <span className="muted small">{ui.priceBases[basis].hint}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="muted tiny settings-note">
+          {text.priceSource(pricedAt ? formatDate(pricedAt) : null)}{' '}
+          <button
+            type="button"
+            className="link-btn"
+            disabled={refreshing}
+            onClick={() => {
+              setRefreshing(true)
+              void onRefreshPrices().finally(() => setRefreshing(false))
+            }}
+          >
+            {refreshing ? text.checking : text.checkNow}
+          </button>
+        </p>
         <div className="setting-toggle">
           <span className="setting-text">
             <span className="setting-label">{text.alerts}</span>
