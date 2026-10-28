@@ -107,12 +107,8 @@ export function CardDialog({ row, format, issue, maxQty, maxTitle, onUpdate, boa
             <dd>
               {printing ? (
                 <>
-                  {resolution?.pinned ? (
+                  {resolution?.pinned || resolution?.fromInventory ? (
                     ''
-                  ) : resolution?.fromInventory ? (
-                    <span className="auto-badge yours" title={text.yoursHint}>
-                      {text.yours}
-                    </span>
                   ) : resolution?.preferred && row.preferredFrom ? (
                     <span className="auto-badge preferred" title={text.preferredHint(row.preferredFrom)}>
                       {row.preferredFrom}

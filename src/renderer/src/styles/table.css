@@ -230,12 +230,6 @@ tr:hover .owned-adjust,
   font-style: italic;
 }
 
-/* The version shown is the one in your inventory. */
-.auto-badge.yours {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-
 .stale {
   color: var(--warn);
   cursor: help;

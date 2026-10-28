@@ -268,8 +268,8 @@ function CardRowView(props: CardRowProps) {
 }
 
 /**
- * Version cell: plain for the cheapest printing; highlights pinned, owned and missing printings. A
- * pinned printing you own only other versions of says so on hover.
+ * Version cell: badged for the cheapest or the Universe's printing; plain for a pinned one or the
+ * one you own. A pinned printing you own only other versions of says so on hover.
  */
 function VersionCell({ row, otherVersions }: { row: Row; otherVersions?: string | null }) {
   const text = ui.card.version
@@ -310,8 +310,8 @@ function VersionCell({ row, otherVersions }: { row: Row; otherVersions?: string 
   if (resolution.fromInventory) {
     return (
       <span className="version" title={text.yoursHint(printing.setName, labels)}>
-        <span className="auto-badge yours">{text.yours}</span>
-        <span className="muted">{where}</span>
+        <span className="set-code">{where}</span>
+        <span className="muted">{printing.setName}</span>
       </span>
     )
   }

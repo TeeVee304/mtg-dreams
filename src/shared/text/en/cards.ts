@@ -47,7 +47,6 @@ export const card = {
     collectorMissing: (collector: string, set: string, yours: string) => `#${collector} is not in ${set}; using the cheapest Copy in that set${yours || '.'}`,
     collectorNotFound: (collector: string) => `#${collector} not found`,
     yoursHint: (set: string, labels: string) => `The Version in your Inventory: ${set}${labels}`,
-    yours: 'Yours',
     cheapestHint: (set: string, labels: string) => `Cheapest Version: ${set}${labels}. Pick a Version to keep it.`,
     cheapest: 'Cheapest',
     preferredHint: (group: string, set: string, labels: string) =>
@@ -70,8 +69,6 @@ export const card = {
     typeLine: (type: string, manaValue: number) => `${type} · Mana value ${manaValue}`,
     legalIn: (format: string) => `Legal in ${format}`,
     version: 'Version',
-    yoursHint: 'The Version in your Inventory',
-    yours: 'Yours',
     cheapest: 'Cheapest',
     preferredHint: (group: string) => `The cheapest ${group} Version, from this list’s Universe`,
     finish: 'Finish',
