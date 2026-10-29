@@ -41,7 +41,7 @@ Planned work for future releases.
 - Add support for Dungeons (Venture into the Dungeon). This may have some nuances.
   - Dungeons are not deck cards in the usual sense. Confirm the rules first; the nuance is likely in modeling and Wizard suggestions rather than legality.
 - Similar to Disguise or Poison support, Monarch mechanic should be associated with the respective token, and added. Undercity as well. 
-- When a Commander has "Partner with", it's Partner should be added automaticaly (be it Deck, Wishlist or Deck Wizard).
+- When a Commander has "Partner with", its Partner should be added automatically (be it Deck, Wishlist or Deck Wizard).
 
 ## Inventory and Wishlists
 
@@ -52,14 +52,38 @@ Planned work for future releases.
   - Matching: a version-agnostic wishlist matches on oracle ID; a version-specific one matches on the printing.
   - A substitute reserves no copy unless the user confirms it (see "Wishlists reserve no copies").
 - Game Changer flag for cards.
-- In Statistics, of the graph showing "Creatures // Other spells", it should the bars should display color distributions among mana values. Colorless (number) mana should be different from Colorless.
+- In Statistics, of the graph showing "Creatures // Other spells", the bars should display color distributions among mana values. Colorless (number) mana should be different from Colorless.
 - In Statistic, provide insights about Lands and Mana Rocks in the mana curve.
 - In a Wishlists's Token view, the user must be able to browse token versions (even if considered free).
-- I placed, in a Middle-earth wishlist, 'Ring of Barahir' and the tag below said 'Use Sword of the Animist'. Just do it, do not ask for permition, as the result will be the same - the original card name, but with the version the user wants.
+- I placed, in a Middle-earth wishlist, 'Ring of Barahir' and the tag below said 'Use Sword of the Animist'. Just do it, do not ask for permission, as the result will be the same - the original card name, but with the version the user wants.
+
+## Card Scanner
+**Relevant plugin(s):** `/design:design-system`, `/engineering:system-design`, `/engineering:testing-strategy`
+- Scan cards with the camera to add them to the inventory, with live feedback (name, version, language, price).
+  - Language-independent recognition is crucial: a player may scan a card in a language they can't read to learn what it is. Show the English name and the English card image beside the detected language.
+  - Scans go to a tray first; one confirmed **Add N Cards to Inventory** writes them (one write, one undo step).
+  - A sound on each match, with a remembered mute toggle.
+- Recognition:
+  - Primary: art fingerprint (perceptual hash of the art) matched against an index of every illustration (~50k). Works in any language and any era. Close matches are offered as card images, so no reading is needed.
+  - Exact printing and language: OCR of the collector line only (`0123 · MKM · JA`, Latin letters and digits, English OCR data). Older cards without it get a manual version pick.
+  - No title OCR: it can't read other scripts, and the art match makes it redundant.
+  - The index ships with each release; newer cards are fingerprinted locally in the background when the scanner opens.
+- Architecture: a feature module like the Deck Wizard (`window.scanner`, `scanner:*` IPC, one `index.tsx` entry, loaded on first use).
+  - Camera → steadiness gate (pure, ~8 Hz) → worker (fingerprint + OCR) → main `identify` (collector lookup through the existing Scryfall queue) → existing printings store for prices → tray → `actions.addOwned`.
+  - `ScanSession` state machine with injected camera, reader and clock, so it is unit-tested with fakes.
+  - Reuse, don't duplicate: Scryfall queue, `cachedFetch`, `validate.ts`, `usePrintingsFor`, `priceOf`, `VersionPicker`, `Price`, `Stepper`, `CardThumb`, `FoilSheen`, `LanguageFlag`, existing color tokens. The card ratio (63:88) is defined once in TS.
+- Prerequisites:
+  - Allow only video `media` permission from the app's own origin (today every permission is denied).
+  - CSP: `'wasm-unsafe-eval'` and `worker-src 'self'`.
+  - `withAddedOwned` drops `lang`; pass it through so scanned languages are saved.
+- Reliability: worker restarts with a budget, OCR timeout, distinct camera errors (denied, missing, busy, unplugged) with a fix each, cooldown until the card is removed (no double counts), tray draft survives a crash or accidental close.
+- Expected cost (to confirm in the spike): about +5 MB on the 103 MB installer; about 5–15% of one core and 70–90 MB of memory while scanning; nothing when closed.
+- Phase 0 spike first (outside the repo): worker and WASM load from `file://` in the packaged build; art-match accuracy on ~30 real cards (foils, sleeves, two non-English). Below ~85% first-try accuracy, add card-edge detection before building the rest.
+- Open: foil can't be told reliably by camera, so it is a manual toggle (off by default).
 
 
 ## Deck Wizard
-- "Commanders you own, not leading a Deck yet" should just be eligable commanders- in use or not.
+- "Commanders you own, not leading a Deck yet" should just be eligible commanders- in use or not.
 - Remove the "Another Commander" search bar, as it can be confusing when paired with the "Partner" search bar.
 - When a Partner or Background is added, remove the added "Without" portion of the display, as the X already signifies this.
 - When a Background (or other non-Partners) are added in the Partner bar, the list shouldn't be named "Commander & Background", as it doesn't consist of 2 characters.
@@ -83,4 +107,5 @@ Planned work for future releases.
 
 - Other quality of life features that should help players set up their dream decks.
 - Deckbuilding tools, such as per-tag, per-color card search - essentially, tools for users that want to learn to build a deck from scratch.
-- Tool that may prepare a page for proxxy printing. This option needs to be considered carefully, as it may be controversial.
+- Tool that may prepare a page for proxy printing. This option needs to be considered carefully, as it may be controversial.
+- Explore support for offline use.
