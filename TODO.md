@@ -9,6 +9,31 @@ Planned work for future releases.
   - Keep portability in mind: heavily normalized data is harder to export as a single self-contained file.
 - Schema versioning and a migration pipeline for saved files
   - Add a schema version to saved files now, before public release, regardless of the normalization outcome.
+  - The Card Scanner's art index needs a version too. It uses the same mechanism.
+
+## Shared Foundation: Card Versions
+A card version is a printing, a finish and a language.
+Localization, Inventory and the Card Scanner all work with card versions.
+They share three pieces, built in this order:
+1. Schema versioning (see "Data Model and Storage").
+   - It comes first because it is the cheapest piece.
+   - It protects the saved files before new version data reaches them.
+2. One "choose version" step for every way of adding to the inventory.
+   - It sets the printing, the finish, the language and the quantity.
+   - It remembers the last version chosen per card.
+   - Inventory search opens it with the last version chosen.
+   - The Card Scanner tray opens it with the scanned version.
+   - This is the "select the version first" item in "Inventory and Wishlists".
+3. One card resolver in the main process.
+   - It turns any input into an English card name, and a printing and a language when known.
+   - Input can be a name in any language. Search and import use this.
+   - Input can be a set code and a collector number. The Card Scanner and imports use this.
+   - Input can be an art fingerprint. Only the Card Scanner uses this.
+   - All inputs share one cache and one rate limiter.
+   - This solves the "Hard part" in "Localization".
+
+The Card Scanner comes last.
+By then, most of what it needs already exists.
 
 ## Localization
 
@@ -16,6 +41,8 @@ Planned work for future releases.
   - App language: build on the existing `src/shared/text/` structure.
   - Card language: a property of the printing/version, not a global setting.
   - Hard part: name matching on search and import, so a localized name resolves to the same oracle card.
+    - The shared card resolver handles this (see "Shared Foundation: Card Versions").
+  - App language does not depend on the shared foundation. It can come at any time.
 
 ## Formats
 
@@ -47,6 +74,7 @@ Planned work for future releases.
 
 - When adding a card to the inventory, select the version first, similar to the wishlist process.
   - Remember the last version chosen per card to reduce friction.
+  - This is the shared "choose version" step (see "Shared Foundation: Card Versions").
 - When a wishlist wants a specific version and you own a different one, flag it (?) instead of ticking it right away.
   - Three states: exact printing owned (tick); same card, different printing or foil status (substitute marker, user confirms); no owned copy (unticked).
   - Matching: a version-agnostic wishlist matches on oracle ID; a version-specific one matches on the printing.
@@ -59,27 +87,69 @@ Planned work for future releases.
 
 ## Card Scanner
 **Relevant plugin(s):** `/design:design-system`, `/engineering:system-design`, `/engineering:testing-strategy`
-- Scan cards with the camera to add them to the inventory, with live feedback (name, version, language, price).
-  - Language-independent recognition is crucial: a player may scan a card in a language they can't read to learn what it is. Show the English name and the English card image beside the detected language.
-  - Scans go to a tray first; one confirmed **Add N Cards to Inventory** writes them (one write, one undo step).
-  - A sound on each match, with a remembered mute toggle.
+- Scan cards with the camera to add them to the inventory.
+- Build it after the shared foundation (see "Shared Foundation: Card Versions").
+- What the user sees:
+  - Each scan shows the card's name, version, language and price.
+  - Recognition works in any language.
+  - A player can scan a card in a language they can't read to learn what it is.
+  - The scan shows the English name and the English card image.
+  - The scan shows the detected language beside them.
+  - Each match plays a sound.
+  - A mute toggle turns the sound off. The app remembers it.
+  - Scans go to a tray first.
+  - The tray opens the shared "choose version" step to change a version.
+  - One button, **Add N Cards to Inventory**, adds the whole tray.
+  - That button makes one write and one undo step.
+  - Foil is a manual toggle, off by default. A camera can't reliably tell foils apart.
 - Recognition:
-  - Primary: art fingerprint (perceptual hash of the art) matched against an index of every illustration (~50k). Works in any language and any era. Close matches are offered as card images, so no reading is needed.
-  - Exact printing and language: OCR of the collector line only (`0123 · MKM · JA`, Latin letters and digits, English OCR data). Older cards without it get a manual version pick.
-  - No title OCR: it can't read other scripts, and the art match makes it redundant.
-  - The index ships with each release; newer cards are fingerprinted locally in the background when the scanner opens.
-- Architecture: a feature module like the Deck Wizard (`window.scanner`, `scanner:*` IPC, one `index.tsx` entry, loaded on first use).
-  - Camera → steadiness gate (pure, ~8 Hz) → worker (fingerprint + OCR) → main `identify` (collector lookup through the existing Scryfall queue) → existing printings store for prices → tray → `actions.addOwned`.
-  - `ScanSession` state machine with injected camera, reader and clock, so it is unit-tested with fakes.
-  - Reuse, don't duplicate: Scryfall queue, `cachedFetch`, `validate.ts`, `usePrintingsFor`, `priceOf`, `VersionPicker`, `Price`, `Stepper`, `CardThumb`, `FoilSheen`, `LanguageFlag`, existing color tokens. The card ratio (63:88) is defined once in TS.
+  - The art identifies the card. Art is the same in every language.
+  - The scanner turns the art into a small fingerprint.
+  - It compares the fingerprint with an index of every illustration (about 50,000).
+  - Close matches are shown as card images. Picking one needs no reading.
+  - The collector line gives the exact printing and the language (for example `0123 · MKM · JA`).
+  - OCR reads the collector line only. It uses English OCR data, since the line uses Latin letters and digits.
+  - Cards older than about 2014 have no such line. The user picks their version.
+  - The scanner never reads the title. OCR can't read other scripts, and the art match makes it unnecessary.
+  - Each release ships an updated index.
+  - The scanner adds newer cards to the index in the background.
+- Architecture:
+  - The scanner is a feature module, like the Deck Wizard.
+  - The rest of the app imports only its `index.tsx`.
+  - It talks to the main process through `window.scanner` and `scanner:*` IPC.
+  - Its code loads the first time the scanner opens.
+  - Flow: camera → steadiness check → worker (fingerprint and OCR) → shared card resolver → prices → tray → inventory.
+  - The steadiness check runs about 8 times a second on a tiny image.
+  - The fingerprint and OCR run in a background worker, off the UI thread.
+  - Prices come from the existing printings store.
+  - The tray saves through the existing `actions.addOwned`.
+  - A `ScanSession` state machine drives the scanner.
+  - Its camera, reader and clock are passed in. Tests replace them with fakes.
+  - It reuses existing pieces: the Scryfall queue, `cachedFetch`, `validate.ts`, `usePrintingsFor`, `priceOf`, `Price`, `Stepper`, `CardThumb`, `FoilSheen`, `LanguageFlag` and the color tokens.
+  - The card ratio (63:88) is defined once, in TS.
 - Prerequisites:
-  - Allow only video `media` permission from the app's own origin (today every permission is denied).
-  - CSP: `'wasm-unsafe-eval'` and `worker-src 'self'`.
-  - `withAddedOwned` drops `lang`; pass it through so scanned languages are saved.
-- Reliability: worker restarts with a budget, OCR timeout, distinct camera errors (denied, missing, busy, unplugged) with a fix each, cooldown until the card is removed (no double counts), tray draft survives a crash or accidental close.
-- Expected cost (to confirm in the spike): about +5 MB on the 103 MB installer; about 5–15% of one core and 70–90 MB of memory while scanning; nothing when closed.
-- Phase 0 spike first (outside the repo): worker and WASM load from `file://` in the packaged build; art-match accuracy on ~30 real cards (foils, sleeves, two non-English). Below ~85% first-try accuracy, add card-edge detection before building the rest.
-- Open: foil can't be told reliably by camera, so it is a manual toggle (off by default).
+  - Electron must allow the camera. Today it denies every permission.
+  - Allow only video, and only for the app itself.
+  - The CSP must allow WASM (`'wasm-unsafe-eval'`).
+  - The CSP must allow the app's own workers (`worker-src 'self'`).
+  - `withAddedOwned` drops the language today. It must save it.
+- Reliability:
+  - A crashed worker restarts, up to 3 times a minute.
+  - An OCR read gives up after 5 seconds.
+  - Each camera error has its own message: denied, missing, busy or unplugged.
+  - Each camera error message offers its own fix.
+  - After a match, the scanner waits until the card is taken away. This prevents double counts.
+  - The tray survives a crash or an accidental close.
+- Expected cost (to confirm in the spike):
+  - About +5 MB on the 103 MB installer.
+  - About 5–15% of one CPU core while scanning.
+  - About 70–90 MB of extra memory while scanning.
+  - Nothing when the scanner is closed.
+- Spike first, outside the repo:
+  - Check that the worker and the WASM load in the packaged build.
+  - Measure art-match accuracy on about 30 real cards.
+  - Include foils, sleeved cards and two non-English cards.
+  - Below about 85% correct on the first try, add card-edge detection before building the rest.
 
 
 ## Deck Wizard
