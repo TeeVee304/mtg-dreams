@@ -1,16 +1,14 @@
 # TODO
 
-Planned work for future releases. Notes under each item are initial thoughts, not decisions.
+Planned work for future releases. 
 
-## Data Model and Storage
-
+## Data Model and Storage 
+**Relevant plugin(s):** `/ai-firstify:ai-firstify`, `/design:design-system`
 - Major data model revisions (normal forms, etc.)
   - Normalize where the pain is (duplicated card/printing data in decks and wishlists, Universe/version relations), not for its own sake.
   - Keep portability in mind: heavily normalized data is harder to export as a single self-contained file.
 - Schema versioning and a migration pipeline for saved files
   - Add a schema version to saved files now, before public release, regardless of the normalization outcome.
-- Remote accounts (server storage) [IMPROBABLE]
-  - If ever pursued, sync files rather than move to server-side truth. Local-first files are a selling point.
 
 ## Localization
 
@@ -26,6 +24,7 @@ Planned work for future releases. Notes under each item are initial thoughts, no
   - Commander stays the reference implementation.
   - Store dated legality snapshots, so older decks do not show the wrong legality.
   - Pauper (commons only) is a good test case for the abstraction.
+  - **NOTE:** This introduces significant challenges. EDHREC is the main inspiration and source of information for this app, and it applies only to Commander.
 
 ## Deck Customization
 
@@ -41,6 +40,8 @@ Planned work for future releases. Notes under each item are initial thoughts, no
   - Confirm Rulebreaker rules against the official rules text before designing.
 - Add support for Dungeons (Venture into the Dungeon). This may have some nuances.
   - Dungeons are not deck cards in the usual sense. Confirm the rules first; the nuance is likely in modeling and Wizard suggestions rather than legality.
+- Similar to Disguise or Poison support, Monarch mechanic should be associated with the respective token, and added. Undercity as well. 
+- When a Commander has "Partner with", it's Partner should be added automaticaly (be it Deck, Wishlist or Deck Wizard).
 
 ## Inventory and Wishlists
 
@@ -54,6 +55,8 @@ Planned work for future releases. Notes under each item are initial thoughts, no
 - In Statistics, of the graph showing "Creatures // Other spells", it should the bars should display color distributions among mana values. Colorless (number) mana should be different from Colorless.
 - In Statistic, provide insights about Lands and Mana Rocks in the mana curve.
 - In a Wishlists's Token view, the user must be able to browse token versions (even if considered free).
+- I placed, in a Middle-earth wishlist, 'Ring of Barahir' and the tag below said 'Use Sword of the Animist'. Just do it, do not ask for permition, as the result will be the same - the original card name, but with the version the user wants.
+
 
 ## Deck Wizard
 - "Commanders you own, not leading a Deck yet" should just be eligable commanders- in use or not.
@@ -68,12 +71,13 @@ Planned work for future releases. Notes under each item are initial thoughts, no
   - Use actual icons for mana value and type line, with the mana value implied (e.g., replace "Instant · Mana value 2").
   - Show which rules text is displayed. Add a Settings option to choose Printed or Oracle rules text (Oracle by default).
   - Show relevant rulings. Decide whether they are fetched or bundled, since bundling adds size.
-- The "Change Version" text and "List | Images" are in different boxes, occupying unnecessary space.
+- The "Change Version" text and "List | Images" are in different boxes, occupying unnecessary vertical space.
 
 ## Documentation
-
+**Relevant plugin(s):** `/humanizer:humanizer`
 - Update README for more simplicity.
 - LaTeX user guide (code not pushed to GitHub, only the final PDF) covering the data model, files and advanced options.
+- Transparency about Claude intervention (vibe coding).
 
 ## Quality of life
 
