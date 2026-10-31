@@ -1,5 +1,7 @@
 import { CONFLICT_ERROR, type TrackerApi } from '@shared/api'
-import { parseInventory, parseList, serializeList } from '@shared/decklist'
+import { withCompanion, withRulebreakerColor } from '@shared/deckRules'
+import { withEnergyCurve } from '@shared/listEnergy'
+import { cardLines, nameKey, parseInventory, parseList, serializeList } from '@shared/decklist'
 import { listFormat, withCommanders, withFormat, withoutMissingCommanders } from '@shared/formats'
 import type { Version } from '@shared/inventory'
 import { withColor } from '@shared/listColor'
@@ -17,7 +19,9 @@ import {
   type CardPick,
   type ListVersion
 } from '@shared/listVersion'
+import { withPrintedNames, type PrintedNameFix } from '@shared/printedNames'
 import { moveToBoard, type Board, type BoardEntry } from '@shared/sideboard'
+import { withTokenVersion } from '@shared/tokens'
 import type { ThemeColor } from '@shared/themes'
 import { serializeSnapshot, type TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
@@ -219,6 +223,7 @@ export class LibraryStore {
    * @param id - Revert only this step, and only if it is the latest (toast Undo).
    */
   private undo(id?: number): UndoResult {
+    if (this.state.readOnly) return { message: ui.errors.newerData, kind: 'error' }
     const taken = this.history.take((target) => this.currentText(target), id)
     if (!('id' in taken)) return taken
     if (taken.target.type === 'list') this.saveLines(taken.target.list, taken.before as ListLine[])
@@ -269,8 +274,28 @@ export class LibraryStore {
     )
   }
 
-  /** The library's mutations; a stable object, so effects depending on it run once. */
-  readonly actions = {
+  /**
+   * @returns `actions`, each refusing to run in a read-only data folder ({@link LibraryState.readOnly})
+   * but those in {@link READ_ONLY_SAFE}: an action changes nothing and says why, an async one rejects.
+   */
+  private refusedWhileReadOnly<A extends Record<string, (...args: never[]) => unknown>>(actions: A): A {
+    const guarded: Record<string, unknown> = {}
+    for (const [key, action] of Object.entries(actions)) {
+      const async = action.constructor.name === 'AsyncFunction'
+      guarded[key] = READ_ONLY_SAFE.has(key)
+        ? action
+        : (...args: never[]) => {
+            if (!this.state.readOnly) return action(...args)
+            if (async) return Promise.reject(new Error(ui.errors.newerData))
+            this.callbacks.onError(ui.errors.newerData)
+            return undefined
+          }
+    }
+    return guarded as A
+  }
+
+  /** The library's mutations; a stable object, so effects depending on it run once. Refused in a read-only data folder. */
+  readonly actions = this.refusedWhileReadOnly({
     reload: (force = false) => this.reload(force),
 
     undo: (id?: number) => this.undo(id),
@@ -298,6 +323,16 @@ export class LibraryStore {
         (lines) => lines.map((line) => (line.id === id && line.kind === 'card' ? { ...line, ...patch } : line)),
         { label: ui.changes.changed(cardName(this.state.lists, target, id)) }
       )
+    },
+
+    /**
+     * Names lines with a flavor name by their card's name, pinning the printing that carries it
+     * ({@link withPrintedNames}). Automatic, so it records no undo step (the list would only rename
+     * them again) and skips a read-only data folder quietly.
+     */
+    adoptCardNames: (target: ListRef, fixes: PrintedNameFix[]) => {
+      const list = this.state.lists.find((l) => sameList(l, target))
+      if (list && !this.state.readOnly) this.saveLines(target, withPrintedNames(list.lines, fixes))
     },
 
     /** Removes a line (and the commander if it was the last copy); announced. */
@@ -395,6 +430,11 @@ export class LibraryStore {
     },
 
     /** Makes a deck unbuilt, using every owned copy without reserving any, or built again. */
+    /** Shows a list's energy curve in Statistics, or stops showing it. */
+    setEnergyCurve: (target: ListRef, on: boolean) => {
+      this.updateLines(target, (lines) => withEnergyCurve(lines, on), { label: ui.changes.energyCurve(target.name, on) })
+    },
+
     setUnbuilt: (target: ListRef, unbuilt: boolean) => {
       this.updateLines(target, (lines) => withUnbuilt(lines, unbuilt), {
         label: ui.changes.unbuilt(target.name, unbuilt)
@@ -402,6 +442,11 @@ export class LibraryStore {
     },
 
     /** Makes a wishlist or brew prefer the Versions of a set group (by name) for Cards with no Version chosen, or none (`null`). */
+    /** Chooses the Version a list shows of a token (by oracle id), or the one its cards make (`null`). */
+    setTokenVersion: (target: ListRef, oracleId: string, id: string | null, token: string) => {
+      this.updateLines(target, (lines) => withTokenVersion(lines, oracleId, id), { label: ui.changes.tokenVersion(token, target.name) })
+    },
+
     setPreferredVersions: (target: ListRef, group: string | null) => {
       this.updateLines(target, (lines) => withPreferredVersions(lines, group), {
         label: ui.changes.preferredVersions(target.name, group)
@@ -437,7 +482,25 @@ export class LibraryStore {
 
     /** Sets the commanders (two for partners); none clears them. */
     setListCommanders: (target: ListRef, names: string[]) => {
-      this.updateLines(target, (lines) => withCommanders(lines, names), { label: commandersLabel(names) })
+      this.updateLines(
+        target,
+        (lines) => {
+          const listed = new Set(cardLines(lines).map((line) => nameKey(line.name)))
+          const missing = names.filter((name) => !listed.has(nameKey(name)))
+          return withCommanders(missing.reduce((all, name) => mergeCard(all, { name, qty: 1, foil: false }), lines), names)
+        },
+        { label: commandersLabel(names) }
+      )
+    },
+
+    /** Sets a list's Companion, or removes it (`null`); its card stays. */
+    setListCompanion: (target: ListRef, name: string | null) => {
+      this.updateLines(target, (lines) => withCompanion(lines, name), { label: ui.changes.companion(name) })
+    },
+
+    /** Sets the color a Rulebreaker commander lets the list add, or removes it (`null`). */
+    setRulebreakerColor: (target: ListRef, color: string | null) => {
+      this.updateLines(target, (lines) => withRulebreakerColor(lines, color), { label: ui.changes.rulebreakerColor })
     },
 
     /** Replaces a list's content from raw text; announced. */
@@ -545,8 +608,11 @@ export class LibraryStore {
       await this.reload(true)
       return true
     }
-  }
+  })
 }
+
+/** Actions a read-only data folder allows: they read, leave for another folder, or refuse on their own (undo, automatic fixes). */
+const READ_ONLY_SAFE = new Set(['reload', 'undo', 'resolveConflict', 'chooseDataDir', 'adoptCardNames'])
 
 /** Mutations of a {@link LibraryStore}. */
 export type LibraryActions = LibraryStore['actions']

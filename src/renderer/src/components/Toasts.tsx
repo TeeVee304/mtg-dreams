@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
 import { ui } from '@shared/text'
+import { isConnectionError } from '../lib/format'
+import { isOnline } from '../stores/network'
 
 type ToastKind = 'info' | 'error'
 
@@ -24,7 +26,10 @@ interface Toast {
 const ToastContext = createContext<PushToast>(() => undefined)
 let nextId = 0
 
-/** Provides {@link useToast}. Toasts auto-dismiss after 3 s, 6 s with an action, 7 s for errors. */
+/**
+ * Provides {@link useToast}. Toasts auto-dismiss after 3 s, 6 s with an action, 7 s for errors. While
+ * offline, errors about reaching a service are not shown: the sidebar's offline status says it once.
+ */
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
@@ -32,6 +37,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const push = useCallback<PushToast>(
     (message, kind = 'info', action) => {
+      if (kind === 'error' && !isOnline() && isConnectionError(message)) return
       const id = ++nextId
       setToasts((all) => [...all.slice(-3), { id, message, kind, action }])
       setTimeout(() => dismiss(id), kind === 'error' ? 7000 : action ? 6000 : 3000)

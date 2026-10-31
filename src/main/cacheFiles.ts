@@ -13,6 +13,17 @@ import { env } from './environment'
 /** Absolute path of a cache file. */
 const pathOf = (name: string) => join(env().userData, name)
 
+/** Cache writes have stopped: the caches are being cleared and the app restarts. */
+let frozen = false
+
+/** Stops every cache write for the rest of the session (see `caches.ts`). */
+export function freezeCacheFiles(): void {
+  frozen = true
+}
+
+/** @returns Whether cache writes have stopped. */
+export const cacheFilesFrozen = () => frozen
+
 /**
  * @param name - Path relative to userData.
  * @returns Parsed contents; null if missing or invalid.
@@ -25,9 +36,10 @@ export async function readCacheFile<T>(name: string): Promise<T | null> {
   }
 }
 
-/** Writes a cache file atomically (temp file + rename). Errors are ignored. */
+/** Writes a cache file atomically (temp file + rename). Errors are ignored; nothing is written once frozen. */
 export async function writeCacheFile(name: string, data: unknown): Promise<void> {
   const path = pathOf(name)
+  if (frozen) return
   try {
     await mkdir(dirname(path), { recursive: true })
     await writeFile(`${path}.tmp`, JSON.stringify(data))
@@ -38,6 +50,7 @@ export async function writeCacheFile(name: string, data: unknown): Promise<void>
 /** Synchronous, non-atomic {@link writeCacheFile} for use during quit. Errors are ignored. */
 export function writeCacheFileNow(name: string, data: unknown): void {
   const path = pathOf(name)
+  if (frozen) return
   try {
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, JSON.stringify(data))
@@ -45,7 +58,7 @@ export function writeCacheFileNow(name: string, data: unknown): void {
 }
 
 /** Cache files and folders of earlier versions of the app, which nothing reads any more. */
-export const RETIRED_CACHES = ['card-library.json', 'deckWizard', 'spellbook']
+export const RETIRED_CACHES = ['card-library.json', 'deckWizard', 'spellbook', 'bracket-cards.json']
 
 /**
  * @param folder - Path relative to userData.

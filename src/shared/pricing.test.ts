@@ -97,6 +97,14 @@ describe('resolveLine', () => {
     expect(resolveLine({ foil: false }, [drop], 'trend', { skipSecretLair: true }).printing?.set).toBe('sld')
   })
 
+  it('skips Phyrexian printings for "cheapest" if asked, unless the card has no other, or one is chosen', () => {
+    const phyrexian = printing({ set: 'one', collectorNumber: '107', lang: 'ph', price: { trend: 0.1 } })
+    expect(resolveLine({ foil: false }, [phyrexian, m11], 'trend').printing?.lang).toBe('ph')
+    expect(resolveLine({ foil: false }, [phyrexian, m11], 'trend', { skipPhyrexian: true }).printing?.set).toBe('m11')
+    expect(resolveLine({ foil: false }, [phyrexian], 'trend', { skipPhyrexian: true }).printing?.set).toBe('one')
+    expect(resolveLine({ foil: false, set: 'one' }, [phyrexian, m11], 'trend', { skipPhyrexian: true }).printing?.set).toBe('one')
+  })
+
   it('respects foil when picking the cheapest', () => {
     expect(resolveLine({ foil: true }, [m11, a25], 'trend').printing?.set).toBe('a25')
   })

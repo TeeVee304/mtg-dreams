@@ -86,6 +86,16 @@
   display: none;
 }
 
+/* Offline shows as its dot alone; the tooltip says the rest. */
+.sidebar.rail .offline-status {
+  padding: 4px 0;
+}
+
+.sidebar.rail .offline-label,
+.sidebar.rail .offline-status button {
+  display: none;
+}
+
 /* Names stay for screen readers; the tooltip shows them on hover. */
 .sidebar.rail .nav-text,
 .sidebar.rail .nav-label {

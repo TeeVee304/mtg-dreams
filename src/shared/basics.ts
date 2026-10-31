@@ -55,7 +55,8 @@ const GENERIC = new Map<string, GenericBasic>(
         typeLine: d.subtype ? `Basic Land — ${d.name}` : 'Basic Land',
         manaValue: 0,
         rarity: 'common',
-        legalities: LEGALITIES
+        legalities: LEGALITIES,
+        produces: d.colors.length > 0 ? d.colors : ['C']
       },
       printing: {
         id: d.id,

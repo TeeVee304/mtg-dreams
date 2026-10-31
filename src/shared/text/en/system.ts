@@ -41,6 +41,8 @@ export const printingTags = {
 
 /** What went wrong, in plain words. */
 export const errors = {
+  /** The online services the errors below name. */
+  services: ['Scryfall', 'Cardmarket', 'MTGJSON', 'EDHREC'],
   /** An online service (Scryfall, Cardmarket, MTGJSON, EDHREC). */
   slow: (service: string) => `${service} took too long to answer. Try again in a moment.`,
   offline: (service: string) => `Could not reach ${service}. Are you offline?`,
@@ -56,6 +58,7 @@ export const errors = {
   listExists: (kind: string, name: string) => `A ${kind} called "${name}" already exists.`,
   tradeExists: (name: string) => `You already have a Trade list called "${name}".`,
   changedOutside: (file: string) => `"${file}" was changed by another program.`,
+  newerData: 'A newer MTG Dreams saved this data. Update the app to make changes. Until then, nothing is saved.',
   tradeTooBig: 'That file is too big to be a Trade list.',
   notTrade: 'This file is not a valid Trade list.',
   notMtgDreamsTrade: 'This file is not an MTG Dreams Trade list.',

@@ -22,6 +22,7 @@ const api: TrackerApi = {
   updateSettings: (patch) => ipcRenderer.invoke('settings:update', patch),
   autocomplete: (query) => ipcRenderer.invoke('scryfall:autocomplete', query),
   getPrintings: (name, options) => ipcRenderer.invoke('scryfall:printings', name, options),
+  resolveCards: (queries) => ipcRenderer.invoke('scryfall:resolve', queries),
   getCardInfos: (names) => ipcRenderer.invoke('scryfall:cardInfos', names),
   getCardImages: (names) => ipcRenderer.invoke('scryfall:images', names),
   refreshPrices: () => ipcRenderer.invoke('prices:refresh'),
@@ -31,11 +32,21 @@ const api: TrackerApi = {
     ipcRenderer.on('prices:updated', listener)
     return () => ipcRenderer.removeListener('prices:updated', listener)
   },
+  isOnline: () => ipcRenderer.invoke('network:online'),
+  checkConnection: () => ipcRenderer.invoke('network:check'),
+  onConnectivityChange: (callback) => {
+    const listener = (_event: unknown, online: boolean) => callback(online)
+    ipcRenderer.on('network:changed', listener)
+    return () => ipcRenderer.removeListener('network:changed', listener)
+  },
   trackPrices: (ids) => ipcRenderer.invoke('history:track', ids),
   pricesAt: (ids, ago) => ipcRenderer.invoke('history:pricesAt', ids, ago),
   getBaselines: () => ipcRenderer.invoke('history:baselines'),
   updateBaselines: (set, remove) => ipcRenderer.invoke('history:updateBaselines', set, remove),
-  getDeckTokens: (names) => ipcRenderer.invoke('tokens:deck', names),
+  getDeckTokens: (names, chosen) => ipcRenderer.invoke('tokens:deck', names, chosen),
+  getTokenVersions: (oracleId) => ipcRenderer.invoke('tokens:versions', oracleId),
+  getLocalizedImage: (query) => ipcRenderer.invoke('images:localized', query),
+  getRulings: (name, id) => ipcRenderer.invoke('scryfall:rulings', name, id),
   getSetGroups: () => ipcRenderer.invoke('scryfall:setGroups'),
   onSetGroupsProgress: (callback) => {
     const listener = (_event: unknown, progress: SetGroupsProgress) => callback(progress)
@@ -46,6 +57,8 @@ const api: TrackerApi = {
   getPrecon: (fileName) => ipcRenderer.invoke('precons:deck', fileName),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
   copyText: (text) => ipcRenderer.invoke('clipboard:write', text),
+  getCacheSizes: () => ipcRenderer.invoke('storage:sizes'),
+  clearCaches: () => ipcRenderer.invoke('storage:clear'),
   onWindowFocus: (callback) => {
     const listener = () => callback()
     ipcRenderer.on('window:focus', listener)

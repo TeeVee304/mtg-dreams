@@ -1,4 +1,4 @@
-import type { Theme } from '../../api'
+import type { CacheGroup, Theme } from '../../api'
 
 /** The Settings dialog. */
 export const settings = {
@@ -28,6 +28,12 @@ export const settings = {
   skipUniversesBeyondHint: 'Cards with no Version chosen skip UB crossover printings.',
   skipSecretLair: 'Skip Secret Lair',
   skipSecretLairHint: 'Cards with no Version chosen skip Secret Lair printings.',
+  language: 'Language',
+  skipPhyrexian: 'Skip Phyrexian',
+  skipPhyrexianHint: 'Cards with no Version chosen skip printings in Phyrexian.',
+  rulesText: 'Rules text',
+  rulesTextHint: 'Card details show the Oracle wording, or the text printed on the Card in its language. English printings always show Oracle.',
+  rulesTexts: { oracle: 'Oracle', printed: 'Printed' },
   lists: 'Decks & Wishlists',
   cardImages: 'Card Images',
   cardImagesHint: 'A thumbnail beside each Card.',
@@ -38,8 +44,29 @@ export const settings = {
   wishlistsReserveHint: 'After built Decks, Wishlists hold Copies from the top down.',
   plainBrews: 'Brews ignore Inventory',
   plainBrewsHint: 'Brews show only their Cards and prices, with nothing owned.',
+  storage: 'Storage',
+  storageHint: 'What MTG Dreams keeps so Cards and prices show fast, and offline. All of it downloads again.',
+  caches: {
+    cards: 'Card data',
+    prices: 'Price guide',
+    images: 'Card Images',
+    precons: 'Precons',
+    edhrec: 'EDHREC Decks',
+    tokens: 'Tokens',
+    setGroups: 'Set groups'
+  } satisfies Record<CacheGroup, string>,
+  storageTotal: 'Total',
+  kilobytes: (n: number) => `${n} KB`,
+  megabytes: (n: string) => `${n} MB`,
+  clearCaches: 'Clear all…',
+  clearOffline: 'Clearing needs the internet: everything downloads again.',
+  clearPrices: 'Prices download again: about 5 MB.',
+  clearCards: (cards: number, minutes: number) =>
+    `Card data comes back slowly, about 2 Cards a second: ${minutes <= 1 ? 'about a minute' : `about ${minutes} minutes`} for ${cards === 1 ? '1 Card' : `${cards} Cards`}.`,
+  clearKeeps: 'Your files, settings and price history stay. MTG Dreams restarts.',
+  clearConfirm: 'Clear and restart',
   dataFolder: 'Data folder',
   open: 'Open',
   change: 'Change…',
-  credits: 'Card data & images © Scryfall / Wizards of the Coast. Prices from Cardmarket. MTG Dreams is not affiliated with them.'
+  credits: 'Card data & images © Scryfall / Wizards of the Coast. Card type icons from the Mana font by Andrew Gioia. Prices from Cardmarket. MTG Dreams is not affiliated with them.'
 }

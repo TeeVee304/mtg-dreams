@@ -16,7 +16,8 @@ import { unionCardLines } from './listVersion'
 import { isUnbuilt } from './listUnbuilt'
 import { upgradeTarget } from './listUpgrade'
 import { sumOf } from './totals'
-import type { InventoryItem, ListKind, ListLine } from './types'
+import { coverLines, wantsVersion, type Version } from './inventory'
+import type { CardLine, InventoryItem, ListKind, ListLine } from './types'
 
 /** List identity; names are unique per kind only. */
 export interface ListKey {
@@ -236,29 +237,37 @@ export function copyPool(lists: PoolList[], { wishlistsReserve = false }: PoolOp
   }
 }
 
+/** A card to add copies of, with the printing, finish and language its line names. */
+export type CardToAdd = { name: string; qty: number } & Partial<Version>
+
 /**
  * Copies to add to the inventory so `cards` (e.g. a new deck) are covered by owned copies no built
- * deck holds.
- * @returns Cards merged by nameKey with the copies to add; covered cards omitted.
+ * deck holds. A card's missing copies take the versions of its lines, in order: a `{ES}` line adds
+ * Spanish copies.
+ * @returns The copies to add, a card's split by version; covered cards omitted.
  */
-export function copiesToAdd(
-  cards: Array<{ name: string; qty: number }>,
-  inventory: Map<string, InventoryItem>,
-  pool: CopyPool
-): Array<{ name: string; qty: number }> {
-  const merged = new Map<string, { name: string; qty: number }>()
+export function copiesToAdd(cards: CardToAdd[], inventory: Map<string, InventoryItem>, pool: CopyPool): CardToAdd[] {
+  const byKey = new Map<string, CardToAdd[]>()
   for (const card of cards) {
     const key = nameKey(card.name)
-    const total = merged.get(key)
-    if (total) total.qty += card.qty
-    else merged.set(key, { name: card.name, qty: card.qty })
+    if (!byKey.has(key)) byKey.set(key, [])
+    byKey.get(key)!.push(card)
   }
-  return [...merged]
-    .map(([key, card]) => {
-      const owned = inventory.get(key)?.qty ?? 0
-      return { name: card.name, qty: card.qty - Math.max(0, owned - pool.claimed(key, owned)) }
-    })
-    .filter((card) => card.qty > 0)
+  const added: CardToAdd[] = []
+  for (const [key, lines] of byKey) {
+    const owned = inventory.get(key)?.qty ?? 0
+    let missing = sumOf(lines, (line) => line.qty) - Math.max(0, owned - pool.claimed(key, owned))
+    for (const { qty, set, collector, foil, lang } of lines) {
+      if (missing <= 0) break
+      const take = Math.min(qty, missing)
+      missing -= take
+      const version = { ...(set && { set, ...(collector && { collector }) }), ...(foil && { foil }), ...(lang && { lang }) }
+      const same = added.find((card) => nameKey(card.name) === key && card.set === version.set && card.collector === version.collector && !card.foil === !version.foil && card.lang === version.lang)
+      if (same) same.qty += take
+      else added.push({ name: lines[0].name, qty: take, ...version })
+    }
+  }
+  return added
 }
 
 /**
@@ -291,6 +300,18 @@ export interface CardNeed {
   buy: number
 }
 
+/** @returns A wishlist's lines by nameKey, for the cards with a line wanting a Version; none for decks, which own any copy. */
+function versionLines(list: PoolList): Map<string, CardLine[]> {
+  const byCard = new Map<string, CardLine[]>()
+  if (list.kind === 'deck') return byCard
+  for (const line of unionCardLines(list.lines)) {
+    const key = nameKey(line.name)
+    byCard.set(key, [...(byCard.get(key) ?? []), line])
+  }
+  for (const [key, lines] of byCard) if (!lines.some(wantsVersion)) byCard.delete(key)
+  return byCard
+}
+
 /**
  * Copies each list still lacks, in allocation order, each against the copies other lists hold ({@link CopyPool.held}).
  * @param inventory - Items by nameKey.
@@ -308,13 +329,20 @@ export function listNeeds<L extends PoolList>(
   const freeFor = (list: L, key: string, owned: number) => Math.max(0, owned - pool.held(list, key, owned))
   return allocationOrder(lists).map((list) => {
     const needs: CardNeed[] = []
+    const versioned = versionLines(list)
     for (const [key, total] of cardTotals(list.lines)) {
       const owned = inventory.get(key)?.qty ?? 0
-      const free = freeFor(list, key, owned)
+      const lines = versioned.get(key)
+      // A wishlist line wanting a Version is not covered by a substitute, so it is still wanted.
+      const free = lines
+        ? sumOf(coverLines(lines, inventory.get(key)?.copies ?? [], freeFor(list, key, owned)), (cover) => cover.owned)
+        : freeFor(list, key, owned)
       if (total.qty <= free) continue
       const missing = total.qty - free
       const extra = bought.get(key) ?? 0
-      const buy = extra > 0 ? Math.max(0, total.qty - freeFor(list, key, owned + extra)) : missing
+      // Copies bought for the lists ahead serve this one too; a Version line, as if each were its Version.
+      const covered = lines ? free + extra : freeFor(list, key, owned + extra)
+      const buy = extra > 0 ? Math.max(0, total.qty - covered) : missing
       bought.set(key, extra + buy)
       needs.push({ key, name: total.name, wants: total.qty, missing, buy })
     }

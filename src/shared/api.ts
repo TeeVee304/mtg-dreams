@@ -1,8 +1,8 @@
 import type { SortKey } from './cards'
-import type { DeckTokenData } from './tokens'
+import type { DeckTokenData, TokenInfo } from './tokens'
 import type { SetGroup } from './setGroups'
 import type { ThemeColor } from './themes'
-import type { CardInfo, ListKind, PreconDeck, PreconSummary, PriceBasis, PrintingsResult } from './types'
+import type { CardInfo, ListKind, LocalizedImage, LocalizedQuery, PreconDeck, PreconSummary, PriceBasis, PrintingsResult, CardQuery, ResolvedCard, Ruling } from './types'
 
 /** UI theme mode; `system` follows the OS. */
 export type Theme = 'system' | 'light' | 'dark'
@@ -28,6 +28,13 @@ export interface AppSettings {
   skipUniversesBeyond: boolean
   /** As {@link skipUniversesBeyond}, for Secret Lair printings. */
   skipSecretLair: boolean
+  /** As {@link skipUniversesBeyond}, for printings in Phyrexian, the game's made-up script. */
+  skipPhyrexian: boolean
+  /**
+   * Rules text the card dialog shows: the current Oracle wording, or the text printed on the copy in
+   * its language (Oracle where Scryfall has none, as for English printings).
+   */
+  rulesText: 'oracle' | 'printed'
   /** Show card thumbnails in lists and search. */
   cardImages: boolean
   /** List layout for decks and wishlists. */
@@ -84,6 +91,8 @@ export interface LoadedData {
   wishlistOrder: string[]
   /** Relative paths of unreadable files that were skipped, e.g. "decks/Burn.txt". */
   unreadable: string[]
+  /** The data folder was saved by a newer MTG Dreams: every save is refused. */
+  readOnly: boolean
 }
 
 /**
@@ -108,6 +117,17 @@ export interface PrintingsOptions {
   priority?: 'high' | 'low'
   /** Fetch all printings, including every basic land printing (default: newest page only). */
   full?: boolean
+}
+
+/** What Settings calls the caches it shows and clears. */
+export type CacheGroup = 'cards' | 'prices' | 'images' | 'precons' | 'edhrec' | 'tokens' | 'setGroups'
+
+/** Disk used by the caches. */
+export interface CacheSizes {
+  /** Bytes per cache; `images` includes the browser's cache. */
+  bytes: Record<CacheGroup, number>
+  /** Cards the Scryfall cache holds, which come back slowly after clearing. */
+  cards: number
 }
 
 /** IPC bridge exposed by the preload script as `window.api`. */
@@ -151,6 +171,12 @@ export interface TrackerApi {
   /** @returns The card's printings with Cardmarket prices. */
   getPrintings(name: string, options?: PrintingsOptions): Promise<PrintingsResult>
   /**
+   * The card resolver: names in any language, or printings by set code and collector number.
+   * @param queries - At most 3000.
+   * @returns A card per query, in order; null if Scryfall knows none, or can't be reached.
+   */
+  resolveCards(queries: CardQuery[]): Promise<(ResolvedCard | null)[]>
+  /**
    * Checks Cardmarket for a newer price guide.
    * @returns Whether prices changed, and the current guide's publication time.
    */
@@ -159,6 +185,12 @@ export interface TrackerApi {
   getPriceDate(): Promise<number | null>
   /** @returns Unsubscribe function. */
   onPricesUpdated(callback: () => void): () => void
+  /** @returns Whether the online services can be reached; true until a failed request finds otherwise. */
+  isOnline(): Promise<boolean>
+  /** Asks Scryfall whether the internet is back. @returns Whether the app is online. */
+  checkConnection(): Promise<boolean>
+  /** Called with `true` when the app comes back online, `false` when it goes offline. @returns Unsubscribe function. */
+  onConnectivityChange(callback: (online: boolean) => void): () => void
   /** Adds Cardmarket product ids to the daily price history. */
   trackPrices(ids: number[]): Promise<void>
   /**
@@ -183,8 +215,21 @@ export interface TrackerApi {
   /**
    * Tokens, emblems and helpers created by cards; never rejects (see {@link DeckTokenData}).
    * @param names - At most 3000 names.
+   * @param chosen - Token Versions the list chose (Scryfall ids), returned among the tokens.
    */
-  getDeckTokens(names: string[]): Promise<DeckTokenData>
+  getDeckTokens(names: string[], chosen?: string[]): Promise<DeckTokenData>
+  /** @returns The Versions of a token, by its oracle id, newest first; none offline with nothing cached. Never rejects. */
+  getTokenVersions(oracleId: string): Promise<TokenInfo[]>
+  /**
+   * @returns A Card's images in its printed language: that printing's, else its newest printing's in
+   * the language; null if Scryfall has no real scan in it. Never rejects.
+   */
+  getLocalizedImage(query: LocalizedQuery): Promise<LocalizedImage | null>
+  /**
+   * @returns A Card's rulings, newest first, by its name and the Scryfall id of one of its printings;
+   * null when unknown (offline, never looked up). Never rejects.
+   */
+  getRulings(name: string, id: string): Promise<Ruling[] | null>
   /** @returns Set groups a list can prefer Versions from; none if Scryfall can't be reached. */
   getSetGroups(): Promise<SetGroup[]>
   /** Progress of checking new sets while set groups load. @returns Unsubscribe function. */
@@ -193,6 +238,9 @@ export interface TrackerApi {
   getPrecon(fileName: string): Promise<PreconDeck>
   openExternal(url: string): Promise<void>
   copyText(text: string): Promise<void>
+  getCacheSizes(): Promise<CacheSizes>
+  /** Deletes every cache (never the price history, settings or data folder), then restarts the app. */
+  clearCaches(): Promise<void>
   /** @returns Unsubscribe function. */
   onWindowFocus(callback: () => void): () => void
 }

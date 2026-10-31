@@ -1,4 +1,6 @@
+import type { CompanionRule, Rulebreaker } from './deckRules'
 import type { Language } from './languages'
+import type { EnergyUse, RampKind } from './manaText'
 
 /** List category: decks draw from the inventory; wishlists track cards to acquire. */
 export type ListKind = 'deck' | 'wishlist' | 'brew'
@@ -20,6 +22,8 @@ export interface CardLine {
   lang?: Language
   /** `{Worthless}`: owned copies left out of the inventory's value (damaged, or not counted). */
   worthless?: true
+  /** `{Stand-in}`: a wishlist line whose printing you lack, served by any copy you own of the Card. */
+  standIn?: true
 }
 
 /** Non-card line (blank, comment, section header). Stored verbatim for lossless round-trips. */
@@ -100,6 +104,8 @@ export interface Printing {
   illustrationId?: string
   /** A Universes Beyond printing (Fallout, Marvel…), by Scryfall's promo types; absent in older caches. */
   universesBeyond?: true
+  /** An MTG Arena printing, kept only for cards never printed on paper: never owned. */
+  digital?: true
 }
 
 /** Index entry of an official preconstructed product (Commander, Challenger, Secret Lair...). */
@@ -154,6 +160,62 @@ export interface CardInfo {
   canBeCommander?: true
   /** Ability letting a second commander lead with this one. */
   partner?: PartnerAbility
+  /** On the Commander format's Game Changer list. */
+  gameChanger?: true
+  /** A Rulebreaker commander's deckbuilding exceptions. */
+  rulebreaker?: Rulebreaker
+  /** A Companion's deckbuilding condition. */
+  companion?: CompanionRule
+  /** Its mana cost has a symbol twice (`{R}{R}`), for Jegantha. */
+  repeatsSymbol?: true
+  /** It has an activated ability, for Zirda. */
+  activated?: true
+  /** Changeling: every creature type, for Kaheera. */
+  changeling?: true
+  /** Mana cost of the front face (both halves of a split card), e.g. `{2}{W}{U}`; absent for none. */
+  manaCost?: string
+  /** Colors of mana it makes, `C` for colorless; a fetch land's, those it finds. Absent for none. */
+  produces?: string[]
+  /** How a nonland card ramps. */
+  ramp?: RampKind
+  /** Energy it makes and spends. */
+  energy?: EnergyUse
+  /**
+   * What each face says, for the card's dialog: one entry for a one-faced card, two for a split,
+   * Adventure, flip or two-sided card. Absent in card data cached before rules text was kept.
+   */
+  faces?: CardFace[]
+}
+
+/** One face of a card as its Oracle text has it. */
+export interface CardFace {
+  name: string
+  /** E.g. `{2}{W}{U}`; absent for none. */
+  manaCost?: string
+  typeLine: string
+  /** Oracle rules text; empty for none (a vanilla creature). */
+  text: string
+  /** Power and toughness, e.g. `3/3`. */
+  pt?: string
+  loyalty?: string
+  /** A Battle's defense. */
+  defense?: string
+}
+
+/** One face of a printing as printed in its language. */
+export interface PrintedFace {
+  name: string
+  typeLine: string
+  text: string
+}
+
+/** A ruling: a note from Wizards of the Coast or Scryfall on how a card works. */
+export interface Ruling {
+  /** `YYYY-MM-DD`. */
+  date: string
+  /** `wotc` or `scryfall`. */
+  source: string
+  text: string
 }
 
 /**
@@ -168,10 +230,45 @@ export type PartnerAbility =
   | { kind: 'background' }
   | { kind: 'companion' }
 
-/** Response of a printings lookup. */
-export interface PrintingsResult {
-  /** Canonical Scryfall name; may differ from the query after fuzzy matching. */
+/** A Card shown in its printed language: the printing to look for first, by set code and collector number. */
+export interface LocalizedQuery {
   name: string
+  lang: Language
+  set?: string
+  collector?: string
+}
+
+/** A printing's images in a language other than English, and its text as printed. */
+export interface LocalizedImage {
+  imageNormal: string
+  /** Back face of a two-sided card; null otherwise. */
+  imageBack: string | null
+  /** Each face's printed name, type line and rules text; absent when Scryfall has none. */
+  faces?: PrintedFace[]
+}
+
+/** Response of a printings lookup. */
+/** What the card resolver is asked: a name in any language, or a printing by set code and collector number. */
+export type CardQuery = { name: string } | { set: string; collector: string }
+
+/** A card the resolver found. */
+export interface ResolvedCard {
+  /** English name. */
+  name: string
+  /** Language of the printed name a name query matched; absent for English. */
+  lang?: Language
+  /** The printing, for a set code and collector number query. */
+  set?: string
+  collector?: string
+  /** A near match (a typo, say), not an exact one: offered, never applied on its own. */
+  fuzzy?: true
+}
+
+export interface PrintingsResult {
+  /** Canonical Scryfall name; may differ from the query: a printed name in another language, or a fuzzy match. */
+  name: string
+  /** Language of the printed name the query matched; absent when it matched an English name. */
+  lang?: Language
   card?: CardInfo
   printings: Printing[]
   /** Epoch ms of the Scryfall fetch. */

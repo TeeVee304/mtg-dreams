@@ -2,7 +2,7 @@ import type { ColorFilter } from './cards'
 
 /**
  * Names of color identities as players call them: mono colors, the ten guilds, the five shards and
- * five wedges, the five Nephilim for four colors, and five-color.
+ * five wedges, the five Nephilim for four colors, and WUBRG for all five.
  *
  * @packageDocumentation
  */
@@ -44,7 +44,7 @@ const NAMES: Record<string, string> = {
   WURG: 'Ink-Treader',
   WUBG: 'Witch-Maw',
   WUBR: 'Yore-Tiller',
-  WUBRG: 'Five-Color'
+  WUBRG: 'WUBRG'
 }
 
 /** WUBRG order. */

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { priceOf, resolveLine, sortPrintings } from '@shared/pricing'
 import type { Printing } from '@shared/types'
 import { ui } from '@shared/text'
@@ -24,6 +24,12 @@ const VERSION_VIEWS = [
   { id: 'images', label: ui.card.picker.views.images }
 ] as const
 
+/** The first option's title and note, when it means something other than the cheapest Version. */
+export interface AutoOption {
+  title: string
+  subtitle: string
+}
+
 /** Props of {@link VersionPicker}. */
 interface VersionPickerProps {
   printings: Printing[]
@@ -39,20 +45,24 @@ interface VersionPickerProps {
    * preview, for a picker beside a large image of the card.
    */
   onPreview?: (printing: Printing | null) => void
+  /** See {@link AutoOption}. */
+  auto?: AutoOption
+  /** Title at the start of the filter row, so the picker needs no header of its own. */
+  heading?: ReactNode
 }
 
 /**
  * Printings with a leading cheapest ({@link AUTO}) option, sorted by {@link sortPrintings}: as rows
  * (set, number, year, tags and price on one line) or as card images; the choice is remembered.
  */
-export function VersionPicker({ printings, foil, selected, onSelect, onConfirm, onPreview }: VersionPickerProps) {
+export function VersionPicker({ printings, foil, selected, onSelect, onConfirm, onPreview, auto, heading }: VersionPickerProps) {
   const [filter, setFilter] = useState('')
   const [view, setView] = useStoredValue<VersionView>('mtg-dreams.versionView', 'list', isVersionView)
-  const { priceBasis, skipUniversesBeyond, skipSecretLair } = useSettings()
+  const { priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian } = useSettings()
   const sorted = useMemo(() => sortPrintings(printings, foil, priceBasis), [printings, foil, priceBasis])
   const cheapest = useMemo(
-    () => resolveLine({ foil }, printings, priceBasis, { skipUniversesBeyond, skipSecretLair }),
-    [printings, foil, priceBasis, skipUniversesBeyond, skipSecretLair]
+    () => resolveLine({ foil }, printings, priceBasis, { skipUniversesBeyond, skipSecretLair, skipPhyrexian }),
+    [printings, foil, priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian]
   )
 
   const needle = filter.trim().toLowerCase()
@@ -66,6 +76,7 @@ export function VersionPicker({ printings, foil, selected, onSelect, onConfirm, 
   return (
     <div className="picker">
       <div className="picker-head">
+        {heading}
         {printings.length > 8 && (
           <input
             className="picker-filter"
@@ -83,8 +94,8 @@ export function VersionPicker({ printings, foil, selected, onSelect, onConfirm, 
           <Option
             printing={cheapest.printing}
             price={cheapest.unitPrice}
-            title={ui.card.picker.cheapest}
-            subtitle={ui.card.picker.cheapestNow(cheapest.printing ? `${cheapest.printing.set.toUpperCase()} #${cheapest.printing.collectorNumber}` : null)}
+            title={auto?.title ?? ui.card.picker.cheapest}
+            subtitle={auto?.subtitle ?? ui.card.picker.cheapestNow(cheapest.printing ? `${cheapest.printing.set.toUpperCase()} #${cheapest.printing.collectorNumber}` : null)}
             selected={selected === AUTO}
             onClick={() => onSelect(AUTO)}
             onDoubleClick={onConfirm}

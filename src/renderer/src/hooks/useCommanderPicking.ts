@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { nameKey } from '@shared/decklist'
-import { allowsPartners } from '@shared/formats'
+import { allowsPartners, namedPartner } from '@shared/formats'
 import type { ListAnalysis } from '@shared/listModel'
 import { ui } from '@shared/text'
 import type { Row } from '../lib/summary'
@@ -70,9 +70,11 @@ export function useCommanderPicking(list: CardList, rows: Row[], analysis: ListA
       toast(ui.list.noLongerCommander(displayName(row), rest.length > 0 ? displayName(rest[0]) : null))
       return
     }
-    actions.setListCommanders(list, [row.line.name])
+    // A commander that names its partner ("Partner with") brings it, added to the list if missing.
+    const partner = namedPartner(format, row.info)
+    actions.setListCommanders(list, partner ? [row.line.name, partner] : [row.line.name])
     setCrowned(nameKey(row.line.name))
-    toast(ui.list.nowLeads(displayName(row), noun))
+    toast(partner ? ui.list.leadTogether(displayName(row), partner, noun) : ui.list.nowLeads(displayName(row), noun))
   }
 
   return {

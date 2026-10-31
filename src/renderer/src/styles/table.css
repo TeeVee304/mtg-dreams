@@ -68,7 +68,7 @@
 .cards-table tr.owned .card-name {
   color: var(--muted);
   text-decoration: line-through;
-  text-decoration-color: var(--good);
+  text-decoration-color: var(--accent);
 }
 
 .col-owned {
@@ -151,8 +151,9 @@
   min-width: 26px;
 }
 
+/* A ticked row takes the list's color. */
 tr.owned .owned-count {
-  color: var(--good);
+  color: var(--accent-text);
 }
 
 .owned-adjust {
@@ -379,6 +380,11 @@ tr:hover .owned-adjust,
   min-width: 240px;
 }
 
+/* Version chips after a card's name, apart from it and from each other. */
+.inventory-table .col-name .chip {
+  margin-left: 6px;
+}
+
 .inventory-table .chips .chip {
   max-width: 150px;
   overflow: hidden;
@@ -388,4 +394,35 @@ tr:hover .owned-adjust,
 
 .inventory-table .col-actions {
   width: 150px;
+}
+
+/* A wishlist line wanting a Version you own only other Versions of: a box in the checkbox's place,
+   outlined with ⇄ while the conflict awaits review; drawn like a checked checkbox (filled in the
+   accent, a dark mark, light in light mode) with ✓ once a copy stands in. */
+.swap-box,
+.swap-box:hover:not(:disabled) {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1.5px solid var(--accent);
+  border-radius: var(--radius-xs);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  line-height: 0;
+}
+
+.swap-box.counted,
+.swap-box.counted:hover:not(:disabled) {
+  border: none;
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.swap-box svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+  stroke-width: 3;
 }

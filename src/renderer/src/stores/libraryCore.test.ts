@@ -20,6 +20,7 @@ import {
   withBundledQty,
   withFewerCopies,
   withCopies,
+  withAddedOwned,
   withMovedWishlist,
   withOwned,
   type CardList,
@@ -40,6 +41,7 @@ const data = (patch: Partial<LoadedData> = {}): LoadedData => ({
   trades: [{ name: 'Dani', text: serializeSnapshot(parseTradeText('4 Lightning Bolt', 'Dani', new Date(0))) }],
   wishlistOrder: ['Goblins', 'Burn'],
   unreadable: [],
+  readOnly: false,
   ...patch
 })
 
@@ -224,6 +226,15 @@ describe('inventory edits', () => {
     expect(inventoryText(none.inventory)).toBe('1 Lightning Bolt\n')
     expect(none.change).toEqual({ label: 'Removed Sol Ring from your Inventory', announce: true })
     expect(inventoryText(inventory)).toBe('1 Lightning Bolt\n2 Sol Ring\n')
+  })
+
+  it('adds copies with their printing, finish and language', () => {
+    const added = withAddedOwned(inventory, [{ name: 'Sol Ring', qty: 2, set: 'c21', collector: '263', foil: true, lang: 'de' }])
+    expect(added.cards).toBe(2)
+    expect(added.inventory.get('sol ring')?.copies).toEqual([
+      { qty: 2, foil: false },
+      { qty: 2, set: 'c21', collector: '263', foil: true, lang: 'de' }
+    ])
   })
 
   it('replaces a card’s copies, and drops it when none are left', () => {

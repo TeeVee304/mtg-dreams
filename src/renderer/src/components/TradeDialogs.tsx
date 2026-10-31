@@ -13,6 +13,7 @@ import {
   type TradeSnapshot
 } from '@shared/trade'
 import { cleanError } from '../lib/format'
+import { localizeSnapshot } from '../lib/localize'
 import { updateSettings, useSettings } from '../stores/settings'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { Modal } from './Modal'
@@ -168,7 +169,7 @@ export function ImportTradeDialog({ existingNames, replaceName, onImport, onClos
             type="button"
             className="primary"
             disabled={busy || !pasted?.snapshot}
-            onClick={() => pasted?.snapshot && run(() => onImport(pasted.snapshot!))}
+            onClick={() => pasted?.snapshot && run(async () => onImport(await localizeSnapshot(pasted.snapshot!)))}
           >
             {ui.trades.import.confirm}
           </button>

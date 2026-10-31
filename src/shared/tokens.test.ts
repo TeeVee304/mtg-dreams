@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { featuredTokens, partKind, tokenLabel, type DeckTokenData, type TokenInfo } from './tokens'
+import { parseList, serializeList } from './decklist'
+import { featuredTokens, partKind, tokenInSets, tokenLabel, tokenVersions, withTokenVersion, type DeckTokenData, type TokenInfo } from './tokens'
 
 const token = (id: string, extra: Partial<TokenInfo> = {}): TokenInfo => ({
   id,
@@ -66,5 +67,29 @@ describe('featuredTokens', () => {
 
   it('only counts cards of the list', () => {
     expect(featuredTokens(data, ['Smothering Tithe', 'Sol Ring']).map((t) => t.token.name)).toEqual(['Treasure'])
+  })
+})
+
+describe('token Versions', () => {
+  const linked = token('a1', { oracleId: 'o1', set: 'tc21' })
+  const shiny = token('b2', { oracleId: 'o1', set: 'tltr' })
+  const data: DeckTokenData = { available: true, makers: { 'Smothering Tithe': [{ id: 'a1', kind: 'token' }] }, tokens: { a1: linked, b2: shiny } }
+
+  it('shows the Version a list chose, once loaded, and keeps the one its cards make', () => {
+    expect(featuredTokens(data, ['Smothering Tithe'])[0]).toMatchObject({ token: linked, linked })
+    expect(featuredTokens(data, ['Smothering Tithe'], new Map([['o1', 'b2']]))[0]).toMatchObject({ token: shiny, linked, chosen: true })
+    expect(featuredTokens(data, ['Smothering Tithe'], new Map([['o1', 'zz']]))[0].chosen).toBeUndefined()
+  })
+
+  it('stores the choices in one header, and drops it with the last', () => {
+    const lines = withTokenVersion(withTokenVersion(parseList('1 Smothering Tithe\n'), 'o1', 'b2'), 'o2', 'c3')
+    expect(serializeList(lines)).toBe('// Token Versions: o1=b2 o2=c3\n1 Smothering Tithe\n')
+    expect(tokenVersions(lines)).toEqual(new Map([['o1', 'b2'], ['o2', 'c3']]))
+    expect(serializeList(withTokenVersion(withTokenVersion(lines, 'o1', null), 'o2', null))).toBe('1 Smothering Tithe\n')
+  })
+
+  it('finds a Universe’s Versions in its sets and their token sets', () => {
+    expect(tokenInSets(shiny, ['ltr', 'hob'])).toBe(true)
+    expect(tokenInSets(linked, ['ltr', 'hob'])).toBe(false)
   })
 })

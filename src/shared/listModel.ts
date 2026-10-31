@@ -10,15 +10,29 @@ import {
 import type { HeldCopies } from './copies'
 import { cardLines, nameKey } from './decklist'
 import {
+  companionBreaks,
+  companionCondition,
+  companionDeckBreak,
+  identityException,
+  listCompanion,
+  noMaxDeckSize,
+  rulebreakerColor,
+  type DeckCard
+} from './deckRules'
+import {
   canJoin,
   canLead,
   colorIdentityIssue,
   commanderIssue,
   copyLimit,
+  deckSizeCheck,
+  holdsNoCopies,
+  issue,
   legalityIssue,
   listCommanders,
   listFormat,
   type DeckFormat,
+  type DeckSizeCheck,
   type LegalityIssue
 } from './formats'
 import { ui } from './text'
@@ -79,8 +93,25 @@ export interface ListAnalysis<R extends ModelRow> {
   canJoin(row: R): boolean
   /** Some row is a commander. */
   hasCommander: boolean
-  /** Format issue; null if none, no format, or no card data. Only ever a warning on the maybeboard. */
+  /** Row is the Companion (never a bundled basic or on the maybeboard). */
+  isCompanion(row: R): boolean
+  /** Copies of the Companion outside the sideboard: the main deck's size leaves them out. */
+  companionCards: number
+  /** A Rulebreaker commander lifts the maximum deck size. */
+  noMaxSize: boolean
+  /**
+   * Format problems, errors first; none without a format or card data. Only ever warnings on the
+   * maybeboard.
+   */
+  issuesOf(row: R): LegalityIssue[]
+  /** The most serious of {@link issuesOf}; null if none. */
   issueOf(row: R): LegalityIssue | null
+  /** Why a Card is allowed despite a rule: `Allowed by Valko Indorian`, `Any number allowed`. */
+  allowedOf(row: R): string[]
+  /** Decks with a format: main deck size against it (commanders in, Companion out). */
+  size: DeckSizeCheck | null
+  /** Problems of the whole list, not of a Card: its size, its sideboard. */
+  listProblems: string[]
   /** Decks: list copies exceeding the inventory copies left by lists ahead. Wishlists and the maybeboard: 0. */
   shortfallOf(row: R): number
   /** Rows with an error-severity issue. */
@@ -121,7 +152,49 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
   const identity = leaders.length > 0 && leaders.every((row) => row.info)
     ? [...new Set(leaders.flatMap((row) => row.info!.colorIdentity))]
     : null
-  const issues = new Map<R, LegalityIssue | null>()
+  const leaderInfos = leaders.flatMap((row) => (row.info ? [row.info] : []))
+  const chosenColor = rulebreakerColor(lines)
+  // Rulebreakers are paper playtest Cards: Arena has none.
+  const rulebreakers = !format?.arena
+  const noMaxSize = rulebreakers && noMaxDeckSize(leaderInfos)
+  /** The commander letting a card outside the color identity in; null if none does, or the card fits. */
+  const letIn = (info: CardInfo) => (identity && rulebreakers ? identityException(info, identity, leaderInfos, chosenColor) : null)
+
+  const companionName = listCompanion(lines)
+  const isCompanion = (row: R) => !!companionName && !row.bundledIds && !row.maybe && nameKey(row.line.name) === nameKey(companionName)
+  const companionRow = rows.find(isCompanion)
+  const companionCards = companionRow && !companionRow.side ? companionRow.line.qty : 0
+  const companionLabel = companionRow ? (companionRow.flavorName ?? companionRow.line.name) : ''
+  const rule = companionRow?.info?.companion
+  // The starting deck: commanders and main deck. Its condition is checked once every card has loaded;
+  // a card Scryfall doesn't know is left out.
+  const deckRows = rows.filter((row) => !row.side && !row.maybe && !isCompanion(row))
+  const asCard = (row: R): DeckCard[] => (row.info ? [{ name: row.line.name, qty: row.line.qty, info: row.info }] : [])
+  const deck: DeckCard[] | null = deckRows.every((row) => row.info !== undefined) ? deckRows.flatMap(asCard) : null
+  const breaking = new Set(rule && deck ? companionBreaks(rule, deck).map(nameKey) : [])
+  /** A row breaks the Companion's condition; a maybeboard Card, as if added to the deck. */
+  const breaksCompanion = (row: R) => {
+    if (!rule || !deck || row.side) return false
+    if (!row.maybe) return breaking.has(nameKey(row.line.name))
+    return companionBreaks(rule, [...deck, ...asCard(row)]).some((name) => nameKey(name) === nameKey(row.line.name))
+  }
+  const deckCards = sumOf(deckRows, (row) => row.line.qty)
+  const { rules } = ui
+  /** The Companion's own problems: not one, outside the colors, a deck too small, or a condition the app doesn't know. */
+  const companionIssues = (info: CardInfo): LegalityIssue[] => {
+    if (!info.companion) return [issue('notCompanion', rules.notCompanion, rules.notCompanionDetail)]
+    if (info.companion.kind === 'other') return [issue('unchecked', rules.unchecked, rules.uncheckedCompanion(companionLabel), 'warning')]
+    const found: LegalityIssue[] = []
+    if (identity && info.colorIdentity.some((color) => !identity.includes(color))) {
+      found.push(issue('outsideColors', rules.outsideColors, rules.outsideColorsOf(leaders.length > 1)))
+    }
+    const short = format ? companionDeckBreak(info.companion, deckCards, format.deckSize) : 0
+    if (short > 0) found.push(issue('companionShort', rules.companionShort, rules.companionShortOf(companionLabel, short)))
+    return found
+  }
+
+  const issues = new Map<R, LegalityIssue[]>()
+  const allowed = new Map<R, string[]>()
   if (format) {
     for (const row of rows) {
       if (!row.info) continue
@@ -130,20 +203,47 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
       const partner = leaders.find((other) => other !== row)?.info ?? null
       // A pair is checked once both commanders have loaded.
       if (isCommander(row) && leaders.length > 1 && !partner) continue
-      issues.set(
-        row,
-        isCommander(row)
-          ? commanderIssue(format, row.info, row.entry?.data?.printings ?? [], count, leaders.length > 1 ? partner : null)
-          : legalityIssue(format, row.info, count) ?? (identity ? colorIdentityIssue(row.info, identity, leaders.length > 1) : null)
-      )
+      const found: LegalityIssue[] = []
+      const why: string[] = []
+      if (isCommander(row)) {
+        const leading = commanderIssue(format, row.info, row.entry?.data?.printings ?? [], leaders.length > 1 ? partner : null)
+        if (leading) found.push(leading)
+        if (rulebreakers && row.info.rulebreaker?.unknown) {
+          found.push(issue('unchecked', rules.unchecked, rules.uncheckedRulebreaker(row.flavorName ?? row.line.name), 'warning'))
+        }
+      }
+      const legality = legalityIssue(format, row.info, count, isCommander(row))
+      // Rulebreakers are playtest cards, legal nowhere: they still lead, with a warning.
+      if (legality?.code === 'notLegal' && isCommander(row) && rulebreakers && row.info.rulebreaker) {
+        found.push({ ...legality, severity: 'warning', detail: rules.playtest(format.label) })
+      } else if (legality) found.push(legality)
+      const limit = copyLimit(format, row.info, row.line.name)
+      if (format.maxCopies < count && limit >= count) why.push(Number.isFinite(limit) ? rules.upTo(limit) : rules.anyNumber)
+      if (isCompanion(row)) found.push(...companionIssues(row.info))
+      else if (!isCommander(row) && identity) {
+        const commander = letIn(row.info)
+        const colors = commander ? null : colorIdentityIssue(row.info, identity, leaders.length > 1)
+        if (commander) why.push(rules.allowedBy(commander.name))
+        if (colors) found.push(colors)
+      }
+      if (rule && rule.kind !== 'other' && breaksCompanion(row)) {
+        found.push(issue('breaksCompanion', rules.breaksCompanion, rules.breaksCompanionOf(companionLabel, companionCondition(rule))))
+      }
+      // Errors first; a maybeboard Card's are warnings only.
+      const ranked = [...found.filter((one) => one.severity === 'error'), ...found.filter((one) => one.severity === 'warning')]
+      issues.set(row, row.maybe ? ranked.map((one) => ({ ...one, severity: 'warning' as const })) : ranked)
+      allowed.set(row, why)
     }
   }
-  const issueOf = (row: R): LegalityIssue | null => {
-    const issue = issues.get(row) ?? null
-    return issue && row.maybe ? { ...issue, severity: 'warning' } : issue
-  }
+  const issuesOf = (row: R): LegalityIssue[] => issues.get(row) ?? []
+  const issueOf = (row: R): LegalityIssue | null => issuesOf(row)[0] ?? null
   const sideboardCards = sumOf(rows, (row) => (row.side ? row.line.qty : 0))
-  const shortfallOf = (row: R) => (kind === 'deck' && !row.maybe ? Math.max(0, copiesOf(row.line.name) - freeCopies(row)) : 0)
+  // An Arena Deck is played from an Arena collection: paper copies never fall short.
+  const paperDeck = kind === 'deck' && !holdsNoCopies(format)
+  const shortfallOf = (row: R) => (paperDeck && !row.maybe ? Math.max(0, copiesOf(row.line.name) - freeCopies(row)) : 0)
+  const size = kind === 'deck' && format ? deckSizeCheck(format, deckCards, noMaxSize) : null
+  const sideboardIssue =
+    format && !format.commander && sideboardCards > SIDEBOARD_MAX ? ui.rules.maxSideboard(SIDEBOARD_MAX, format.label) : null
 
   return {
     format,
@@ -153,14 +253,20 @@ export function analyzeList<R extends ModelRow>(kind: ListKind, lines: ListLine[
     canBeCommander,
     canJoin: joins,
     hasCommander: leaders.length > 0,
+    isCompanion,
+    companionCards,
+    noMaxSize,
+    issuesOf,
     issueOf,
+    allowedOf: (row) => allowed.get(row) ?? [],
+    size,
+    listProblems: [size?.note, sideboardIssue].filter((problem): problem is string => !!problem),
     shortfallOf,
     legalityErrors: rows.filter((row) => issueOf(row)?.severity === 'error').length,
     ownershipErrors: rows.filter((row) => shortfallOf(row) > 0).length,
     hasProblem: (row) => issueOf(row)?.severity === 'error' || shortfallOf(row) > 0,
     sideboardCards,
-    sideboardIssue:
-      format && !format.commander && sideboardCards > SIDEBOARD_MAX ? ui.rules.maxSideboard(SIDEBOARD_MAX, format.label) : null
+    sideboardIssue
   }
 }
 
@@ -271,15 +377,16 @@ export interface Section<R> {
  * and the maybeboard (neither split by type); empty sections omitted.
  */
 export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysis<R>): Section<R>[] {
-  const { isCommander } = analysis
+  const { isCommander, isCompanion } = analysis
   const sections: Section<R>[] = [
     { id: 'Commander', label: ui.sections.commander(analysis.commanderKeys.length), rows: rows.filter(isCommander) },
+    { id: 'Companion', label: ui.sections.companion, rows: rows.filter((row) => isCompanion(row) && !isCommander(row)) },
     ...TYPE_GROUPS.map((group) => ({
       id: group.id as string,
       label: group.label as string,
-      rows: rows.filter((row) => !row.side && !row.maybe && !isCommander(row) && typeGroup(row.info) === group.id)
+      rows: rows.filter((row) => !row.side && !row.maybe && !isCommander(row) && !isCompanion(row) && typeGroup(row.info) === group.id)
     })),
-    { id: 'Sideboard', label: ui.sections.sideboard, rows: rows.filter((row) => row.side), warning: analysis.sideboardIssue },
+    { id: 'Sideboard', label: ui.sections.sideboard, rows: rows.filter((row) => row.side && !isCompanion(row)), warning: analysis.sideboardIssue },
     { id: MAYBEBOARD_SECTION, label: ui.sections.maybeboard, rows: rows.filter((row) => row.maybe) }
   ]
   return sections.filter((section) => section.rows.length > 0)
@@ -318,7 +425,8 @@ export function copyCaps(
   inOtherDecks = 0
 ): CopyCaps {
   const formatCap = format ? copyLimit(format, info, name) : Infinity
-  const ownedCap = kind === 'deck' ? Math.max(0, ownedQty - inOtherDecks) : Infinity
+  // A paper Deck is built from your copies; an Arena one from an Arena collection.
+  const ownedCap = kind === 'deck' && !holdsNoCopies(format) ? Math.max(0, ownedQty - inOtherDecks) : Infinity
   return { formatCap, ownedCap, cap: Math.min(formatCap, ownedCap), ownedQty, inOtherDecks }
 }
 

@@ -1,5 +1,5 @@
-import { totalCopies } from './totals'
-import type { InventoryItem, OwnedCopy } from './types'
+import { sumOf, totalCopies } from './totals'
+import type { CardLine, InventoryItem, OwnedCopy } from './types'
 
 /**
  * Inventory item operations. Ownership checks use totals; copy versions drive valuation and
@@ -125,3 +125,57 @@ export const hasVersions = (item: InventoryItem) => item.copies.some((copy) => c
 /** @returns Copies of an item left out of its value. */
 export const worthlessCopies = (item: InventoryItem | undefined) =>
   (item?.copies ?? []).reduce((sum, copy) => sum + (copy.worthless ? copy.qty : 0), 0)
+
+/** What a list line asks of the copies that serve it. */
+type WantedVersion = Pick<CardLine, 'qty' | 'set' | 'collector' | 'foil' | 'standIn'>
+
+/** @returns Whether a line wants a Version (a printing, or the foil finish) its copies must match; a `{Stand-in}` line takes any copy. */
+export const wantsVersion = (line: WantedVersion) => !line.standIn && (!!line.set || line.foil)
+
+/**
+ * @returns Whether a copy serves a line that wants a Version: same finish, and the printing it names,
+ * or no recorded printing (it may well be that one). The language never matters.
+ */
+export function servesVersion(copy: OwnedCopy, line: WantedVersion): boolean {
+  if (copy.foil !== line.foil) return false
+  return !line.set || !copy.set || (copy.set === line.set && (!line.collector || copy.collector === line.collector))
+}
+
+/** Owned copies a line gets from {@link coverLines}. */
+export interface LineCover {
+  /** Copies that serve the line. */
+  owned: number
+  /** Copies of other Versions it could take instead: substitutes, which count toward nothing. */
+  substitutes: number
+}
+
+/**
+ * Hands a card's free copies out to its lines: first to lines wanting a Version, only copies that
+ * serve them ({@link servesVersion}); then any copy to the other lines; what is left goes to the
+ * Version lines' shortfalls as substitutes.
+ * @param copies - The card's owned copies.
+ * @param available - Copies the list may use (those lists ahead leave), at most the copies owned.
+ * @returns A cover per line, in order.
+ */
+export function coverLines(lines: WantedVersion[], copies: OwnedCopy[], available: number): LineCover[] {
+  const left = copies.map((copy) => copy.qty)
+  let free = Math.min(available, sumOf(left, (qty) => qty))
+  const covers = lines.map(() => ({ owned: 0, substitutes: 0 }))
+  const take = (index: number, from: (copy: OwnedCopy) => boolean) => {
+    copies.forEach((copy, i) => {
+      if (!from(copy)) return
+      const qty = Math.min(lines[index].qty - covers[index].owned, left[i], free)
+      covers[index].owned += qty
+      left[i] -= qty
+      free -= qty
+    })
+  }
+  lines.forEach((line, i) => wantsVersion(line) && take(i, (copy) => servesVersion(copy, line)))
+  lines.forEach((line, i) => !wantsVersion(line) && take(i, () => true))
+  lines.forEach((line, i) => {
+    if (!wantsVersion(line)) return
+    covers[i].substitutes = Math.min(line.qty - covers[i].owned, free)
+    free -= covers[i].substitutes
+  })
+  return covers
+}

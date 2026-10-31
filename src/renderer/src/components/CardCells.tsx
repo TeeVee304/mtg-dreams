@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ThemeColor } from '@shared/themes'
-import type { Printing } from '@shared/types'
+import type { LocalizedQuery, Printing } from '@shared/types'
 import { ui } from '@shared/text'
 import { formatEur } from '../lib/format'
 import { previewHandlers } from './HoverPreview'
@@ -62,14 +62,16 @@ interface NameCellProps {
   loading?: boolean
   /** A foil copy: its thumbnail and preview have a sheen. */
   foil?: boolean
+  /** Copies in another language: the preview shows that language's printing. */
+  localized?: LocalizedQuery
   /** Name and the chips and notes below it. */
   children: ReactNode
 }
 
 /** Card table name cell: art thumbnail beside the name; hovering shows the card. */
-export function NameCell({ images, name, loading, foil, children }: NameCellProps) {
+export function NameCell({ images, name, loading, foil, localized, children }: NameCellProps) {
   return (
-    <td className="col-name" {...previewHandlers({ src: images?.imageNormal, back: images?.imageBack, name, foil })}>
+    <td className="col-name" {...previewHandlers({ src: images?.imageNormal, back: images?.imageBack, name, foil, localized })}>
       <div className="name-cell">
         <CardThumb src={images?.imageSmall} loading={loading} foil={foil} />
         <div className="name-main">{children}</div>

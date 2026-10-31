@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { isCardSort, sortOptionsFor, type SortKey, type SortView } from '@shared/cards'
-import { FORMATS } from '@shared/formats'
+import { FORMATS, formatGroup, type FormatGroup } from '@shared/formats'
 import { THEME_COLORS, type ThemeColor } from '@shared/themes'
 import { ui } from '@shared/text'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
@@ -133,17 +133,26 @@ interface FormatSelectProps {
   label?: string
 }
 
-/** Format choices by id, `No format` (`''`) first. */
-export const FORMAT_CHOICES = [{ id: '', label: ui.common.noFormat }, ...FORMATS.map(({ id, label }) => ({ id, label }))]
+/** Formats by menu group: constructed, commander, then Arena. */
+export const FORMAT_GROUPS = (['constructed', 'commander', 'arena'] as FormatGroup[]).map((group) => ({
+  group,
+  label: ui.common.formatGroups[group],
+  formats: FORMATS.filter((format) => formatGroup(format) === group)
+}))
 
-/** Format dropdown, `No format` first. */
+/** Format dropdown, `No format` first, then the formats by group. */
 export function FormatSelect({ value, onChange, label }: FormatSelectProps) {
   return (
     <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
-      {FORMAT_CHOICES.map((choice) => (
-        <option key={choice.id} value={choice.id}>
-          {choice.label}
-        </option>
+      <option value="">{ui.common.noFormat}</option>
+      {FORMAT_GROUPS.map(({ group, label: name, formats }) => (
+        <optgroup key={group} label={name}>
+          {formats.map((format) => (
+            <option key={format.id} value={format.id}>
+              {format.label}
+            </option>
+          ))}
+        </optgroup>
       ))}
     </select>
   )

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { headerLeaders } from './listFigures'
+import { headerBadge, headerLeaders } from './listFigures'
 import type { Row } from './summary'
 
 /** A commander row: its type line, colors and art, once loaded. */
@@ -37,5 +37,13 @@ describe("a list header's commanders", () => {
     const giants = leader('Raised by Giants', 'Legendary Enchantment — Background', [])
     const wilson = leader('Wilson', 'Legendary Creature — Bear Warrior', ['G'])
     expect(headerLeaders([wilson, giants], false)).toMatchObject({ arts: [], background: { art: null, color: 'C' } })
+  })
+})
+
+describe("a list header's Companion", () => {
+  it('pictures it as a badge ringed in its first color, in WUBRG order', () => {
+    const lurrus = leader('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', ['B', 'W'])
+    expect(headerBadge(lurrus, true)).toEqual({ name: 'Lurrus of the Dream-Den', art: art('Lurrus of the Dream-Den'), color: 'W' })
+    expect(headerBadge(lurrus, false).art).toBeNull()
   })
 })

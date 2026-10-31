@@ -49,12 +49,12 @@ export const pricesAt = (ids: number[], ago: number[]) => window.api.pricesAt(id
  * way of picking, so a switch of Versions isn't a price change.
  * @param group - Name of the set group the list prefers Versions from.
  * @param skips - Printings the pick skips.
- * @returns Baseline key: `nameKey|set|collector|foil`, plus `|@group`, `|noub` and `|nosl` for a picked line.
+ * @returns Baseline key: `nameKey|set|collector|foil`, plus `|@group`, `|noub`, `|nosl` and `|noph` for a picked line.
  */
 export const lineKey = (line: Pick<CardLine, 'name' | 'set' | 'collector' | 'foil'>, group?: string, skips: PickSkips = {}) => {
   const key = `${nameKey(line.name)}|${line.set ?? ''}|${line.collector ?? ''}|${line.foil}`
   if (line.set || isBasicLand(line.name)) return key
-  return `${key}${group ? `|@${group}` : ''}${skips.skipUniversesBeyond ? '|noub' : ''}${skips.skipSecretLair ? '|nosl' : ''}`
+  return `${key}${group ? `|@${group}` : ''}${skips.skipUniversesBeyond ? '|noub' : ''}${skips.skipSecretLair ? '|nosl' : ''}${skips.skipPhyrexian ? '|noph' : ''}`
 }
 
 /**

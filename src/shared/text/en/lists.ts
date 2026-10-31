@@ -22,12 +22,13 @@ export const list = {
     preferredStickerHint: 'Click to change',
     upgradeOf: 'Upgrade of…',
     unbuilt: 'Unbuilt',
+    energyCurve: 'Energy curve',
     addFormatVersion: (version: string) => `Add ${version} Version`,
     addVersion: 'Add Version…',
     renameVersion: (version: string) => `Rename ${version} Version…`,
     background: 'Background',
     backgroundHint: (name: string) => `Background: ${name}`,
-    versionBadge: (version: string) => `${version} Version`,
+    companionHint: (name: string) => `Companion: ${name}`,
     themes: 'Popular Themes on EDHREC',
     themeHint: (commanders: string) => `Popular with ${commanders} on EDHREC`,
     version: 'Version',
@@ -43,12 +44,15 @@ export const list = {
     joinFirst: (leader: string, noun: string) => `Add a Card that can join ${leader} to this ${noun} first.`,
     pickingPartner: (kind: string) => `Click a ${kind}… (Esc to cancel)`,
     addPartner: (kind: string) => `Add ${kind}`,
-    breaksRules: (n: number, format: string) => `${n} ${n === 1 ? 'Card breaks' : 'Cards break'} ${format} rules`,
+    breaksRules: (n: number) => `${n} Illegal ${n === 1 ? 'Card' : 'Cards'}`,
     needsCopies: (n: number) => `${n} ${n === 1 ? 'Card needs' : 'Cards need'} more Copies`,
     makeWishlist: 'Make it a Wishlist',
     editAsText: 'Edit as text',
     more: (noun: string) => `More ${noun} actions`,
     changeCommander: 'Change Commander',
+    companion: 'Companion',
+    noCompanion: 'None',
+    rulebreakerColor: 'Rulebreaker color',
     color: 'Color',
     format: 'Format',
     advanced: 'Advanced',
@@ -59,6 +63,7 @@ export const list = {
   figures: {
     makeup: (lands: number, nonland: number) => `${lands} Lands · ${nonland} nonland`,
     sideboard: (n: number) => `${n} Sideboard`,
+    gameChangers: (n: number) => `${n} Game ${n === 1 ? 'Changer' : 'Changers'}`,
     cost: 'Cost',
     deckValue: 'Deck value',
     cards: 'Cards',
@@ -135,7 +140,9 @@ export const list = {
   /** Picking Commanders. */
   sharesCommand: (card: string, leader: string) => `${card} now shares command with ${leader}`,
   noLongerCommander: (card: string, alone: string | null) => `${card} is no longer your Commander${alone ? `; ${alone} leads alone` : ''}`,
-  nowLeads: (card: string, noun: string) => `${card} now leads this ${noun}`
+  nowLeads: (card: string, noun: string) => `${card} now leads this ${noun}`,
+  /** A commander and the partner it names ("Partner with"), added together. */
+  leadTogether: (card: string, partner: string, noun: string) => `${card} and ${partner} now lead this ${noun}`
 }
 
 /** A list's dialogs: renaming, deleting, editing as text, Versions, upgrades. */

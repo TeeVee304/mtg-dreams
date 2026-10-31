@@ -1,4 +1,5 @@
 import { ui } from '@shared/text'
+import { missedService, reachedService } from './connectivity'
 import { env } from './environment'
 
 /**
@@ -39,8 +40,10 @@ async function request<T>(
       headers: { 'User-Agent': userAgent, Accept: 'application/json', ...init.headers },
       signal: AbortSignal.timeout(timeoutMs)
     })
+    reachedService()
     return await read(res)
   } catch (error) {
+    await missedService()
     throw new Error(
       (error as Error).name === 'TimeoutError' ? ui.errors.slow(service) : ui.errors.offline(service)
     )
@@ -93,6 +96,7 @@ export async function* fetchLines(
   let received = 0
   try {
     const res = await fetch(url, { headers: { 'User-Agent': env().userAgent }, signal: controller.signal })
+    reachedService()
     if (!res.ok || !res.body) throw new HttpError(ui.errors.http(service, res.status))
     // A transfer encoding is undone by fetch already; a .gz file is not.
     const gzipped =
@@ -118,6 +122,7 @@ export async function* fetchLines(
     if (rest.trim()) yield rest.replace(/\r$/, '')
   } catch (error) {
     if (error instanceof HttpError) throw error
+    await missedService()
     if (controller.signal.aborted) throw new Error(ui.errors.stalled(service))
     throw new Error(received > 0 ? ui.errors.brokeOff(service) : ui.errors.offline(service))
   } finally {

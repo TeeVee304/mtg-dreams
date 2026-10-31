@@ -10,10 +10,15 @@ import {
   copyLimit,
   deckSizeCheck,
   findFormat,
+  FORMATS,
+  formatGroup,
+  holdsNoCopies,
   legalityIssue,
   listCommanders,
   listFormat,
+  namedPartner,
   partnerAbility,
+  secondCommanderOf,
   withCommanders,
   withFormat,
   withoutMissingCommanders
@@ -29,6 +34,31 @@ const modern = findFormat('modern')!
 const vintage = findFormat('vintage')!
 const pauperCommander = findFormat('paupercommander')!
 const oathbreaker = findFormat('oathbreaker')!
+const brawl = findFormat('brawl')!
+
+describe('formats', () => {
+  it('each have a Scryfall legality key, once', () => {
+    expect(new Set(FORMATS.map((format) => format.id)).size).toBe(FORMATS.length)
+  })
+
+  it('are grouped by where they are played: constructed, commander, Arena', () => {
+    expect(formatGroup(modern)).toBe('constructed')
+    expect(formatGroup(oathbreaker)).toBe('commander')
+    expect(formatGroup(findFormat('historic')!)).toBe('arena')
+    expect(formatGroup(brawl)).toBe('arena')
+  })
+
+  it('hold no paper copies on Arena', () => {
+    expect(holdsNoCopies(findFormat('alchemy'))).toBe(true)
+    expect(holdsNoCopies(commander)).toBe(false)
+    expect(holdsNoCopies(null)).toBe(false)
+  })
+
+  it('take Brawl sizes: 100 Cards, or 60 in Standard Brawl', () => {
+    expect(brawl).toMatchObject({ deckSize: 100, maxCopies: 1, players: 2 })
+    expect(findFormat('standardbrawl')).toMatchObject({ deckSize: 60, maxCopies: 1 })
+  })
+})
 
 describe('list format header', () => {
   it('reads the format comment by label or id', () => {
@@ -109,15 +139,23 @@ describe('commander', () => {
     expect(canLead(oathbreaker, legend)).toBe(false)
     expect(canLead(pauperCommander, elf)).toBe(false)
     expect(canLead(pauperCommander, elf, [{ rarity: 'uncommon' } as Printing])).toBe(true)
+    expect(canLead(brawl, walker)).toBe(true)
+    expect(canLead(brawl, legend)).toBe(true)
+    expect(canLead(brawl, card({}, { typeLine: 'Planeswalker — Jace' }))).toBe(true)
+    expect(canLead(brawl, elf)).toBe(false)
   })
 
   it('reports commanders that cannot lead, but accepts uncommon-only Pauper commanders', () => {
     const legend = card({ commander: 'legal', paupercommander: 'not_legal' }, { typeLine: 'Legendary Creature — Spirit', rarity: 'uncommon' })
-    expect(commanderIssue(commander, legend, [], 1)).toBeNull()
-    expect(commanderIssue(pauperCommander, legend, [], 1)).toBeNull()
-    expect(legalityIssue(pauperCommander, legend, 1)?.message).toBe('Not legal in Pauper Commander')
-    expect(commanderIssue(oathbreaker, legend, [], 1)?.message).toBe("Can't be your Commander in Oathbreaker")
-    expect(commanderIssue(commander, { ...legend, legalities: { commander: 'banned' } }, [], 1)?.message).toBe('Banned in Commander')
+    expect(commanderIssue(commander, legend, [])).toBeNull()
+    expect(commanderIssue(pauperCommander, legend, [])).toBeNull()
+    expect(legalityIssue(pauperCommander, legend, 1, true)).toBeNull()
+    expect(legalityIssue(pauperCommander, legend, 1)?.detail).toBe('Not legal in Pauper Commander')
+    expect(commanderIssue(oathbreaker, legend, [])).toMatchObject({
+      code: 'cantLead',
+      message: "Can't lead",
+      detail: "Can't be your Commander in Oathbreaker: it must be a planeswalker"
+    })
   })
 })
 
@@ -168,6 +206,25 @@ describe('partners', () => {
     expect(canPartner(tymna, tymna)).toBe(false)
   })
 
+  it('names the kind of second commander a card takes', () => {
+    expect(secondCommanderOf(tymna)).toBe('partner')
+    expect(secondCommanderOf(pir)).toBe('partner')
+    expect(secondCommanderOf(legend('Father', { kind: 'group', group: 'Father & son' }))).toBe('partner')
+    expect(secondCommanderOf(eleven)).toBe('friend')
+    expect(secondCommanderOf(wilson)).toBe('background')
+    expect(secondCommanderOf(doctor)).toBe('doctorsCompanion')
+    expect(secondCommanderOf(rose)).toBe('doctor')
+    expect(secondCommanderOf(atraxa)).toBeNull()
+  })
+
+  it('names the partner a commander brings, where two can share command', () => {
+    expect(namedPartner(commander, pir)).toBe('Toothy, Imaginary Friend')
+    expect(namedPartner(oathbreaker, pir)).toBeNull()
+    expect(namedPartner(modern, pir)).toBeNull()
+    expect(namedPartner(commander, tymna)).toBeNull()
+    expect(namedPartner(commander, undefined)).toBeNull()
+  })
+
   it('lets a Background join only a commander that chooses one, and not in Oathbreaker', () => {
     expect(canJoin(commander, wilson, noble)).toBe(true)
     expect(canJoin(commander, tymna, noble)).toBe(false)
@@ -178,18 +235,23 @@ describe('partners', () => {
   })
 
   it('reports pairs that cannot share command', () => {
-    expect(commanderIssue(commander, noble, [], 1, wilson)).toBeNull()
-    expect(commanderIssue(commander, noble, [], 1)?.message).toBe("Can't be your Commander in Commander")
-    expect(commanderIssue(commander, atraxa, [], 1, tymna)?.message).toBe('Can\'t share command with Tymna the Weaver')
-    expect(commanderIssue(oathbreaker, kraum, [], 1, tymna)?.message).toBe('Oathbreaker has one Commander')
+    expect(commanderIssue(commander, noble, [], wilson)).toBeNull()
+    expect(commanderIssue(commander, noble, [])?.code).toBe('cantLead')
+    expect(commanderIssue(commander, atraxa, [], tymna)?.detail).toBe("Can't share command with Tymna the Weaver")
+    expect(commanderIssue(oathbreaker, kraum, [], tymna)?.detail).toBe('Oathbreaker has one Commander')
   })
 })
 
 describe('legalityIssue', () => {
   it('flags banned and not legal cards', () => {
-    expect(legalityIssue(commander, card({ commander: 'banned' }), 1)).toEqual({ severity: 'error', message: 'Banned in Commander' })
-    expect(legalityIssue(modern, card({ modern: 'not_legal' }), 1)?.message).toBe('Not legal in Modern')
-    expect(legalityIssue(modern, card({}), 1)?.message).toBe('Not legal in Modern')
+    expect(legalityIssue(commander, card({ commander: 'banned' }), 1)).toEqual({
+      code: 'banned',
+      severity: 'error',
+      message: 'Banned',
+      detail: 'Banned in Commander'
+    })
+    expect(legalityIssue(modern, card({ modern: 'not_legal' }), 1)?.detail).toBe('Not legal in Modern')
+    expect(legalityIssue(modern, card({}), 1)?.message).toBe('Not legal')
   })
 
   it('handles restricted cards', () => {
@@ -199,11 +261,11 @@ describe('legalityIssue', () => {
 
   it('enforces copy limits with exceptions', () => {
     expect(legalityIssue(modern, card({ modern: 'legal' }), 4)).toBeNull()
-    expect(legalityIssue(modern, card({ modern: 'legal' }), 5)?.message).toBe('Max 4 Copies in Modern')
-    expect(legalityIssue(commander, card({ commander: 'legal' }), 2)?.message).toBe('Max 1 Copy in Commander')
+    expect(legalityIssue(modern, card({ modern: 'legal' }), 5)).toMatchObject({ message: 'Max 4 Copies', detail: 'Modern allows 4 Copies of a Card' })
+    expect(legalityIssue(commander, card({ commander: 'legal' }), 2)?.message).toBe('Max 1 Copy')
     expect(legalityIssue(commander, card({ commander: 'legal' }, { typeLine: 'Basic Land — Island' }), 30)).toBeNull()
     expect(legalityIssue(commander, card({ commander: 'legal' }, { deckLimit: 'any' }), 40)).toBeNull()
-    expect(legalityIssue(commander, card({ commander: 'legal' }, { deckLimit: 7 }), 8)?.message).toBe('Max 7 Copies in Commander')
+    expect(legalityIssue(commander, card({ commander: 'legal' }, { deckLimit: 7 }), 8)?.message).toBe('Max 7 Copies')
   })
 })
 
@@ -215,7 +277,12 @@ describe('colorIdentityIssue', () => {
     const wormHarvest = card({ commander: 'legal' }, { name: 'Worm Harvest', colorIdentity: ['B', 'G'] })
     const dakmor = card({ commander: 'legal' }, { name: 'Dakmor Salvage', typeLine: 'Land', colorIdentity: ['B'] })
     for (const outside of [leyline, wormHarvest, dakmor]) {
-      expect(colorIdentityIssue(outside, temur)).toEqual({ severity: 'error', message: "Outside your Commander's colors" })
+      expect(colorIdentityIssue(outside, temur)).toEqual({
+        code: 'outsideColors',
+        severity: 'error',
+        message: 'Outside colors',
+        detail: "Outside your Commander's colors"
+      })
     }
   })
 
@@ -276,5 +343,10 @@ describe('deckSizeCheck', () => {
     expect(deckSizeCheck(commander, 100)).toEqual({ status: 'ok', label: '100/100', note: null })
     expect(deckSizeCheck(commander, 101)).toEqual({ status: 'over', label: '101/100', note: '1 over 100' })
     expect(deckSizeCheck(oathbreaker, 60).status).toBe('ok')
+  })
+
+  it('makes the size a minimum under a Rulebreaker that lifts the maximum', () => {
+    expect(deckSizeCheck(commander, 250, true)).toEqual({ status: 'ok', label: '250', note: null })
+    expect(deckSizeCheck(commander, 90, true).status).toBe('short')
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrayOf, cardNames, numbers, text } from './validate'
+import { arrayOf, cardNames, localizedQuery, numbers, text } from './validate'
 
 describe('checking what the renderer sends', () => {
   it('accepts text, and refuses anything else', () => {
@@ -20,5 +20,15 @@ describe('checking what the renderer sends', () => {
     expect(() => cardNames(['Sol Ring', 'Mox'], 1)).toThrow('Invalid card names.')
     expect(() => cardNames(['x'.repeat(21)], 1, 20)).toThrow('Invalid card names.')
     expect(() => cardNames([7], 1)).toThrow('Invalid card names.')
+  })
+
+  it('checks a localized image query: a name, a known language, and an optional printing', () => {
+    expect(localizedQuery({ name: 'Sol Ring', lang: 'de' })).toEqual({ name: 'Sol Ring', lang: 'de' })
+    expect(localizedQuery({ name: 'Sol Ring', lang: 'ja', set: 'cmm', collector: '1' })).toEqual({ name: 'Sol Ring', lang: 'ja', set: 'cmm', collector: '1' })
+    expect(() => localizedQuery({ name: 'Sol Ring', lang: 'en' })).toThrow('Invalid localized image query.')
+    expect(() => localizedQuery({ name: 'Sol Ring', lang: 'DE' })).toThrow('Invalid localized image query.')
+    expect(() => localizedQuery({ name: '', lang: 'de' })).toThrow('Invalid localized image query.')
+    expect(() => localizedQuery({ name: 'Sol Ring', lang: 'de', set: 7 })).toThrow('Invalid localized image query.')
+    expect(() => localizedQuery(null)).toThrow('Invalid localized image query.')
   })
 })

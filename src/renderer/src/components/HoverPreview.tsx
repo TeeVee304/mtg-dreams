@@ -1,4 +1,6 @@
 import { useEffect, useSyncExternalStore, type MouseEvent } from 'react'
+import type { LocalizedQuery } from '@shared/types'
+import { localizedImage, requestLocalizedImage, useLocalizedImagesVersion } from '../stores/localizedImages'
 import { cheapestVersion, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { FoilSheen } from './Placeholders'
@@ -10,6 +12,11 @@ interface Target {
   name?: string
   /** A foil copy: the preview has a sheen. */
   foil?: boolean
+  /**
+   * Copies in another language: the preview shows that language's printing, looked up on hover; the
+   * English image meanwhile, and when Scryfall has no scan in it.
+   */
+  localized?: LocalizedQuery
 }
 
 /** Preview store state; `x`/`y` are cursor client coordinates. */
@@ -47,6 +54,7 @@ export function previewHandlers(target: Target) {
   return {
     onMouseEnter(event: MouseEvent) {
       if (!target.src && target.name) requestPrintings(target.name, { priority: 'high' })
+      if (target.localized) requestLocalizedImage(target.localized)
       set({ target, x: event.clientX, y: event.clientY })
     },
     onMouseMove(event: MouseEvent) {
@@ -70,6 +78,7 @@ export function HoverPreview() {
   const { target, x, y } = useSyncExternalStore(subscribe, () => state)
   const { priceBasis } = useSettings()
   usePrintingsVersion()
+  useLocalizedImagesVersion()
 
   useEffect(() => {
     window.addEventListener('mousedown', hidePreview)
@@ -89,6 +98,11 @@ export function HoverPreview() {
     const printing = cheapestVersion(target.name, priceBasis)?.printing
     src = printing?.imageNormal ?? null
     back = printing?.imageBack ?? null
+  }
+  const local = target.localized && localizedImage(target.localized)
+  if (local) {
+    src = local.imageNormal
+    back = local.imageBack
   }
   if (!src) return null
 

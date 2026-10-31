@@ -1,6 +1,6 @@
 /**
  * The desktop around the app, reached through the main process: the clipboard, the browser, the
- * data folder, trade files and window focus. Components use these rather than `window.api`, so the
+ * data folder, trade files, the caches and window focus. Components use these rather than `window.api`, so the
  * transport stays in the stores and here.
  *
  * @packageDocumentation
@@ -20,6 +20,12 @@ export const openTradeFile = () => window.api.openTradeFile()
 
 /** Saves a trade list file where the user picks. @returns Its path; null if cancelled. */
 export const saveTradeFile = (name: string, text: string) => window.api.saveTradeFile(name, text)
+
+/** @returns Disk used by each cache, and how many Cards the Scryfall cache holds. */
+export const getCacheSizes = () => window.api.getCacheSizes()
+
+/** Deletes every cache, then restarts the app. */
+export const clearCaches = () => window.api.clearCaches()
 
 /** Calls `listener` whenever the window gets focus. @returns Unsubscribe. */
 export const onWindowFocus = (listener: () => void) => window.api.onWindowFocus(listener)

@@ -7,12 +7,17 @@ export const common = {
   /** An action's button, with the shortcut that does it too. */
   withUndoShortcut: (label: string) => `${label} (Ctrl+Z)`,
   close: 'Close',
+  back: 'Back',
   /** Names joined into one: `Okaun and Zndrsplt`. */
   and: (names: string[]) => names.join(' and '),
+  /** Joins the last two of a list: `A, B and C`. */
+  andWord: 'and',
   sort: 'Sort',
   color: 'Color',
   foil: 'Foil',
   noFormat: 'No Format',
+  /** Format menus: paper 60-card formats, paper commander formats, then Arena's. */
+  formatGroups: { constructed: 'Constructed', commander: 'Commander', arena: 'MTG Arena' },
   decrease: (what: string) => `Decrease ${what}`,
   increase: (what: string) => `Increase ${what}`,
   updatingCardData: 'Updating Card data',

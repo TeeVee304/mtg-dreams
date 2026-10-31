@@ -8,6 +8,26 @@ export const card = {
   cantLead: "Can't be the Commander in this Format",
   commander: 'Commander',
   own: (card: string) => `Own ${card}`,
+  /** A wishlist line wanting a Version you own only other Versions of. */
+  substitute: {
+    review: (card: string) => `Review the Version conflict for ${card}`,
+    reviewStandIn: (card: string) => `Review the stand-in for ${card}`,
+    hint: (versions: string) => `You own ${versions}, not the Version wanted. Click to review.`,
+    standInHint: (versions: string) => `Stand-in: your ${versions} counts. Click to review.`,
+    title: 'Version Conflict',
+    wanted: 'Wanted',
+    yours: 'You own',
+    copies: (n: number) => count.copies(n),
+    keep: 'Keep',
+    keepHint: (wanted: string, yours: string) => `Keep wanting ${wanted}; your ${yours} counts meanwhile`,
+    replace: 'Replace',
+    replaceHint: (yours: string) => `Want ${yours} instead`,
+    undo: 'Undo',
+    undoHint: (wanted: string) => `Stop counting your Copy: want ${wanted} again`,
+    counted: (card: string) => `Your Copy now stands in for ${card}`,
+    switched: (card: string, version: string) => `${card} now wants ${version}`,
+    uncounted: (card: string) => `${card} wants its Version again`
+  },
   ownedHint: (complete: boolean, inInventory: number, held: number) =>
     `${complete ? 'Owned; unchecking takes them out of your Inventory.' : 'Check once you own them: adds them to your Inventory.'} ${inInventory} in Inventory${held > 0 ? `; Decks hold ${held} of them` : ''}.`,
   ownedOf: (owned: number, total: number) => `${owned} of ${total} owned`,
@@ -17,6 +37,8 @@ export const card = {
   bundledHint: 'Basic Lands are bundled: any Version counts, for free. Change this in Settings.',
   bundledTileHint: 'Bundled basic Land: any Version counts, for free',
   officialName: "The Card's official name",
+  gameChanger: 'On the Commander Game Changer list',
+  gameChangerTag: 'GC',
   onlyIn: (version: string) => `Only in the ${version} Version`,
   only: (version: string) => `${version} only`,
   priceChange: (was: string, date: string, now: string) => `${was} when added on ${date}, now ${now}`,
@@ -66,7 +88,20 @@ export const card = {
     showBack: 'Show back',
     back: (card: string) => `${card} (back)`,
     printedName: (official: string) => `Printed name · official name: ${official}`,
-    typeLine: (type: string, manaValue: number) => `${type} · Mana value ${manaValue}`,
+    manaValue: (value: number) => `Mana value ${value}`,
+    loyalty: (value: string) => `Loyalty ${value}`,
+    defense: (value: string) => `Defense ${value}`,
+    oracleText: 'Oracle text',
+    printedText: (language: string) => `Printed text · ${language}`,
+    /** Why Oracle text shows though Settings ask for printed text. */
+    noPrintedText: {
+      english: 'Oracle text · Scryfall has no printed text for English printings',
+      missing: 'Oracle text · Scryfall has no printed text for this Version',
+      loading: 'Oracle text · looking up the printed text…'
+    },
+    rulings: 'Rulings',
+    rulingsCount: (count: number) => ` · ${count}`,
+    rulingSources: { wotc: 'Wizards of the Coast', scryfall: 'Scryfall' } as Record<string, string>,
     legalIn: (format: string) => `Legal in ${format}`,
     version: 'Version',
     cheapest: 'Cheapest',
@@ -96,6 +131,7 @@ export const card = {
     loading: 'Loading Versions and prices…',
     noSuchCard: (name: string) => `Scryfall has no Card named “${name}”.`,
     noPaper: (name: string) => `No paper printings found for ${name}.`,
+    arenaOnly: (name: string) => `${name} is only on MTG Arena.`,
     newest: (shown: number, total: number | null) => `Showing the newest ${shown} of ${total ?? 'many'} Versions.`,
     showAll: 'Show all Versions',
     views: { list: 'List', images: 'Images' },
@@ -112,6 +148,8 @@ export const card = {
     matchedFrom: (typed: string) => `matched from “${typed}”`,
     qty: 'Qty',
     quantity: 'quantity',
-    board: 'Board'
+    board: 'Board',
+    language: 'Language',
+    english: 'English'
   }
 }

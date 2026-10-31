@@ -1,231 +1,449 @@
 /* The Stats panel: mana curve and colors. */
 
-/* Stats panel (mana curve, colors) ------------------------------------------------ */
+/* Stats panel: the curve on the left, the mana base beside it ----- */
 
+/* The curve takes what it needs and most of the rest; the mana base wraps under it when they don't fit. */
 .deck-stats-body {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 24px;
-  padding: 4px 16px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 32px 32px;
+  padding: 20px 24px 28px;
 }
 
-.stats-chart {
-  margin: 0;
-  min-width: 0;
-}
-
-.stats-chart figcaption {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-.curve {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  align-items: end;
-  height: 110px;
-  border-bottom: 1px solid var(--border);
-}
-
-.curve-slot {
+/* The curve: a grid of row labels, then one column a mana value, sharing the width. */
+.stats-curve {
   position: relative;
-  height: 100%;
+  /* The plot's layers stack within the curve: the tide under the columns, the lines over the dots, the counts over the lines. */
+  isolation: isolate;
+  /*
+   * From its narrowest columns, it takes the spare room up to their widest; the mana base wraps under
+   * it only when even its narrowest won't fit beside.
+   */
+  flex: 100 1 0;
+  min-width: min-content;
+  max-width: max-content;
+  display: grid;
+  align-items: end;
+}
+
+.stats-label {
+  padding-right: 12px;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+.stats-rule {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+/* A column is a filter toggle: the chosen one stays bright, the others fade back. */
+/* The plot: the columns, the tide behind them and the land lines over them share its first row. */
+.stats-plot-start {
+  grid-column: 1;
+}
+
+.stats-plot-start,
+.stats-column,
+.stats-tide,
+.stats-lines {
+  grid-row: 1;
+}
+
+.stats-tide,
+.stats-lines {
+  grid-column: 2 / -1;
+  align-self: stretch;
+  pointer-events: none;
+}
+
+.stats-column {
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
   align-items: center;
-  outline: none;
-}
-
-.curve-value {
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  line-height: 1;
-  margin-bottom: 4px;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Creatures at the bottom in the accent color, other spells above in a lighter shade of it. */
-.curve-bar {
-  width: min(24px, 70%);
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
-  overflow: hidden;
-  min-height: 0;
-}
-
-.curve-part {
-  min-height: 0;
-}
-
-.curve-part.creatures,
-.curve-key.creatures {
-  background: var(--accent);
-}
-
-.curve-part.others,
-.curve-key.others {
-  background: color-mix(in srgb, var(--accent) 45%, var(--panel));
-}
-
-.curve-slot:hover:not(:disabled) .curve-bar,
-.curve-slot:focus-visible .curve-bar {
-  filter: brightness(1.15);
-}
-
-/* A bar is a filter toggle: the chosen one stays bright, the others fade back. */
-.curve-slot {
+  justify-content: flex-end;
+  gap: 6px;
+  height: var(--stats-plot);
+  margin: 0 2px;
+  padding: 6px 0 4px;
   border: none;
+  border-radius: var(--radius);
   background: none;
-  padding: 0;
-  border-radius: var(--radius-sm);
-  font: inherit;
   color: inherit;
   cursor: pointer;
 }
 
-.curve-slot:hover:not(:disabled) {
-  background: var(--hover);
-}
-
-.curve-slot:disabled {
+.stats-column:disabled {
   cursor: default;
 }
 
-.curve.filtering .curve-slot:not(.on) .curve-bar {
+.stats-column:not(:disabled):hover,
+.stats-column:focus-visible {
+  background: var(--hover);
+}
+
+.stats-column.on {
+  background: var(--accent-soft);
+}
+
+.stats-column.faded .stats-dots {
   opacity: 0.35;
 }
 
-.curve-slot.on .curve-value {
-  color: var(--accent-text);
-  font-weight: 700;
+.stats-total {
+  position: relative;
+  z-index: 3;
+  text-shadow: 0 0 3px var(--panel), 0 0 3px var(--panel), 0 0 6px var(--panel);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-.curve-caption {
+/* One dot a Card, filled from the bottom row up; their size and count abreast come from the tallest column. */
+.stats-dots {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap-reverse;
+  gap: var(--stats-gap);
+  width: calc(var(--stats-dot) * var(--stats-abreast) + var(--stats-gap) * (var(--stats-abreast) - 1));
 }
 
-.curve-legend {
+.stats-dots i {
+  width: var(--stats-dot);
+  height: var(--stats-dot);
+  border-radius: 50%;
+}
+
+/* Generic only: a ring, as it asks nothing of your colors. */
+.stats-dots i.generic {
+  border: 1.5px solid var(--stat-generic);
+}
+
+.stats-mv {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  text-align: center;
+}
+
+/* The tide: the Lands line's level, a faint fill behind the dots. */
+.stats-tide {
+  z-index: -1;
+  width: 100%;
+  height: var(--stats-plot);
+}
+
+.stats-tide stop {
+  stop-color: var(--text);
+  stop-opacity: 0.09;
+}
+
+.stats-tide stop:last-child {
+  stop-opacity: 0;
+}
+
+/* The land lines, over the dots: each on a halo of the panel, so it reads across them. */
+.stats-lines {
+  position: relative;
+  z-index: 2;
+  height: var(--stats-plot);
+}
+
+.stats-lines svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.stats-lines path {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.stats-lines .halo {
+  stroke: var(--panel);
+  stroke-width: 6;
+}
+
+.stats-lines .lands {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+.stats-lines .ramp {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  stroke-linecap: butt;
+}
+
+.stats-point {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--text);
+  border-radius: 50%;
+  background: var(--panel);
+  box-shadow: 0 0 0 2px var(--panel);
+  transform: translate(-50%, -50%);
+}
+
+/* A line's name, past its last point. */
+.stats-line-name {
+  position: absolute;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+
+/* The chance of being on curve at each mana value, under it. */
+.stats-chance {
+  padding-top: 4px;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: default;
+}
+
+.stats-chance.on {
+  color: var(--accent-text);
+}
+
+/* Energy: made above the line, spent below, under each mana value. */
+/* A row of the chart like the others: a rule over it, its label beside it. */
+.stats-energy-label {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-self: stretch;
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.stats-energy-label b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.stats-energy {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+
+.stats-energy .up,
+.stats-energy .down {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 40px;
+}
+
+.stats-energy .up {
+  justify-content: flex-end;
+  border-bottom: 1px solid var(--border);
+}
+
+.stats-energy i {
+  width: 20px;
+  border-radius: 2px;
+}
+
+.stats-energy .up i {
+  background: var(--muted);
+}
+
+.stats-energy .down i {
+  border: 1.5px solid var(--muted);
+  border-top: none;
+}
+
+.stats-energy small {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-tip {
+  position: absolute;
+  top: 0;
+  z-index: 4;
+  min-width: 180px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  box-shadow: var(--shadow);
+  font-size: var(--fs-sm);
+  pointer-events: none;
+}
+
+.stats-tip h4 {
+  margin: 0 0 4px;
+  font: 600 var(--fs-base) / 1.3 var(--font-display);
+}
+
+.stats-tip dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 12px;
+  margin: 0;
+}
+
+.stats-tip dt {
+  color: var(--muted);
+}
+
+.stats-tip dd {
+  margin: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-tip-pips {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.stats-tip-pips span {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: var(--fs-sm);
+  gap: 3px;
 }
 
-.curve-key {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: var(--radius-xs);
+.stats-tip-pips img {
+  width: 13px;
+  height: 13px;
 }
 
-.curve-key.others {
-  margin-left: 8px;
+.stats-tip p {
+  margin: 6px 0 0;
 }
 
-.curve-axis {
+/*
+ * The mana base: Lands and Ramp side by side, the colors under them, each in a card. Slim beside the
+ * curve, as the curve takes nearly all the spare room; on a row of its own when it wraps under it, sized
+ * by its own width.
+ */
+.stats-side {
+  flex: 1 0 340px;
+  container-type: inline-size;
+}
+
+.stats-cards {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  margin-top: 4px;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-  text-align: center;
-  font-variant-numeric: tabular-nums;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
-.curve-average {
-  margin: 12px 0 0;
-  font-size: var(--fs-md);
-  color: var(--muted);
-  text-align: center;
-}
-
-.curve-average strong {
-  color: var(--text);
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
-}
-
-.color-bars {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 5px;
-}
-
-.color-bars li {
-  display: grid;
-  grid-template-columns: 112px 1fr 32px;
-  align-items: center;
-  gap: 10px;
-  font-size: var(--fs-md);
-}
-
-.color-bar-name {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.color-bar-name img,
-.multicolor-dot {
-  width: 15px;
-  height: 15px;
-  flex: none;
-}
-
-.multicolor-dot {
-  border-radius: 50%;
-  background: conic-gradient(#f3e9b5 0 20%, #6aa9de 0 40%, #4b4545 0 60%, #e06b4c 0 80%, #4f9a63 0);
-}
-
-.color-bar-track {
-  height: 8px;
-  border-radius: var(--radius-xs);
+.stats-card {
+  padding: 16px 20px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
   background: var(--panel-2);
-  overflow: hidden;
 }
 
-.color-bar-fill {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+.stats-card.stats-colors {
+  grid-column: 1 / -1;
 }
 
-.color-bar-fill.bar-W {
-  background: var(--mana-w);
+/* On a row of its own, under the curve: its three cards abreast. */
+@container (min-width: 640px) {
+  .stats-cards {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr);
+  }
+
+  .stats-card.stats-colors {
+    grid-column: auto;
+  }
 }
 
-.color-bar-fill.bar-U {
-  background: var(--mana-u);
+.stats-card h4 {
+  margin: 0 0 10px;
+  font: 600 var(--fs-lg) / 1.3 var(--font-display);
 }
 
-.color-bar-fill.bar-B {
-  background: var(--mana-b);
+.stats-figure {
+  margin: 0;
+  font: 600 var(--fs-figure) / 1.1 var(--font-display);
+  font-variant-numeric: tabular-nums;
 }
 
-.color-bar-fill.bar-R {
-  background: var(--mana-r);
+.stats-figure small {
+  margin-left: 8px;
+  white-space: nowrap;
+  font: 400 var(--fs-md) var(--font-body);
+  color: var(--muted);
 }
 
-.color-bar-fill.bar-G {
-  background: var(--mana-g);
+.stats-ramp {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1px 8px;
+  margin: 8px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
 }
 
-.color-bar-fill.bar-C {
-  background: var(--mana-c);
+.stats-ramp dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Multicolor shimmers like a foil card. */
-.color-bar-fill.bar-M {
-  background: var(--foil);
+.stats-sources {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 14px 14px;
+}
+
+.stats-sources img {
+  width: 18px;
+  height: 18px;
+}
+
+.stats-meter {
+  position: relative;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--panel);
+}
+
+.stats-meter i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 3px;
+}
+
+/* The target: the sources the most demanding card needs. */
+.stats-meter b {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 14px;
+  background: var(--text);
+}
+
+.stats-count {
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.stats-count span {
+  color: var(--muted);
 }
 
 .info-tip {
@@ -246,40 +464,6 @@
 .info-tip:hover,
 .info-tip:focus-visible {
   color: var(--text);
-}
-
-.color-bar-count {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Mana values as MTG's generic mana symbols (the curve's axis and its tooltips). */
-.mana-cost {
-  display: inline-flex;
-  align-items: center;
-  gap: 1px;
-  vertical-align: middle;
-}
-
-.mana-symbol {
-  width: 1.45em;
-  height: 1.45em;
-  flex: none;
-  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.35));
-}
-
-.mana-symbol text {
-  font-size: 21px;
-  font-weight: 700;
-  font-family: inherit;
-}
-
-.curve-axis {
-  margin-top: 6px;
-}
-
-.curve-axis .mana-cost {
-  justify-content: center;
 }
 
 /* Tokens panel: at the bottom of the list page. */
@@ -304,19 +488,30 @@
 .token-tile {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 3px;
+  width: 100%;
   min-width: 0;
   padding: 6px;
+  border: 1px solid transparent;
   border-radius: var(--radius);
   background: var(--panel-2);
-  cursor: default;
+  color: inherit;
+  font: inherit;
+  text-align: left;
 }
 
-.token-tile:hover {
+.token-tile:hover:not(:disabled) {
   background: var(--hover);
 }
 
+.token-tile:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .token-art {
+  position: relative;
   display: block;
   aspect-ratio: 488 / 680;
   border-radius: var(--radius-sm);
@@ -348,4 +543,103 @@
 .token-tile.emblem .token-name,
 .token-tile.helper .token-name {
   color: var(--accent-text);
+}
+
+/* A token tile's set, in the list's color when the list chose that Version. */
+.token-set {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  color: var(--text);
+  font-size: var(--fs-xs);
+}
+
+.token-set.chosen {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+/* The token Versions picker. */
+.token-versions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.token-versions > p {
+  margin: 0;
+}
+
+/* The token picker centers its text: title, intro, filter and captions. */
+.token-picker .token-versions {
+  align-items: center;
+  text-align: center;
+}
+
+.token-picker .token-version-grid {
+  align-self: stretch;
+}
+
+.token-picker .token-version {
+  align-items: center;
+  text-align: center;
+}
+
+/* Centered over the dialog, clear of the close button. */
+.token-picker .modal-head h2 {
+  flex: 1;
+  padding-left: 32px;
+  text-align: center;
+}
+
+.token-version-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+}
+
+.token-version {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
+  padding: 6px;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+/* The default Version: filled in the list's color, its text in the matching ink. */
+.token-version.linked,
+.token-version.linked:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+/* The chosen Version: a ring in the list's color, apart from the box so it shows on the default too. */
+.token-version.selected {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Mana symbols after a dialog's title: a token's colors. */
+.title-mana {
+  width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  vertical-align: -2px;
 }

@@ -6,7 +6,7 @@ import { BASE, sameVersion, type ListVersion, type Variant } from '@shared/listV
 import { ui } from '@shared/text'
 import { MANA_SYMBOLS } from '../lib/artwork'
 import { leadersLabel, THEME_TAGS, themeTagColors } from '../lib/themeTags'
-import { FORMAT_CHOICES, Segmented } from './Controls'
+import { FORMAT_GROUPS, Segmented } from './Controls'
 import { Icon } from './Icon'
 import { HeroPortrait } from './HeroArt'
 import { MenuButton } from './MenuButton'
@@ -23,6 +23,8 @@ interface ListHeaderProps {
   themes: string[]
   /** The Background beside the commander, pictured as a badge by its portrait; null for none. */
   background: HeaderBackground | null
+  /** The list's Companion, pictured as a badge beside the Background's place; null for none. */
+  companionBadge: HeaderBackground | null
   /** Color identity, as mana symbols named on hover: the commanders', else the cards'. */
   colors: ColorFilter[]
   /** Noun used in labels. */
@@ -35,6 +37,8 @@ interface ListHeaderProps {
   /** Some card can lead the list, or the commander can be removed. */
   canPickCommander: boolean
   legalityErrors: number
+  /** Problems of the whole list: its size, its sideboard. */
+  listProblems: string[]
   ownershipErrors: number
   /** Problem-only filter active. */
   onlyProblems: boolean
@@ -47,6 +51,16 @@ interface ListHeaderProps {
   /** The only commander, which a partner joins. */
   leaderName: string | null
   onFormat: (formatId: string | null) => void
+  /** The list's Cards with a Companion ability, which can be its Companion. */
+  companions: string[]
+  /** The list's Companion; null for none. */
+  companion: string | null
+  onCompanion: (name: string | null) => void
+  /** The colors a Rulebreaker commander lets the list add to some Cards; null without one. */
+  colorChoices: ColorFilter[] | null
+  /** The color chosen of `colorChoices`; null for none yet. */
+  rulebreakerColor: string | null
+  onRulebreakerColor: (color: string | null) => void
   onEditText: () => void
   /** Opens a starting hand, from the banner; absent while the list has fewer than seven cards to draw. */
   onStartingHand?: () => void
@@ -65,6 +79,8 @@ interface ListHeaderProps {
   unbuilt?: boolean
   /** Decks: toggles unbuilt. */
   onToggleUnbuilt?: () => void
+  /** Lists with Cards that make or spend energy: whether Statistics shows the energy curve, and its toggle. */
+  energyCurve?: { on: boolean; onToggle: () => void }
   /** The list's versions (Duel or EDH, then named ones); none for a list without. */
   variants: Variant[]
   /** The list itself, named in the version toggle: `Commander`, `Duel`, `Main`. */
@@ -134,6 +150,7 @@ export function ListHeader(props: ListHeaderProps) {
   const advanced = [
     ...(props.onUpgrade ? [{ label: text.upgradeOf, onSelect: props.onUpgrade }] : []),
     ...(props.onToggleUnbuilt ? [{ label: text.unbuilt, checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] : []),
+    ...(props.energyCurve ? [{ label: text.energyCurve, checked: props.energyCurve.on, onSelect: props.energyCurve.onToggle }] : []),
     ...(formatVariant ? [{ label: text.addFormatVersion(formatVariant.label), onSelect: props.onAddFormatVersion }] : []),
     { label: text.addVersion, onSelect: props.onAddVersion },
     ...(other && props.onRenameVersion ? [{ label: text.renameVersion(other.label), onSelect: props.onRenameVersion }] : [])
@@ -171,8 +188,17 @@ export function ListHeader(props: ListHeaderProps) {
           <figcaption>{text.background}</figcaption>
         </figure>
       )}
+      {arts.length > 0 && props.companionBadge?.art && (
+        <figure
+          className={`hero-background${props.background?.art ? ' beside' : ''}`}
+          data-mana={props.companionBadge.color}
+          title={text.companionHint(props.companionBadge.name)}
+        >
+          <img src={props.companionBadge.art} alt="" draggable={false} />
+          <figcaption>{text.companion}</figcaption>
+        </figure>
+      )}
       <div className="header-title">
-        {other && <span className="duel-badge">{text.versionBadge(other.label)}</span>}
         {leaders.length > 0 ? (
           <p className="header-leaders">
             {colorSymbols}
@@ -251,14 +277,14 @@ export function ListHeader(props: ListHeaderProps) {
               {picking ? text.pickingPartner(text.partnerKinds[partnerKind]) : text.addPartner(text.partnerKinds[partnerKind])}
             </button>
           )}
-          {legalityErrors > 0 && (
+          {legalityErrors + props.listProblems.length > 0 && (
             <button
               type="button"
               className={`chip illegal issue-badge${onlyProblems ? ' on' : ''}`}
               onClick={props.onToggleProblems}
               title={problemsTitle}
             >
-              {text.breaksRules(legalityErrors, format?.label ?? '')}
+              {[...(legalityErrors > 0 ? [text.breaksRules(legalityErrors)] : []), ...props.listProblems].join(' · ')}
             </button>
           )}
           {ownershipErrors > 0 && (
@@ -293,17 +319,50 @@ export function ListHeader(props: ListHeaderProps) {
               ? { label: text.deleteVersion(other.label), onSelect: props.onDeleteVersion, danger: true }
               : { label: text.delete, onSelect: props.onDelete, danger: true },
             ...(props.onPreferredVersions ? [{ label: text.preferredVersions, icon: 'star' as const, onSelect: props.onPreferredVersions }] : []),
+            ...(props.companions.length > 0 || props.companion
+              ? [
+                  {
+                    label: text.companion,
+                    items: [
+                      { label: text.noCompanion, checked: !props.companion, onSelect: () => props.onCompanion(null) },
+                      ...props.companions.map((card) => ({
+                        label: card,
+                        checked: props.companion === card,
+                        onSelect: () => props.onCompanion(card)
+                      }))
+                    ]
+                  }
+                ]
+              : []),
+            ...(props.colorChoices
+              ? [
+                  {
+                    label: text.rulebreakerColor,
+                    items: props.colorChoices.map((color) => ({
+                      label: COLOR_NAMES[color],
+                      checked: props.rulebreakerColor === color,
+                      onSelect: () => props.onRulebreakerColor(props.rulebreakerColor === color ? null : color)
+                    }))
+                  }
+                ]
+              : []),
             // A version follows its own format, shown locked in the header.
             ...(other
               ? []
               : [
                   {
                     label: text.format,
-                    items: FORMAT_CHOICES.map((choice) => ({
-                      label: choice.label,
-                      checked: (format?.id ?? '') === choice.id,
-                      onSelect: () => props.onFormat(choice.id || null)
-                    }))
+                    items: [
+                      { label: ui.common.noFormat, checked: !format, onSelect: () => props.onFormat(null) },
+                      ...FORMAT_GROUPS.map((group) => ({
+                        label: group.label,
+                        items: group.formats.map((choice) => ({
+                          label: choice.label,
+                          checked: format?.id === choice.id,
+                          onSelect: () => props.onFormat(choice.id)
+                        }))
+                      }))
+                    ]
                   }
                 ]),
             ...(advanced.length > 0 ? [{ label: text.advanced, items: advanced }] : [])

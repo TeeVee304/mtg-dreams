@@ -682,12 +682,22 @@
   transform: translateX(-50%) rotate(-2deg);
 }
 
+/* A Companion beside a Background: one badge further left, toward the title. */
+.hero-background.beside {
+  right: calc(var(--portrait-width) - 70px + 122px);
+}
+
 /* Smaller and further onto the portrait on narrow windows, clear of a long title. */
 @media (max-width: 1100px) {
   .hero-background {
     right: calc(var(--portrait-width) - 84px);
     width: 84px;
     height: 84px;
+  }
+
+  /* Onto the portrait instead, clear of the tags. */
+  .hero-background.beside {
+    right: calc(var(--portrait-width) - 84px - 100px);
   }
 }
 
@@ -736,8 +746,10 @@
   order: 1;
 }
 
+/* Folded, the panel keeps its one line: short of room, it wraps under the figures whole. */
 .facts-row .collapsible {
   order: 2;
+  flex-shrink: 0;
 }
 
 .facts-row .summary-item.accent {
@@ -846,3 +858,19 @@
   height: 1em;
 }
 
+
+/* A data folder saved by a newer MTG Dreams: a lasting note, and the controls that change Cards
+   greyed out. The library refuses any other change, and says why. */
+.read-only-banner {
+  margin: 0;
+  padding: 10px 28px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 500;
+  text-align: center;
+}
+
+.read-only :is(.search-row, .add-panel, .stepper, .owned-cell, .col-actions) {
+  opacity: 0.5;
+  pointer-events: none;
+}

@@ -1,12 +1,15 @@
-import { app, BrowserWindow, clipboard, ClipboardItem, Menu, nativeImage, session, shell } from 'electron'
+import { app, BrowserWindow, clipboard, ClipboardItem, Menu, nativeImage, protocol, session, shell } from 'electron'
 import { setDefaultResultOrder } from 'node:dns'
 import { join } from 'node:path'
+import { SAVED_IMAGE_SCHEME } from '@shared/images'
 import { ui } from '@shared/text'
 import { RETIRED_CACHES, removeCacheEntries } from './cacheFiles'
+import { serveCardImage } from './cardImages'
+import { checkConnection, isOnline, onConnectivityChange, startConnectivity } from './connectivity'
 import { contextMenuItems } from './contextMenu'
 import { outdatedWizardCaches, registerDeckWizard } from './deckWizard'
 import { env, SERVICES, setEnvironment } from './environment'
-import { applyTheme, notifyPricesUpdated, openExternalSafe, registerIpc, windowBackground } from './ipc'
+import { applyTheme, notifyConnectivity, notifyPricesUpdated, openExternalSafe, registerIpc, windowBackground } from './ipc'
 import { outdatedPreconCaches } from './precons'
 import { startPriceGuide } from './priceGuide'
 import { recordCurrentPrices } from './priceHistory'
@@ -15,9 +18,11 @@ import { WINDOW_ICONS } from './icons'
 import { getAppSettings, getTheme, migrateFromOldName } from './storage'
 
 /**
- * Electron main entry: single-instance lock, environment setup, IPC, window and price guide polling.
+ * Electron main entry: single-instance lock, environment setup, IPC, window, connection checks and
+ * price guide polling.
  * Service URLs can be overridden in unpackaged builds via `MTG_DREAMS_SCRYFALL_API`,
- * `MTG_DREAMS_MTGJSON_API` and `MTG_DREAMS_PRICE_GUIDE_URL` (used by e2e tests). The Deck Wizard
+ * `MTG_DREAMS_MTGJSON_API`, `MTG_DREAMS_PRICE_GUIDE_URL`, `MTG_DREAMS_EDHREC_JSON` and
+ * `MTG_DREAMS_CARD_IMAGES_URL` (used by e2e tests). The Deck Wizard
  * is a feature of its own, registered here (see `deckWizard/index.ts`).
  *
  * @packageDocumentation
@@ -25,6 +30,12 @@ import { getAppSettings, getTheme, migrateFromOldName } from './storage'
 
 /** Renderer crash reloads allowed per rolling minute. */
 const MAX_RELOADS_PER_MINUTE = 3
+/**
+ * Most disk space for the browser's cache, mostly card images; without a limit it grows past 250 MB.
+ * Images it lets go are downloaded again from Scryfall when shown. The small images of the Cards the
+ * files use are saved apart, so they stay offline (see `cardImages.ts`).
+ */
+const DISK_CACHE_BYTES = 150 * 1024 * 1024
 
 /**
  * Creates the sandboxed main window. Reloads the renderer after a crash (bounded by
@@ -51,7 +62,10 @@ function createWindow(): void {
   })
 
   window.once('ready-to-show', () => window.show())
-  window.on('focus', () => window.webContents.send('window:focus'))
+  window.on('focus', () => {
+    window.webContents.send('window:focus')
+    if (!isOnline()) void checkConnection()
+  })
 
   const crashes: number[] = []
   window.webContents.on('render-process-gone', (_event, details) => {
@@ -102,6 +116,10 @@ async function removeOutdatedCaches(): Promise<void> {
   await removeCacheEntries([...RETIRED_CACHES, ...(await outdatedPreconCaches()), ...(await outdatedWizardCaches())])
 }
 
+app.commandLine.appendSwitch('disk-cache-size', String(DISK_CACHE_BYTES))
+// Saved card images load like web images (see `cardImages.ts`).
+protocol.registerSchemesAsPrivileged([{ scheme: SAVED_IMAGE_SCHEME, privileges: { standard: true, secure: true } }])
+
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 } else {
@@ -126,12 +144,16 @@ if (!app.requestSingleInstanceLock()) {
       scryfallApi: (!app.isPackaged && process.env.MTG_DREAMS_SCRYFALL_API) || SERVICES.scryfallApi,
       mtgjsonApi: (!app.isPackaged && process.env.MTG_DREAMS_MTGJSON_API) || SERVICES.mtgjsonApi,
       priceGuideUrl: (!app.isPackaged && process.env.MTG_DREAMS_PRICE_GUIDE_URL) || SERVICES.priceGuideUrl,
-      edhrecJson: (!app.isPackaged && process.env.MTG_DREAMS_EDHREC_JSON) || SERVICES.edhrecJson
+      edhrecJson: (!app.isPackaged && process.env.MTG_DREAMS_EDHREC_JSON) || SERVICES.edhrecJson,
+      cardImagesUrl: (!app.isPackaged && process.env.MTG_DREAMS_CARD_IMAGES_URL) || SERVICES.cardImagesUrl
     })
+    startConnectivity()
+    onConnectivityChange(notifyConnectivity)
     migrateFromOldName()
     applyTheme(getTheme())
     void loadScryfallCache()
     void removeOutdatedCaches()
+    protocol.handle(SAVED_IMAGE_SCHEME, serveCardImage)
     registerIpc()
     registerDeckWizard()
     createWindow()

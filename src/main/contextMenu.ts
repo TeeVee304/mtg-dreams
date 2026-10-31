@@ -13,10 +13,11 @@ export interface ContextMenuActions {
 
 /**
  * @returns The large version (672 × 936) of a Scryfall card image shown smaller, such as a table
- * thumbnail (small) or a card tile (normal); null for other images, art crops included.
+ * thumbnail (small, also when saved: `card-image:`) or a card tile (normal); null for other images,
+ * art crops included.
  */
 export function largeCardImage(src: string): string | null {
-  const match = /^https:\/\/cards\.scryfall\.io\/(small|normal|large)\/(.+)$/.exec(src)
+  const match = /^(?:https:\/\/cards\.scryfall\.io|card-image:\/\/scryfall)\/(small|normal|large)\/(.+)$/.exec(src)
   return match ? `https://cards.scryfall.io/large/${match[2]}` : null
 }
 
@@ -37,7 +38,7 @@ export function contextMenuItems(params: Params, actions: ContextMenuActions): M
     const copyShown = () => actions.copyImageAt(params.x, params.y)
     items.push({ label: labels.copyImage, click: large ? () => actions.copyImageFrom(large, copyShown) : copyShown })
     // Card images come from Scryfall; app icons are bundled, with no address worth sharing.
-    if (/^https?:/i.test(params.srcURL)) {
+    if (large || /^https?:/i.test(params.srcURL)) {
       items.push({ label: labels.copyImageAddress, click: () => actions.copyText(large ?? params.srcURL) })
     }
   }

@@ -16,9 +16,10 @@ import { hasVersions } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import type { ThemeColor } from '@shared/themes'
 import { totalCopies } from '@shared/totals'
-import type { InventoryItem, ListKind } from '@shared/types'
+import type { InventoryItem, ListKind, LocalizedQuery } from '@shared/types'
 import { ui } from '@shared/text'
 import { getCardInfo, requestCardInfos, useCardInfoVersion } from '../stores/cardinfo'
+import { lastVersion, rememberVersion } from '../stores/lastVersions'
 import { inventoryValue, type ItemValue } from '../lib/collection'
 import { artCrop } from '../lib/artwork'
 import { formatEur } from '../lib/format'
@@ -27,6 +28,7 @@ import { inventoryText, type CardList, type LibraryActions, type ListRef } from 
 import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { ListChip, NameCell, Price } from './CardCells'
+import { AddCardPanel } from './CardEditors'
 import { CardSearch } from './CardSearch'
 import { CardSortSelect, SortHeader } from './Controls'
 import { TextEditorDialog } from './Dialogs'
@@ -69,6 +71,17 @@ interface InventoryViewProps {
  * list usage. Uses the nearest inventory equivalent of the global sort. Requests card data for all
  * items (the app already requests their printings).
  */
+/**
+ * @returns What an Inventory row previews: its Card in another language when all its copies are in
+ * that one language, the copy's printing looked for first if they are all one printing; undefined otherwise.
+ */
+function localizedQuery(item: InventoryItem): LocalizedQuery | undefined {
+  const [first] = item.copies
+  if (!first?.lang || item.copies.some((copy) => copy.lang !== first.lang)) return undefined
+  const one = item.copies.every((copy) => copy.set === first.set && copy.collector === first.collector)
+  return { name: item.name, lang: first.lang, ...(one && first.set && first.collector && { set: first.set, collector: first.collector }) }
+}
+
 export function InventoryView(props: InventoryViewProps) {
   const { inventory, lists, actions, onOpenList, onAddPrecon, onValueDetails, startPasting } = props
   const toast = useToast()
@@ -83,6 +96,10 @@ export function InventoryView(props: InventoryViewProps) {
   const [editing, setEditing] = useState(startPasting ?? false)
   /** nameKey of the item in the versions dialog. */
   const [versionsOf, setVersionsOf] = useState<string | null>(null)
+  /** Card picked in the search, in the "choose version" step. */
+  const [adding, setAdding] = useState<string | null>(null)
+  /** Version the step starts from: the last one chosen for the Card. */
+  const start = useMemo(() => (adding ? lastVersion(adding) : null), [adding])
   const versionsItem = versionsOf ? inventory.get(versionsOf) : undefined
 
   const pool = useCopyPool(lists)
@@ -243,16 +260,32 @@ export function InventoryView(props: InventoryViewProps) {
       <div className="search-row">
         <CardSearch
           placeholder={text.addCard}
-          onPick={(name) => {
-            const qty = (inventory.get(nameKey(name))?.qty ?? 0) + 1
-            actions.setOwned(name, qty)
-            toast(text.owned(name, qty))
-          }}
+          onPick={setAdding}
         />
         <button type="button" onClick={onAddPrecon} title={text.addPreconHint}>
           {text.addPrecon}
         </button>
       </div>
+      {adding && (
+        <AddCardPanel
+          key={adding}
+          name={adding}
+          initial={start ?? undefined}
+          languages
+          paper
+          auto={{ title: text.versionsDialog.anyVersion, subtitle: text.versionsDialog.cheapest }}
+          actionLabel={text.addToInventory}
+          note={inventory.has(nameKey(adding)) ? text.youOwn(inventory.get(nameKey(adding))!.qty) : undefined}
+          onCancel={() => setAdding(null)}
+          onAdd={({ name, qty, set, collector, foil, lang }) => {
+            const version = { set, collector, foil, lang }
+            actions.addOwned([{ name, qty, ...version }])
+            rememberVersion(name, version)
+            setAdding(null)
+            toast(text.owned(name, (inventory.get(nameKey(name))?.qty ?? 0) + qty))
+          }}
+        />
+      )}
 
       {items.length > 0 ? (
         <>
@@ -289,7 +322,12 @@ export function InventoryView(props: InventoryViewProps) {
                       label={text.ownedLabel(item.name)}
                     />
                   </td>
-                  <NameCell images={item.value.printing} name={item.name} loading={item.value.status === 'loading'}>
+                  <NameCell
+                    images={item.value.printing}
+                    name={item.name}
+                    loading={item.value.status === 'loading'}
+                    localized={localizedQuery(item)}
+                  >
                     <span className="card-name" title={item.name}>
                       {item.name}
                     </span>
@@ -303,8 +341,10 @@ export function InventoryView(props: InventoryViewProps) {
                             className={`chip link${copy.foil ? ' foil' : ''}${copy.worthless ? ' worthless' : ''}`}
                             onClick={() => setVersionsOf(nameKey(item.name))}
                             title={text.yourVersions}
+                            aria-label={`${copy.qty}× ${copyLabel(copy)}`}
                           >
-                            {copy.qty}× {copyLabel(copy)}
+                            {/* The foil chip's rainbow says Foil; screen readers get it from the label. */}
+                            {copy.qty}× {copyLabel({ ...copy, foil: false })}
                             {copy.lang && <LanguageFlag code={copy.lang} />}
                           </button>
                         ))}

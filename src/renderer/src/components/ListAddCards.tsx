@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import { bundledBasic } from '@shared/basics'
 import type { CopyPool } from '@shared/copies'
 import { nameKey } from '@shared/decklist'
-import type { DeckFormat } from '@shared/formats'
+import { holdsNoCopies, type DeckFormat } from '@shared/formats'
 import type { CopyCaps } from '@shared/listModel'
 import type { Board } from '@shared/sideboard'
 import type { InventoryItem } from '@shared/types'
@@ -54,6 +54,8 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
   const toast = useToast()
   const { bundleBasics } = useSettings()
   const isDeck = list.kind === 'deck'
+  /** A Deck built from your copies: an Arena one takes any Card. */
+  const paperDeck = isDeck && !holdsNoCopies(format)
   const noun = ui.terms.noun(isDeck)
   /** The Card picked, and whether it was picked for the maybeboard. */
   const [picked, setPicked] = useState<{ name: string; maybe: boolean } | null>(null)
@@ -98,7 +100,7 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
   const addInList = adding ? copiesOf(adding) : 0
   const addRoom = addCaps ? addCaps.cap - addInList : Infinity
   const addNote = [
-    isDeck && addCaps && (addCaps.inOtherDecks > 0 ? ui.list.add.free(addCaps.ownedCap, addCaps.ownedQty) : ui.list.add.youOwn(addCaps.ownedCap)),
+    paperDeck && addCaps && (addCaps.inOtherDecks > 0 ? ui.list.add.free(addCaps.ownedCap, addCaps.ownedQty) : ui.list.add.youOwn(addCaps.ownedCap)),
     addInList > 0 && ui.list.add.alreadyIn(addInList, noun),
     format && addCaps && Number.isFinite(addCaps.formatCap) && ui.list.add.formatMax(format.label, addCaps.formatCap)
   ]
@@ -122,7 +124,7 @@ export function useCardAdder(props: Omit<ListAddCardsProps, 'onAddPrecon'>): Car
       }}
     />
   )
-  return { choices: isDeck ? inventoryChoices : undefined, pickCard, panel }
+  return { choices: paperDeck ? inventoryChoices : undefined, pickCard, panel }
 }
 
 /** Adding cards to a list ({@link useCardAdder}): the search, and wishlists' precon button. */
@@ -131,9 +133,14 @@ export function ListAddCards(props: ListAddCardsProps) {
   return (
     <>
       <div className="search-row">
-        {choices ? (
+        {props.list.kind === 'deck' ? (
           <>
-            <CardSearch placeholder={ui.list.add.searchInventory} choices={choices} onPick={(name) => pickCard(name)} />
+            {/* A paper Deck adds from your Inventory; an Arena Deck, any Card. */}
+            {choices ? (
+              <CardSearch placeholder={ui.list.add.searchInventory} choices={choices} onPick={(name) => pickCard(name)} />
+            ) : (
+              <CardSearch placeholder={ui.list.add.searchAny} onPick={(name) => pickCard(name)} />
+            )}
             <CardSearch placeholder={ui.list.add.searchMaybe} onPick={(name) => pickCard(name, true)} />
           </>
         ) : (

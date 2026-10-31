@@ -1,5 +1,5 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
-import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import { CONFLICT_ERROR, type AppSettings, type ListFile, type LoadedData, type Theme } from '@shared/api'
 import { fileNameProblem } from '@shared/filenames'
@@ -9,13 +9,15 @@ import { TRADE_EXTENSION } from '@shared/trade'
 import { ui } from '@shared/text'
 import type { ListKind } from '@shared/types'
 import { env } from './environment'
+import { DATA_STEPS, DATA_VERSION, SETTINGS_STEPS, SETTINGS_VERSION, pendingSteps, readVersion } from './schema'
 
 /**
  * File storage. Lists, inventory and trades are plain text files in a user-visible data directory
  * (default `Documents/MTG Dreams`): `decks/*.txt`, `lists/*.txt` (wishlists), `brews/*.txt`,
  * `inventory.txt`, `trades/*.mtgtrade`, and `lists.json`: the wishlist order and each list's personal
  * settings (see {@link splitMeta}), kept out of the list files. Settings are in `userData/settings.json`. Writes are atomic, serialized per file, and guarded
- * against external modification.
+ * against external modification. `lists.json` and `settings.json` carry a schema version (see `./schema`):
+ * older ones are upgraded on load, and a data folder saved by a newer app is read-only.
  *
  * @packageDocumentation
  */
@@ -31,6 +33,8 @@ const CARRIED_OVER = ['settings.json', 'scryfall-cache.json', 'precons']
 interface Settings extends Partial<Record<keyof AppSettings, unknown>> {
   /** Custom data directory. */
   dataDir?: string
+  /** Settings schema version; see `./schema`. */
+  schemaVersion?: unknown
 }
 
 /** Settings file path. */
@@ -54,12 +58,13 @@ function readSettingsFile(path: string): Settings | null {
 
 /**
  * @returns Cached settings, from the file or, if it is damaged, from its backup (so a custom data
- * folder survives); `{}` if neither can be read.
+ * folder survives), upgraded to the latest version; `{}` if neither can be read.
  */
 function readSettings(): Settings {
   const path = settingsPath()
   if (settingsCache?.path === path) return settingsCache.settings
   const settings = readSettingsFile(path) ?? readSettingsFile(`${path}.bak`) ?? {}
+  for (const { step } of pendingSteps(readVersion(settings.schemaVersion), SETTINGS_STEPS)) step(settings as Record<string, unknown>)
   settingsCache = { path, settings }
   return settings
 }
@@ -67,10 +72,13 @@ function readSettings(): Settings {
 /**
  * Merges `patch` into the settings and writes atomically (temp + rename; a truncated file would
  * lose a custom data directory). Falls back to a direct write if the target is locked. A backup
- * beside it is what {@link readSettings} falls back on if the file is ever damaged.
+ * beside it is what {@link readSettings} falls back on if the file is ever damaged. Stamps the
+ * latest version, or keeps a newer one, whose settings this app keeps without reading.
  */
 function writeSettings(patch: Partial<Settings>): void {
-  const settings: Settings = { ...readSettings(), ...patch }
+  const current = readSettings()
+  const schemaVersion = Math.max(readVersion(current.schemaVersion), SETTINGS_VERSION)
+  const settings: Settings = { ...current, ...patch, schemaVersion }
   for (const key of RETIRED_SETTINGS) delete (settings as Record<string, unknown>)[key]
   const path = settingsPath()
   const tmp = `${path}.tmp`
@@ -182,6 +190,14 @@ const writeChains = new Map<string, Promise<void>>()
 /** Last text read or written per path, for external-change detection. */
 const known = new Map<string, string>()
 
+/** Whether the data folder was saved by a newer app, set by {@link loadData}: nothing in it is changed. */
+let readOnly = false
+
+/** @throws Error if the data folder is {@link readOnly}. */
+function assertWritable(): void {
+  if (readOnly) throw new Error(ui.errors.newerData)
+}
+
 /**
  * @returns File text; null if it does not exist.
  * @throws Other read errors.
@@ -202,12 +218,40 @@ function moveKnown(from: string, to: string): void {
   if (text !== undefined) known.set(to, text)
 }
 
+/** Waits before each new try at renaming over a locked file (a sync client or antivirus holds it briefly). */
+const RENAME_RETRY_MS = [50, 150, 400]
+
 /**
- * Writes atomically (temp + rename, direct-write fallback if locked), serialized per path.
+ * Moves `tmp` over `path`, trying again while the target is locked. If it stays locked, copies the
+ * old file to `<path>.bak` first and then writes over it directly, so a crash mid-write still leaves
+ * the old text. Removes `tmp` either way.
+ * @throws If the backup or the direct write fails; the file is then left as it was.
+ */
+async function replaceFile(tmp: string, path: string, text: string): Promise<void> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await rename(tmp, path)
+      return
+    } catch {
+      if (attempt === RENAME_RETRY_MS.length) break
+      await new Promise((resolve) => setTimeout(resolve, RENAME_RETRY_MS[attempt]))
+    }
+  }
+  try {
+    if (existsSync(path)) await copyFile(path, `${path}.bak`)
+    await writeFile(path, text, 'utf8')
+  } finally {
+    await rm(tmp, { force: true })
+  }
+}
+
+/**
+ * Writes atomically (temp + rename, retried; a backed-up direct write if still locked), serialized per path.
  * @param guard - `check`: reject if the file differs from {@link known} (a deleted file is rewritten).
- * @throws Error prefixed with `CONFLICT_ERROR` on external modification.
+ * @throws Error prefixed with `CONFLICT_ERROR` on external modification; Error if {@link readOnly}.
  */
 function writeText(path: string, text: string, guard: 'check' | 'force' | 'none' = 'none'): Promise<void> {
+  if (readOnly) return Promise.reject(new Error(ui.errors.newerData))
   const previous = writeChains.get(path) ?? Promise.resolve()
   const next = previous
     .catch(() => undefined)
@@ -222,12 +266,7 @@ function writeText(path: string, text: string, guard: 'check' | 'force' | 'none'
       await mkdir(dirname(path), { recursive: true })
       const tmp = `${path}.tmp`
       await writeFile(tmp, text, 'utf8')
-      try {
-        await rename(tmp, path)
-      } catch {
-        await writeFile(path, text, 'utf8')
-        await rm(tmp, { force: true })
-      }
+      await replaceFile(tmp, path, text)
       known.set(path, text)
     })
   writeChains.set(path, next)
@@ -276,6 +315,8 @@ async function readFolder(dir: string, extension: string, unreadable: string[]):
 
 /** `lists.json`, as the app keeps it. */
 interface ListsIndex {
+  /** Data folder schema version; null if `lists.json` has none (missing, or from before versions). */
+  schemaVersion: number | null
   /** Wishlist names, top first; null until known (no `lists.json` nor legacy order file yet). */
   wishlistOrder: string[] | null
   /** Personal settings by {@link metaKey}; lists without any have no entry. */
@@ -310,7 +351,7 @@ async function readIndex(): Promise<ListsIndex> {
   const names = (raw: unknown) => (Array.isArray(raw) ? raw.filter((name): name is string => typeof name === 'string') : null)
   const stored = parse(await readIfExists(indexPath()))
   if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
-    const { wishlistOrder, lists: rawLists } = stored as { wishlistOrder?: unknown; lists?: unknown }
+    const { schemaVersion, wishlistOrder, lists: rawLists } = stored as { schemaVersion?: unknown; wishlistOrder?: unknown; lists?: unknown }
     const lists: Record<string, ListMeta> = {}
     if (rawLists && typeof rawLists === 'object') {
       for (const [key, raw] of Object.entries(rawLists)) {
@@ -318,9 +359,13 @@ async function readIndex(): Promise<ListsIndex> {
         if (Object.keys(meta).length > 0) lists[key] = meta
       }
     }
-    return { wishlistOrder: names(wishlistOrder) ?? names(parse(await readIfExists(legacyOrderPath()))), lists }
+    return {
+      schemaVersion: schemaVersion === undefined ? null : readVersion(schemaVersion),
+      wishlistOrder: names(wishlistOrder) ?? names(parse(await readIfExists(legacyOrderPath()))),
+      lists
+    }
   }
-  return { wishlistOrder: names(parse(await readIfExists(legacyOrderPath()))), lists: {} }
+  return { schemaVersion: null, wishlistOrder: names(parse(await readIfExists(legacyOrderPath()))), lists: {} }
 }
 
 /** @returns The data directory's `lists.json`, read once. */
@@ -329,11 +374,15 @@ async function listsIndex(): Promise<ListsIndex> {
   return indexCache.index
 }
 
-/** Saves `lists.json` (without an order while none is known), then removes the legacy order file it replaces. */
+/**
+ * Saves `lists.json` (without an order while none is known), then removes the legacy order file it
+ * replaces. An index without a version gets the latest: this app wrote it.
+ */
 async function saveIndex(index: ListsIndex): Promise<void> {
   const lists = Object.fromEntries(Object.entries(index.lists).sort(([a], [b]) => a.localeCompare(b)))
   const order = index.wishlistOrder ? { wishlistOrder: index.wishlistOrder } : {}
-  await writeText(indexPath(), `${JSON.stringify({ ...order, lists }, null, 2)}\n`)
+  const schemaVersion = index.schemaVersion ?? DATA_VERSION
+  await writeText(indexPath(), `${JSON.stringify({ schemaVersion, ...order, lists }, null, 2)}\n`)
   if (index.wishlistOrder) await rm(legacyOrderPath(), { force: true })
 }
 
@@ -387,6 +436,23 @@ async function orderFromPriorities(wishlists: ListFile[]): Promise<string[]> {
   return order
 }
 
+/**
+ * Runs the data folder steps from `index`'s version to the latest, saving the version after each, so
+ * a failed step runs again on the next load.
+ * @returns The index after the steps.
+ * @throws A step's error.
+ */
+async function upgradeData(index: ListsIndex): Promise<ListsIndex> {
+  for (const { step, to } of pendingSteps(index.schemaVersion ?? 1, DATA_STEPS)) {
+    await step(dataDir())
+    indexCache = null
+    index = await listsIndex()
+    index.schemaVersion = to
+    await saveIndex(index)
+  }
+  return index
+}
+
 /** Saves the wishlist order, top first. */
 export async function writeWishlistOrder(names: string[]): Promise<void> {
   const index = await listsIndex()
@@ -395,13 +461,19 @@ export async function writeWishlistOrder(names: string[]): Promise<void> {
 }
 
 /**
- * Reads all lists, trades and the inventory, creating list directories if needed. Each list comes
- * with its personal settings from `lists.json` as headers; personal headers found in a file (an old
- * file, or one edited elsewhere) move to `lists.json`, overriding what it had.
- * @throws If the inventory exists but is unreadable (never skipped, so a save cannot blank it).
+ * Reads all lists, trades and the inventory, creating list directories if needed, after upgrading an
+ * older data folder. Each list comes with its personal settings from `lists.json` as headers; personal
+ * headers found in a file (an old file, or one edited elsewhere) move to `lists.json`, overriding
+ * what it had. A data folder saved by a newer app is read as it is, and becomes read-only.
+ * @throws If the inventory exists but is unreadable (never skipped, so a save cannot blank it), or an
+ * upgrade step fails.
  */
 export async function loadData(): Promise<LoadedData> {
   const unreadable: string[] = []
+  indexCache = null
+  let index = await listsIndex()
+  readOnly = (index.schemaVersion ?? 1) > DATA_VERSION
+  if (!readOnly) index = await upgradeData(index)
   await Promise.all(LIST_KINDS.map((kind) => mkdir(listsDir(kind), { recursive: true })))
   const [folders, trades] = await Promise.all([
     Promise.all(LIST_KINDS.map((kind) => readFolder(listsDir(kind), '.txt', unreadable))),
@@ -411,9 +483,8 @@ export async function loadData(): Promise<LoadedData> {
   const inventory = existsSync(inventoryPath()) ? await readText(inventoryPath()) : ''
   known.set(inventoryPath(), inventory)
 
-  indexCache = null
-  const index = await listsIndex()
-  let changed = !existsSync(indexPath()) && LIST_KINDS.some((kind) => files[kind].length > 0)
+  // A `lists.json` from before versions gets one; a folder with lists gets a `lists.json`.
+  let changed = existsSync(indexPath()) ? index.schemaVersion === null : LIST_KINDS.some((kind) => files[kind].length > 0)
   if (index.wishlistOrder === null) index.wishlistOrder = await orderFromPriorities(files.wishlist)
   const present = new Set<string>()
   for (const kind of LIST_KINDS) {
@@ -453,7 +524,8 @@ export async function loadData(): Promise<LoadedData> {
     inventory,
     trades,
     wishlistOrder: index.wishlistOrder,
-    unreadable
+    unreadable,
+    readOnly
   }
 }
 
@@ -464,6 +536,7 @@ export async function writeTrade(name: string, text: string): Promise<void> {
 
 /** Moves a trade list to the Recycle Bin after pending writes. */
 export async function deleteTrade(name: string): Promise<void> {
+  assertWritable()
   const path = tradePath(name)
   await writeChains.get(path)?.catch(() => undefined)
   await env().trash(path)
@@ -472,6 +545,7 @@ export async function deleteTrade(name: string): Promise<void> {
 
 /** @throws Error if a list of that kind and name exists. */
 export async function createList(kind: ListKind, name: string, text: string): Promise<void> {
+  assertWritable()
   await mkdir(listsDir(kind), { recursive: true })
   const path = listPath(kind, name)
   if (existsSync(path)) throw new Error(ui.errors.listExists(ui.terms.kinds[kind], name.trim()))
@@ -485,6 +559,7 @@ export async function writeList(kind: ListKind, name: string, text: string, forc
 
 /** Renames a list after pending writes; case-only renames allowed. @throws Error if the target exists. */
 export async function renameList(kind: ListKind, from: string, to: string): Promise<void> {
+  assertWritable()
   const source = listPath(kind, from)
   const target = listPath(kind, to)
   const caseOnly = source.toLowerCase() === target.toLowerCase()
@@ -511,6 +586,7 @@ async function moveMeta(fromKind: ListKind, from: string, toKind: ListKind, to: 
 
 /** Moves a list to another kind after pending writes. @returns Final name, suffixed ` (n)` if taken. */
 export async function moveList(from: ListKind, to: ListKind, name: string): Promise<string> {
+  assertWritable()
   const source = listPath(from, name)
   await mkdir(listsDir(to), { recursive: true })
   const base = validateListName(name)
@@ -525,6 +601,7 @@ export async function moveList(from: ListKind, to: ListKind, name: string): Prom
 
 /** Moves a list to the Recycle Bin after pending writes. */
 export async function deleteList(kind: ListKind, name: string): Promise<void> {
+  assertWritable()
   const path = listPath(kind, name)
   await writeChains.get(path)?.catch(() => undefined)
   await env().trash(path)

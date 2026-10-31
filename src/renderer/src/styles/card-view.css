@@ -47,6 +47,109 @@
   min-width: 0;
 }
 
+/* What the card says: each face's cost, type line, rules text and stats. */
+.card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-self: stretch;
+}
+
+.card-text-label {
+  margin-bottom: -4px;
+}
+
+.card-face {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.card-face-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.type-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.type-line > span:last-child {
+  margin-left: 2px;
+}
+
+.type-icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
+  background: currentColor;
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+.mana-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  white-space: pre;
+}
+
+.mana-symbol {
+  width: 1.05em;
+  height: 1.05em;
+  vertical-align: -0.15em;
+  margin: 0 1px;
+}
+
+.mana-cost .mana-symbol {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.rules-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  line-height: 1.45;
+}
+
+.rules-text p {
+  margin: 0;
+}
+
+.rules-text i {
+  color: var(--muted);
+}
+
+.card-face-stats {
+  align-self: flex-end;
+  font-weight: 700;
+}
+
+.rulings {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rulings p {
+  margin: 2px 0 0;
+  line-height: 1.45;
+}
+
 .card-view-actions {
   display: flex;
   align-items: center;
@@ -166,8 +269,5 @@
 
 .change-version h3 {
   font-size: var(--fs-lg);
-}
-
-.change-version > p {
-  margin: 2px 0 10px;
+  white-space: nowrap;
 }

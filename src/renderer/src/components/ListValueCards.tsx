@@ -22,6 +22,8 @@ interface ListValueCardsProps {
   lands: number
   /** Sideboard copies. */
   sideboard: number
+  /** Main deck copies on the Game Changer list. */
+  gameChangers: number
   basis: PriceBasis
 }
 
@@ -30,10 +32,15 @@ interface ListValueCardsProps {
  * collected share (with the owned value once something is owned); for a brew, what building it would
  * cost and how much of it you own.
  */
-export function ListValueCards({ isDeck, brew, summary, mainCards, size, target, lands, sideboard, basis }: ListValueCardsProps) {
+export function ListValueCards({ isDeck, brew, summary, mainCards, size, target, lands, sideboard, gameChangers, basis }: ListValueCardsProps) {
   const text = ui.list.figures
   if (isDeck) {
-    const makeup = [size?.note, text.makeup(lands, mainCards - lands), sideboard > 0 && text.sideboard(sideboard)]
+    const makeup = [
+      size?.note,
+      text.makeup(lands, mainCards - lands),
+      gameChangers > 0 && text.gameChangers(gameChangers),
+      sideboard > 0 && text.sideboard(sideboard)
+    ]
     const filled = target ? Math.min(100, Math.round((mainCards / target) * 100)) : 0
     return (
       <section className="summary-strip">

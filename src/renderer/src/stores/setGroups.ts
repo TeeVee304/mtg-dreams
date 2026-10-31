@@ -47,6 +47,13 @@ export function loadSetGroups(): Promise<SetGroup[]> {
   return loading
 }
 
+/** Loads the groups again if Scryfall couldn't be reached the first time (back online). */
+export function retrySetGroups(): void {
+  if (groups?.length !== 0) return
+  loading = null
+  void loadSetGroups()
+}
+
 /** Hook re-rendering as the groups load. @returns The groups (null while loading) and the checking progress. */
 export function useSetGroups(): { groups: SetGroup[] | null; progress: SetGroupsProgress | null } {
   changes.useVersion()

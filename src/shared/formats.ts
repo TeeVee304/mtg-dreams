@@ -3,7 +3,22 @@ import { cardLines, listHeader, nameKey, newLineId } from './decklist'
 import { ui } from './text'
 import type { CardInfo, ListLine, PartnerAbility, Printing } from './types'
 
-/** Constructed format definition. */
+/**
+ * What can lead a deck: a legendary creature (or Vehicle or Spacecraft), that or a planeswalker,
+ * a planeswalker only (Oathbreaker), or a creature printed at uncommon (Pauper Commander).
+ */
+export type LeaderRule = 'legendary' | 'legendaryOrPlaneswalker' | 'planeswalker' | 'uncommonCreature'
+
+/** A commander format's command zone. */
+export interface CommandRules {
+  leads: LeaderRule
+  /** Two commanders may share command (Partner, Backgrounds…). */
+  partners: boolean
+  /** Commander brackets and Game Changers apply. */
+  brackets?: true
+}
+
+/** Constructed format definition. Logic reads these fields, never the id. */
 export interface DeckFormat {
   /** Scryfall legality key. */
   id: string
@@ -12,26 +27,46 @@ export interface DeckFormat {
   maxCopies: number
   /** Main deck size: the minimum, or in commander formats the exact size, commander included. */
   deckSize: number
-  /** Commander format. */
-  commander?: true
+  /** Commander format: what leads, and whether partners may. */
+  commander?: CommandRules
+  /** Played on MTG Arena only: its Cards include digital ones, and its Decks hold no paper copies. */
+  arena?: true
+  /** Players at the table. Draw odds assume going first with 2, and drawing first with more. */
+  players: number
 }
 
-/** Supported paper formats (Scryfall legality keys). */
+const commander = (leads: LeaderRule, partners = true): CommandRules => ({ leads, partners })
+
+/** Supported formats (Scryfall legality keys): paper constructed, paper commander, then Arena. */
 export const FORMATS: DeckFormat[] = [
-  { id: 'standard', label: 'Standard', maxCopies: 4, deckSize: 60 },
-  { id: 'pioneer', label: 'Pioneer', maxCopies: 4, deckSize: 60 },
-  { id: 'modern', label: 'Modern', maxCopies: 4, deckSize: 60 },
-  { id: 'premodern', label: 'Premodern', maxCopies: 4, deckSize: 60 },
-  { id: 'legacy', label: 'Legacy', maxCopies: 4, deckSize: 60 },
-  { id: 'vintage', label: 'Vintage', maxCopies: 4, deckSize: 60 },
-  { id: 'pauper', label: 'Pauper', maxCopies: 4, deckSize: 60 },
-  { id: 'oldschool', label: 'Old School', maxCopies: 4, deckSize: 60 },
-  { id: 'commander', label: 'Commander', maxCopies: 1, deckSize: 100, commander: true },
-  { id: 'duel', label: 'Duel Commander', maxCopies: 1, deckSize: 100, commander: true },
-  { id: 'paupercommander', label: 'Pauper Commander', maxCopies: 1, deckSize: 100, commander: true },
-  { id: 'oathbreaker', label: 'Oathbreaker', maxCopies: 1, deckSize: 60, commander: true },
-  { id: 'predh', label: 'PreDH', maxCopies: 1, deckSize: 100, commander: true }
+  { id: 'standard', label: 'Standard', maxCopies: 4, deckSize: 60, players: 2 },
+  { id: 'pioneer', label: 'Pioneer', maxCopies: 4, deckSize: 60, players: 2 },
+  { id: 'modern', label: 'Modern', maxCopies: 4, deckSize: 60, players: 2 },
+  { id: 'premodern', label: 'Premodern', maxCopies: 4, deckSize: 60, players: 2 },
+  { id: 'legacy', label: 'Legacy', maxCopies: 4, deckSize: 60, players: 2 },
+  { id: 'vintage', label: 'Vintage', maxCopies: 4, deckSize: 60, players: 2 },
+  { id: 'pauper', label: 'Pauper', maxCopies: 4, deckSize: 60, players: 2 },
+  { id: 'oldschool', label: 'Old School', maxCopies: 4, deckSize: 60, players: 2 },
+  { id: 'commander', label: 'Commander', maxCopies: 1, deckSize: 100, commander: { ...commander('legendary'), brackets: true }, players: 4 },
+  { id: 'duel', label: 'Duel Commander', maxCopies: 1, deckSize: 100, commander: commander('legendary'), players: 2 },
+  { id: 'paupercommander', label: 'Pauper Commander', maxCopies: 1, deckSize: 100, commander: commander('uncommonCreature'), players: 4 },
+  { id: 'oathbreaker', label: 'Oathbreaker', maxCopies: 1, deckSize: 60, commander: commander('planeswalker', false), players: 4 },
+  { id: 'predh', label: 'PreDH', maxCopies: 1, deckSize: 100, commander: commander('legendary'), players: 4 },
+  { id: 'alchemy', label: 'Alchemy', maxCopies: 4, deckSize: 60, arena: true, players: 2 },
+  { id: 'historic', label: 'Historic', maxCopies: 4, deckSize: 60, arena: true, players: 2 },
+  { id: 'timeless', label: 'Timeless', maxCopies: 4, deckSize: 60, arena: true, players: 2 },
+  { id: 'brawl', label: 'Brawl', maxCopies: 1, deckSize: 100, commander: commander('legendaryOrPlaneswalker'), arena: true, players: 2 },
+  { id: 'standardbrawl', label: 'Standard Brawl', maxCopies: 1, deckSize: 60, commander: commander('legendaryOrPlaneswalker'), arena: true, players: 2 }
 ]
+
+/** Where a format sits in format menus. */
+export type FormatGroup = 'constructed' | 'commander' | 'arena'
+
+/** @returns The format's menu group: Arena formats together, then paper commander and constructed ones. */
+export const formatGroup = (format: DeckFormat): FormatGroup => (format.arena ? 'arena' : format.commander ? 'commander' : 'constructed')
+
+/** @returns Whether the format's Decks are always unbuilt: Arena ones hold no paper copies. */
+export const holdsNoCopies = (format: DeckFormat | null | undefined) => !!format?.arena
 
 /** Main deck size against its format, from {@link deckSizeCheck}. */
 export interface DeckSizeCheck {
@@ -43,13 +78,17 @@ export interface DeckSizeCheck {
   note: string | null
 }
 
-/** @param cards - Main deck copies (sideboard aside). */
-export function deckSizeCheck(format: DeckFormat, cards: number): DeckSizeCheck {
+/**
+ * @param cards - Main deck copies (sideboard aside).
+ * @param noMax - A Rulebreaker lifts the maximum: a commander deck's size becomes a minimum.
+ */
+export function deckSizeCheck(format: DeckFormat, cards: number, noMax = false): DeckSizeCheck {
   const size = format.deckSize
-  const status = cards < size ? 'short' : format.commander && cards > size ? 'over' : 'ok'
+  const exact = format.commander && !noMax
+  const status = cards < size ? 'short' : exact && cards > size ? 'over' : 'ok'
   return {
     status,
-    label: status === 'ok' && !format.commander ? String(cards) : `${cards}/${size}`,
+    label: status === 'ok' && !exact ? String(cards) : `${cards}/${size}`,
     note: status === 'short' ? ui.rules.sizeShort(size - cards, size) : status === 'over' ? ui.rules.sizeOver(cards - size, size) : null
   }
 }
@@ -137,26 +176,27 @@ export function withoutMissingCommanders(lines: ListLine[]): ListLine[] {
 
 /** @returns Commander eligibility rule phrase for messages, e.g. `a planeswalker`. */
 export function commanderRule(format: DeckFormat): string {
-  if (format.id === 'oathbreaker') return ui.rules.commanderRule.oathbreaker
-  if (format.id === 'paupercommander') return ui.rules.commanderRule.paupercommander
-  return ui.rules.commanderRule.other
+  return ui.rules.commanderRule[format.commander?.leads ?? 'legendary']
 }
 
+/** @returns Whether the card was ever printed at uncommon. */
+const printedUncommon = (card: CardInfo, printings: Printing[]) => card.rarity === 'uncommon' || printings.some((p) => p.rarity === 'uncommon')
+
 /**
- * Whether the card can be a commander on its own. Oathbreaker: planeswalker. Pauper Commander: creature
- * printed at uncommon. Others: legendary creature, Vehicle or Spacecraft, or `canBeCommander`.
+ * Whether the card can be a commander on its own, by the format's {@link LeaderRule}. Legendary:
+ * a legendary creature, Vehicle or Spacecraft, or `canBeCommander`; Brawl adds planeswalkers.
  * Backgrounds are excluded.
  * @param printings - Required for Pauper Commander to check uncommon printings.
  */
 export function canLead(format: DeckFormat, card: CardInfo, printings: Printing[] = []): boolean {
   const words = frontTypeWords(card.typeLine)
-  if (format.id === 'oathbreaker') return words.includes('Planeswalker')
-  if (format.id === 'paupercommander') {
-    return words.includes('Creature') && (card.rarity === 'uncommon' || printings.some((p) => p.rarity === 'uncommon'))
-  }
+  const leads = format.commander?.leads ?? 'legendary'
+  if (leads === 'planeswalker') return words.includes('Planeswalker')
+  if (leads === 'uncommonCreature') return words.includes('Creature') && printedUncommon(card, printings)
   const front = card.typeLine.split('//')[0].split(/[\s—]+/)
   const body = ['Creature', 'Vehicle', 'Spacecraft'].some((type) => front.includes(type))
-  return (words.includes('Legendary') && body) || card.canBeCommander === true
+  const walker = leads === 'legendaryOrPlaneswalker' && words.includes('Planeswalker')
+  return (words.includes('Legendary') && body) || walker || card.canBeCommander === true
 }
 
 /** @returns The partner ability in rules text (an ability starts a line); undefined if none. */
@@ -176,9 +216,17 @@ export function partnerAbility(text: string): PartnerAbility | undefined {
   return undefined
 }
 
+/**
+ * @returns The partner a card names ("Partner with Toothy, Imaginary Friend"), which joins it as a
+ * commander, when the format lets two commanders share command; null otherwise.
+ */
+export function namedPartner(format: DeckFormat | null | undefined, card: CardInfo | null | undefined): string | null {
+  return format && allowsPartners(format) && card?.partner?.kind === 'with' ? card.partner.name : null
+}
+
 /** @returns Whether the format lets two commanders share command: all commander formats but Oathbreaker. */
 export function allowsPartners(format: DeckFormat): boolean {
-  return !!format.commander && format.id !== 'oathbreaker'
+  return !!format.commander?.partners
 }
 
 /** @returns The front face's subtypes, e.g. `Time`, `Lord`, `Doctor`. */
@@ -186,6 +234,33 @@ const subtypesOf = (card: CardInfo) => card.typeLine.split('//')[0].split('—')
 
 /** @returns Whether the card is a Background. */
 export const isBackground = (card: CardInfo) => subtypesOf(card).includes('Background')
+
+/** @returns Whether the card is a Time Lord Doctor, which a Doctor's companion joins. */
+export const isTimeLordDoctor = (card: CardInfo) => ['Time', 'Lord', 'Doctor'].every((word) => subtypesOf(card).includes(word))
+
+/** What kind of second commander a card takes: the Deck Wizard names its search bar after it. */
+export type SecondCommander = 'partner' | 'friend' | 'background' | 'doctorsCompanion' | 'doctor'
+
+/**
+ * @returns The kind of second commander the card can take: a Partner (any `Partner` ability), a
+ * Friends forever card, a Background, a Doctor's companion for a Time Lord Doctor, or a Doctor for a
+ * Doctor's companion; null if it takes none.
+ */
+export function secondCommanderOf(card: CardInfo): SecondCommander | null {
+  switch (card.partner?.kind) {
+    case 'any':
+    case 'with':
+      return 'partner'
+    case 'group':
+      return card.partner.group.toLowerCase() === 'friends forever' ? 'friend' : 'partner'
+    case 'background':
+      return 'background'
+    case 'companion':
+      return 'doctor'
+    default:
+      return isTimeLordDoctor(card) ? 'doctorsCompanion' : null
+  }
+}
 
 /** @returns Whether `a`'s partner ability lets `b` share command with it. */
 function partnersWith(a: CardInfo, b: CardInfo): boolean {
@@ -200,7 +275,7 @@ function partnersWith(a: CardInfo, b: CardInfo): boolean {
     case 'background':
       return isBackground(b)
     case 'companion':
-      return ['Time', 'Lord', 'Doctor'].every((word) => subtypesOf(b).includes(word))
+      return isTimeLordDoctor(b)
     default:
       return false
   }
@@ -223,35 +298,58 @@ export function canPartner(a: CardInfo, b: CardInfo): boolean {
 export function canJoin(format: DeckFormat, leader: CardInfo, card: CardInfo, printings: Printing[] = []): boolean {
   if (!allowsPartners(format) || !canPartner(leader, card)) return false
   if (canLead(format, card, printings)) return true
-  const uncommon = card.rarity === 'uncommon' || printings.some((p) => p.rarity === 'uncommon')
-  return leader.partner?.kind === 'background' && isBackground(card) && (format.id !== 'paupercommander' || uncommon)
+  const uncommon = format.commander?.leads !== 'uncommonCreature' || printedUncommon(card, printings)
+  return leader.partner?.kind === 'background' && isBackground(card) && uncommon
 }
 
 /**
  * @param partner - The other commander, when two share command.
- * @returns Commander eligibility error (as partner of `partner`, if given), else the card's
- * {@link legalityIssue} as commander; null if fine.
+ * @returns Commander eligibility error (as partner of `partner`, if given); null if fine. The card's
+ * own legality is {@link legalityIssue}'s.
  */
-export function commanderIssue(
-  format: DeckFormat,
-  card: CardInfo,
-  printings: Printing[],
-  copies: number,
-  partner: CardInfo | null = null
-): LegalityIssue | null {
-  if (partner && !allowsPartners(format)) return { severity: 'error', message: ui.rules.oneCommander(format.label) }
-  if (partner && !canPartner(card, partner)) return { severity: 'error', message: ui.rules.cantShareCommand(partner.name) }
-  if (!canLead(format, card, printings) && !(partner && canJoin(format, partner, card, printings))) {
-    return { severity: 'error', message: ui.rules.cantLead(format.label) }
+export function commanderIssue(format: DeckFormat, card: CardInfo, printings: Printing[], partner: CardInfo | null = null): LegalityIssue | null {
+  if (partner && !allowsPartners(format)) return issue('oneCommander', ui.rules.oneCommander, ui.rules.oneCommanderIn(format.label))
+  if (partner && !canPartner(card, partner)) {
+    return issue('cantShareCommand', ui.rules.cantShareCommand, ui.rules.cantShareCommandWith(partner.name))
   }
-  return legalityIssue(format, card, copies, true)
+  if (!canLead(format, card, printings) && !(partner && canJoin(format, partner, card, printings))) {
+    return issue('cantLead', ui.rules.cantLead, ui.rules.cantLeadIn(format.label, commanderRule(format)))
+  }
+  return null
 }
 
-/** Format rule violation. `warning`: allowed but notable (single restricted copy). */
+/** What a rule problem is about; logic checks this, never the texts. */
+export type IssueCode =
+  | 'oneCommander'
+  | 'cantShareCommand'
+  | 'cantLead'
+  | 'banned'
+  | 'notLegal'
+  | 'restricted'
+  | 'maxCopies'
+  | 'outsideColors'
+  | 'notCompanion'
+  | 'breaksCompanion'
+  | 'companionShort'
+  | 'unchecked'
+
+/** Format rule problem. `warning`: allowed but notable (a single restricted copy, a maybeboard Card). */
 export interface LegalityIssue {
+  code: IssueCode
   severity: 'error' | 'warning'
+  /** Short text, for a chip: `Banned`. */
   message: string
+  /** Full reason, on hover and in the Card dialog: `Banned in Commander`. */
+  detail: string
 }
+
+/** @returns A problem; an error unless `severity` says otherwise. */
+export const issue = (code: IssueCode, message: string, detail: string, severity: LegalityIssue['severity'] = 'error'): LegalityIssue => ({
+  code,
+  severity,
+  message,
+  detail
+})
 
 /**
  * @param copies - Total copies of the card in the deck.
@@ -260,16 +358,18 @@ export interface LegalityIssue {
  */
 export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number, asCommander = false): LegalityIssue | null {
   const status = card.legalities[format.id] ?? 'not_legal'
-  if (status === 'banned') return { severity: 'error', message: ui.rules.banned(format.label) }
-  const commandsPauper = asCommander && format.id === 'paupercommander'
-  if (status === 'not_legal' && !commandsPauper) return { severity: 'error', message: ui.rules.notLegal(format.label) }
+  const { rules } = ui
+  if (status === 'banned') return issue('banned', rules.banned, rules.bannedIn(format.label))
+  // Scryfall's Pauper Commander legality covers the 99; what leads is checked by rarity instead.
+  const byRarity = asCommander && format.commander?.leads === 'uncommonCreature'
+  if (status === 'not_legal' && !byRarity) return issue('notLegal', rules.notLegal, rules.notLegalIn(format.label))
   if (status === 'restricted') {
     return copies > 1
-      ? { severity: 'error', message: ui.rules.restrictedOver(format.label) }
-      : { severity: 'warning', message: ui.rules.restricted(format.label) }
+      ? issue('restricted', rules.restricted, rules.restrictedOver(format.label))
+      : issue('restricted', rules.restricted, rules.restrictedIn(format.label), 'warning')
   }
   const max = copyLimit(format, card, card.name)
-  if (copies > max) return { severity: 'error', message: ui.rules.maxCopies(max, format.label) }
+  if (copies > max) return issue('maxCopies', rules.maxCopies(max), rules.maxCopiesIn(max, format.label))
   return null
 }
 
@@ -280,7 +380,7 @@ export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number
  */
 export function colorIdentityIssue(card: CardInfo, identity: string[], partners = false): LegalityIssue | null {
   return card.colorIdentity.some((color) => !identity.includes(color))
-    ? { severity: 'error', message: ui.rules.outsideColors(partners) }
+    ? issue('outsideColors', ui.rules.outsideColors, ui.rules.outsideColorsOf(partners))
     : null
 }
 

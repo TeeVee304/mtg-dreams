@@ -14,7 +14,8 @@ const DATA: LoadedData = {
   inventory: '2 Sol Ring\n',
   trades: [],
   wishlistOrder: ['Goblins', 'Burn'],
-  unreadable: []
+  unreadable: [],
+  readOnly: false
 }
 
 const goblins = { kind: 'wishlist' as const, name: 'Goblins' }
@@ -71,6 +72,25 @@ describe('library store', () => {
     expect(onError).toHaveBeenCalledWith('Disk gone')
   })
 
+  it('changes nothing in a data folder a newer app saved, and says why', async () => {
+    const { store, io, onError } = await loaded({ ...DATA, readOnly: true })
+    expect(store.state.readOnly).toBe(true)
+    const before = store.state
+    store.actions.setOwned('Sol Ring', 5)
+    store.actions.removeCard(goblins, store.state.lists[1].lines[0].id)
+    expect(store.state).toBe(before)
+    expect(onError).toHaveBeenCalledTimes(2)
+    expect(onError).toHaveBeenLastCalledWith(expect.stringContaining('newer MTG Dreams'))
+    await expect(store.actions.createList('deck', 'New', '1 Sol Ring\n')).rejects.toThrow('newer MTG Dreams')
+    expect(store.actions.undo()).toMatchObject({ kind: 'error' })
+    expect(io.writeInventory).not.toHaveBeenCalled()
+    expect(io.writeList).not.toHaveBeenCalled()
+    expect(io.createList).not.toHaveBeenCalled()
+    // Reading still works.
+    await store.actions.reload(true)
+    expect(io.loadData).toHaveBeenCalledTimes(2)
+  })
+
   it('applies an edit at once, writes it, and undoes it', async () => {
     const { store, io } = await loaded()
     store.actions.addCards(goblins, [{ name: 'Goblin Bushwhacker', qty: 2, foil: false }])
@@ -79,6 +99,25 @@ describe('library store', () => {
     expect(store.actions.undo()).toEqual({ message: 'Undone: Added 2× Goblin Bushwhacker', kind: 'info' })
     expect(text(store, 'Goblins')).toBe('4 Goblin Guide\n')
     expect(io.writeList).toHaveBeenLastCalledWith('wishlist', 'Goblins', '4 Goblin Guide\n')
+    expect(store.actions.undo()).toEqual({ message: 'Nothing to undo', kind: 'info' })
+  })
+
+  it('adds a commander missing from the list, such as the partner a commander names', async () => {
+    const { store } = await loaded({ ...DATA, wishlists: [{ name: 'Goblins', text: '1 Pir, Imaginative Rascal\n' }] })
+    store.actions.setListCommanders(goblins, ['Pir, Imaginative Rascal', 'Toothy, Imaginary Friend'])
+    expect(text(store, 'Goblins')).toBe(
+      '// Commander: Pir, Imaginative Rascal\n// Commander: Toothy, Imaginary Friend\n1 Pir, Imaginative Rascal\n1 Toothy, Imaginary Friend\n'
+    )
+    store.actions.undo()
+    expect(text(store, 'Goblins')).toBe('1 Pir, Imaginative Rascal\n')
+  })
+
+  it('names a flavor-named line by its card, with that printing, recording no undo step', async () => {
+    const { store } = await loaded({ ...DATA, wishlists: [{ name: 'Goblins', text: '1 Ring of Barahir\n' }] })
+    const [line] = store.state.lists.find((list) => list.name === 'Goblins')!.lines
+    const fix = { id: line.id, from: 'Ring of Barahir', name: 'Sword of the Animist', set: 'ltc', collector: '355', foil: false }
+    store.actions.adoptCardNames(goblins, [fix])
+    expect(text(store, 'Goblins')).toBe('1 Sword of the Animist <355> [LTC]\n')
     expect(store.actions.undo()).toEqual({ message: 'Nothing to undo', kind: 'info' })
   })
 

@@ -3,6 +3,7 @@ import { COLOR_LETTERS, type ColorFilter } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { STAT_COLORS } from '@shared/deckStats'
 import { nameKey } from '@shared/decklist'
+import { listCompanion, noMaxDeckSize } from '@shared/deckRules'
 import { deckSizeCheck, isBackground, listCommanders, listFormat } from '@shared/formats'
 import { sumOf } from '@shared/totals'
 import type { InventoryItem, Printing } from '@shared/types'
@@ -25,7 +26,10 @@ export function listFigures(
 ) {
   const format = listFormat(list.lines)
   const rows = listRows(list, inventory, settings, pool)
-  const mainCards = sumOf(rows, (row) => (row.side ? 0 : row.line.qty))
+  // The Companion is outside the main deck.
+  const companion = listCompanion(list.lines)
+  const isCompanion = (row: Row) => !!companion && nameKey(row.line.name) === nameKey(companion)
+  const mainCards = sumOf(rows, (row) => (row.side || isCompanion(row) ? 0 : row.line.qty))
   // Wishlist cards still needed whose price moved past the alert threshold since they were added.
   const changes =
     list.kind === 'wishlist'
@@ -36,11 +40,12 @@ export function listFigures(
         })
       : []
   const commanders = format?.commander ? listCommanders(list.lines) : []
+  const leaderInfos = commanders.flatMap((name) => rows.find((row) => nameKey(row.line.name) === nameKey(name))?.info ?? [])
   return {
     format,
     summary: summarize(rows),
     mainCards,
-    size: list.kind === 'deck' && format ? deckSizeCheck(format, mainCards) : null,
+    size: list.kind === 'deck' && format ? deckSizeCheck(format, mainCards, noMaxDeckSize(leaderInfos)) : null,
     /** Still-needed wishlist cards cheaper than when added. */
     cheaper: changes.filter((direction) => direction === 'down').length,
     /** Still-needed wishlist cards pricier than when added. */
@@ -93,13 +98,23 @@ export function listColors(
   return loaded ? ['C'] : []
 }
 
-/** A commander's Background, as a list header pictures it: a badge by the commander's portrait. */
+/** A commander's Background, or the list's Companion, as a list header pictures it: a badge by the commander's portrait. */
 export interface HeaderBackground {
   name: string
   /** Its art crop; null without card images, or until it loads. */
   art: string | null
   /** Its color, ringing the badge. */
   color: ColorFilter
+}
+
+/** @returns How a list header pictures a Background or Companion row as a badge, ringed in its first color in WUBRG order. */
+export function headerBadge(row: Row, cardImages: boolean): HeaderBackground {
+  const firstColor = COLOR_LETTERS.find((color) => color !== 'C' && row.info?.colorIdentity.includes(color))
+  return {
+    name: row.flavorName ?? row.line.name,
+    art: cardImages ? artCrop(row.resolution?.printing) : null,
+    color: firstColor ?? 'C'
+  }
 }
 
 /** @returns Whether a row is a Background, which joins a commander. */
@@ -117,12 +132,7 @@ export function headerLeaders(leaderRows: Row[], cardImages: boolean) {
   const backgroundRow = rows.length > 1 ? (rows.find(isBackgroundRow) ?? null) : null
   const portraits = rows.filter((row) => row !== backgroundRow)
   const crops = cardImages ? portraits.flatMap((row) => artCrop(row.resolution?.printing) ?? []) : []
-  const firstColor = backgroundRow?.info?.colorIdentity.find((color): color is ColorFilter => COLOR_LETTERS.includes(color as ColorFilter))
-  const background: HeaderBackground | null = backgroundRow && {
-    name: backgroundRow.flavorName ?? backgroundRow.line.name,
-    art: cardImages ? artCrop(backgroundRow.resolution?.printing) : null,
-    color: firstColor ?? 'C'
-  }
+  const background = backgroundRow && headerBadge(backgroundRow, cardImages)
   return {
     rows,
     names: rows.map((row) => row.flavorName ?? row.line.name),

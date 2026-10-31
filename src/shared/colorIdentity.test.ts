@@ -20,7 +20,7 @@ describe('colorIdentityName', () => {
   it('names four colors after the Nephilim, and all five', () => {
     expect(name('UBRG')).toBe('Glint-Eye')
     expect(name('WUBR')).toBe('Yore-Tiller')
-    expect(name('WUBRG')).toBe('Five-Color')
+    expect(name('WUBRG')).toBe('WUBRG')
   })
 
   it('has every identity of one to five colors', () => {

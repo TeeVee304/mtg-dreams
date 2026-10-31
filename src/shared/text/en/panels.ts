@@ -1,4 +1,4 @@
-import { counted, ordinal } from '../../plural'
+import { ordinal } from '../../plural'
 import { count } from './terms'
 
 /** What a Version or an Upgrade swaps: its Cards out beside its Cards in. */
@@ -56,18 +56,36 @@ export const stats = {
   title: 'Statistics',
   average: (value: string) => `Average mana value ${value}`,
   loading: (cards: number) => ` · ${count.cards(cards)} loading`,
-  curve: 'Mana curve',
-  creatures: 'Creatures',
-  otherSpells: 'Other spells',
   filterHint: 'Filter the list by mana value',
-  manaValue: 'Mana Value',
   showEvery: 'Click to show every Card',
   show: 'Click to show',
-  averageLabel: 'Average mana value:',
-  bar: (label: string, cards: number, creatures: number) => `Mana value (${label}): ${count.cards(cards)}, ${counted(creatures, 'creature')}`,
-  multicolor: 'Multicolor',
-  colors: 'Color distribution',
-  multicolorHint: 'Multicolored Cards count toward each of their colors'
+  manaValueRow: 'Mana value',
+  /** The chance of having made every land drop by a turn: "on curve", in Magic's words. */
+  onCurve: 'On curve',
+  /** The land lines, named at their ends. */
+  landsLine: 'Lands',
+  rampLine: '+Ramp',
+  onCurveHint: (turn: number, percent: number, withRamp: number) =>
+    `${percent}% to make every Land drop through turn ${turn}\nCounting cheap ramp as Lands: ${withRamp}%`,
+  bar: (label: string, cards: number) => `Mana value ${label}: ${count.cards(cards)}`,
+  manaValue: (label: string) => `Mana value ${label}`,
+  spells: 'Spells',
+  creatures: 'Creatures',
+  pips: 'Colored pips',
+  lands: 'Lands',
+  suggested: (n: number) => `${n} suggested`,
+  suggestedHint: (deckSize: number, base: number, perManaValue: number) =>
+    `Frank Karsten's ${deckSize}-Card formula: ${base} + ${perManaValue.toFixed(2)} × average mana value − 0.28 × cheap ramp`,
+  ramp: 'Ramp',
+  cheapRamp: (n: number) => `${n} cost 2 or less`,
+  rocks: 'Mana Rocks',
+  manaCreatures: 'Mana Creatures',
+  searches: 'Land Searches',
+  sources: 'Colored sources',
+  targetHint: (target: number, card: string, turn: number) => `${card} needs ${target} to be cast on turn ${turn}, 9 times in 10`,
+  energyMade: 'Energy made',
+  energySpent: 'Spent',
+  energyOf: (made: number, spent: number) => `Makes ${made}, spends ${spent}`
 }
 
 /** Tokens a list's Cards make. */
@@ -76,6 +94,17 @@ export const deckTokens = {
   none: 'No Cards here create Tokens, emblems or helpers.',
   unavailable: 'Token data unavailable (Scryfall).',
   madeBy: (token: string, makers: string) => `${token}\nMade by: ${makers}`,
+  chooseVersion: (token: string) => `Choose the Version of ${token}`,
+  tokenTitle: (stats: string | null, name: string) => `${stats ? `${stats} ` : ''}${name}`,
+  /** The token Versions picker. */
+  versions: {
+    madeBy: 'Made by',
+    count: (n: number) => `(${n} Versions)`,
+    universe: (name: string, n: number) => `${name} · ${n}`,
+    all: (n: number) => `All · ${n}`,
+    loading: 'Finding Versions…',
+    none: 'No other Versions found (Scryfall).'
+  },
   /** A token's short description: `Elspeth emblem`, `1/1 white and green Elf`. */
   emblem: (name: string) => `${name} emblem`,
   creature: (stats: string | null, colors: string[], name: string) =>

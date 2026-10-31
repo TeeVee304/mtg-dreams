@@ -1,4 +1,4 @@
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, session, shell, type IpcMainInvokeEvent } from 'electron'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import type { PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '@shared/api'
@@ -6,15 +6,23 @@ import { isPriceBasis } from '@shared/pricing'
 import { settingsPatch } from '@shared/settings'
 import { ui } from '@shared/text'
 import { TRADE_EXTENSION } from '@shared/trade'
+import { cacheSizes, clearCaches } from './caches'
+import { sweepCardImages } from './cardImages'
+import { resolveCards } from './cardResolver'
+import { checkConnection, isOnline } from './connectivity'
+import { cachedPrintingIds, pinCards, scryfallCacheReady } from './scryfallCache'
+import { usedCardKeys } from './usedCards'
 import { WINDOW_ICONS } from './icons'
 import { getPrecon, getPreconIndex } from './precons'
 import { getSetGroups } from './setGroups'
-import { getDeckTokens } from './tokens'
+import { cachedTokenIds, getDeckTokens, getTokenVersions } from './tokens'
+import { getLocalizedImage } from './localizedImages'
+import { getRulings } from './rulings'
 import { loadPriceGuide, priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
 import { getBaselines, pricesAt, recordCurrentPrices, trackPrices, updateBaselines } from './priceHistory'
 import { autocomplete, getCardImages, getCardInfos, getPrintings } from './scryfall'
 import * as storage from './storage'
-import { arrayOf, cardNames, numbers, text } from './validate'
+import { arrayOf, cardNames, cardQueries, localizedQuery, numbers, scryfallIds, text } from './validate'
 
 /** Hosts (and subdomains) allowed for external links. */
 const EXTERNAL_HOSTS = ['cardmarket.com', 'scryfall.com', 'edhrec.com']
@@ -79,9 +87,23 @@ export function notifyPricesUpdated(): void {
   for (const window of BrowserWindow.getAllWindows()) window.webContents.send('prices:updated')
 }
 
+/** Sends `network:changed` to all windows: whether the services can be reached. */
+export function notifyConnectivity(online: boolean): void {
+  for (const window of BrowserWindow.getAllWindows()) window.webContents.send('network:changed', online)
+}
+
 /** Registers all IPC handlers backing {@link TrackerApi}. All renderer input is validated. */
 export function registerIpc(): void {
-  ipcMain.handle('data:load', () => storage.loadData())
+  ipcMain.handle('data:load', async () => {
+    const data = await storage.loadData()
+    // The Scryfall cache keeps the Cards the data folder uses, and drops others not used lately; their
+    // saved images go with them.
+    void scryfallCacheReady().then(async () => {
+      pinCards(usedCardKeys(data))
+      await sweepCardImages(new Set([...cachedPrintingIds(), ...(await cachedTokenIds())]))
+    })
+    return data
+  })
   ipcMain.handle('list:create', (_e, kind: unknown, name: unknown, body: unknown) =>
     storage.createList(storage.validateKind(kind), storage.validateListName(name), text(body, 'list text'))
   )
@@ -178,11 +200,14 @@ export function registerIpc(): void {
     }
     return { updated, pricedAt: priceGuideDate() }
   })
+  ipcMain.handle('network:online', () => isOnline())
+  ipcMain.handle('network:check', () => checkConnection())
   ipcMain.handle('prices:date', async () => {
     await loadPriceGuide()
     return priceGuideDate()
   })
 
+  ipcMain.handle('scryfall:resolve', (_e, queries: unknown) => resolveCards(cardQueries(queries, 3000)))
   ipcMain.handle('scryfall:images', (_e, names: unknown) => getCardImages(cardNames(names, 75)))
   ipcMain.handle('scryfall:cardInfos', (_e, names: unknown) => getCardInfos(cardNames(names, 20_000)))
 
@@ -194,7 +219,12 @@ export function registerIpc(): void {
   ipcMain.handle('history:updateBaselines', (_e, set: unknown, remove: unknown) =>
     updateBaselines(baselines(set), arrayOf<string>(remove, (key) => typeof key === 'string', 'baselines', Infinity))
   )
-  ipcMain.handle('tokens:deck', (_e, names: unknown) => getDeckTokens(cardNames(names, 3000, 200)))
+  ipcMain.handle('tokens:deck', (_e, names: unknown, chosen: unknown) =>
+    getDeckTokens(cardNames(names, 3000, 200), chosen === undefined ? [] : scryfallIds(chosen, 500))
+  )
+  ipcMain.handle('tokens:versions', (_e, oracleId: unknown) => getTokenVersions(scryfallIds([oracleId], 1)[0]))
+  ipcMain.handle('images:localized', (_e, query: unknown) => getLocalizedImage(localizedQuery(query)))
+  ipcMain.handle('scryfall:rulings', (_e, name: unknown, id: unknown) => getRulings(cardNames([name], 1, 200)[0], scryfallIds([id], 1)[0]))
   ipcMain.handle('scryfall:setGroups', () =>
     getSetGroups((progress) => {
       for (const window of BrowserWindow.getAllWindows()) window.webContents.send('setGroups:progress', progress)
@@ -205,4 +235,15 @@ export function registerIpc(): void {
 
   ipcMain.handle('shell:openExternal', (_e, url: unknown) => openExternalSafe(text(url, 'URL')))
   ipcMain.handle('clipboard:write', (_e, value: unknown) => clipboard.writeText(text(value, 'text')))
+  ipcMain.handle('storage:sizes', async () => {
+    const [sizes, browser] = await Promise.all([cacheSizes(), session.defaultSession.getCacheSize()])
+    return { ...sizes, bytes: { ...sizes.bytes, images: sizes.bytes.images + browser } }
+  })
+  // Restarting drops what the caches hold in memory, and loads everything again.
+  ipcMain.handle('storage:clear', async () => {
+    await clearCaches()
+    await session.defaultSession.clearCache()
+    app.relaunch()
+    app.exit(0)
+  })
 }

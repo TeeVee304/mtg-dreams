@@ -111,3 +111,63 @@
   text-decoration: underline dotted;
   text-underline-offset: 3px;
 }
+
+/* Substitute review: the Version wanted beside the one you own. */
+.substitute {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.substitute-name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+}
+
+.substitute-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.substitute-pair figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.substitute-pair .yours figcaption {
+  color: var(--accent-text);
+}
+
+.substitute-art {
+  display: block;
+  aspect-ratio: 488 / 680;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--panel-2);
+}
+
+.substitute-pair .yours .substitute-art {
+  outline: 2px solid var(--accent);
+}
+
+.substitute-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.substitute-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.substitute-actions button {
+  min-height: 44px;
+}

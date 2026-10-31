@@ -44,8 +44,21 @@ const CARDS = [
   card('Grist, the Hunger Tide', 'mh2', '4', {
     type_line: 'Legendary Planeswalker — Grist',
     oracle_text: "As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types."
-  })
+  }),
+  card('Lightning Bolt', 'a25', '141', { type_line: 'Instant' }),
+  card('Thunderbolt', 'wth', '115', { type_line: 'Instant' }),
+  card('Potential Horizon', 'yfra', '1', { digital: true, games: ['arena'], legalities: { historic: 'legal' } })
 ]
+
+/** Printings in other languages, found only by searches that ask for them. */
+const FOREIGN = [
+  card('Lightning Bolt', 'clb', '187', { lang: 'es', printed_name: 'Relámpago' }),
+  card('Lightning Bolt', 'sta', '42', { lang: 'ja', printed_name: '稲妻' }),
+  card('Thunderbolt', 'wth', '115', { lang: 'pt', printed_name: 'Relâmpago' })
+]
+
+/** Scryfall's name matching: case and accents aside. */
+const bare = (text: string) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
 let server: Server
 let base = ''
@@ -59,11 +72,18 @@ beforeAll(async () => {
     const json = (status: number, body: unknown) =>
       res.writeHead(status, { 'Content-Type': 'application/json' }).end(JSON.stringify(body))
     if (failing) return json(500, { object: 'error' })
+    if (url.pathname === '/cards/search' && url.searchParams.get('include_multilingual') === 'true') {
+      const names = [...(url.searchParams.get('q') ?? '').matchAll(/!"([^"]+)"/g)].map((match) => bare(match[1]))
+      const found = FOREIGN.filter((c) => names.includes(bare(String((c as Record<string, unknown>).printed_name))))
+      return found.length ? json(200, { data: found, has_more: false, total_cards: found.length }) : json(404, { object: 'error' })
+    }
     if (url.pathname === '/cards/search') {
       const q = url.searchParams.get('q') ?? ''
-      const exact = /^!"(.+)" game:paper$/.exec(q)?.[1]
-      const oracle = /^oracleid:(\S+) game:paper$/.exec(q)?.[1]
-      const found = CARDS.filter((c) => c.name === exact || c.oracle_id === oracle)
+      const game = / game:(\w+)$/.exec(q)?.[1]
+      const exact = /^!"(.+)" game:\w+$/.exec(q)?.[1]
+      const oracle = /^oracleid:(\S+) game:\w+$/.exec(q)?.[1]
+      const games = (c: (typeof CARDS)[number]) => ((c as Record<string, unknown>).games as string[] | undefined) ?? ['paper', 'arena']
+      const found = CARDS.filter((c) => (c.name === exact || c.oracle_id === oracle) && games(c).includes(game ?? 'paper'))
       return found.length ? json(200, { data: found, has_more: false, total_cards: found.length }) : json(404, { object: 'error' })
     }
     if (url.pathname === '/cards/named') {
@@ -75,8 +95,10 @@ beforeAll(async () => {
       let body = ''
       req.on('data', (chunk) => (body += chunk))
       req.on('end', () => {
-        const names: string[] = JSON.parse(body).identifiers.map((i: { name: string }) => i.name)
-        json(200, { data: CARDS.filter((c) => names.includes(c.name) && c.set !== 'prm') })
+        const ids: Array<{ name?: string; set?: string; collector_number?: string }> = JSON.parse(body).identifiers
+        const wanted = (c: (typeof CARDS)[number]) =>
+          ids.some((id) => (id.name ? id.name === c.name : id.set === c.set && id.collector_number === c.collector_number))
+        json(200, { data: CARDS.filter((c) => wanted(c) && c.set !== 'prm') })
       })
       return
     }
@@ -111,9 +133,10 @@ async function setup(userData?: string) {
     scryfallApi: base,
     mtgjsonApi: base,
     priceGuideUrl: base,
-    edhrecJson: base
+    edhrecJson: base,
+    cardImagesUrl: base
   })
-  return { dir, scryfall: await import('./scryfall') }
+  return { dir, scryfall: await import('./scryfall'), resolver: await import('./cardResolver') }
 }
 
 describe('RateLimitedQueue', () => {
@@ -160,6 +183,15 @@ describe('getPrintings', () => {
     expect(await scryfall.getPrintings('Zzyzx the Unreal')).toMatchObject({ notFound: true, printings: [] })
   })
 
+  it('keeps the MTG Arena printings of a card never printed on paper, marked digital', async () => {
+    const { scryfall } = await setup()
+    const arena = await scryfall.getPrintings('Potential Horizon')
+    expect(arena.card?.legalities).toEqual({ historic: 'legal' })
+    expect(arena.printings).toMatchObject([{ set: 'yfra', digital: true }])
+    // A card printed on paper keeps only its paper printings.
+    expect((await scryfall.getPrintings('Sol Ring')).printings.some((p) => p.digital)).toBe(false)
+  })
+
   it('keeps showing cached prices when a refresh fails', async () => {
     const { scryfall } = await setup()
     const cached = await scryfall.getPrintings('Sol Ring')
@@ -171,6 +203,79 @@ describe('getPrintings', () => {
   })
 })
 
+describe('names in other languages', () => {
+  it('finds a card by a name printed in another language, and not a near English one', async () => {
+    const { scryfall } = await setup()
+    const bolt = await scryfall.getPrintings('Relámpago')
+    expect(bolt).toMatchObject({ name: 'Lightning Bolt', lang: 'es' })
+    expect(bolt.printings.map((p) => p.set)).toEqual(['a25'])
+    expect(hits).not.toContain('/cards/named')
+    expect(await scryfall.getPrintings('稲妻')).toMatchObject({ name: 'Lightning Bolt', lang: 'ja' })
+  })
+
+  it('stores a Card found by another name once: its English name needs no lookup after', async () => {
+    const { scryfall } = await setup()
+    await scryfall.getPrintings('Relámpago')
+    hits.length = 0
+    const bolt = await scryfall.getPrintings('Lightning Bolt')
+    expect(bolt.name).toBe('Lightning Bolt')
+    expect(bolt.lang).toBeUndefined()
+    expect(hits).toEqual([])
+  })
+})
+
+describe('card resolver', () => {
+  it('resolves names in any language and printings, asking Scryfall in batches, then from the cache', async () => {
+    const { resolver } = await setup()
+    const queries = [
+      { name: 'Sol Ring' },
+      { name: 'Relámpago' },
+      { name: '稲妻' },
+      { set: 'A25', collector: '141' },
+      { name: 'Zzyzx the Unreal' },
+      { name: 'sol ring' }
+    ]
+    expect(await resolver.resolveCards(queries)).toEqual([
+      { name: 'Sol Ring' },
+      { name: 'Lightning Bolt', lang: 'es' },
+      { name: 'Lightning Bolt', lang: 'ja' },
+      { name: 'Lightning Bolt', set: 'a25', collector: '141' },
+      null,
+      { name: 'Sol Ring' }
+    ])
+    // One request for English names and printings, one search for the rest, one fuzzy try for the unknown name.
+    expect(hits).toEqual(['/cards/collection', '/cards/search', '/cards/named'])
+    hits.length = 0
+    expect(await resolver.resolveCards(queries)).toHaveLength(6)
+    expect(hits).toEqual([])
+  })
+
+  it('answers from cards already looked up, without asking Scryfall', async () => {
+    const { scryfall, resolver } = await setup()
+    await scryfall.getPrintings('Sol Ring')
+    hits.length = 0
+    expect(await resolver.resolveCards([{ name: 'SOL RING' }, { set: 'cmm', collector: '1' }])).toEqual([
+      { name: 'Sol Ring' },
+      { name: 'Sol Ring', set: 'cmm', collector: '1' }
+    ])
+    expect(hits).toEqual([])
+  })
+
+  it('marks a name without its accents that two cards print as a near match', async () => {
+    const { resolver } = await setup()
+    const [relampago] = await resolver.resolveCards([{ name: 'Relampago' }])
+    expect(relampago).toMatchObject({ name: 'Lightning Bolt', fuzzy: true })
+  })
+
+  it('answers nothing while offline, and asks again later', async () => {
+    const { resolver } = await setup()
+    failing = true
+    expect(await resolver.resolveCards([{ name: 'Sol Ring' }])).toEqual([null])
+    failing = false
+    expect(await resolver.resolveCards([{ name: 'Sol Ring' }])).toEqual([{ name: 'Sol Ring' }])
+  })
+})
+
 describe('getCardInfos', () => {
   it('batches unknown cards into one collection request and reuses cached ones', async () => {
     const { scryfall } = await setup()
@@ -179,6 +284,39 @@ describe('getCardInfos', () => {
     expect(Object.keys(infos)).toEqual(['sol ring', 'grist, the hunger tide'])
     expect(infos['grist, the hunger tide']?.typeLine).toBe('Legendary Planeswalker — Grist')
     expect(hits).toEqual(['/cards/search', '/cards/collection'])
+  })
+
+  it("reads a reversible card's name, type and mana value from its front face", async () => {
+    const { scryfall } = await setup()
+    const face = { name: 'Krark, the Thumbless', mana_cost: '{1}{R}', cmc: 2, type_line: 'Legendary Creature — Goblin Wizard', colors: ['R'], oracle_text: '' }
+    const info = scryfall.toCardInfo({
+      name: 'Krark, the Thumbless // Krark, the Thumbless',
+      layout: 'reversible_card',
+      color_identity: ['R'],
+      card_faces: [face, face]
+    })
+    expect(info).toMatchObject({ name: 'Krark, the Thumbless', typeLine: 'Legendary Creature — Goblin Wizard', manaValue: 2, manaCost: '{1}{R}' })
+    expect(info.faces).toEqual([{ name: 'Krark, the Thumbless', manaCost: '{1}{R}', typeLine: 'Legendary Creature — Goblin Wizard', text: '' }])
+  })
+
+  it("keeps each face's cost, type line, rules text and stats for the card's dialog", async () => {
+    const { scryfall } = await setup()
+    const bears = scryfall.toCardInfo({ name: 'Grizzly Bears', mana_cost: '{1}{G}', cmc: 2, type_line: 'Creature — Bear', power: '2', toughness: '2' })
+    expect(bears.faces).toEqual([{ name: 'Grizzly Bears', manaCost: '{1}{G}', typeLine: 'Creature — Bear', text: '', pt: '2/2' }])
+    const delver = scryfall.toCardInfo({
+      name: 'Delver of Secrets // Insectile Aberration',
+      layout: 'transform',
+      card_faces: [
+        { name: 'Delver of Secrets', mana_cost: '{U}', type_line: 'Creature — Human Wizard', oracle_text: 'At the beginning of your upkeep, look at the top card of your library.', power: '1', toughness: '1' },
+        { name: 'Insectile Aberration', mana_cost: '', type_line: 'Creature — Human Insect', oracle_text: 'Flying', power: '3', toughness: '2' }
+      ]
+    })
+    expect(delver.faces?.map((face) => [face.name, face.manaCost, face.pt])).toEqual([
+      ['Delver of Secrets', '{U}', '1/1'],
+      ['Insectile Aberration', undefined, '3/2']
+    ])
+    const nissa = scryfall.toCardInfo({ name: 'Nissa', mana_cost: '{3}{G}', type_line: 'Legendary Planeswalker — Nissa', oracle_text: '+1: Untap a land.', loyalty: '4' })
+    expect(nissa.faces?.[0].loyalty).toBe('4')
   })
 })
 

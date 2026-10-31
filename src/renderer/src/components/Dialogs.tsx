@@ -5,6 +5,7 @@ import type { ListKind } from '@shared/types'
 import { ui } from '@shared/text'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { useCopy } from '../hooks/useCopy'
+import { localizeText } from '../lib/localize'
 import { FormatSelect } from './Controls'
 import { Modal } from './Modal'
 
@@ -173,14 +174,16 @@ interface TextEditorDialogProps {
   onClose: () => void
 }
 
-/** Raw text editor for a list or the inventory. */
+/** Raw text editor for a list or the inventory. Saving puts names in other languages in English first ({@link localizeText}). */
 export function TextEditorDialog({ title, initial, mode, copied, copyText = (text) => text, onCopyUnowned, onSave, onClose }: TextEditorDialogProps) {
   const [text, setText] = useState(initial)
   const copy = useCopy()
-  const save = () => {
-    onSave(text)
-    onClose()
-  }
+  const { busy, run } = useAsyncAction()
+  const save = () =>
+    run(async () => {
+      onSave(text === initial ? text : await localizeText(text))
+      onClose()
+    })
   return (
     <Modal
       title={title}
@@ -203,8 +206,8 @@ export function TextEditorDialog({ title, initial, mode, copied, copyText = (tex
           <button type="button" onClick={onClose}>
             {ui.dialogs.cancel}
           </button>
-          <button type="button" className="primary" onClick={save}>
-            {ui.dialogs.save}
+          <button type="button" className="primary" onClick={save} disabled={busy}>
+            {busy ? ui.dialogs.editor.finding : ui.dialogs.save}
           </button>
         </>
       }
@@ -245,7 +248,7 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
   const [text, setText] = useState('')
   const [addToInventory, setAddToInventory] = useState(true)
   const { error, busy, run } = useAsyncAction()
-  const submit = () => run(() => onCreate(name, text, format || null, isDeck && addToInventory))
+  const submit = () => run(async () => onCreate(name, await localizeText(text), format || null, isDeck && addToInventory))
   return (
     <Modal
       title={ui.dialogs.newList.title(kind)}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { bundledBasic } from '@shared/basics'
-import { TYPE_GROUPS, type ColorFilter } from '@shared/cards'
+import { shortName, TYPE_GROUPS, type ColorFilter } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { STAT_COLORS } from '@shared/deckStats'
 import {
@@ -15,8 +15,9 @@ import {
   type Bracket,
   type Budget
 } from '@shared/deckWizard/averageDeck'
-import { nameKey } from '@shared/decklist'
-import { canLead, FORMATS, listCommanders } from '@shared/formats'
+import { nameKey, parseList, serializeList } from '@shared/decklist'
+import { companionBreaks, companionDeckBreak, COMPANIONS, withCompanion, type DeckCard } from '@shared/deckRules'
+import { canLead, FORMATS, namedPartner, secondCommanderOf } from '@shared/formats'
 import { preconListName } from '@shared/precons'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { ui } from '@shared/text'
@@ -41,7 +42,7 @@ interface DeckWizardProps {
   onClose: () => void
   /** Creates the list; errors show in the wizard. */
   onCreate: (kind: ListKind, name: string, text: string, cards: number) => Promise<void>
-  /** All decks, wishlists and brews: names to keep free, and commanders already leading a deck. */
+  /** All decks, wishlists and brews: names to keep free. */
   lists: CardList[]
   inventory: Map<string, InventoryItem>
   /** Copy claims: copies built decks hold aren't yours to build with. */
@@ -87,6 +88,10 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
   const [state, setState] = useState<DeckState>({ status: 'loading' })
   const [retry, setRetry] = useState(0)
   const [name, setName] = useState<string | null>(null)
+  /** The commander last paired with the partner it names, so dropping that partner sticks. */
+  const [paired, setPaired] = useState<string | null>(null)
+  /** The Companion chosen among those the deck fits. */
+  const [companion, setCompanion] = useState<string | null>(null)
   const create = useAsyncAction()
 
   useEffect(() => {
@@ -120,12 +125,10 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
     for (const card of deck?.cards ?? []) requestPrintings(card.name)
   }, [leadersKey, deck])
 
-  /** Legendary creatures you own that lead no deck yet, most copies first. */
-  const owned = useMemo(() => {
-    const leading = new Set(lists.flatMap((list) => listCommanders(list.lines)).map(nameKey))
-    return [...inventory.values()].filter((item) => !leading.has(nameKey(item.name)))
-  }, [inventory, lists])
+  /** Cards you own, whether or not they lead a deck already. */
+  const owned = useMemo(() => [...inventory.values()], [inventory])
   useEffect(() => requestCardInfos(owned.map((item) => item.name), bundleBasics), [owned, bundleBasics])
+  useEffect(() => requestCardInfos(COMPANIONS), [])
   const suggestions = owned
     .filter((item) => {
       const info = getCardInfo(item.name, bundleBasics)
@@ -165,14 +168,47 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
   const theme = themes.find((option) => option.slug === filters.theme) ?? null
   const chips = themes.slice(0, THEME_CHIPS)
   const extra = theme && !chips.includes(theme) ? theme : null
-  const defaultName = commander ? averageDeckName(commanders, theme?.name ?? null) : ''
+  // A Background or a Doctor's companion follows its commander: the list is named after that one alone.
+  const info = commander ? getCardInfo(commander, bundleBasics) : undefined
+  /** What kind of second commander the first takes, which names the search bar; null if none. */
+  const kind = info ? secondCommanderOf(info) : null
+  const follows = commanders.length > 1 && (kind === 'background' || kind === 'doctorsCompanion' || kind === 'doctor')
+  const named = follows ? [kind === 'doctor' ? commanders[1] : commanders[0]] : commanders
+  const defaultName = commander ? averageDeckName(named, theme?.name ?? null) : ''
   const listName = name ?? defaultName
   const namesOf = (kind: ListKind) => lists.filter((list) => list.kind === kind).map((list) => list.name)
-  const save = (kind: ListKind) =>
-    create.run(() => (deck ? onCreate(kind, preconListName(listName.trim(), namesOf(kind)), averageDeckText(deck), total) : undefined))
-
-  const info = commander ? getCardInfo(commander, bundleBasics) : undefined
   const identity = new Set(commanders.flatMap((name) => getCardInfo(name, bundleBasics)?.colorIdentity ?? []))
+  // The Companions whose condition the deck meets, once every card's data has loaded.
+  const deckCards = deck ? [...leaders.map((name) => ({ name, qty: 1 })), ...deck.cards].map((card) => ({ ...card, info: getCardInfo(card.name, bundleBasics) })) : []
+  const loaded = deckCards.length > 0 && deckCards.every((card) => card.info)
+  const fitting = loaded
+    ? COMPANIONS.filter((name) => {
+        const card = getCardInfo(name, bundleBasics)
+        const rule = card?.companion
+        if (!rule || rule.kind === 'other' || card.legalities.commander !== 'legal') return false
+        if (leaders.some((leader) => nameKey(leader) === nameKey(name))) return false
+        return (
+          card.colorIdentity.every((color) => identity.has(color)) &&
+          companionBreaks(rule, deckCards as DeckCard[]).length === 0 &&
+          companionDeckBreak(rule, total, COMMANDER.deckSize) === 0
+        )
+      })
+    : []
+  const chosenCompanion = companion && fitting.includes(companion) ? companion : null
+  const deckText = (deck: AverageDeck) => {
+    const text = averageDeckText(deck)
+    return chosenCompanion ? serializeList(withCompanion(parseList(text), chosenCompanion)) : text
+  }
+  const save = (kind: ListKind) =>
+    create.run(() => (deck ? onCreate(kind, preconListName(listName.trim(), namesOf(kind)), deckText(deck), total) : undefined))
+
+  // A commander that names its partner ("Partner with") brings it, once its card data loads.
+  const partner = commanders.length === 1 ? namedPartner(COMMANDER, info) : null
+  useEffect(() => {
+    if (!commander || !partner || paired === commander) return
+    setPaired(commander)
+    lead([commander, partner])
+  }, [commander, partner, paired])
   const arts = commanders.flatMap((name) => artCrop(cheapestVersion(name, priceBasis)?.printing) ?? [])
   const edhrecUrl = commander ? `${EDHREC_SITE}/${averageDeckPath(commanders, filters)}` : 'https://edhrec.com'
   const set = (patch: Partial<AverageDeckFilters>) => setFilters({ ...filters, ...patch })
@@ -202,7 +238,7 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
   )
 
   return (
-    <Modal title={text.name} icon={<WizardHat size={20} />} size="wizard" onClose={onClose} footer={footer || undefined}>
+    <Modal title={text.name} icon={<WizardHat size={20} />} size="wizard" onClose={onClose} onBack={commander ? () => lead([]) : undefined} footer={footer || undefined}>
       {!commander ? (
         <div className="wizard-start">
           <p className="muted">{text.intro}</p>
@@ -240,15 +276,14 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
             </div>
             <span className="spacer" />
             <div className="wizard-other">
-              {commanders.length === 1 && info?.partner && (
-                <CardSearch id="wizard-partner" placeholder={text.addPartner} onPick={(card) => lead([commanders[0], card])} />
+              {commanders.length === 1 && kind && (
+                <CardSearch id="wizard-partner" placeholder={text.addSecond[kind]} onPick={(card) => lead([commanders[0], card])} />
               )}
               {commanders.length > 1 && (
-                <button type="button" className="wizard-drop-partner" onClick={() => lead([commanders[0]])}>
-                  <Icon name="close" /> {text.without(commanders[1])}
+                <button type="button" className="wizard-drop-partner" title={text.remove(commanders[1])} onClick={() => lead([commanders[0]])}>
+                  <Icon name="close" /> {commanders[1]}
                 </button>
               )}
-              <CardSearch id="wizard-commander" placeholder={text.anotherCommander} onPick={pick} />
             </div>
           </section>
 
@@ -304,6 +339,25 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
                 onChange={(budget) => set({ budget: budget as Budget | null })}
               />
             </div>
+            {deck && fitting.length > 0 && (
+              <div className="wizard-filter-row" role="group" aria-label={text.companion}>
+                <span className="wizard-filter-label" title={text.companionHint}>
+                  {text.companion}
+                </span>
+                {fitting.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    className={`wizard-chip${chosenCompanion === name ? ' on' : ''}`}
+                    aria-pressed={chosenCompanion === name}
+                    title={name}
+                    onClick={() => setCompanion(chosenCompanion === name ? null : name)}
+                  >
+                    {shortName(name)}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {state.status === 'loading' && <p className="muted wizard-note">{text.asking}</p>}

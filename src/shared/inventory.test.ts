@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parseInventory } from './decklist'
-import { addCopies, hasVersions, itemFromCopies, worthlessCopies, normalizeCopies, otherVersions, ownedVersion, withTotal } from './inventory'
+import { cardLines, parseInventory, parseList } from './decklist'
+import { addCopies, coverLines, hasVersions, itemFromCopies, worthlessCopies, normalizeCopies, otherVersions, ownedVersion, withTotal } from './inventory'
 
 const bolt = () => parseInventory('2 Lightning Bolt\n1 Lightning Bolt <141> [A25]\n1 Lightning Bolt [M11] (F)').get('lightning bolt')!
 
@@ -85,5 +85,29 @@ describe('inventory copies', () => {
     ])
     expect(worthlessCopies(item)).toBe(1)
     expect(hasVersions(parseInventory('1 Opt {JA}').get('opt')!)).toBe(true)
+  })
+})
+
+describe('lines wanting a Version', () => {
+  const copies = parseInventory('1 Sword of the Animist <217> [M11]\n1 Sword of the Animist <355> [LTC] (F)\n').get('sword of the animist')!.copies
+  const line = (text: string) => cardLines(parseList(text))[0]
+
+  it('take only copies that serve them; any other copy is a substitute', () => {
+    expect(coverLines([line('1 Sword of the Animist <355> [LTC]')], copies, 2)).toEqual([{ owned: 0, substitutes: 1 }])
+    expect(coverLines([line('1 Sword of the Animist <355> [LTC] (F)')], copies, 2)).toEqual([{ owned: 1, substitutes: 0 }])
+    expect(coverLines([line('1 Sword of the Animist [M11]')], copies, 2)).toEqual([{ owned: 1, substitutes: 0 }])
+  })
+
+  it('go first, so a line taking any copy gets what they leave', () => {
+    const lines = [line('2 Sword of the Animist'), line('1 Sword of the Animist <217> [M11]')]
+    expect(coverLines(lines, copies, 2)).toEqual([{ owned: 1, substitutes: 0 }, { owned: 1, substitutes: 0 }])
+  })
+
+  it('take a copy with no recorded printing in their finish, any copy as a stand-in, and no more than the lists ahead leave', () => {
+    const plain = parseInventory('1 Sol Ring\n').get('sol ring')!.copies
+    expect(coverLines([line('1 Sol Ring <284> [LTC]')], plain, 1)).toEqual([{ owned: 1, substitutes: 0 }])
+    expect(coverLines([line('1 Sol Ring [LTC] (F)')], plain, 1)).toEqual([{ owned: 0, substitutes: 1 }])
+    expect(coverLines([line('1 Sword of the Animist <355> [LTC] {Stand-in}')], copies, 2)).toEqual([{ owned: 1, substitutes: 0 }])
+    expect(coverLines([line('1 Sword of the Animist <355> [LTC] (F)')], copies, 0)).toEqual([{ owned: 0, substitutes: 0 }])
   })
 })

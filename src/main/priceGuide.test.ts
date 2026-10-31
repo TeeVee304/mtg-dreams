@@ -143,3 +143,22 @@ describe('the price guide', () => {
     }
   })
 })
+
+describe('the price table', () => {
+  it('gives back every price exactly, by product id, the last row of a repeated id counting', async () => {
+    const { PriceTable } = await import('./priceGuide')
+    const table = PriceTable.from([
+      [721234, [0.02, 0.08, 0.07, 0.05, 0.38, 0.36]],
+      [5, [1000000, 0, 0, 0, 0, 0]],
+      [99, [1, 1, 1, 1, 1, 1]],
+      [99, [0.1, 0.2, 0.3, 0, 0, 0]]
+    ])
+    expect(table.size).toBe(3)
+    expect(table.get(721234)).toEqual([0.02, 0.08, 0.07, 0.05, 0.38, 0.36])
+    expect(table.get(5)).toEqual([1000000, 0, 0, 0, 0, 0])
+    expect(table.get(99)).toEqual([0.1, 0.2, 0.3, 0, 0, 0])
+    expect(table.get(6)).toBeUndefined()
+    expect([...table.entries()].map(([id]) => id)).toEqual([5, 99, 721234])
+    expect(PriceTable.from(table.entries()).get(721234)).toEqual(table.get(721234))
+  })
+})

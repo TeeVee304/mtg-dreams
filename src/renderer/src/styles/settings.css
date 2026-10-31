@@ -104,6 +104,55 @@ input.switch:checked::after {
   overflow-wrap: anywhere;
 }
 
+.storage-hint {
+  margin: 0 0 8px;
+}
+
+/* Each cache with its size, in two columns across the dialog; the total and Clear under a rule. */
+.storage-sizes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 32px;
+  margin: 0;
+}
+
+.storage-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--fs-sm);
+  padding: 2px 0;
+}
+
+.storage-row dt {
+  color: var(--muted);
+}
+
+.storage-row dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--border);
+  margin: 6px 0 8px;
+  padding-top: 8px;
+  font-size: var(--fs-sm);
+}
+
+.storage-total strong {
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.storage-confirm p {
+  margin: 0 0 6px;
+}
+
 .settings-credits {
   margin: 22px 0 0;
   text-align: center;
@@ -112,4 +161,10 @@ input.switch:checked::after {
 /* Room between the price note and the setting below it. */
 .radio-options + .settings-note {
   margin-bottom: 14px;
+}
+
+/* A choice among options rather than a switch: only its buttons are clickable. */
+div.setting-toggle {
+  align-items: center;
+  cursor: default;
 }

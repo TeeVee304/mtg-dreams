@@ -1,4 +1,4 @@
-import { itemFromCopies } from './inventory'
+import { coverLines, itemFromCopies, wantsVersion } from './inventory'
 import { languageOf, type Language } from './languages'
 import type { CardLine, InventoryItem, ListLine, OwnedCopy } from './types'
 
@@ -45,6 +45,8 @@ const ARCHIDEKT_LABEL_RE = /\s+\^[^^]*\^$/
 const LANGUAGE_RE = /\s*\{([A-Za-z]{2,3})\}$/
 /** Worthless suffix: `{Worthless}` (or `{No value}`, as it was first called). */
 const WORTHLESS_RE = /\s*\{(?:worthless|no value)\}$/i
+/** Stand-in suffix: `{Stand-in}`. */
+const STAND_IN_RE = /\s*\{stand-in\}$/i
 
 /**
  * @param inner - A bracketed suffix's text.
@@ -63,7 +65,7 @@ export const MAYBEBOARD_TEXT = 'Maybeboard'
 
 /**
  * Parses `N[x] Name` with optional suffixes in any order: `<tag>`, `[SET]`, `(F)`/`*F*`, `(SET) num`,
- * `{DE}` (a language besides English), `{Worthless}`. Archidekt's `[Category]` and `^Label^` are
+ * `{DE}` (a language besides English), `{Worthless}`, `{Stand-in}`. Archidekt's `[Category]` and `^Label^` are
  * dropped.
  * @returns Card fields; null if not a card line.
  */
@@ -87,6 +89,7 @@ function parseTaggedLine(line: string): { card: Omit<CardLine, 'id' | 'kind'>; b
   let collector: string | undefined
   let lang: Language | undefined
   let worthless = false
+  let standIn = false
   let labelled = false
   let category: string | null = null
 
@@ -100,6 +103,8 @@ function parseTaggedLine(line: string): { card: Omit<CardLine, 'id' | 'kind'>; b
       foil = true
     } else if (!worthless && (m = WORTHLESS_RE.exec(rest))) {
       worthless = true
+    } else if (!standIn && (m = STAND_IN_RE.exec(rest))) {
+      standIn = true
     } else if (!lang && (m = LANGUAGE_RE.exec(rest)) && (languageOf(m[1]) || m[1].toLowerCase() === 'en')) {
       lang = languageOf(m[1])
     } else if (!set && (m = GOLDFISH_SET_RE.exec(rest))) {
@@ -117,7 +122,7 @@ function parseTaggedLine(line: string): { card: Omit<CardLine, 'id' | 'kind'>; b
 
   const name = rest.replace(/\s+/g, ' ').trim()
   if (!name) return null
-  const card = { qty, name, set, collector: collector || undefined, foil, ...(lang && { lang }), ...(worthless && { worthless: true as const }) }
+  const card = { qty, name, set, collector: collector || undefined, foil, ...(lang && { lang }), ...(worthless && { worthless: true as const }), ...(standIn && { standIn: true as const }) }
   const board = !category || !/\{nodeck\}/i.test(category) ? 'main' : /^sideboard(?![a-z])/i.test(category) ? 'side' : 'maybe'
   return { card, board }
 }
@@ -147,7 +152,7 @@ export function parseList(text: string): ListLine[] {
   return lines
 }
 
-/** @returns Canonical line: `N Name <collector> [SET] (F) {DE} {Worthless}`. */
+/** @returns Canonical line: `N Name <collector> [SET] (F) {DE} {Worthless} {Stand-in}`. */
 export function serializeCard(card: Omit<CardLine, 'id' | 'kind'>): string {
   let line = `${card.qty} ${card.name}`
   if (card.collector) line += ` <${card.collector}>`
@@ -155,6 +160,7 @@ export function serializeCard(card: Omit<CardLine, 'id' | 'kind'>): string {
   if (card.foil) line += ' (F)'
   if (card.lang) line += ` {${card.lang.toUpperCase()}}`
   if (card.worthless) line += ' {Worthless}'
+  if (card.standIn) line += ' {Stand-in}'
   return line
 }
 
@@ -232,26 +238,47 @@ export interface Allocation {
   before: number
   /** Copies of the same card claimed by lists ahead of this one. */
   held: number
+  /** Copies of other Versions the line could take: substitutes, owned toward nothing ({@link coverLines}). */
+  substitutes?: number
 }
 
 /**
  * Allocates owned copies to the lines of one list in order, after the copies lists ahead hold.
  * @param inventory - Items by nameKey.
  * @param held - Copies of a card (by nameKey) that lists ahead take first (`CopyPool.held`); none by default.
+ * @param versions - Lines wanting a Version own only copies that serve them, the rest being
+ * substitutes ({@link coverLines}): wishlists and brews; decks own any copy.
  */
 export function allocateOwned(
   lines: CardLine[],
   inventory: Map<string, InventoryItem>,
-  held: (key: string) => number = () => 0
+  held: (key: string) => number = () => 0,
+  versions = false
 ): Allocation[] {
   const claimedSoFar = new Map<string, number>()
-  return lines.map((line) => {
+  const allocations: Allocation[] = lines.map((line) => {
     const key = nameKey(line.name)
     const ahead = claimedSoFar.get(key) ?? held(key)
     claimedSoFar.set(key, ahead + line.qty)
     const available = Math.max(0, (inventory.get(key)?.qty ?? 0) - ahead)
     return { owned: Math.min(line.qty, available), before: ahead, held: held(key) }
   })
+  if (!versions) return allocations
+  const byCard = new Map<string, number[]>()
+  lines.forEach((line, i) => {
+    const key = nameKey(line.name)
+    byCard.set(key, [...(byCard.get(key) ?? []), i])
+  })
+  for (const [key, indexes] of byCard) {
+    const own = indexes.map((i) => lines[i])
+    if (!own.some(wantsVersion)) continue
+    const item = inventory.get(key)
+    const covers = coverLines(own, item?.copies ?? [], Math.max(0, (item?.qty ?? 0) - held(key)))
+    indexes.forEach((i, at) => {
+      allocations[i] = { ...allocations[i], owned: covers[at].owned, ...(covers[at].substitutes > 0 && { substitutes: covers[at].substitutes }) }
+    })
+  }
+  return allocations
 }
 
 /** @returns Inventory items by nameKey; lines of the same card merge into one item's copies. */

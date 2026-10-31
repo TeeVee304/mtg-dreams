@@ -50,6 +50,21 @@
   gap: 12px;
 }
 
+/* Offline: a calm note above the prices, which are the saved ones. */
+.offline-status {
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.offline-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+  flex: none;
+}
+
 .settings-btn {
   display: inline-flex;
   align-items: center;

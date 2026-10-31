@@ -2,6 +2,7 @@ import { pick } from '@shared/pricing'
 import { ui } from '@shared/text'
 import type { PriceBasis, Prices, PrintingsResult } from '@shared/types'
 import { readCacheFile, writeCacheFile } from './cacheFiles'
+import { onConnectivityChange } from './connectivity'
 import { env } from './environment'
 import { fetchJson, fetchLastModified } from './http'
 
@@ -28,6 +29,58 @@ const MIN_DOWNLOAD_INTERVAL_MS = 12 * 60 * 60 * 1000
 const BASES: PriceBasis[] = ['low', 'trend', 'avg30']
 /** Product prices: {@link BASES} for non-foil, then foil; 0 = none. */
 type Row = [number, number, number, number, number, number]
+/** Prices per {@link Row}. */
+const ROW = 6
+
+/**
+ * Prices by product id, kept compactly: about 130,000 products take some 3.6 MB as two number
+ * arrays, against some 14 MB as a map of small arrays. Ids are sorted, for a binary search; prices
+ * are whole cents, as Cardmarket gives them.
+ */
+export class PriceTable {
+  private constructor(
+    /** Product ids, ascending. */
+    private readonly ids: Int32Array,
+    /** {@link ROW} prices per id, in cents. */
+    private readonly cents: Int32Array
+  ) {}
+
+  /** @returns A table of `rows`; for a repeated id, the last row counts. */
+  static from(rows: Iterable<readonly [number, Row]>): PriceTable {
+    const byId = new Map(rows)
+    const ids = Int32Array.from([...byId.keys()].filter((id) => id > 0 && id <= 0x7fffffff)).sort()
+    const cents = new Int32Array(ids.length * ROW)
+    ids.forEach((id, i) => byId.get(id)!.forEach((price, j) => (cents[i * ROW + j] = Math.round(price * 100))))
+    return new PriceTable(ids, cents)
+  }
+
+  /** Number of products. */
+  get size(): number {
+    return this.ids.length
+  }
+
+  /** @returns A product's prices; undefined if absent. */
+  get(id: number): Row | undefined {
+    let low = 0
+    let high = this.ids.length - 1
+    while (low <= high) {
+      const mid = (low + high) >>> 1
+      if (this.ids[mid] === id) return this.row(mid)
+      if (this.ids[mid] < id) low = mid + 1
+      else high = mid - 1
+    }
+    return undefined
+  }
+
+  /** @returns Every product's prices, by id. */
+  *entries(): Generator<[number, Row]> {
+    for (let i = 0; i < this.ids.length; i++) yield [this.ids[i], this.row(i)]
+  }
+
+  private row(i: number): Row {
+    return Array.from(this.cents.subarray(i * ROW, i * ROW + ROW), (cents) => cents / 100) as Row
+  }
+}
 
 /** In-memory guide. */
 interface Guide {
@@ -38,7 +91,7 @@ interface Guide {
   /** `Last-Modified` of the downloaded file. */
   lastModified: string | null
   /** Prices by product id. */
-  rows: Map<number, Row>
+  rows: PriceTable
 }
 
 /** On-disk form of {@link Guide}. */
@@ -59,7 +112,7 @@ export function loadPriceGuide(): Promise<void> {
   loading ??= (async () => {
     const file = await readCacheFile<GuideFile>(FILE)
     if (file?.version !== VERSION || typeof file.rows !== 'object') return
-    const rows = new Map(Object.entries(file.rows).map(([id, row]) => [Number(id), row] as const))
+    const rows = PriceTable.from(Object.entries(file.rows).map(([id, row]) => [Number(id), row] as const))
     guide = { createdAt: file.createdAt, fetchedAt: file.fetchedAt, lastModified: file.lastModified, rows }
   })()
   return loading
@@ -88,16 +141,16 @@ const positive = (value: unknown) => (typeof value === 'number' && value > 0 ? v
 
 /** Builds a {@link Guide} from Cardmarket's JSON; falls back to now if `createdAt` is invalid. */
 function toGuide(data: any, lastModified: string | null): Guide {
-  const rows = new Map<number, Row>()
+  const read: Array<[number, Row]> = []
   for (const p of data.priceGuides as any[]) {
     if (!Number.isSafeInteger(p?.idProduct)) continue
-    rows.set(p.idProduct, [
+    read.push([p.idProduct, [
       positive(p.low), positive(p.trend), positive(p.avg30),
       positive(p['low-foil']), positive(p['trend-foil']), positive(p['avg30-foil'])
-    ])
+    ]])
   }
   const createdAt = Date.parse(data.createdAt)
-  return { createdAt: Number.isNaN(createdAt) ? Date.now() : createdAt, fetchedAt: Date.now(), lastModified, rows }
+  return { createdAt: Number.isNaN(createdAt) ? Date.now() : createdAt, fetchedAt: Date.now(), lastModified, rows: PriceTable.from(read) }
 }
 
 /** Persists the guide to the cache file. */
@@ -107,7 +160,7 @@ function save(next: Guide): Promise<void> {
     createdAt: next.createdAt,
     fetchedAt: next.fetchedAt,
     lastModified: next.lastModified,
-    rows: Object.fromEntries(next.rows)
+    rows: Object.fromEntries(next.rows.entries())
   }
   return writeCacheFile(FILE, file)
 }
@@ -143,11 +196,15 @@ export function refreshPriceGuide(): Promise<boolean> {
   return refreshing
 }
 
-/** Refreshes now and every {@link CHECK_EVERY_MS}; calls `onUpdate` when prices change. Errors are ignored. */
+/**
+ * Refreshes now, every {@link CHECK_EVERY_MS} and when the app comes back online; calls `onUpdate`
+ * when prices change. Errors are ignored.
+ */
 export function startPriceGuide(onUpdate: () => void): void {
   const check = () => refreshPriceGuide().then((changed) => changed && onUpdate(), () => undefined)
   void check()
   setInterval(check, CHECK_EVERY_MS)
+  onConnectivityChange((online) => online && void check())
 }
 
 /** @returns Epoch ms of the loaded guide's publication; null if none. */

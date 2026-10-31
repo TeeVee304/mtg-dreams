@@ -1,15 +1,26 @@
-import { useState } from 'react'
-import type { AppSettings, Theme } from '@shared/api'
+import { useEffect, useState } from 'react'
+import type { AppSettings, CacheGroup, CacheSizes, Theme } from '@shared/api'
 import { PRICE_BASES } from '@shared/pricing'
 import { ui } from '@shared/text'
-import { cleanError, formatDate } from '../lib/format'
+import { clearCaches, getCacheSizes } from '../lib/desktop'
+import { cleanError, formatDate, formatSize } from '../lib/format'
+import { useOnline } from '../stores/network'
 import { printingsResolutionChanged } from '../stores/printings'
 import { updateSettings, useSettings } from '../stores/settings'
-import { ColorOptions } from './Controls'
+import { ColorOptions, Segmented } from './Controls'
 import { Modal } from './Modal'
 
 /** Window modes, in the order offered; their names are `ui.settings.themes`. */
 const THEMES: Theme[] = ['system', 'light', 'dark']
+
+/** Rules text options of the card dialog. */
+const RULES_TEXTS = [
+  { id: 'oracle', label: ui.settings.rulesTexts.oracle },
+  { id: 'printed', label: ui.settings.rulesTexts.printed }
+] as const
+
+/** Cards a second the Scryfall cache fills again at, after clearing. */
+const CARDS_PER_SECOND = 2
 
 /** Props of {@link SettingsDialog}. */
 interface SettingsDialogProps {
@@ -36,7 +47,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     setError(null)
     updateSettings(patch).catch((e) => setError(cleanError(e)))
     // Which Version each Card resolves to changes: rows and Most Wanted price again.
-    if ('skipUniversesBeyond' in patch || 'skipSecretLair' in patch) printingsResolutionChanged()
+    if ('skipUniversesBeyond' in patch || 'skipSecretLair' in patch || 'skipPhyrexian' in patch) printingsResolutionChanged()
   }
 
   return (
@@ -120,6 +131,30 @@ export function SettingsDialog(props: SettingsDialogProps) {
             onChange={(event) => change({ skipSecretLair: event.target.checked })}
           />
         </label>
+      </section>
+
+      <section className="settings-section">
+        <h3>{text.language}</h3>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.skipPhyrexian}</span>
+            <span className="muted small">{text.skipPhyrexianHint}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.skipPhyrexian}
+            onChange={(event) => change({ skipPhyrexian: event.target.checked })}
+          />
+        </label>
+        <div className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.rulesText}</span>
+            <span className="muted small">{text.rulesTextHint}</span>
+          </span>
+          <Segmented label={text.rulesText} options={RULES_TEXTS} value={settings.rulesText} onChange={(rulesText) => change({ rulesText })} />
+        </div>
       </section>
 
       <section className="settings-section">
@@ -242,6 +277,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
         </div>
       </section>
 
+      <StorageSection />
+
       <section className="settings-section">
         <h3>{text.dataFolder}</h3>
         <p className="data-dir" title={dataDir}>
@@ -259,5 +296,76 @@ export function SettingsDialog(props: SettingsDialogProps) {
       {error && <p className="warn">{error}</p>}
       <p className="muted tiny settings-credits">{text.credits}</p>
     </Modal>
+  )
+}
+
+/**
+ * The caches' sizes, and one button that clears them all, after saying what that costs. Clearing needs
+ * the internet, since everything downloads again; it restarts the app.
+ */
+function StorageSection() {
+  const text = ui.settings
+  const online = useOnline()
+  const [sizes, setSizes] = useState<CacheSizes | null>(null)
+  const [confirming, setConfirming] = useState(false)
+  const [clearing, setClearing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => void getCacheSizes().then(setSizes, () => undefined), [])
+
+  const groups = Object.keys(text.caches) as CacheGroup[]
+  const size = (bytes: number | undefined) => (bytes === undefined ? '—' : formatSize(bytes))
+  const total = sizes ? groups.reduce((sum, group) => sum + sizes.bytes[group], 0) : undefined
+  const clear = () => {
+    setClearing(true)
+    setError(null)
+    clearCaches().catch((e) => {
+      setClearing(false)
+      setError(cleanError(e))
+    })
+  }
+
+  return (
+    <section className="settings-section">
+      <h3>{text.storage}</h3>
+      <p className="muted small storage-hint">{text.storageHint}</p>
+      <dl className="storage-sizes">
+        {groups.map((group) => (
+          <div key={group} className="storage-row">
+            <dt>{text.caches[group]}</dt>
+            <dd>{size(sizes?.bytes[group])}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="storage-total">
+        <span>
+          {text.storageTotal} <strong>{size(total)}</strong>
+        </span>
+        {!confirming && (
+          <button type="button" disabled={!online || !sizes} onClick={() => setConfirming(true)}>
+            {text.clearCaches}
+          </button>
+        )}
+      </div>
+      {!online && !confirming && <p className="muted small">{text.clearOffline}</p>}
+      {confirming && (
+        <div className="storage-confirm">
+          <p className="small">
+            {text.clearPrices}
+            {sizes && sizes.cards > 0 && ` ${text.clearCards(sizes.cards, Math.ceil(sizes.cards / CARDS_PER_SECOND / 60))}`}
+          </p>
+          <p className="muted small">{text.clearKeeps}</p>
+          <div className="foot-row">
+            <button type="button" className="danger" disabled={clearing || !online} onClick={clear}>
+              {text.clearConfirm}
+            </button>
+            <button type="button" disabled={clearing} onClick={() => setConfirming(false)}>
+              {ui.dialogs.cancel}
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p className="warn">{error}</p>}
+    </section>
   )
 }

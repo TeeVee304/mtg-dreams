@@ -47,6 +47,9 @@
   --mana-r: var(--glow-r);
   --mana-g: var(--glow-g);
   --mana-c: var(--glow-c);
+  /* The Stats panel's curve: the ring of a generic-only Card, the dot of a {C} one. */
+  --stat-generic: #6a6d86;
+  --stat-colorless: #b0b0b0;
   /* Type scale; body text is --fs-base. --fs-stat is large text (bold, over 18.66px), which
      needs only 3:1, so summary numbers can use the bright --accent. */
   --fs-xs: 11px;
@@ -98,6 +101,8 @@
     --mana-r: #c0303f;
     --mana-g: #23845a;
     --mana-c: #7e7e7e;
+    --stat-generic: #9a9cb3;
+    --stat-colorless: #7e7e7e;
     color-scheme: light;
   }
 }

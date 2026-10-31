@@ -14,6 +14,8 @@ export const inventory = {
   unique: (n: number) => `${n} unique`,
   addCard: 'Add a Card you own…  (Ctrl+K)',
   owned: (card: string, qty: number) => `${card}: ${qty} owned`,
+  addToInventory: 'Add to Inventory',
+  youOwn: (qty: number) => `You own ${qty}`,
   addPrecon: 'Add Precon…',
   addPreconHint: "Adds the Precon's Cards here and creates a Deck with them",
   filterByName: 'Filter by name…',

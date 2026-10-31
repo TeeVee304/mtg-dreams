@@ -32,7 +32,7 @@ const PLACEHOLDERS = 5
  */
 export function PreferredVersionsDialog({ list, rows, actions, onClose }: PreferredVersionsDialogProps) {
   const toast = useToast()
-  const { priceBasis, skipUniversesBeyond, skipSecretLair } = useSettings()
+  const { priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian } = useSettings()
   const text = ui.listDialogs.preferred
   const { groups, progress } = useSetGroups()
   useEffect(() => void loadSetGroups(), [])
@@ -57,13 +57,13 @@ export function PreferredVersionsDialog({ list, rows, actions, onClose }: Prefer
         ),
       groups ?? [],
       priceBasis,
-      { skipUniversesBeyond, skipSecretLair }
+      { skipUniversesBeyond, skipSecretLair, skipPhyrexian }
     )
     // The group in use first, then A–Z.
     return found.sort(
       (a, b) => Number(b.group.name === current) - Number(a.group.name === current) || sortName(a.group).localeCompare(sortName(b.group))
     )
-  }, [groups, priceBasis, skipUniversesBeyond, skipSecretLair, rows, current])
+  }, [groups, priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian, rows, current])
 
   const save = () => {
     if (chosen !== stored) {

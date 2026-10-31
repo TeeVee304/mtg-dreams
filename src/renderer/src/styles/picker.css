@@ -218,6 +218,13 @@
   font-weight: 600;
 }
 
+.chip.game-changer {
+  margin-left: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
 .chip.link {
   cursor: pointer;
   padding: 1px 8px;

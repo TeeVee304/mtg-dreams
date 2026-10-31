@@ -13,19 +13,20 @@ const UNAVAILABLE: DeckTokenData = { makers: {}, tokens: {}, available: false }
 /**
  * Fetches token data for a list, debounced and cached per card set.
  * @param names - Card names (main deck); null disables fetching.
+ * @param chosen - Token Versions the list chose (Scryfall ids), fetched too.
  * @returns Data; undefined while loading or disabled.
  */
-export function useDeckTokens(names: string[] | null): DeckTokenData | undefined {
-  const key = names ? JSON.stringify([...new Set(names)].sort()) : ''
+export function useDeckTokens(names: string[] | null, chosen: string[] = []): DeckTokenData | undefined {
+  const key = names ? JSON.stringify([[...new Set(names)].sort(), [...chosen].sort()]) : ''
   const [, setVersion] = useState(0)
 
   useEffect(() => {
     if (!key || cache.has(key)) return
-    const list = (JSON.parse(key) as string[]).slice(0, 3000)
+    const [names, ids] = JSON.parse(key) as [string[], string[]]
     let cancelled = false
     const timer = setTimeout(() => {
       window.api
-        .getDeckTokens(list)
+        .getDeckTokens(names.slice(0, 3000), ids.slice(0, 500))
         .then(
           (data) => cache.set(key, data),
           () => cache.set(key, UNAVAILABLE)

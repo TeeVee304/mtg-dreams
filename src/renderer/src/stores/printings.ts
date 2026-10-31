@@ -147,6 +147,15 @@ export function refreshStalePrintings(): void {
   }
 }
 
+/** Loads the cards that failed to load again, without waiting for {@link RETRY_AFTER_MS} (back online). */
+export function retryFailedPrintings(): void {
+  for (const [key, entry] of [...entries]) {
+    if (!entry.error || entry.data || entry.loading) continue
+    entries.set(key, { ...entry, triedAt: undefined })
+    requestPrintings(entry.name)
+  }
+}
+
 /** Re-fetches all loaded entries from the main-process cache (no Scryfall calls) and emits once. */
 export async function reloadPrices(): Promise<void> {
   const loaded = [...entries].filter(([, entry]) => entry.data && !entry.loading)

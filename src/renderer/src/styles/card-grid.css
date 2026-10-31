@@ -133,9 +133,10 @@
   left: 6px;
 }
 
+/* Ticked, like a ticked row: in the list's color. */
 .card-tile-owned.done {
-  background: var(--good);
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .card-tile-owned svg {

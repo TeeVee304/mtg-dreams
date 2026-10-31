@@ -39,37 +39,41 @@ const ALLOWED: Record<string, true | string[]> = {
   'shared/colorIdentity.ts': true,
   'shared/basics.ts': true,
   'shared/languages.ts': true,
+  // Magic's Companions and keywords, and the Companion and Rulebreaker color headers of list files.
+  'shared/deckRules.ts': true,
   // Magic's worlds, named as Preferred Versions in list files.
   'shared/setGroups.ts': true,
   'shared/formats.ts': ['Standard', 'Pioneer', 'Modern', 'Premodern', 'Legacy', 'Vintage', 'Pauper', 'Old School', 'Commander',
-    'Duel Commander', 'Pauper Commander', 'Oathbreaker', 'PreDH', '// Commander: {}', 'Creature', 'Vehicle', 'Spacecraft',
+    'Duel Commander', 'Pauper Commander', 'Oathbreaker', 'PreDH', 'Alchemy', 'Historic', 'Timeless', 'Brawl', 'Standard Brawl', '// Commander: {}', 'Creature', 'Vehicle', 'Spacecraft',
     'Friends forever', 'Time', 'Lord', 'Doctor'],
   'main/precons.ts': ['Arena Starter Deck', 'Arena Starter Kit', 'Arena Promotional Deck', 'Historic Brawl Precon Deck', 'MTGO Theme Deck',
     'MTGO Redemption', 'MTGO Commander Deck', 'MTGO Duel Deck', 'Shandalar Enemy Deck', 'Duel Of The Planeswalkers Deck',
     '{} /DeckList.json', '{} /decks/ {} .json', 'Deck name'],
   'shared/deckWizard/averageDeck.ts': ['Exhibition', 'Core', 'Upgraded', 'Optimized'],
   // List files: the headers and markers the app writes and reads back.
-  'shared/listMeta.ts': ['Color', 'Unbuilt', 'Upgrade of', 'Upgrade version', 'Preferred Versions'],
+  'shared/listMeta.ts': ['Color', 'Unbuilt', 'Upgrade of', 'Upgrade version', 'Preferred Versions', 'Token Versions', 'Energy curve'],
   'shared/listUnbuilt.ts': ['Yes'],
-  'shared/decklist.ts': ['Sideboard', 'Maybeboard'],
+  'shared/listEnergy.ts': ['Yes'],
+  'shared/decklist.ts': ['Sideboard', 'Maybeboard', '{Stand-in}'],
   'shared/listVersion.ts': ['Duel', 'Commander', '// {} : On', '// Version: {}'],
   'shared/trade.ts': ['// MTG Dreams trade list: {} ( {} )', '// Have', '// Want', 'card name'],
   'shared/api.ts': ['Changed outside MTG Dreams:'],
   // Ids and keys, not shown as they are.
   'shared/listModel.ts': ['Maybeboard'],
   'renderer/src/App.tsx': ['list/ {} / {}'],
-  'renderer/src/stores/history.ts': ['|noub', '|nosl'],
+  'renderer/src/components/DeckStats.tsx': ['var(--stat-colorless)', 'max-content repeat( {} , minmax( {} px, {} px))'],
+  'renderer/src/stores/history.ts': ['|noub', '|nosl', '|noph'],
   'renderer/src/components/CardSearch.tsx': ['{} -list'],
   'renderer/src/features/deckWizard/DeckWizard.tsx': ['Other'],
   'renderer/src/hooks/useCommanderPicking.ts': ['Background', 'Partner'],
   // The names checks give values they reject, in errors only a bug can raise.
-  'shared/settings.ts': ['price basis', 'alert threshold', 'alert amount'],
+  'shared/settings.ts': ['price basis', 'alert threshold', 'alert amount', 'rules text'],
   'main/storage.ts': ['MTG Dreams', 'MTG Dream', 'MTG Wishlist Tracker', 'list kind', '.txt'],
   'main/ipc.ts': ['cardmarket.com', 'scryfall.com', 'edhrec.com', 'Wishlist order', 'product numbers'],
   'main/deckWizard/index.ts': ['Deck filters', 'Commanders'],
   // Services, as named in their errors, and their queries.
   'main/priceGuide.ts': ['Cardmarket'],
-  'main/scryfall.ts': ['Scryfall', '!" {} " game:paper']
+  'main/scryfall.ts': ['Scryfall', '!" {} " game:paper', '( {} ) lang:any -lang:en', '!" {} " lang: {} -is:digital']
 }
 
 /** JSX attributes whose values are code, not text. */
@@ -79,7 +83,7 @@ const CODE_ATTRIBUTES = new Set(['className', 'id', 'key', 'type', 'role', 'src'
   'points', 'transform', 'xmlns', 'strokeWidth', 'strokeLinecap', 'strokeLinejoin', 'width', 'height'])
 /** Calls whose string arguments are code: lookups, storage keys, IPC channels, selectors, patterns. */
 const CODE_CALLS =
-  /^(console\.\w+|require|split|includes|startsWith|endsWith|replace|replaceAll|test|match|indexOf|join|padStart|toLocaleString|getItem|setItem|removeItem|handle|invoke|on|send|querySelector|querySelectorAll|closest|addEventListener|removeEventListener|getPath|useStoredValue|useStoredToggle|createElement|getElementById|setAttribute|getAttribute|matchMedia|cacheEntries|cachedFetch|fetchJson|readJson|writeJson|listHeader|text|arrayOf|numbers|cardNames|invalid|RegExp|Intl\.\w+)$/
+  /^(console\.\w+|require|split|includes|startsWith|endsWith|replace|replaceAll|test|match|indexOf|join|padStart|toLocaleString|getItem|setItem|removeItem|handle|invoke|on|send|querySelector|querySelectorAll|closest|addEventListener|removeEventListener|getPath|useStoredValue|useStoredToggle|createElement|getElementById|setAttribute|getAttribute|matchMedia|cacheEntries|cachedFetch|fetchJson|readJson|writeJson|glob|listHeader|text|arrayOf|numbers|cardNames|invalid|RegExp|Intl\.\w+)$/
 /** Object keys whose values are code. */
 const CODE_KEYS = /^(id|key|kind|type|field|pattern|slug|className|value|page|board|format|base|severity|role)$/
 

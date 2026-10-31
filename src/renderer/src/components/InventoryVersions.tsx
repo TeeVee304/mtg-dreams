@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { savedCardImage } from '@shared/images'
 import { languageOf, LANGUAGES } from '@shared/languages'
 import { finishFor, resolveLine, singleFinish } from '@shared/pricing'
 import type { InventoryItem, OwnedCopy } from '@shared/types'
+import { rememberVersion } from '../stores/lastVersions'
 import { ui } from '@shared/text'
 import { PickerBody, usePrintingsFor } from './CardEditors'
 import { Icon } from './Icon'
@@ -51,6 +53,12 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
   const choose = (id: string) => {
     if (!picking) return
     const printing = printings.find((p) => p.id === id)
+    const like = picking.mode === 'change' ? item.copies[picking.index] : item.copies.find((copy) => !copy.set)
+    rememberVersion(item.name, {
+      ...(printing && { set: printing.set, collector: printing.collectorNumber }),
+      foil: printing ? finishFor(printing, like?.foil ?? false) : (like?.foil ?? false),
+      lang: like?.lang
+    })
     if (picking.mode === 'change') {
       const copy = item.copies[picking.index]
       update(
@@ -92,7 +100,7 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
                   />
                 </td>
                 <td className="versions-thumb">
-                  {printing?.imageSmall ? <img src={printing.imageSmall} alt="" loading="lazy" /> : <span />}
+                  {printing?.imageSmall ? <img src={savedCardImage(printing.imageSmall)} alt="" loading="lazy" /> : <span />}
                 </td>
                 <td>
                   {copy.set ? (
@@ -169,7 +177,7 @@ export function InventoryVersionsDialog({ item, onChange, onClose }: InventoryVe
           {picking.mode === 'add' && (
             <p className="muted small">{text.addHint}</p>
           )}
-          <PickerBody name={item.name}>
+          <PickerBody name={item.name} paper>
             {(list) => (
               <VersionPicker
                 printings={list}

@@ -24,6 +24,8 @@ export interface Environment {
   priceGuideUrl: string
   /** EDHREC's average decks base URL. */
   edhrecJson: string
+  /** Scryfall's card image base URL. */
+  cardImagesUrl: string
 }
 
 /** Production service endpoints. */
@@ -31,7 +33,8 @@ export const SERVICES = {
   scryfallApi: 'https://api.scryfall.com',
   mtgjsonApi: 'https://mtgjson.com/api/v5',
   priceGuideUrl: 'https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_1.json',
-  edhrecJson: EDHREC_JSON
+  edhrecJson: EDHREC_JSON,
+  cardImagesUrl: 'https://cards.scryfall.io'
 }
 
 let current: Environment | null = null

@@ -107,6 +107,21 @@
   margin-left: 0;
 }
 
+/* Every problem of a Card, then why it's allowed despite a rule. */
+.card-view-rules {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* More problems than the chip names: `+1`. */
+.chip-more {
+  margin-left: 5px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
 .issue-badge {
   margin-left: 0;
   cursor: pointer;

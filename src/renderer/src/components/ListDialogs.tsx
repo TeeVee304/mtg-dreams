@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { capEntries, listCommanders, type DeckFormat } from '@shared/formats'
+import { capEntries, listCommanders, namedPartner, type DeckFormat } from '@shared/formats'
 import { listColor } from '@shared/listColor'
 import { stripMeta, withMetaOf } from '@shared/listMeta'
 import { upgradeTarget, upgradeVersion } from '@shared/listUpgrade'
@@ -23,7 +23,7 @@ import { withPreferredPrintings } from '@shared/listPreference'
 import type { ListAnalysis } from '@shared/listModel'
 import type { Board } from '@shared/sideboard'
 import { totalCopies } from '@shared/totals'
-import type { CardLine } from '@shared/types'
+import type { CardLine, InventoryItem } from '@shared/types'
 import { ui } from '@shared/text'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import type { Row } from '../lib/summary'
@@ -36,6 +36,7 @@ import { Modal } from './Modal'
 import { PreconDialog } from './PreconDialog'
 import { PreferredVersionsDialog } from './PreferredVersionsDialog'
 import { StartingHand } from './StartingHand'
+import { SubstituteDialog } from './SubstituteDialog'
 import { useToast } from './Toasts'
 
 /** Dialog open on a list page; `unown` confirms reducing inventory below other lists' needs. */
@@ -44,6 +45,8 @@ export type ListDialog =
   | { kind: 'delete' }
   | { kind: 'text' }
   | { kind: 'card'; lineId: string }
+  /** Reviews a substitute or stand-in ({@link SubstituteDialog}). */
+  | { kind: 'substitute'; lineId: string }
   | { kind: 'precon' }
   /** A starting hand of the shown version. */
   | { kind: 'hand' }
@@ -78,6 +81,8 @@ interface ListDialogsProps {
   limitFor: (name: string) => string
   /** Owned copies of a card (by nameKey) the list may use: those the lists ahead leave. */
   freeCopies: (key: string) => number
+  /** Items by nameKey. */
+  inventory: Map<string, InventoryItem>
   /** Called with the new ref after a rename. */
   onOpenList: (list: ListRef) => void
   /** The version the page shows; null for the list itself. */
@@ -195,13 +200,19 @@ export function ListDialogs(props: ListDialogsProps) {
       )
     }
     case 'hand':
-      return <StartingHand rows={props.rows.filter((row) => !row.side && !row.maybe && !analysis.isCommander(row))} onClose={onClose} />
+      return (
+        <StartingHand
+          rows={props.rows.filter((row) => !row.side && !row.maybe && !analysis.isCommander(row) && !analysis.isCompanion(row))}
+          onClose={onClose}
+        />
+      )
     case 'card':
       return cardRow ? (
         <CardDialog
           row={cardRow}
           format={format}
-          issue={analysis.issueOf(cardRow)}
+          issues={analysis.issuesOf(cardRow)}
+          allowed={analysis.allowedOf(cardRow)}
           maxQty={maxFor(cardRow.line)}
           maxTitle={limitFor(cardRow.line.name)}
           onUpdate={(patch) => actions.updateCard(list, cardRow.line.id, patch)}
@@ -221,8 +232,10 @@ export function ListDialogs(props: ListDialogsProps) {
                   leads: analysis.isCommander(cardRow),
                   canLead: analysis.canBeCommander(cardRow),
                   onMake: () => {
-                    actions.setListCommanders(list, [cardRow.line.name])
-                    toast(ui.list.nowLeads(cardRow.flavorName ?? cardRow.line.name, noun))
+                    const partner = namedPartner(format, cardRow.info)
+                    const name = cardRow.flavorName ?? cardRow.line.name
+                    actions.setListCommanders(list, partner ? [cardRow.line.name, partner] : [cardRow.line.name])
+                    toast(partner ? ui.list.leadTogether(name, partner, noun) : ui.list.nowLeads(name, noun))
                   },
                   onJoin: analysis.canJoin(cardRow)
                     ? () => {
@@ -251,6 +264,18 @@ export function ListDialogs(props: ListDialogsProps) {
           }}
         />
       )
+    case 'substitute': {
+      const row = props.rows.find((r) => r.line.id === dialog.lineId)
+      return row ? (
+        <SubstituteDialog
+          row={row}
+          item={props.inventory.get(nameKey(row.line.name))}
+          color={listColor(list.lines)}
+          onUpdate={(patch) => actions.updateCard(list, row.line.id, patch)}
+          onClose={onClose}
+        />
+      ) : null
+    }
     case 'unown':
       return (
         <ConfirmDialog

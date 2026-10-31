@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { filtersActive, needsCardData, NO_FILTERS, sortFor, type CardFilters } from '@shared/cards'
 import { cardLines, nameKey } from '@shared/decklist'
+import { choosesColor, listCompanion, rulebreakerColor } from '@shared/deckRules'
+import { STAT_COLORS } from '@shared/deckStats'
 import { otherVersions, type Version } from '@shared/inventory'
 import { listColor } from '@shared/listColor'
 import { preferredVersions } from '@shared/listPreference'
 import { isUnbuilt } from '@shared/listUnbuilt'
+import { showsEnergyCurve } from '@shared/listEnergy'
 import { activeVariant, BASE, baseLabel, variantSwaps, versionFormatLabel } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
-import { deckSizeCheck, FORMATS } from '@shared/formats'
+import { FORMATS, holdsNoCopies } from '@shared/formats'
+import { printedNameFix } from '@shared/printedNames'
 import { hasSideboard } from '@shared/sideboard'
 import {
   analyzeList,
@@ -25,12 +29,12 @@ import type { CardLine, InventoryItem } from '@shared/types'
 import { ui } from '@shared/text'
 import { getCardInfo } from '../stores/cardinfo'
 import { useCommanderThemes } from '../features/deckWizard'
-import { headerLeaders, listColors } from '../lib/listFigures'
+import { headerBadge, headerLeaders, listColors } from '../lib/listFigures'
 import { HAND_SIZE } from '../lib/startingHand'
 import { cleanError } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceChange, useBaselines } from '../stores/history'
-import { requestPrintings, usePrintingsVersion } from '../stores/printings'
+import { getPrintingsEntry, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { preferredGroup } from '../stores/setGroups'
 import { useCommanderPicking } from '../hooks/useCommanderPicking'
@@ -54,6 +58,7 @@ import { ListDialogs, type ListDialog } from './ListDialogs'
 import { ListHeader } from './ListHeader'
 import { ListTable } from './ListTable'
 import { ListValueCards } from './ListValueCards'
+import { substituteCopies } from './SubstituteDialog'
 import { SwapTable } from './SwapTable'
 import { useToast } from './Toasts'
 
@@ -79,7 +84,7 @@ interface ListViewProps {
 export function ListView({ list, lists, inventory, pool, actions, onOpenList }: ListViewProps) {
   const toast = useToast()
   const moveListTo = useListMover(actions)
-  usePrintingsVersion()
+  const printingsVersion = usePrintingsVersion()
   const isDeck = list.kind === 'deck'
   const isBrew = list.kind === 'brew'
   const noun = ui.terms.noun(isDeck)
@@ -127,24 +132,41 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
   const analysis = useMemo(() => analyzeList(list.kind, shown.lines, tableRows), [list.kind, shown.lines, tableRows])
   const { format, copiesOf, isCommander, hasCommander, legalityErrors, ownershipErrors } = analysis
-  const mainCards = summary.cards - analysis.sideboardCards
+  const mainCards = summary.cards - analysis.sideboardCards - analysis.companionCards
   // A plain brew shows its card count alone, without a target size.
-  const size = isDeck && format ? deckSizeCheck(format, mainCards) : null
+  const size = analysis.size
 
   const { picking, canPickCommander, partnerKind, canPickPartner, leaderName, togglePicking, pickOf, isCrowned, chooseCommander } =
     useCommanderPicking(list, rows, analysis, actions)
 
   const leaders = headerLeaders(rows.filter(isCommander), settings.cardImages)
   /** Cards a starting hand draws from: the main deck, its commanders aside. */
-  const drawable = mainRows.reduce((sum, row) => sum + (isCommander(row) ? 0 : row.line.qty), 0)
+  const drawable = mainRows.reduce((sum, row) => sum + (isCommander(row) || analysis.isCompanion(row) ? 0 : row.line.qty), 0)
   const leaderRows = leaders.rows
   // The commanders' color identity, else the colors of all the cards.
   const colors = listColors(rows, leaderRows.map((row) => row.line.name))
-  const themes = useCommanderThemes(leaderRows.map((row) => row.line.name))
+  // EDHREC covers paper Commander only.
+  const themes = useCommanderThemes(format?.arena ? [] : leaderRows.map((row) => row.line.name))
+  /** The Companion's row, pictured in the banner. */
+  const companionRow = rows.find(analysis.isCompanion) ?? null
+  /** Cards that can be the Companion: those with a Companion ability, commanders aside. */
+  const companions = [...new Set(rows.filter((row) => row.info?.companion && !isCommander(row)).map((row) => row.line.name))]
+  const leaderInfos = leaderRows.flatMap((row) => (row.info ? [row.info] : []))
+  /** The colors a Rulebreaker commander (Tolabow) lets instants and sorceries add: those outside its identity. */
+  const colorChoices = format?.commander && !format.arena && choosesColor(leaderInfos) ? STAT_COLORS.filter((color) => !colors.includes(color)) : null
 
   useEffect(() => {
     if (legalityErrors + ownershipErrors === 0) setOnlyProblems(false)
   }, [legalityErrors, ownershipErrors])
+
+  // A line named by a flavor name takes its card's name and that printing once its card data loads.
+  useEffect(() => {
+    const fixes = cardLines(list.lines).flatMap((line) => {
+      const fix = printedNameFix(line, getPrintingsEntry(line.name)?.data, settings.priceBasis)
+      return fix ? [fix] : []
+    })
+    if (fixes.length > 0) actions.adoptCardNames(list, fixes)
+  }, [list, actions, settings.priceBasis, printingsVersion])
 
   const visibleRows = sortRows(filterRows(tableRows, list.kind, analysis, { filters, hideOwned, onlyProblems }), sort, sortReverse)
   const sections = sectionRows(visibleRows, analysis)
@@ -223,7 +245,9 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   /** The versions you own instead of the printing a row names, for its version's tooltip; null if none. */
   const otherVersionsOf = (row: Row) => {
     if (plain) return null
-    const copies = otherVersions(inventory.get(nameKey(row.line.name)), lineVersion(row.line))
+    const item = inventory.get(nameKey(row.line.name))
+    // A substitute or stand-in names the copies of other Versions it takes.
+    const copies = row.substitutes || row.line.standIn ? substituteCopies(row.line, item) : otherVersions(item, lineVersion(row.line))
     return copies.length > 0 ? copies.map(copyLabel).join(', ') : null
   }
 
@@ -232,11 +256,15 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     qty: (row, qty) =>
       row.bundledIds ? viewActions.setBundledQty(list, row.bundledIds, qty) : viewActions.updateCard(list, row.line.id, { qty }),
     toggleOwned: (row) => toggleOwned(row),
+    review: (row) => setDialog({ kind: 'substitute', lineId: row.line.id }),
     ownedDelta: (row, delta) => actions.setOwned(row.line.name, Math.max(0, row.inventoryQty + delta), lineVersion(row.line)),
     open: (row) => setDialog({ kind: 'card', lineId: row.line.id }),
     remove: (row) => (row.bundledIds ? viewActions.removeCards(list, row.bundledIds) : viewActions.removeCard(list, row.line.id)),
     rename: (row, name) => actions.updateCard(list, row.line.id, { name })
   })
+
+  // Game Changers count toward Commander brackets: shown in Commander, and in lists of no format.
+  const showsGameChangers = !format || !!format.commander?.brackets
 
   const renderRow = (row: Row) => (
     <CardRow
@@ -246,7 +274,9 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       leader={isCommander(row)}
       crowned={isCrowned(row)}
       isDeck={asDeck}
-      issue={analysis.issueOf(row)}
+      issues={analysis.issuesOf(row)}
+      allowed={analysis.allowedOf(row)}
+      gameChanger={showsGameChangers && !!row.info?.gameChanger}
       shortfall={analysis.shortfallOf(row)}
       change={row.maybe ? null : changeOf(row)}
       swapTag={swapTag(row)}
@@ -303,6 +333,14 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const preferredName = isDeck ? null : preferredVersions(list.lines)
   const preferred = preferredName ? { name: preferredGroup(list)?.name ?? preferredName, icon: preferredGroup(list)?.icon } : null
 
+  /** The energy curve: offered once a Card makes or spends energy, or while it is on. */
+  const statsRows = mainRows.filter((row) => !analysis.isCompanion(row))
+  const energyOn = showsEnergyCurve(list.lines)
+  const energyCurve =
+    energyOn || statsRows.some((row) => row.info?.energy)
+      ? { on: energyOn, onToggle: () => actions.setEnergyCurve(list, !energyOn) }
+      : undefined
+
   const toggleUnbuilt = () => {
     const unbuilt = !isUnbuilt(list.lines)
     actions.setUnbuilt(list, unbuilt)
@@ -354,6 +392,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         leaders={leaders.names}
         themes={themes}
         background={leaders.background}
+        companionBadge={companionRow ? headerBadge(companionRow, settings.cardImages) : null}
         colors={colors}
         noun={noun}
         format={format}
@@ -364,6 +403,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         canPickPartner={canPickPartner}
         leaderName={leaderName}
         legalityErrors={legalityErrors}
+        listProblems={analysis.listProblems}
         ownershipErrors={ownershipErrors}
         onlyProblems={onlyProblems}
         onToggleProblems={() => setOnlyProblems(!onlyProblems)}
@@ -379,6 +419,12 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         onRenameVersion={other && !other.format ? () => setDialog({ kind: 'version-name', version: other.label }) : undefined}
         onDeleteVersion={other ? deleteVersion : undefined}
         onFormat={changeFormat}
+        companions={other ? [] : companions}
+        companion={listCompanion(shown.lines)}
+        onCompanion={(name) => actions.setListCompanion(list, name)}
+        colorChoices={other ? null : colorChoices}
+        rulebreakerColor={rulebreakerColor(shown.lines)}
+        onRulebreakerColor={(color) => actions.setRulebreakerColor(list, color)}
         onEditText={() => setDialog({ kind: 'text' })}
         onStartingHand={drawable >= HAND_SIZE ? () => setDialog({ kind: 'hand' }) : undefined}
         onColor={() => setDialog({ kind: 'color' })}
@@ -387,7 +433,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         onPreferredVersions={isDeck ? undefined : () => setDialog({ kind: 'preferred' })}
         onMakeWishlist={isBrew ? () => void makeWishlist() : undefined}
         unbuilt={isDeck && isUnbuilt(list.lines)}
-        onToggleUnbuilt={isDeck ? toggleUnbuilt : undefined}
+        onToggleUnbuilt={isDeck && !holdsNoCopies(format) ? toggleUnbuilt : undefined}
+        energyCurve={energyCurve}
         onRename={() => setDialog({ kind: 'rename' })}
         onDelete={() => setDialog({ kind: 'delete' })}
       />
@@ -406,11 +453,15 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         target={isDeck ? (format?.deckSize ?? null) : null}
         lands={landCount(mainRows)}
         sideboard={analysis.sideboardCards}
+        gameChangers={showsGameChangers ? sumOf(mainRows, (row) => (row.info?.gameChanger ? row.line.qty : 0)) : 0}
         basis={settings.priceBasis}
       />
 
       <DeckStats
-        rows={mainRows}
+        rows={statsRows}
+        leaders={leaderRows.map((row) => row.line.name)}
+        table={format}
+        energy={energyOn}
         manaValue={filters.manaValue}
         onManaValue={(manaValue) => setFilters({ ...filters, manaValue })}
       />
@@ -498,7 +549,9 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         )
       )}
 
-      {cards.length > 0 && <DeckTokens names={mainRows.map((row) => row.line.name)} />}
+      {cards.length > 0 && (
+        <DeckTokens names={mainRows.map((row) => row.line.name)} list={list} actions={actions} universe={preferredGroup(list)} />
+      )}
 
       <ListDialogs
         dialog={dialog}
@@ -513,6 +566,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         maxFor={maxFor}
         limitFor={limitFor}
         freeCopies={freeCopies}
+        inventory={inventory}
         onOpenList={onOpenList}
         shownVariant={other}
         onVersion={setVersion}
@@ -523,5 +577,6 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
 
 /** @returns Version of a pinned line, used when its copies are added to the inventory; undefined if unpinned. */
 function lineVersion(line: CardLine): Version | undefined {
-  return line.set ? { set: line.set, collector: line.collector, foil: line.foil } : undefined
+  if (!line.set && !line.lang) return undefined
+  return { set: line.set, collector: line.collector, foil: line.foil, ...(line.lang && { lang: line.lang }) }
 }

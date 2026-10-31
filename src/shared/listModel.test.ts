@@ -72,6 +72,110 @@ function rowsOf(text: string, owned: Record<string, number> = {}, prices: Record
 const names = (rows: ModelRow[]) => rows.map((row) => row.line.name)
 
 describe('analyzeList', () => {
+  describe('deckbuilding exceptions', () => {
+    const extra: Record<string, CardInfo> = {
+      'Valko Indorian': info('Valko Indorian', 'Legendary Creature — Human Wizard', {}, {
+        colorIdentity: ['B'],
+        legalities: { commander: 'not_legal' },
+        rulebreaker: { anyColor: [{ types: ['phyrexian'] }], lands: 'basic' }
+      }),
+      'Elesh Norn': info('Elesh Norn', 'Legendary Creature — Phyrexian Praetor', { commander: 'legal' }, { colorIdentity: ['W'], manaValue: 7 }),
+      Plains: info('Plains', 'Basic Land — Plains', { commander: 'legal' }, { colorIdentity: ['W'], manaValue: 0 }),
+      'Swords to Plowshares': info('Swords to Plowshares', 'Instant', { commander: 'legal' }, { colorIdentity: ['W'], manaValue: 1 }),
+      'Lurrus of the Dream-Den': info('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', { commander: 'legal' }, {
+        colorIdentity: ['W', 'B'],
+        manaValue: 3,
+        companion: { kind: 'maxPermanentManaValue', max: 2 }
+      }),
+      Tymna: CARDS.Tymna,
+      'Sol Ring': CARDS['Sol Ring']
+    }
+    const rowsWith = (text: string) => {
+      const lines = parseList(text)
+      const rows: ModelRow[] = lines
+        .filter((line): line is CardLine => line.kind === 'card')
+        .map((line) => ({ line, info: extra[line.name], inventoryQty: 1, owned: 1, before: 0, held: 0, unit: 1 }))
+      return { lines, rows }
+    }
+
+    it("lets a Rulebreaker's cards past the color identity, and warns it is legal nowhere", () => {
+      const { lines, rows } = rowsWith(
+        `// Format: Commander
+// Commander: Valko Indorian
+1 Valko Indorian
+1 Elesh Norn
+1 Plains
+1 Swords to Plowshares`
+      )
+      const analysis = analyzeList('deck', lines, rows)
+      expect(rows.map((row) => analysis.issueOf(row))).toEqual([
+        { code: 'notLegal', severity: 'warning', message: 'Not legal', detail: 'Not legal in Commander: Rulebreakers are playtest Cards' },
+        null,
+        null,
+        { code: 'outsideColors', severity: 'error', message: 'Outside colors', detail: "Outside your Commander's colors" }
+      ])
+      // Why a Card outside the colors is allowed: Valko's Phyrexians, and any basic land.
+      expect(rows.map((row) => analysis.allowedOf(row))).toEqual([[], ['Allowed by Valko Indorian'], ['Allowed by Valko Indorian'], []])
+    })
+
+    it("checks a Companion's condition on the starting deck, outside its size", () => {
+      const { lines, rows } = rowsWith(
+        `// Format: Commander
+// Commander: Tymna
+// Companion: Lurrus of the Dream-Den
+1 Tymna
+1 Sol Ring
+1 Elesh Norn
+1 Lurrus of the Dream-Den`
+      )
+      rows[2].info = { ...extra['Elesh Norn'], colorIdentity: [] }
+      const analysis = analyzeList('deck', lines, rows)
+      expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([null, null, 'Breaks Companion condition', null])
+      expect(analysis.issueOf(rows[2])?.detail).toBe("Breaks Lurrus of the Dream-Den's condition: permanents of mana value 2 or less")
+      expect(analysis.companionCards).toBe(1)
+      expect(analysis.isCompanion(rows[3])).toBe(true)
+      expect(sectionRows(rows, analysis).map((s) => [s.id, names(s.rows)])).toEqual([
+        ['Commander', ['Tymna']],
+        ['Companion', ['Lurrus of the Dream-Den']],
+        ['Creature', ['Elesh Norn']],
+        ['Artifact', ['Sol Ring']]
+      ])
+    })
+
+    it("checks maybeboard Cards against the Companion, and isn't stopped by an unknown Card", () => {
+      const { lines, rows } = rowsWith(`// Format: Commander
+// Commander: Tymna
+// Companion: Lurrus of the Dream-Den
+1 Tymna
+1 Lurrus of the Dream-Den
+1 Elesh Norn
+1 Not A Card
+
+Maybeboard
+1 Elesh Norn`)
+      rows[2].info = { ...extra['Elesh Norn'], colorIdentity: [] }
+      rows[3].info = null
+      rows[4].info = rows[2].info
+      const marked = rows.map((row, i) => ({ ...row, maybe: i === 4 }))
+      const analysis = analyzeList('deck', lines, marked)
+      expect(analysis.issueOf(marked[2])?.severity).toBe('error')
+      expect(analysis.issueOf(marked[4])?.severity).toBe('warning')
+    })
+
+    it('flags a Companion outside the colors, or a card without the ability', () => {
+      const { lines, rows } = rowsWith(`// Format: Commander
+// Commander: Valko Indorian
+// Companion: Lurrus of the Dream-Den
+1 Valko Indorian
+1 Lurrus of the Dream-Den`)
+      expect(analyzeList('deck', lines, rows).issueOf(rows[1])?.detail).toBe("Outside your Commander's colors")
+      const other = rowsWith(`// Format: Commander
+// Companion: Sol Ring
+1 Sol Ring`)
+      expect(analyzeList('deck', other.lines, other.rows).issueOf(other.rows[0])?.detail).toBe('Has no Companion ability')
+    })
+  })
+
   it('checks maybeboard Cards as if added, with warnings only, never counting them', () => {
     const { lines, rows } = rowsOf('// Format: Commander\n1 Sol Ring\n1 Atraxa\n\nMaybeboard\n1 Sol Ring')
     const ids = maybeboardIds(lines)
@@ -79,7 +183,7 @@ describe('analyzeList', () => {
     const analysis = analyzeList('deck', lines, marked)
     expect(analysis.copiesOf('Sol Ring')).toBe(1)
     expect(analysis.issueOf(marked[0])).toBeNull()
-    expect(analysis.issueOf(marked[2])).toEqual({ severity: 'warning', message: 'Max 1 Copy in Commander' })
+    expect(analysis.issueOf(marked[2])).toMatchObject({ severity: 'warning', message: 'Max 1 Copy', detail: 'Commander allows 1 Copy of a Card' })
     expect(analysis.shortfallOf(marked[2])).toBe(0)
     expect(analysis.legalityErrors).toBe(0)
     expect(sectionRows(marked, analysis).map((s) => [s.id, names(s.rows)])).toEqual([
@@ -93,9 +197,9 @@ describe('analyzeList', () => {
     const { lines, rows } = rowsOf('// Format: Commander\n1 Sol Ring\n1 Sol Ring <1> [CMM]\n1 Atraxa\n30 Island')
     const analysis = analyzeList('wishlist', lines, rows)
     expect(analysis.copiesOf('sol ring')).toBe(2)
-    expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([
-      'Max 1 Copy in Commander',
-      'Max 1 Copy in Commander',
+    expect(rows.map((row) => analysis.issueOf(row)?.detail ?? null)).toEqual([
+      'Commander allows 1 Copy of a Card',
+      'Commander allows 1 Copy of a Card',
       null,
       null
     ])
@@ -107,6 +211,24 @@ describe('analyzeList', () => {
     const analysis = analyzeList('wishlist', lines, rows)
     expect(rows.map(analysis.issueOf)).toEqual([null, null])
     expect(analysis.format).toBeNull()
+  })
+
+  it('keeps every problem of a Card, the most serious first', () => {
+    const { lines, rows } = rowsOf('// Format: Commander\n// Commander: Flubs, the Fool\n1 Flubs, the Fool\n2 Worm Harvest')
+    const analysis = analyzeList('deck', lines, rows)
+    expect(analysis.issuesOf(rows[1]).map((issue) => issue.code)).toEqual(['maxCopies', 'outsideColors'])
+    expect(analysis.issueOf(rows[1])?.code).toBe('maxCopies')
+  })
+
+  it('names why a Card is allowed past a copy limit', () => {
+    const { lines, rows } = rowsOf('// Format: Commander\n30 Island')
+    expect(analyzeList('deck', lines, rows).allowedOf(rows[0])).toEqual(['Any number allowed'])
+  })
+
+  it("reports a Deck's size among its problems, but not a Wishlist's", () => {
+    const { lines, rows } = rowsOf('// Format: Commander\n1 Sol Ring')
+    expect(analyzeList('deck', lines, rows).listProblems).toEqual(['99 short of 100'])
+    expect(analyzeList('wishlist', lines, rows).listProblems).toEqual([])
   })
 
   it('counts deck cards missing from the inventory, but never for wishlists', () => {
@@ -121,6 +243,13 @@ describe('analyzeList', () => {
     expect(analyzeList('wishlist', wish.lines, wish.rows).ownershipErrors).toBe(0)
     expect(shortfallNote(deck.rows[1]).label).toBe('Only 1 owned')
     expect(shortfallNote(rowsOf('1 Opt').rows[0]).label).toBe('Not in Inventory')
+  })
+
+  it('never counts an Arena Deck short of paper copies', () => {
+    const arena = rowsOf('// Format: Historic\n1 Sol Ring\n2 Atraxa', { 'Sol Ring': 1, Atraxa: 1 })
+    const analysis = analyzeList('deck', arena.lines, arena.rows)
+    expect(arena.rows.map(analysis.shortfallOf)).toEqual([0, 0])
+    expect(analysis.ownershipErrors).toBe(0)
   })
 
   it('counts deck copies other decks hold as missing, with separate copies', () => {
@@ -157,7 +286,7 @@ describe('analyzeList', () => {
     const { lines, rows } = rowsOf('// Format: Commander\n// Commander: Tymna\n// Commander: Kraum\n1 Tymna\n1 Kraum\n1 Sol Ring\n1 Worm Harvest')
     const analysis = analyzeList('deck', lines, rows)
     expect(rows.filter(analysis.isCommander).map((row) => row.line.name)).toEqual(['Tymna', 'Kraum'])
-    expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([null, null, null, "Outside your Commanders' colors"])
+    expect(rows.map((row) => analysis.issueOf(row)?.detail ?? null)).toEqual([null, null, null, "Outside your Commanders' colors"])
     expect(sectionRows(rows, analysis)[0].rows.map((row) => row.line.name)).toEqual(['Tymna', 'Kraum'])
   })
 
@@ -166,7 +295,7 @@ describe('analyzeList', () => {
       '// Format: Commander\n// Commander: Flubs, the Fool\n1 Flubs, the Fool\n1 Worm Harvest\n1 Dakmor Salvage\n1 Sol Ring\n1 Llanowar Elves\n1 Mana Crypt'
     )
     const analysis = analyzeList('wishlist', lines, rows)
-    expect(rows.map((row) => analysis.issueOf(row)?.message ?? null)).toEqual([
+    expect(rows.map((row) => analysis.issueOf(row)?.detail ?? null)).toEqual([
       null,
       "Outside your Commander's colors",
       "Outside your Commander's colors",
@@ -184,7 +313,7 @@ describe('analyzeList', () => {
     for (const text of [`// Format: Commander\n${cards}`, `// Format: Modern\n// Commander: Flubs, the Fool\n${cards}`]) {
       const { lines, rows } = rowsOf(text)
       const analysis = analyzeList('wishlist', lines, rows)
-      expect(rows.some((row) => analysis.issueOf(row)?.message === "Outside your Commander's colors")).toBe(false)
+      expect(rows.some((row) => analysis.issueOf(row)?.detail === "Outside your Commander's colors")).toBe(false)
     }
   })
 })
@@ -284,6 +413,8 @@ describe('copy limits', () => {
   it('takes the stricter of the format limit and, for decks, the copies owned', () => {
     expect(copyCaps('deck', commander, 'Sol Ring', CARDS['Sol Ring'], 3)).toMatchObject({ formatCap: 1, ownedCap: 3, cap: 1 })
     expect(copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 2)).toMatchObject({ formatCap: 4, ownedCap: 2, cap: 2 })
+    // An Arena Deck is built from an Arena collection: your paper copies cap nothing.
+    expect(copyCaps('deck', findFormat('historic'), 'Sol Ring', CARDS['Sol Ring'], 0)).toMatchObject({ ownedCap: Infinity, cap: 4 })
     expect(copyCaps('deck', modern, 'Sol Ring', CARDS['Sol Ring'], 3, 2)).toMatchObject({ ownedCap: 1, cap: 1 })
     expect(copyCaps('wishlist', null, 'Sol Ring', undefined, 0).cap).toBe(Infinity)
     expect(copyCaps('wishlist', commander, 'Island', CARDS.Island, 0, 4).cap).toBe(Infinity)

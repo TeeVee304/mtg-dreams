@@ -100,12 +100,51 @@ describe('stored printings', () => {
 })
 
 describe('the cache file', () => {
+  it('forgets reversible cards read with mana value 0 before version 18', async () => {
+    const { userData, file } = await setup()
+    const krark = { name: 'Krark, the Thumbless // Krark, the Thumbless', colors: ['R'], colorIdentity: ['R'], typeLine: 'Legendary Creature — Goblin Wizard // Legendary Creature — Goblin Wizard', manaValue: 0, rarity: 'rare', legalities: {} }
+    const sol = { name: 'Sol Ring', colors: [], colorIdentity: [], typeLine: 'Artifact', manaValue: 1, rarity: 'uncommon', legalities: {} }
+    const packed = (card: { name: string }) => ({ ...result([]), name: card.name, card })
+    writeFileSync(
+      file,
+      JSON.stringify({
+        version: 17,
+        entries: { 'krark, the thumbless': packed(krark), 'sol ring': packed(sol) },
+        cards: { 'krark, the thumbless': { fetchedAt: Date.now(), card: krark }, 'sol ring': { fetchedAt: Date.now(), card: sol } }
+      })
+    )
+    const v17 = await setup(userData)
+    await v17.cache.loadScryfallCache()
+    const { entries, cards } = v17.cache.scryfallCache
+    expect(Object.keys(entries)).toEqual(['sol ring'])
+    // Before version 19 no card has rules text: all are looked up again.
+    expect(Object.keys(cards)).toEqual([])
+  })
+
+  it('refreshes card data from before version 19, which had no rules text', async () => {
+    const { userData, file } = await setup()
+    const sol = { name: 'Sol Ring', colors: [], colorIdentity: [], typeLine: 'Artifact', manaValue: 1, rarity: 'uncommon', legalities: {} }
+    writeFileSync(
+      file,
+      JSON.stringify({
+        version: 18,
+        entries: { 'sol ring': { ...result([]), name: sol.name, card: sol } },
+        cards: { 'sol ring': { fetchedAt: Date.now(), card: sol } }
+      })
+    )
+    const v18 = await setup(userData)
+    await v18.cache.loadScryfallCache()
+    const { entries, cards } = v18.cache.scryfallCache
+    expect(Object.keys(cards)).toEqual([])
+    expect(Date.now() - entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
+  })
+
   it('survives a restart', async () => {
     const first = await setup()
     first.cache.scryfallCache.entries['sol ring'] = result([printing('aaa'), printing('bbb')])
     first.cache.scryfallCacheChanged()
     first.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(11)
+    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(19)
 
     const restarted = await setup(first.userData)
     await restarted.cache.loadScryfallCache()
@@ -121,7 +160,7 @@ describe('the cache file', () => {
     expect(v5.cache.scryfallCache.entries['sol ring'].printings).toEqual(entry.printings)
     expect(Date.now() - v5.cache.scryfallCache.entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
     v5.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(11)
+    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(19)
 
     const v6Printing = { ...v5.cache.packPrinting(printing('aaa')), eurFoil: null }
     writeFileSync(file, JSON.stringify({ version: 6, entries: { 'sol ring': { ...entry, printings: [v6Printing] } }, cards: {} }))
@@ -138,7 +177,7 @@ describe('the cache file', () => {
   it('refreshes everything cached before artwork ids and Universes Beyond flags (version 11), and legendary card data before partner abilities (version 9)', async () => {
     const { userData, file } = await setup()
     const card = (name: string, typeLine: string) => ({ name, colors: [], colorIdentity: [], typeLine, manaValue: 1, rarity: 'rare', legalities: {} })
-    const tymna = { ...result([]), card: card('Tymna the Weaver', 'Legendary Creature — Human Cleric'), printings: [] }
+    const tymna = { ...result([]), name: 'Tymna', card: card('Tymna the Weaver', 'Legendary Creature — Human Cleric'), printings: [] }
     const ring = { ...result([]), card: card('Sol Ring', 'Artifact'), printings: [] }
     const cards = { kraum: { fetchedAt: Date.now(), card: card("Kraum, Ludevic's Opus", 'Legendary Creature — Zombie Horror') } }
     writeFileSync(file, JSON.stringify({ version: 8, entries: { tymna, 'sol ring': ring }, cards }))
@@ -149,6 +188,73 @@ describe('the cache file', () => {
     expect(v8.cache.scryfallCache.cards.kraum).toBeUndefined()
   })
 
+  it('drops Cards found by another name before version 12, and keeps the card resolver\'s answers', async () => {
+    const { userData, file } = await setup()
+    const resolved = { 'name:relampago': { fetchedAt: Date.now(), card: { name: 'Lightning Bolt', lang: 'es' } } }
+    // "Relampago" was taken for Lightning Greaves before version 12.
+    const greaves = { ...result([]), name: 'Lightning Greaves' }
+    writeFileSync(file, JSON.stringify({ version: 11, entries: { relampago: greaves, 'sol ring': result([]) }, cards: {}, resolved }))
+    const v11 = await setup(userData)
+    await v11.cache.loadScryfallCache()
+    expect(Object.keys(v11.cache.scryfallCache.entries)).toEqual(['sol ring'])
+    expect(v11.cache.scryfallCache.aliases).toEqual({})
+    expect(v11.cache.scryfallCache.resolved).toEqual(resolved)
+  })
+
+  it('stores a Card found by another name once, the other name an alias of it (version 13)', async () => {
+    const { userData, file } = await setup()
+    const bolt = { ...result([printing('aaa')]), name: 'Lightning Bolt' }
+    // Before version 13, a Card found by another name was stored again under that name.
+    const entries = { 'lightning bolt': bolt, 'relámpago': { ...bolt, lang: 'es' }, 'lightning bolt (a25) 141': bolt, rayo: { ...bolt, name: 'Thunderbolt' } }
+    writeFileSync(file, JSON.stringify({ version: 12, entries, cards: {} }))
+    const v12 = await setup(userData)
+    await v12.cache.loadScryfallCache()
+    const cache = v12.cache.scryfallCache
+    expect(Object.keys(cache.entries).sort()).toEqual(['lightning bolt', 'thunderbolt'])
+    expect(cache.aliases).toEqual({
+      'relámpago': { key: 'lightning bolt', lang: 'es' },
+      'lightning bolt (a25) 141': { key: 'lightning bolt' },
+      rayo: { key: 'thunderbolt' }
+    })
+    expect(v12.cache.cachedEntry('relámpago')).toMatchObject({ name: 'Lightning Bolt', lang: 'es' })
+    expect(v12.cache.cachedEntry('lightning bolt')?.lang).toBeUndefined()
+
+    // A lookup by another name later stores the Card under its own name too.
+    v12.cache.storeEntry('blitz', { ...bolt, lang: 'de' })
+    expect(cache.aliases.blitz).toEqual({ key: 'lightning bolt', lang: 'de' })
+    expect(cache.entries.blitz).toBeUndefined()
+  })
+
+  it('keeps the Cards the data folder uses, and only recent others', async () => {
+    const { cache } = await setup()
+    await cache.loadScryfallCache()
+    const now = Date.now()
+    const entry = (name: string, usedDaysAgo: number) => {
+      cache.scryfallCache.entries[name] = { ...result([]), name }
+      cache.scryfallCache.usedAt[name] = now - usedDaysAgo * 86_400_000
+    }
+    entry('sol ring', 20)
+    entry('lightning bolt', 20)
+    entry('counterspell', 1)
+    cache.scryfallCache.aliases['relámpago'] = { key: 'lightning bolt', lang: 'es' }
+    cache.pinCards(['sol ring'])
+    expect(Object.keys(cache.scryfallCache.entries).sort()).toEqual(['counterspell', 'sol ring'])
+    expect(cache.scryfallCache.aliases).toEqual({})
+
+    // An alias in a file keeps its Card.
+    entry('lightning bolt', 20)
+    cache.scryfallCache.aliases['relámpago'] = { key: 'lightning bolt', lang: 'es' }
+    cache.pinCards(['relámpago'])
+    expect(Object.keys(cache.scryfallCache.entries).sort()).toEqual(['counterspell', 'lightning bolt'])
+
+    // Past the most kept, the least recently used go first.
+    for (let i = 0; i <= cache.MAX_RECENT; i++) entry(`card ${i}`, i / 10_000)
+    cache.pinCards([])
+    expect(Object.keys(cache.scryfallCache.entries)).toHaveLength(cache.MAX_RECENT)
+    expect(cache.scryfallCache.entries['card 0']).toBeDefined()
+    expect(cache.scryfallCache.entries.counterspell).toBeUndefined()
+  })
+
   it('drops month-old entries, and ignores files it does not understand', async () => {
     const { userData, file } = await setup()
     writeFileSync(file, JSON.stringify({ version: 6, entries: { old: result([], Date.now() - 40 * 86_400_000) }, cards: {} }))
@@ -156,7 +262,7 @@ describe('the cache file', () => {
     await loaded.cache.loadScryfallCache()
     expect(loaded.cache.scryfallCache.entries).toEqual({})
 
-    const good = { ...result([]), printings: [] }
+    const good = { ...result([]), name: 'Good', printings: [] }
     writeFileSync(file, JSON.stringify({ version: 6, entries: { bad: { ...good, printings: null }, good }, cards: {} }))
     const partial = await setup(userData)
     await partial.cache.loadScryfallCache()

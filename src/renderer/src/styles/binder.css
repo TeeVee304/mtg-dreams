@@ -168,18 +168,6 @@
   backdrop-filter: blur(8px);
 }
 
-.duel-badge {
-  align-self: flex-start;
-  display: inline-block;
-  margin-bottom: 6px;
-  padding: 2px 10px;
-  border-radius: var(--radius-pill);
-  background: var(--duel);
-  color: var(--duel-ink);
-  font-size: var(--fs-sm);
-  font-weight: 600;
-}
-
 /* In place of the format select: the Duel version always plays Duel Commander. */
 .duel-rules {
   display: inline-flex;

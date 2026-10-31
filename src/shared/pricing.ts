@@ -90,12 +90,16 @@ export interface Resolution {
 
 /**
  * Printings the app's cheapest pick leaves out while a Card has others (Settings): Universes Beyond
- * ({@link AppSettings.skipUniversesBeyond}) and Secret Lair ({@link AppSettings.skipSecretLair}).
+ * ({@link AppSettings.skipUniversesBeyond}), Secret Lair ({@link AppSettings.skipSecretLair}) and
+ * Phyrexian ({@link AppSettings.skipPhyrexian}).
  */
-export type PickSkips = Partial<Pick<AppSettings, 'skipUniversesBeyond' | 'skipSecretLair'>>
+export type PickSkips = Partial<Pick<AppSettings, 'skipUniversesBeyond' | 'skipSecretLair' | 'skipPhyrexian'>>
 
 /** @returns Just the skips of some settings, to pass on. */
-export const pickSkips = ({ skipUniversesBeyond, skipSecretLair }: PickSkips): PickSkips => ({ skipUniversesBeyond, skipSecretLair })
+export const pickSkips = ({ skipUniversesBeyond, skipSecretLair, skipPhyrexian }: PickSkips): PickSkips => ({ skipUniversesBeyond, skipSecretLair, skipPhyrexian })
+
+/** Scryfall's language code of Phyrexian, the game's made-up script. */
+const PHYREXIAN = 'ph'
 
 /** A Secret Lair printing: the Drop series, or another Secret Lair set (Showdown, Countdown…). */
 export const isSecretLair = (printing: Pick<Printing, 'set' | 'setName'>) => printing.set === 'sld' || /^Secret Lair\b/i.test(printing.setName)
@@ -118,7 +122,7 @@ export function resolveLine(
   line: Pick<CardLine, 'set' | 'collector' | 'foil'>,
   printings: Printing[],
   basis: PriceBasis,
-  { prefer, skipUniversesBeyond, skipSecretLair }: PickRules = {}
+  { prefer, skipUniversesBeyond, skipSecretLair, skipPhyrexian }: PickRules = {}
 ): Resolution {
   if (line.set) {
     let candidates = printings.filter((p) => p.set === line.set)
@@ -143,7 +147,9 @@ export function resolveLine(
     return { printing: preferred.printing, unitPrice: preferred.price, pinned: false, pinMissing: false, collectorMissing: false, preferred: true }
   }
   const eligible = printings.filter((p) => p.autoEligible)
-  const others = eligible.filter((p) => !(skipUniversesBeyond && p.universesBeyond) && !(skipSecretLair && isSecretLair(p)))
+  const skipped = (p: Printing) =>
+    (skipUniversesBeyond && p.universesBeyond) || (skipSecretLair && isSecretLair(p)) || (skipPhyrexian && p.lang === PHYREXIAN)
+  const others = eligible.filter((p) => !skipped(p))
   const best = cheapestPrinting(others.length > 0 ? others : eligible, line.foil, basis)
   if (best) {
     return { printing: best.printing, unitPrice: best.price, pinned: false, pinMissing: false, collectorMissing: false }

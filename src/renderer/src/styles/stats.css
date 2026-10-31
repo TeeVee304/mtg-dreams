@@ -76,11 +76,11 @@
   padding-right: 64px;
 }
 
+/* Its bottom lines up with the bottom of the "Typical prices" note, 3px above the item's. */
 .value-details-btn {
   position: absolute;
-  top: 50%;
+  bottom: 3px;
   right: 14px;
-  transform: translateY(-50%);
   width: 36px;
   height: 36px;
   padding: 0;

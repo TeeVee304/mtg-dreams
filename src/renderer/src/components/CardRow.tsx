@@ -6,9 +6,11 @@ import { ui } from '@shared/text'
 import { formatDate, formatEur } from '../lib/format'
 import { useNarrowTables } from '../hooks/useNarrow'
 import type { PriceChange } from '../stores/history'
+import { localizedQueryOf } from '../stores/localizedImages'
 import type { Row } from '../lib/summary'
 import { CardmarketButton, NameCell, Price } from './CardCells'
 import { Icon } from './Icon'
+import { LanguageFlag } from './LanguageFlag'
 import { Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
 
@@ -22,7 +24,12 @@ interface CardRowProps {
   /** Just chosen as commander (animation). */
   crowned: boolean
   isDeck: boolean
-  issue: LegalityIssue | null
+  /** Format problems, most serious first. */
+  issues: LegalityIssue[]
+  /** Why the Card is allowed despite a rule, shown on hover over its name. */
+  allowed?: string[]
+  /** Shows the Game Changer chip: the Card is one, and the format has brackets. */
+  gameChanger: boolean
   /** Deck copies not covered by the inventory copies left by lists ahead. */
   shortfall: number
   /** Wishlist price change past the alert threshold, either way. */
@@ -47,6 +54,8 @@ export interface RowHandlers {
   qty: (row: Row, qty: number) => void
   /** Toggles a wishlist line's owned state. */
   toggleOwned: (row: Row) => void
+  /** Reviews a substitute or stand-in: a line wanting a Version you own only other Versions of. */
+  review: (row: Row) => void
   /** Adjusts owned copies by `delta`. */
   ownedDelta: (row: Row, delta: number) => void
   /** Opens the card dialog. */
@@ -78,10 +87,11 @@ function sameRowProps(a: CardRowProps, b: CardRowProps): boolean {
 }
 
 function CardRowView(props: CardRowProps) {
-  const { row, pick, leader, crowned, isDeck, issue, shortfall, change, swapTag, swapLabel, maxQty, maxTitle, otherVersions, handlers } = props
+  const { row, pick, leader, crowned, isDeck, issues, allowed, gameChanger, shortfall, change, swapTag, swapLabel, maxQty, maxTitle, otherVersions, handlers } = props
   const onPick = () => handlers.pick(row)
   const onQty = (qty: number) => handlers.qty(row, qty)
   const onToggleOwned = () => handlers.toggleOwned(row)
+  const onReview = () => handlers.review(row)
   const onOwnedDelta = (delta: number) => handlers.ownedDelta(row, delta)
   const onOpen = () => handlers.open(row)
   const onRemove = () => handlers.remove(row)
@@ -93,12 +103,14 @@ function CardRowView(props: CardRowProps) {
   const matchedName = data && !data.notFound && nameKey(data.name) !== nameKey(line.name) ? data.name : null
   const printedAs = matchedName && data?.printings.some((p) => p.flavorName?.toLowerCase() === line.name.toLowerCase())
   const complete = owned >= line.qty
+  /** You own other Versions than the one the line wants: a substitute to review, or a stand-in counting. */
+  const swapped = !isDeck && ((!complete && (row.substitutes ?? 0) > 0) || (complete && !!line.standIn))
   const loading = !row.bundledIds && !data && !entry?.error
   const checkbox = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (checkbox.current) checkbox.current.indeterminate = owned > 0 && !complete
-  }, [owned, complete])
+  }, [owned, complete, swapped])
 
   const classes = [
     !isDeck && complete && 'owned',
@@ -132,14 +144,26 @@ function CardRowView(props: CardRowProps) {
       {!isDeck && (
         <td className="col-owned">
           <div className="owned-cell">
-            <input
-              ref={checkbox}
-              type="checkbox"
-              checked={complete}
-              onChange={onToggleOwned}
-              aria-label={ui.card.own(line.name)}
-              title={ui.card.ownedHint(complete, row.inventoryQty, row.held)}
-            />
+            {swapped ? (
+              <button
+                type="button"
+                className={`swap-box${complete ? ' counted' : ''}`}
+                onClick={onReview}
+                aria-label={complete ? ui.card.substitute.reviewStandIn(line.name) : ui.card.substitute.review(line.name)}
+                title={complete ? ui.card.substitute.standInHint(otherVersions ?? '') : ui.card.substitute.hint(otherVersions ?? '')}
+              >
+                <Icon name={complete ? 'check' : 'swap'} />
+              </button>
+            ) : (
+              <input
+                ref={checkbox}
+                type="checkbox"
+                checked={complete}
+                onChange={onToggleOwned}
+                aria-label={ui.card.own(line.name)}
+                title={ui.card.ownedHint(complete, row.inventoryQty, row.held)}
+              />
+            )}
             <span className="owned-count">
               {owned}/{line.qty}
             </span>
@@ -164,7 +188,7 @@ function CardRowView(props: CardRowProps) {
           label={ui.card.quantityOf(line.name)}
         />
       </td>
-      <NameCell images={printing} loading={loading} foil={line.foil}>
+      <NameCell images={printing} loading={loading} foil={line.foil} localized={localizedQueryOf(line, printing)}>
         {row.bundledIds ? (
           <span className="card-name" title={ui.card.bundledHint}>
             {line.name}
@@ -174,7 +198,7 @@ function CardRowView(props: CardRowProps) {
             type="button"
             className="name-btn card-name"
             onClick={onOpen}
-            title={row.flavorName ?? line.name}
+            title={[row.flavorName ?? line.name, ...(allowed ?? [])].join('\n')}
           >
             {row.flavorName ?? line.name}
           </button>
@@ -185,14 +209,23 @@ function CardRowView(props: CardRowProps) {
           </span>
         )}
         {line.foil && <span className="chip foil">{ui.common.foil}</span>}
+        {gameChanger && (
+          <span className="chip game-changer" title={ui.card.gameChanger}>
+            {ui.card.gameChangerTag}
+          </span>
+        )}
         {swapTag === 'only' && (
           <span className="chip duel-only" title={ui.card.onlyIn(swapLabel ?? '')}>
             {ui.card.only(swapLabel ?? '')}
           </span>
         )}
-        {issue && (
-          <span className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`} title={issue.message}>
-            {issue.message}
+        {issues.length > 0 && (
+          <span
+            className={`chip ${issues[0].severity === 'error' ? 'illegal' : 'restricted'}`}
+            title={issues.map((issue) => issue.detail).join('\n')}
+          >
+            {issues[0].message}
+            {issues.length > 1 && <span className="chip-more">{ui.rules.more(issues.length - 1)}</span>}
           </span>
         )}
         {change && (
@@ -229,12 +262,14 @@ function CardRowView(props: CardRowProps) {
         {narrow && (
           <span className="name-version">
             <VersionCell row={row} otherVersions={otherVersions} />
+            {row.line.lang && <LanguageFlag code={row.line.lang} />}
           </span>
         )}
       </NameCell>
       {!narrow && (
         <td className="col-version">
           <VersionCell row={row} otherVersions={otherVersions} />
+          {row.line.lang && <LanguageFlag code={row.line.lang} />}
         </td>
       )}
       <td className="col-num">

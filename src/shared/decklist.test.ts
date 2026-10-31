@@ -137,3 +137,18 @@ describe('inventory', () => {
     expect(serializeInventory(inventory, true)).toBe(['1 Opt', '3 Sol Ring [CMR]', ''].join('\n'))
   })
 })
+
+describe('stand-ins', () => {
+  it('reads and writes the {Stand-in} mark', () => {
+    const [line] = cardLines(parseList('1 Sol Ring <284> [LTC] {stand-in}'))
+    expect(line.standIn).toBe(true)
+    expect(serializeList([line])).toBe('1 Sol Ring <284> [LTC] {Stand-in}\n')
+  })
+
+  it('owns a line wanting a Version only with copies of it, when asked to', () => {
+    const inventory = parseInventory('1 Sol Ring <1> [C21]\n')
+    const lines = cardLines(parseList('1 Sol Ring <284> [LTC]'))
+    expect(allocateOwned(lines, inventory)[0]).toMatchObject({ owned: 1 })
+    expect(allocateOwned(lines, inventory, undefined, true)[0]).toMatchObject({ owned: 0, substitutes: 1 })
+  })
+})

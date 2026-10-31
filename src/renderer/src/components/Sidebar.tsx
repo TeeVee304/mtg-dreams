@@ -8,6 +8,7 @@ import { inventoryValue } from '../lib/collection'
 import { formatDate, formatEur } from '../lib/format'
 import { sameList, type CardList, type ListRef } from '../stores/library'
 import { useBaselines } from '../stores/history'
+import { checkConnection, useOnline } from '../stores/network'
 import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { listFigures } from '../lib/listFigures'
@@ -60,13 +61,14 @@ interface SidebarProps {
  * Navigation: Most Wanted, inventory and Trades stay in place; decks, wishlists and brews (collapsible
  * sections with price-drop counts and color symbols on hover; wishlists in your order, dragged to reorder;
  * brews by name, the first few until all are shown, with a filter for many; a list dragged between
- * Wishlists and Brews changes kind) scroll below them. The footer holds the price status and settings. In narrow windows it is an icon rail: icons and list initials, with
+ * Wishlists and Brews changes kind) scroll below them. The footer holds the offline status, the price status and settings. In narrow windows it is an icon rail: icons and list initials, with
  * every list shown and names in tooltips (and for screen readers).
  */
 export function Sidebar(props: SidebarProps) {
   const { lists, inventory, view, onSelect, onNew, onMoveWishlist, onMoveKind, onSettings, pricedAt, onRefreshPrices } = props
   const { trades, onWizard, wizardOpen } = props
   const [refreshing, setRefreshing] = useState(false)
+  const online = useOnline()
   /**
    * Wishlist or brew being dragged (`from`: a wishlist's place in the order), and where it would drop:
    * a place among the wishlists (`at`), or into Brews.
@@ -344,20 +346,40 @@ export function Sidebar(props: SidebarProps) {
       </nav>
 
       <footer className="sidebar-foot">
+        {!online && (
+          <div className="foot-row offline-status" title={ui.sidebar.offlineHint}>
+            <span className="offline-dot" aria-hidden="true" />
+            <span className="offline-label small">{ui.sidebar.offline}</span>
+            <button
+              type="button"
+              className="link-btn small"
+              disabled={refreshing}
+              title={ui.sidebar.retryHint}
+              onClick={() => {
+                setRefreshing(true)
+                void checkConnection().finally(() => setRefreshing(false))
+              }}
+            >
+              {refreshing ? ui.sidebar.checking : ui.sidebar.retry}
+            </button>
+          </div>
+        )}
         <div className="foot-row price-status">
           <span className="muted small">{pricedAt ? ui.sidebar.pricesFrom(formatDate(pricedAt)) : ui.sidebar.noPrices}</span>
-          <button
-            type="button"
-            className="link-btn small"
-            disabled={refreshing}
-            title={ui.sidebar.refreshHint}
-            onClick={() => {
-              setRefreshing(true)
-              void onRefreshPrices().finally(() => setRefreshing(false))
-            }}
-          >
-            {refreshing ? ui.sidebar.checking : ui.sidebar.refresh}
-          </button>
+          {online && (
+            <button
+              type="button"
+              className="link-btn small"
+              disabled={refreshing}
+              title={ui.sidebar.refreshHint}
+              onClick={() => {
+                setRefreshing(true)
+                void onRefreshPrices().finally(() => setRefreshing(false))
+              }}
+            >
+              {refreshing ? ui.sidebar.checking : ui.sidebar.refresh}
+            </button>
+          )}
         </div>
         <button type="button" className="settings-btn" onClick={onSettings} title={rail ? ui.sidebar.settings : undefined}>
           <Icon name="settings" /> <span className="nav-label">{ui.sidebar.settings}</span>

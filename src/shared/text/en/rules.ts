@@ -4,20 +4,60 @@ import { count } from './terms'
 export const rules = {
   /** What can lead a Deck in a format, for messages: `it must be a planeswalker`. */
   commanderRule: {
-    oathbreaker: 'a planeswalker',
-    paupercommander: 'a creature printed at uncommon',
-    other: 'a legendary creature or Vehicle'
+    legendary: 'a legendary creature or Vehicle',
+    legendaryOrPlaneswalker: 'a legendary creature, Vehicle or planeswalker',
+    planeswalker: 'a planeswalker',
+    uncommonCreature: 'a creature printed at uncommon'
   },
-  oneCommander: (format: string) => `${format} has one Commander`,
-  cantShareCommand: (partner: string) => `Can't share command with ${partner}`,
-  cantLead: (format: string) => `Can't be your Commander in ${format}`,
-  banned: (format: string) => `Banned in ${format}`,
-  notLegal: (format: string) => `Not legal in ${format}`,
-  restrictedOver: (format: string) => `Restricted in ${format} (max 1)`,
-  restricted: (format: string) => `Restricted in ${format}`,
-  maxCopies: (max: number, format: string) => `Max ${count.copies(max)} in ${format}`,
+  // Each problem has a short chip text, and its full reason, shown on hover and in the Card dialog.
+  oneCommander: 'One Commander',
+  oneCommanderIn: (format: string) => `${format} has one Commander`,
+  cantShareCommand: "Can't Partner",
+  cantShareCommandWith: (partner: string) => `Can't share command with ${partner}`,
+  cantLead: "Can't lead",
+  cantLeadIn: (format: string, rule: string) => `Can't be your Commander in ${format}: it must be ${rule}`,
+  banned: 'Banned',
+  bannedIn: (format: string) => `Banned in ${format}`,
+  notLegal: 'Not legal',
+  notLegalIn: (format: string) => `Not legal in ${format}`,
+  /** A Rulebreaker commander: allowed to lead, with a warning. */
+  playtest: (format: string) => `Not legal in ${format}: Rulebreakers are playtest Cards`,
+  restricted: 'Restricted',
+  restrictedIn: (format: string) => `Restricted in ${format}`,
+  restrictedOver: (format: string) => `Restricted in ${format}: max 1 Copy`,
+  maxCopies: (max: number) => `Max ${count.copies(max)}`,
+  maxCopiesIn: (max: number, format: string) => `${format} allows ${count.copies(max)} of a Card`,
   maxSideboard: (max: number, format: string) => `Max ${max} in ${format}`,
-  outsideColors: (partners: boolean) => (partners ? "Outside your Commanders' colors" : "Outside your Commander's colors"),
+  outsideColors: 'Outside colors',
+  outsideColorsOf: (partners: boolean) => (partners ? "Outside your Commanders' colors" : "Outside your Commander's colors"),
+  notCompanion: 'Not a Companion',
+  notCompanionDetail: 'Has no Companion ability',
+  breaksCompanion: 'Breaks Companion condition',
+  breaksCompanionOf: (companion: string, condition: string) => `Breaks ${companion}'s condition: ${condition}`,
+  companionShort: 'Deck too small',
+  companionShortOf: (companion: string, missing: number) => `${companion} needs ${missing} more Cards in the Deck`,
+  unchecked: 'Not checked',
+  uncheckedCompanion: (companion: string) => `${companion}'s condition is new to MTG Dreams: it isn't checked`,
+  uncheckedRulebreaker: (commander: string) => `${commander}'s Rulebreaker rule is new to MTG Dreams: it isn't applied`,
+  /** More problems than the chip shows: `+1`. */
+  more: (n: number) => `+${n}`,
+  /** Why a Card is allowed despite a rule, on hover and in the Card dialog. */
+  allowedBy: (card: string) => `Allowed by ${card}`,
+  anyNumber: 'Any number allowed',
+  upTo: (n: number) => `Up to ${n} allowed`,
+  /** Each Companion's condition, for its problems. */
+  companionCondition: {
+    even: 'only even mana values',
+    odd: 'only odd mana values and Lands',
+    symbols: 'no mana symbol twice in a cost',
+    creatureTypes: (types: string[]) => `every creature is a ${types.join(', ')}`,
+    minManaValue: (min: number) => `only mana value ${min} or more, and Lands`,
+    maxPermanentManaValue: (max: number) => `permanents of mana value ${max} or less`,
+    singleton: 'each nonland Card named differently',
+    sharedType: 'nonland Cards sharing a Card type',
+    biggerDeck: (extra: number) => `${extra} Cards over the minimum Deck size`,
+    activated: 'permanents with an activated ability'
+  },
   sizeShort: (missing: number, size: number) => `${missing} short of ${size}`,
   sizeOver: (extra: number, size: number) => `${extra} over ${size}`
 }
@@ -44,6 +84,7 @@ export const ownership = {
 /** A list's sections beyond its type groups. */
 export const sections = {
   commander: (n: number) => (n > 1 ? 'Commanders' : 'Commander'),
+  companion: 'Companion',
   sideboard: 'Sideboard',
   maybeboard: 'Maybeboard'
 }

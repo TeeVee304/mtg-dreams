@@ -21,6 +21,7 @@ import { usePrices } from './hooks/usePrices'
 import { useScrollMemory } from './hooks/useScrollMemory'
 import { useShortcuts } from './hooks/useShortcuts'
 import { sameList, useLibrary, type ListRef, type UndoResult } from './stores/library'
+import { watchConnectivity } from './stores/network'
 import { loadSetGroups, STARTUP_DELAY_MS } from './stores/setGroups'
 import { onWindowFocus } from './lib/desktop'
 
@@ -54,6 +55,8 @@ export default function App() {
     void actions.reload(true)
     return onWindowFocus(() => void actions.reload())
   }, [actions])
+
+  useEffect(watchConnectivity, [])
 
   // Set groups load in the background soon after startup, so the Universes picker is ready.
   useEffect(() => {
@@ -110,7 +113,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${state.readOnly ? ' read-only' : ''}`}>
       <Sidebar
         lists={state.lists}
         inventory={state.inventory}
@@ -127,6 +130,11 @@ export default function App() {
         wizardOpen={dialog?.kind === 'wizard'}
       />
       <main className="main" ref={scroll.ref} onScroll={scroll.onScroll}>
+        {state.readOnly && (
+          <p className="read-only-banner" role="status">
+            {ui.errors.newerData}
+          </p>
+        )}
         <PriceProgress />
         {view?.page === 'inventory' && (
           <InventoryView

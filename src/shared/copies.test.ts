@@ -72,6 +72,24 @@ describe('copiesToAdd', () => {
   it('adds copies beyond the owned copies no built deck holds', () => {
     expect(copiesToAdd(cards, inventory, copyPool(lists))).toEqual([{ name: 'Lightning Bolt', qty: 2 }])
   })
+
+  it('adds the copies with the printing, finish and language their lines name, in line order', () => {
+    const lines = [
+      { name: 'Counterspell', qty: 2, lang: 'es' as const, foil: false },
+      { name: 'Counterspell', qty: 1, set: 'mh2', collector: '267', foil: true },
+      { name: 'counterspell', qty: 1, lang: 'es' as const, foil: false }
+    ]
+    expect(copiesToAdd(lines, new Map(), copyPool([]))).toEqual([
+      { name: 'Counterspell', qty: 3, lang: 'es' },
+      { name: 'Counterspell', qty: 1, set: 'mh2', collector: '267', foil: true }
+    ])
+    // One owned copy no deck holds: three are missing, taken from the lines in order.
+    const owned = parseInventory('1 Counterspell')
+    expect(copiesToAdd(lines, owned, copyPool([]))).toEqual([
+      { name: 'Counterspell', qty: 2, lang: 'es' },
+      { name: 'Counterspell', qty: 1, set: 'mh2', collector: '267', foil: true }
+    ])
+  })
 })
 
 describe('unownedCards', () => {
@@ -254,5 +272,17 @@ describe('unbuilt decks', () => {
       ['Elves Plus', ['4/4 Sol Ring, buy 1']],
       ['Other', ['1/1 Sol Ring, buy 0']]
     ])
+  })
+})
+
+describe('substitutes', () => {
+  it('leave a wishlist line wanting a Version still wanted, unless it stands in', () => {
+    const inventory = parseInventory('1 Sol Ring <1> [C21]\n')
+    const wanted = (text: string) =>
+      listNeeds([{ kind: 'wishlist', name: 'Shiny', lines: parseList(text) }], inventory).flatMap(({ needs }) => needs.map((need) => need.missing))
+    expect(wanted('1 Sol Ring <284> [LTC]')).toEqual([1])
+    expect(wanted('1 Sol Ring <284> [LTC] {Stand-in}')).toEqual([])
+    expect(wanted('1 Sol Ring')).toEqual([])
+    expect(listNeeds([{ kind: 'deck', name: 'Rocks', lines: parseList('1 Sol Ring <284> [LTC]') }], inventory)[0].needs).toEqual([])
   })
 })

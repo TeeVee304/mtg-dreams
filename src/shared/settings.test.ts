@@ -19,5 +19,7 @@ describe('settings', () => {
     expect(() => settingsPatch({ dropAlertPercent: 95 })).toThrow('Invalid alert threshold.')
     expect(settingsPatch({ dropAlertMinEur: 0.25 })).toEqual({ dropAlertMinEur: 0.25 })
     expect(() => settingsPatch({ dropAlertMinEur: -1 })).toThrow('Invalid alert amount.')
+    expect(settingsPatch({ rulesText: 'printed' })).toEqual({ rulesText: 'printed' })
+    expect(() => settingsPatch({ rulesText: 'original' })).toThrow('Invalid rules text.')
   })
 })

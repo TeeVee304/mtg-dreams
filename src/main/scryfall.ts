@@ -1,13 +1,16 @@
 import type { PrintingsOptions } from '@shared/api'
 import { isBasicLand } from '@shared/cards'
 import { nameKey } from '@shared/decklist'
+import { companionOf, hasActivatedAbility, repeatsManaSymbol, rulebreakerOf } from '@shared/deckRules'
 import { partnerAbility } from '@shared/formats'
+import { languageOf, type Language } from '@shared/languages'
+import { energyOf, fetchedColors, rampKind } from '@shared/manaText'
 import { hasNamedCard, printingsOfNamedCard } from '@shared/matching'
 import { ui } from '@shared/text'
-import type { CardInfo, Prices, Printing, PrintingsResult } from '@shared/types'
+import type { CardFace, CardInfo, LocalizedImage, LocalizedQuery, Prices, PrintedFace, Printing, PrintingsResult, Ruling } from '@shared/types'
 import { env } from './environment'
 import { fetchJson } from './http'
-import { scryfallCache, scryfallCacheChanged, scryfallCacheReady } from './scryfallCache'
+import { cachedEntry, scryfallCache, scryfallCacheChanged, scryfallCacheReady, storeEntry, touchEntry } from './scryfallCache'
 
 /** Card data TTL; changes only with bans and errata. */
 const CARD_INFO_TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -20,12 +23,17 @@ const NOT_FOUND_TTL_MS = 24 * 60 * 60 * 1000
  * long enough ago that the card may exist now.
  */
 function staleMiss(entry: PrintingsResult, name: string): boolean {
-  return entry.notFound === true && (entry.name !== name || Date.now() - entry.fetchedAt > NOT_FOUND_TTL_MS)
+  const old = Date.now() - entry.fetchedAt > NOT_FOUND_TTL_MS
+  // A card without printings: printed since, or on Arena only (cached before Arena printings were kept).
+  if (entry.card && entry.printings.length === 0) return old
+  return entry.notFound === true && (entry.name !== name || old)
 }
 /** Max identifiers per `/cards/collection` request. */
 const COLLECTION_BATCH = 75
 /** Max search result pages (175 cards each) per lookup. */
 const MAX_SEARCH_PAGES = 10
+/** Names per search for printed names in other languages ({@link findForeign}). */
+const FOREIGN_BATCH = 20
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -205,7 +213,8 @@ function toPrinting(card: any): Printing {
     autoEligible: card.border_color !== 'gold' && card.set_type !== 'memorabilia',
     ...(flavorNameOf(card) && { flavorName: flavorNameOf(card) }),
     ...(illustrationOf(card) && { illustrationId: illustrationOf(card) }),
-    ...((card.promo_types ?? []).includes('universesbeyond') && { universesBeyond: true as const })
+    ...((card.promo_types ?? []).includes('universesbeyond') && { universesBeyond: true as const }),
+    ...(card.digital === true && { digital: true as const })
   }
 }
 
@@ -216,11 +225,55 @@ const NUMBER_WORDS: Record<string, number> = { two: 2, three: 3, four: 4, five: 
 /** Rules text letting a noncreature card be commander: "can be your commander", or creature off the battlefield (Grist). */
 const LEADS_RE = /can be your commander|isn't on the battlefield, it's an? [^.]*\bcreature\b/i
 
+/** @returns Mana colors in WUBRG order, colorless last. */
+const sortColors = (colors: string[]) => [...new Set(colors)].sort((a, b) => 'WUBRGC'.indexOf(a) - 'WUBRGC'.indexOf(b))
+
+/** Changeling, which gives a card every creature type. */
+const CHANGELING_RE = /^Changeling\b|is every creature type/im
+
+/** @returns What a Scryfall card or card face says: name, cost, type line, rules text and stats. */
+function faceOf(face: any): CardFace {
+  return {
+    name: face.name ?? '',
+    ...(face.mana_cost && { manaCost: face.mana_cost }),
+    typeLine: face.type_line ?? '',
+    text: face.oracle_text ?? '',
+    ...(face.power !== undefined && face.toughness !== undefined && { pt: `${face.power}/${face.toughness}` }),
+    ...(face.loyalty !== undefined && { loyalty: face.loyalty }),
+    ...(face.defense !== undefined && { defense: face.defense })
+  }
+}
+
+/**
+ * @returns A card's faces ({@link CardInfo.faces}): the card itself without faces, the front alone
+ * for a reversible card (both faces are the same card).
+ */
+function facesOf(card: any): CardFace[] {
+  const faces: any[] = card.card_faces ?? []
+  if (faces.length === 0) return [faceOf(card)]
+  return (card.layout === 'reversible_card' ? faces.slice(0, 1) : faces).map(faceOf)
+}
+
 /** Maps a Scryfall card to {@link CardInfo}; colors fall back to the union of face colors, sorted WUBRG. */
 export function toCardInfo(card: any): CardInfo {
   const faces: any[] = card.card_faces ?? []
   const colors: string[] = card.colors ?? [...new Set(faces.flatMap((face) => face.colors ?? []))]
   const text: string = card.oracle_text ?? faces.map((face) => face.oracle_text ?? '').join('\n')
+  // In a deck a card has its front face only; a split card has both halves. Scryfall joins all faces'
+  // costs at the top level, so other two-faced cards (modal, Adventure) take the front face's.
+  const split = card.layout === 'split' || faces.length === 0
+  const cost: string = (split ? card.mana_cost : faces[0]?.mana_cost) ?? ''
+  // A reversible card (Secret Lair's two-art printings) is one card on both faces, with no name,
+  // type or mana value of its own: they're the front face's.
+  const reversible = card.layout === 'reversible_card' && faces.length > 0
+  const frontText: string = split ? text : (faces[0]?.oracle_text ?? '')
+  const isLand = /\bLand\b/.test((faces[0]?.type_line ?? card.type_line ?? '').split('—')[0])
+  const produced: string[] = card.produced_mana ?? []
+  const produces = produced.length > 0 ? produced : isLand ? fetchedColors(text) : []
+  const ramp = rampKind(card.type_line ?? faces[0]?.type_line ?? '', frontText, produced)
+  const energy = energyOf(frontText)
+  const rulebreaker = rulebreakerOf(card.name, text)
+  const companion = companionOf(card.name, text)
   const limit = DECK_LIMIT_RE.exec(text)
   let deckLimit: CardInfo['deckLimit']
   if (limit) {
@@ -228,21 +281,32 @@ export function toCardInfo(card: any): CardInfo {
     deckLimit = Number.isFinite(n) ? n : 'any'
   }
   return {
-    name: card.name,
+    name: reversible ? faces[0].name : card.name,
     colors: colors.sort((a, b) => 'WUBRG'.indexOf(a) - 'WUBRG'.indexOf(b)),
     colorIdentity: card.color_identity ?? [],
-    typeLine: card.type_line ?? faces.map((face) => face.type_line ?? '').join(' // '),
-    manaValue: card.cmc ?? 0,
+    typeLine: card.type_line ?? (reversible ? faces[0].type_line : faces.map((face) => face.type_line ?? '').join(' // ')),
+    manaValue: card.cmc ?? faces[0]?.cmc ?? 0,
     rarity: card.rarity ?? 'common',
     legalities: card.legalities ?? {},
     ...(deckLimit !== undefined && { deckLimit }),
     ...(LEADS_RE.test(text) && { canBeCommander: true as const }),
-    ...(partnerAbility(text) && { partner: partnerAbility(text) })
+    ...(partnerAbility(text) && { partner: partnerAbility(text) }),
+    ...(card.game_changer === true && { gameChanger: true as const }),
+    ...(rulebreaker && { rulebreaker }),
+    ...(companion && { companion }),
+    ...(repeatsManaSymbol(cost) && { repeatsSymbol: true as const }),
+    ...(hasActivatedAbility(frontText) && { activated: true as const }),
+    ...(CHANGELING_RE.test(frontText) && { changeling: true as const }),
+    ...(cost && { manaCost: cost }),
+    ...(produces.length > 0 && { produces: sortColors(produces) }),
+    ...(ramp && { ramp }),
+    ...(energy && { energy }),
+    faces: facesOf(card)
   }
 }
 
 /** Lookup state; `queued` is the currently queued job, for promotion. */
-interface Lookup {
+export interface Lookup {
   priority: 'high' | 'low'
   queued?: Job
 }
@@ -283,10 +347,169 @@ async function searchPrints(query: string, lookup: Lookup, maxPages: number): Pr
   return result
 }
 
+/** Pages of token Versions fetched: 175 Versions each. */
+const TOKEN_VERSION_PAGES = 2
+
+/** @returns Raw Scryfall printings of a token, by its oracle id, newest first; empty if unknown or offline. */
+export async function searchTokenVersions(oracleId: string): Promise<any[]> {
+  const found = await searchPrints(`oracleid:${oracleId} include:extras -is:digital`, { priority: 'high' }, TOKEN_VERSION_PAGES)
+  return found?.cards ?? []
+}
+
+/** @returns Whether Scryfall has a real scan of a printing, not a placeholder (an English image) or none. */
+const scanned = (card: any) => card?.image_status === 'highres_scan' || card?.image_status === 'lowres'
+
+/** @returns A printing's faces as printed in its language; none when Scryfall has no printed text. */
+function printedFacesOf(card: any): PrintedFace[] {
+  const faces: any[] = card.card_faces?.length ? card.card_faces : [card]
+  if (!faces.some((face) => face.printed_text !== undefined)) return []
+  return faces.map((face) => ({
+    name: face.printed_name ?? face.name ?? '',
+    typeLine: face.printed_type_line ?? face.type_line ?? '',
+    text: face.printed_text ?? ''
+  }))
+}
+
+/**
+ * @returns A printing's normal-size images (front, and back of a two-sided card) and printed text;
+ * null without a scan or a printing.
+ */
+function imagesOf(card: any): LocalizedImage | null {
+  if (!card) return null
+  const normal = (card.image_uris ?? card.card_faces?.[0]?.image_uris)?.normal
+  if (!scanned(card) || !normal) return null
+  const faces = printedFacesOf(card)
+  return { imageNormal: normal.split('?')[0], imageBack: backImageOf(card), ...(faces.length > 0 && { faces }) }
+}
+
+/**
+ * Finds a Card's images in a language: those of the printing asked for, else of its newest printing
+ * with a scan in that language.
+ * @returns The images; null if none is scanned in that language.
+ * @throws Error if Scryfall can't be reached.
+ */
+export async function searchLocalized({ name, lang, set, collector }: LocalizedQuery): Promise<LocalizedImage | null> {
+  if (set && collector) {
+    const url = `${env().scryfallApi}/cards/${encodeURIComponent(set)}/${encodeURIComponent(collector)}/${lang}`
+    const exact = imagesOf(await generalQueue.run(() => getJson(url), 'high').promise)
+    if (exact) return exact
+  }
+  const front = name.split(' // ')[0]
+  if (front.includes('"')) return null
+  const query = `!"${front}" lang:${lang} -is:digital`
+  const url = `${env().scryfallApi}/cards/search?include_multilingual=true&unique=prints&order=released&dir=desc&q=${encodeURIComponent(query)}`
+  const body = await searchQueue.run(() => getJson(url), 'high').promise
+  for (const card of body?.data ?? []) {
+    const images = imagesOf(card)
+    if (images) return images
+  }
+  return null
+}
+
+/**
+ * @returns A card's rulings, newest first, by the Scryfall id of any of its printings (rulings belong
+ * to the card); empty for none or an unknown id.
+ * @throws Error if Scryfall can't be reached.
+ */
+export async function fetchRulings(id: string): Promise<Ruling[]> {
+  const url = `${env().scryfallApi}/cards/${encodeURIComponent(id)}/rulings`
+  const body = await generalQueue.run(() => getJson(url), 'high').promise
+  const rulings: Ruling[] = (body?.data ?? [])
+    .filter((ruling: any) => typeof ruling?.comment === 'string' && ruling.comment.trim())
+    .map((ruling: any) => ({ date: String(ruling.published_at ?? ''), source: String(ruling.source ?? ''), text: ruling.comment.trim() }))
+  return rulings.sort((a, b) => b.date.localeCompare(a.date))
+}
+
+/** @returns `text` in lower case without accents, spaces or punctuation: "Lim-Dûl's Vault" is "limdulsvault". */
+export const bareLetters = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '')
+
+/** A card found by a name that is not its exact English one. */
+export interface NameMatch {
+  /** Raw Scryfall card. */
+  card: any
+  /** Language of the printed name matched; absent for English. */
+  lang?: Language
+  /** A near match: a typo, or a flavor name. */
+  fuzzy?: true
+}
+
+/** @returns The printed names of a Scryfall card: its own and its faces'. */
+const printedNames = (card: any): string[] =>
+  [card.printed_name, ...(card.card_faces ?? []).map((face: any) => face.printed_name)].filter(Boolean)
+
+/**
+ * Finds cards by printed names in other languages, exactly but for accents and case, searching
+ * {@link FOREIGN_BATCH} names at a time. A name has a language only if its Card prints it in one
+ * language. Without its accents, a name several Cards print is a fuzzy match.
+ * @returns Matches by {@link bareLetters} of the name; names without one are left out.
+ */
+export async function findForeign(names: string[], lookup: Lookup): Promise<Map<string, NameMatch>> {
+  const matches = new Map<string, NameMatch>()
+  const wanted = [...new Set(names.map((name) => name.trim()).filter((name) => name && !name.includes('"')))]
+  for (let i = 0; i < wanted.length; i += FOREIGN_BATCH) {
+    const batch = wanted.slice(i, i + FOREIGN_BATCH)
+    const query = `(${batch.map((name) => `!"${name}"`).join(' or ')}) lang:any -lang:en`
+    let url: string | null =
+      `${env().scryfallApi}/cards/search?include_multilingual=true&unique=prints&q=${encodeURIComponent(query)}`
+    const found = new Map<string, any[]>()
+    for (let page = 0; url && page < MAX_SEARCH_PAGES; page++) {
+      const body = await searchCall(url, lookup)
+      if (!body) break
+      for (const card of body.data) {
+        for (const printed of printedNames(card)) {
+          const key = bareLetters(printed)
+          if (!found.has(key)) found.set(key, [])
+          found.get(key)!.push(card)
+        }
+      }
+      url = body.has_more ? body.next_page : null
+    }
+    for (const name of batch) {
+      const cards = found.get(bareLetters(name))
+      if (!cards) continue
+      // As typed, accents and all, if any Card prints it so: "Relámpago" is Lightning Bolt, "Relâmpago" Thunderbolt.
+      const typed = name.toLocaleLowerCase()
+      const exact = cards.filter((card) => printedNames(card).some((printed) => printed.toLocaleLowerCase() === typed))
+      const pool = exact.length > 0 ? exact : cards
+      const card = pool[0]
+      const langs = new Set(pool.filter((other) => other.oracle_id === card.oracle_id).map((other) => other.lang))
+      const lang = langs.size === 1 ? languageOf(card.lang) : undefined
+      const ambiguous = new Set(pool.map((other) => other.oracle_id)).size > 1
+      matches.set(bareLetters(name), { card, ...(lang && { lang }), ...(ambiguous && { fuzzy: true as const }) })
+    }
+  }
+  return matches
+}
+
+/**
+ * Finds a card by a name that is not its exact English one: a printed name in another language
+ * first, else a fuzzy English match (typos, flavor names). Foreign names go first, as a fuzzy match
+ * takes "Relampago" for Lightning Greaves. A fuzzy match differing only in accents, case or
+ * punctuation counts as exact.
+ * @returns null if neither matches.
+ */
+export async function findByName(name: string, lookup: Lookup): Promise<NameMatch | null> {
+  return (await findForeign([name], lookup)).get(bareLetters(name)) ?? (await fuzzyNamed(name, lookup))
+}
+
+/** @returns A fuzzy English match for `name`, exact if only accents, case or punctuation differ; null if none. */
+export async function fuzzyNamed(name: string, lookup: Lookup): Promise<NameMatch | null> {
+  const named = await searchCall(`${env().scryfallApi}/cards/named?fuzzy=${encodeURIComponent(name)}`, lookup)
+  if (!named) return null
+  const names: string[] = [named.name, ...(named.card_faces ?? []).map((face: any) => face.name)]
+  return names.some((other) => bareLetters(other) === bareLetters(name)) ? { card: named } : { card: named, fuzzy: true }
+}
+
 /**
  * Fetches all paper, non-oversized printings of a card. Tries an exact-name search, falling back
- * to fuzzy `/cards/named` + oracle id search (typos, accents, flavor names). Basic lands fetch only
- * the newest page unless `full`.
+ * to {@link findByName} + oracle id search (other languages, typos, accents, flavor names). A card
+ * never printed on paper gets its MTG Arena printings, marked `digital`, for Arena formats. Basic
+ * lands fetch only the newest page unless `full`.
  */
 async function fetchPrintings(name: string, lookup: Lookup, full: boolean): Promise<PrintingsResult> {
   const basic = isBasicLand(name)
@@ -299,17 +522,21 @@ async function fetchPrintings(name: string, lookup: Lookup, full: boolean): Prom
       search = found
     }
   }
+  let lang: Language | undefined
   if (!search) {
-    const named = await searchCall(`${env().scryfallApi}/cards/named?fuzzy=${encodeURIComponent(name)}`, lookup)
-    if (!named) return { name, printings: [], fetchedAt: Date.now(), notFound: true }
-    search = await searchPrints(`oracleid:${named.oracle_id} game:paper`, lookup, maxPages)
+    const match = await findByName(name, lookup)
+    if (!match) return { name, printings: [], fetchedAt: Date.now(), notFound: true }
+    lang = match.lang
+    search = await searchPrints(`oracleid:${match.card.oracle_id} game:paper`, lookup, maxPages)
+    if (!search || search.cards.length === 0) search = await searchPrints(`oracleid:${match.card.oracle_id} game:arena`, lookup, maxPages)
     if (!search || search.cards.length === 0) {
-      return { name: named.name, card: toCardInfo(named), printings: [], fetchedAt: Date.now() }
+      return { name: match.card.name, ...(lang && { lang }), card: toCardInfo(match.card), printings: [], fetchedAt: Date.now() }
     }
   }
   const { cards } = search
-  const printings = cards.filter((card) => !card.digital && !card.oversized).map(toPrinting)
-  const result: PrintingsResult = { name: cards[0].name, card: toCardInfo(cards[0]), printings, fetchedAt: Date.now() }
+  const arenaOnly = cards.every((card) => card.digital)
+  const printings = cards.filter((card) => (arenaOnly || !card.digital) && !card.oversized).map(toPrinting)
+  const result: PrintingsResult = { name: cards[0].name, ...(lang && { lang }), card: toCardInfo(cards[0]), printings, fetchedAt: Date.now() }
   if (search.truncated) {
     result.partial = true
     result.totalPrintings = search.total
@@ -333,9 +560,12 @@ export async function getPrintings(name: string, options: PrintingsOptions = {})
   await scryfallCacheReady()
   const key = nameKey(name)
   const priority = options.priority ?? 'low'
-  const cached = scryfallCache.entries[key]
+  const cached = cachedEntry(key)
   const upgrade = options.full === true && cached?.partial === true
-  if (cached && !options.force && !upgrade && !staleMiss(cached, name)) return Promise.resolve(cached)
+  if (cached && !options.force && !upgrade && !staleMiss(cached, name)) {
+    touchEntry(key)
+    return Promise.resolve(cached)
+  }
 
   const full = options.full === true || cached?.partial === false
   const flightKey = full ? `${key}#full` : key
@@ -352,7 +582,7 @@ export async function getPrintings(name: string, options: PrintingsOptions = {})
   const promise = (async () => {
     try {
       const result = await fetchPrintings(name, lookup, full)
-      scryfallCache.entries[key] = result
+      storeEntry(key, result)
       scryfallCacheChanged()
       return result
     } catch (error) {
@@ -379,7 +609,7 @@ export async function getCardInfos(names: string[]): Promise<Record<string, Card
   for (const name of names) {
     const key = nameKey(name)
     if (!key || key in result || missing.has(key)) continue
-    const printings = scryfallCache.entries[key]
+    const printings = cachedEntry(key)
     if (printings && now - printings.fetchedAt < CARD_INFO_TTL_MS && (printings.card || (printings.notFound && !staleMiss(printings, name)))) {
       result[key] = printings.card ?? null
     } else if (scryfallCache.cards[key] && now - scryfallCache.cards[key].fetchedAt < CARD_INFO_TTL_MS) {
@@ -444,7 +674,7 @@ export async function getCardImages(names: string[]): Promise<Record<string, str
   for (const name of names) {
     const key = nameKey(name)
     if (!key || key in result) continue
-    const cached = scryfallCache.entries[key]?.printings.find((p) => p.imageSmall)?.imageSmall
+    const cached = cachedEntry(key)?.printings.find((p) => p.imageSmall)?.imageSmall
     if (cached) result[key] = cached
     else if (imageCache.has(key)) {
       result[key] = imageCache.get(key) ?? null
@@ -471,16 +701,20 @@ export async function getCardImages(names: string[]): Promise<Record<string, str
   return result
 }
 
+/** A `/cards/collection` identifier: a name (front face), an id, or a set code and collector number. */
+export type CollectionId = { name: string } | { id: string } | { set: string; collector_number: string }
+
 /**
- * Fetches card objects by name (front face) or id, in batches of {@link COLLECTION_BATCH}.
+ * Fetches card objects by name (front face), id, or set code and collector number, in batches of
+ * {@link COLLECTION_BATCH}.
  * @returns Raw Scryfall cards found; unknown identifiers are omitted.
  * @throws Error on network failure or an HTTP error.
  */
-export async function fetchCollection(identifiers: Array<{ name: string } | { id: string }>): Promise<any[]> {
+export async function fetchCollection(identifiers: CollectionId[], priority: 'high' | 'low' = 'low'): Promise<any[]> {
   const cards: any[] = []
   for (let i = 0; i < identifiers.length; i += COLLECTION_BATCH) {
     const batch = identifiers.slice(i, i + COLLECTION_BATCH)
-    const body = await searchQueue.run(() => getJson(`${env().scryfallApi}/cards/collection`, { identifiers: batch }), 'low').promise
+    const body = await searchQueue.run(() => getJson(`${env().scryfallApi}/cards/collection`, { identifiers: batch }), priority).promise
     cards.push(...(body?.data ?? []))
   }
   return cards

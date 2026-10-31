@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { bundledBasic } from '@shared/basics'
+import { savedCardImage } from '@shared/images'
 import { priceBasisLabel } from '@shared/pricing'
 import type { InventoryItem } from '@shared/types'
 import { ui } from '@shared/text'
@@ -98,7 +99,7 @@ export function CollectionValueDialog({ inventory, onClose }: CollectionValueDia
                   >
                     <span className="value-rank">{index + 1}</span>
                     {card.printing?.imageSmall ? (
-                      <img className="value-thumb" src={card.printing.imageSmall} alt="" loading="lazy" />
+                      <img className="value-thumb" src={savedCardImage(card.printing.imageSmall)} alt="" loading="lazy" />
                     ) : (
                       <span className="value-thumb" />
                     )}

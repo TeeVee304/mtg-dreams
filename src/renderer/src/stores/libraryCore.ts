@@ -45,10 +45,12 @@ export interface LibraryState {
   inventory: Map<string, InventoryItem>
   /** Friends' trade lists; `name` equals the file name. */
   trades: TradeSnapshot[]
+  /** The data folder was saved by a newer MTG Dreams: nothing can be changed. */
+  readOnly: boolean
 }
 
 /** State before the first load. */
-export const LOADING: LibraryState = { status: 'loading', dataDir: '', lists: [], inventory: new Map(), trades: [] }
+export const LOADING: LibraryState = { status: 'loading', dataDir: '', lists: [], inventory: new Map(), trades: [], readOnly: false }
 
 /** Card line fields for additions. */
 export type NewCard = Omit<CardLine, 'id' | 'kind'>
@@ -150,7 +152,7 @@ const tradeSources = new WeakMap<TradeSnapshot[], string>()
  * content is unchanged; null if nothing changed (and not `force`).
  */
 export function mergeLoaded(previous: LibraryState, data: LoadedData, force = false): LibraryState | null {
-  let changed = force || previous.status !== 'ready' || previous.dataDir !== data.dataDir
+  let changed = force || previous.status !== 'ready' || previous.dataDir !== data.dataDir || previous.readOnly !== data.readOnly
   const files = [
     ...data.decks.map((file) => ({ kind: 'deck' as const, file })),
     ...data.wishlists.map((file) => ({ kind: 'wishlist' as const, file })),
@@ -186,7 +188,7 @@ export function mergeLoaded(previous: LibraryState, data: LoadedData, force = fa
     }
     tradeSources.set(trades, tradeFiles)
   }
-  return changed ? { status: 'ready', dataDir: data.dataDir, lists, inventory, trades } : null
+  return changed ? { status: 'ready', dataDir: data.dataDir, lists, inventory, trades, readOnly: data.readOnly } : null
 }
 
 /** @returns The message for files that could not be read, naming the first. */
@@ -400,9 +402,9 @@ export function withAddedOwned(
 ): { inventory: Map<string, InventoryItem>; cards: number } {
   const next = new Map(inventory)
   let cards = 0
-  for (const { name, qty, set, collector, foil } of items) {
+  for (const { name, qty, set, collector, foil, lang } of items) {
     const key = nameKey(name)
-    const item = addCopies(next.get(key), name, qty, { set, collector, foil: foil ?? false })
+    const item = addCopies(next.get(key), name, qty, lang ? { set, collector, foil: foil ?? false, lang } : { set, collector, foil: foil ?? false })
     if (item) next.set(key, item)
     cards += qty
   }

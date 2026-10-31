@@ -31,7 +31,7 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
   const name = row.flavorName ?? line.name
   const loading = !row.bundledIds && !entry?.data && !entry?.error
   const complete = owned >= line.qty
-  const problem = issue?.message ?? (shortfall > 0 ? shortfallNote(row).label : null)
+  const problem = issue?.detail ?? (shortfall > 0 ? shortfallNote(row).label : null)
   /** Badge text: copies covered out of those in the deck for a shortfall, else the issue kind. */
   const badge = issue ? (issue.severity === 'warning' ? ui.card.restricted : ui.card.illegal) : `${line.qty - shortfall}/${line.qty}`
   const price = unit === null ? null : unit * line.qty

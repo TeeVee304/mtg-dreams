@@ -31,6 +31,21 @@ export function timeAgo(timestamp: number): string {
   return ui.time.daysAgo(Math.round(hours / 24))
 }
 
+/**
+ * @returns Whether an error says a service could not be reached, did not answer in time or broke off;
+ * while offline, the sidebar's offline status says this once instead.
+ */
+export function isConnectionError(message: string): boolean {
+  const { services, offline, slow, stalled, brokeOff } = ui.errors
+  return services.some((service) => [offline, slow, stalled, brokeOff].some((error) => message.includes(error(service))))
+}
+
+/** @returns A size on disk in KB under 1 MB, otherwise in MB with one decimal. */
+export function formatSize(bytes: number): string {
+  const mb = bytes / (1024 * 1024)
+  return mb < 1 ? ui.settings.kilobytes(Math.max(bytes > 0 ? 1 : 0, Math.round(bytes / 1024))) : ui.settings.megabytes(mb.toFixed(1))
+}
+
 /** @returns Error message without Electron's IPC `Error invoking remote method` prefix. */
 export function cleanError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)

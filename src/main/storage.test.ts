@@ -45,7 +45,8 @@ describe('lists on disk', () => {
       inventory: '',
       trades: [],
       wishlistOrder: [],
-      unreadable: []
+      unreadable: [],
+      readOnly: false
     })
     expect(readdirSync(data).sort()).toEqual(['brews', 'decks', 'lists'])
   })
@@ -132,6 +133,47 @@ describe('lists on disk', () => {
     await Promise.all(['1 A\n', '2 A\n', '3 A\n'].map((text) => storage.writeList('wishlist', 'Wants', text)))
     expect(readFileSync(join(data, 'lists', 'Wants.txt'), 'utf8')).toBe('3 A\n')
     expect(readdirSync(join(data, 'lists'))).toEqual(['Wants.txt'])
+  })
+
+  describe('when a sync client locks the file', () => {
+    /** Makes renames onto a list fail `failures` times (every time if Infinity), as a locked file does. */
+    async function lockedSetup(failures: number) {
+      let failed = 0
+      vi.doMock('node:fs/promises', async (importOriginal) => {
+        const fs = await importOriginal<typeof import('node:fs/promises')>()
+        const rename: typeof fs.rename = async (from, to) => {
+          if (String(to).endsWith('Wants.txt') && failed < failures) {
+            failed++
+            throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' })
+          }
+          return fs.rename(from, to)
+        }
+        return { ...fs, rename }
+      })
+      return { ...(await setup()), tries: () => failed }
+    }
+
+    afterEach(() => {
+      vi.doUnmock('node:fs/promises')
+    })
+
+    it('tries the rename again, leaving no backup', async () => {
+      const { data, storage, tries } = await lockedSetup(2)
+      await storage.writeList('wishlist', 'Wants', '1 A\n')
+      expect(tries()).toBe(2)
+      expect(readFileSync(join(data, 'lists', 'Wants.txt'), 'utf8')).toBe('1 A\n')
+      expect(readdirSync(join(data, 'lists'))).toEqual(['Wants.txt'])
+    })
+
+    it('backs up the old text before writing over it directly', async () => {
+      const { data, storage } = await lockedSetup(Infinity)
+      await storage.writeList('wishlist', 'Wants', '1 A\n')
+      await storage.writeList('wishlist', 'Wants', '2 A\n')
+      expect(readFileSync(join(data, 'lists', 'Wants.txt'), 'utf8')).toBe('2 A\n')
+      expect(readFileSync(join(data, 'lists', 'Wants.txt.bak'), 'utf8')).toBe('1 A\n')
+      expect(readdirSync(join(data, 'lists')).sort()).toEqual(['Wants.txt', 'Wants.txt.bak'])
+      expect((await storage.loadData()).wishlists.map((list) => list.name)).toEqual(['Wants'])
+    })
   })
 
   it('skips a file it cannot read and reports it, loading the rest', async () => {
@@ -244,17 +286,94 @@ describe('lists on disk', () => {
   })
 })
 
+describe('schema versions', () => {
+  afterEach(() => {
+    vi.doUnmock('./schema')
+  })
+
+  it('stamps lists.json, including one from before versions', async () => {
+    const { data, storage } = await setup()
+    const version = () => JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).schemaVersion
+    await storage.createList('deck', 'Burn', '4 Lightning Bolt\n')
+    await storage.loadData()
+    expect(version()).toBe(1)
+    writeFileSync(join(data, 'lists.json'), JSON.stringify({ lists: {} }))
+    await storage.loadData()
+    expect(version()).toBe(1)
+  })
+
+  it('reads a folder saved by a newer app, and changes nothing in it', async () => {
+    const { data, storage, trashed } = await setup()
+    await storage.createList('deck', 'Burn', '4 Lightning Bolt\n')
+    const index = JSON.stringify({ schemaVersion: 99, lists: {}, future: true })
+    writeFileSync(join(data, 'lists.json'), index)
+    writeFileSync(join(data, 'decks', 'Burn.txt'), '// Color: Red\n4 Lightning Bolt\n')
+    const loaded = await storage.loadData()
+    expect(loaded.readOnly).toBe(true)
+    expect(loaded.decks).toEqual([{ name: 'Burn', text: '// Color: Red\n4 Lightning Bolt\n' }])
+    await expect(storage.writeList('deck', 'Burn', '1 Sol Ring\n', true)).rejects.toThrow('newer MTG Dreams')
+    await expect(storage.createList('deck', 'New', '1 Sol Ring\n')).rejects.toThrow('newer MTG Dreams')
+    await expect(storage.renameList('deck', 'Burn', 'Fire')).rejects.toThrow('newer MTG Dreams')
+    await expect(storage.deleteList('deck', 'Burn')).rejects.toThrow('newer MTG Dreams')
+    await expect(storage.writeInventory('4 Island\n')).rejects.toThrow('newer MTG Dreams')
+    await expect(storage.writeWishlistOrder([])).rejects.toThrow('newer MTG Dreams')
+    expect(readFileSync(join(data, 'lists.json'), 'utf8')).toBe(index)
+    expect(readFileSync(join(data, 'decks', 'Burn.txt'), 'utf8')).toBe('// Color: Red\n4 Lightning Bolt\n')
+    expect(readdirSync(join(data, 'decks'))).toEqual(['Burn.txt'])
+    expect(existsSync(join(data, 'inventory.txt'))).toBe(false)
+    expect(trashed).toEqual([])
+  })
+
+  it('upgrades an older folder step by step, running a failed step again on the next load', async () => {
+    const ran: string[] = []
+    let fail = true
+    const steps = [
+      async () => {
+        ran.push('1 to 2')
+      },
+      async () => {
+        ran.push('2 to 3')
+        if (fail) throw new Error('Disk gone')
+      }
+    ]
+    vi.doMock('./schema', async (importOriginal) => ({ ...(await importOriginal<object>()), DATA_STEPS: steps, DATA_VERSION: 3 }))
+    const { data, storage } = await setup()
+    mkdirSync(data, { recursive: true })
+    writeFileSync(join(data, 'lists.json'), JSON.stringify({ lists: {} }))
+    const version = () => JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).schemaVersion
+    await expect(storage.loadData()).rejects.toThrow('Disk gone')
+    expect(version()).toBe(2)
+    fail = false
+    expect((await storage.loadData()).readOnly).toBe(false)
+    expect(version()).toBe(3)
+    expect(ran).toEqual(['1 to 2', '2 to 3', '2 to 3'])
+    await storage.loadData()
+    expect(ran).toHaveLength(3)
+  })
+
+  it('stamps settings, and keeps a newer version and the settings it added', async () => {
+    const first = await setup()
+    const settingsFile = join(first.base, 'userData', 'settings.json')
+    first.storage.updateAppSettings({ theme: 'dark' })
+    expect(JSON.parse(readFileSync(settingsFile, 'utf8')).schemaVersion).toBe(1)
+    writeFileSync(settingsFile, JSON.stringify({ schemaVersion: 99, theme: 'dark', future: true }))
+    const restarted = await setup(first.base)
+    restarted.storage.updateAppSettings({ theme: 'light' })
+    expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).toEqual({ schemaVersion: 99, theme: 'light', future: true })
+  })
+})
+
 describe('settings', () => {
   it('defaults, saves, and survives a restart; bad values fall back', async () => {
     const first = await setup()
-    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, wishlistsReserve: false, plainBrews: false, skipUniversesBeyond: false, skipSecretLair: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
+    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, wishlistsReserve: false, plainBrews: false, skipUniversesBeyond: false, skipSecretLair: false, skipPhyrexian: false, rulesText: 'oracle', cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     first.storage.updateAppSettings({ theme: 'dark', color: 'G', sort: 'mana' })
     const settingsFile = join(first.base, 'userData', 'settings.json')
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).toMatchObject({ theme: 'dark', color: 'G', sort: 'mana' })
 
     writeFileSync(settingsFile, JSON.stringify({ theme: 'neon', color: 'teal', sort: 'price', bundleBasics: false, copies: 'some' }))
     const restarted = await setup(first.base)
-    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, wishlistsReserve: false, plainBrews: false, skipUniversesBeyond: false, skipSecretLair: false, cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
+    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, wishlistsReserve: false, plainBrews: false, skipUniversesBeyond: false, skipSecretLair: false, skipPhyrexian: false, rulesText: 'oracle', cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     restarted.storage.updateAppSettings({ theme: 'light' })
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).not.toHaveProperty('copies')
   })

@@ -34,6 +34,16 @@ describe('contextMenuItems', () => {
     expect(actions.copyText).toHaveBeenCalledWith('https://cards.scryfall.io/large/front/a/b/ab.jpg')
   })
 
+  it('copies a saved card image at full size, with its Scryfall address', () => {
+    const actions = { copyImageAt: vi.fn(), copyImageFrom: vi.fn(), copyText: vi.fn() }
+    const items = contextMenuItems(params({ mediaType: 'image', srcURL: 'card-image://scryfall/small/front/a/b/ab.jpg' }), actions)
+    expect(labels(items)).toEqual(['Copy image', 'Copy image address'])
+    items[0].click!({} as never, undefined, {} as never)
+    expect(actions.copyImageFrom).toHaveBeenCalledWith('https://cards.scryfall.io/large/front/a/b/ab.jpg', expect.any(Function))
+    items[1].click!({} as never, undefined, {} as never)
+    expect(actions.copyText).toHaveBeenCalledWith('https://cards.scryfall.io/large/front/a/b/ab.jpg')
+  })
+
   it('copies other images as shown', () => {
     const actions = { copyImageAt: vi.fn(), copyImageFrom: vi.fn(), copyText: vi.fn() }
     const crop = 'https://cards.scryfall.io/art_crop/front/a/b/ab.jpg'

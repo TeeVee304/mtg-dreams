@@ -31,8 +31,12 @@ export const changes = {
   edited: (list: string) => `Edited ${list}`,
   changedIn: (card: string, version: string) => `Changed ${card} in the ${version} Version`,
   format: 'Changed the Format',
+  companion: (name: string | null) => (name ? `Made ${name} the Companion` : 'Removed the Companion'),
+  rulebreakerColor: 'Changed the Rulebreaker color',
   color: 'Changed the color',
+  energyCurve: (list: string, on: boolean) => (on ? `Showed the energy curve of ${list}` : `Hid the energy curve of ${list}`),
   unbuilt: (list: string, unbuilt: boolean) => (unbuilt ? `Made ${list} unbuilt` : `Made ${list} built`),
+  tokenVersion: (token: string, list: string) => `Changed the Version of ${token} in ${list}`,
   preferredVersions: (list: string, group: string | null) =>
     group ? `Made ${list} prefer ${group} Versions` : `Made ${list} stop preferring Versions`,
   upgrade: (list: string, deck: string | null) => (deck ? `Made ${list} an upgrade of ${deck}` : `Made ${list} a plain Wishlist`),
