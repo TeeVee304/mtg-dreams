@@ -41,14 +41,17 @@
   opacity: 0;
 }
 
-:is(tr, .card-tile, .card-tile-image, .swap-card):hover .foil-sheen::after,
-.hover-preview .foil-sheen::after {
+:is(tr, .card-tile, .card-tile-image, .swap-card, .hand-card, .card-view-image):hover .foil-sheen::after,
+:is(.hover-preview, .card-view-image) .foil-sheen::after {
   opacity: 1;
-  animation: foil-sweep 3.6s ease-in-out forwards;
+  animation: foil-sweep 3.6s ease-in-out infinite;
 }
 
 @keyframes foil-sweep {
-  to {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
     background-position: -120% 0;
   }
 }

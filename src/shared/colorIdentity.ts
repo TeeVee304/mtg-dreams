@@ -59,3 +59,13 @@ export function colorIdentityName(colors: readonly ColorFilter[]): string | null
   const key = [...new Set(colors)].sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b)).join('')
   return NAMES[key] ?? null
 }
+
+/**
+ * @param name - An identity's name (`Gruul`, `Mono-Blue`, `WUBRG`, `Colorless`), any case.
+ * @returns Its colors in WUBRG order; `C` alone for colorless; null for no such name.
+ */
+export function identityOfName(name: string): ColorFilter[] | null {
+  const wanted = name.trim().toLowerCase()
+  const key = Object.keys(NAMES).find((colors) => NAMES[colors].toLowerCase() === wanted)
+  return key ? (key.split('') as ColorFilter[]) : null
+}

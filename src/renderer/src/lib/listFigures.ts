@@ -1,5 +1,5 @@
 import type { AppSettings, PriceBaseline } from '@shared/api'
-import { COLOR_LETTERS, type ColorFilter } from '@shared/cards'
+import { COLOR_LETTERS, frontTypeWords, type ColorFilter } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { STAT_COLORS } from '@shared/deckStats'
 import { nameKey } from '@shared/decklist'
@@ -75,14 +75,18 @@ function listPrinting(rows: Row[], commander: string | null): Printing | null {
   return best?.resolution?.printing ?? null
 }
 
+/** Share of a deck's colored nonland copies a color needs to count, without a commander: a lighter splash is left out. */
+const SPLASH_SHARE = 0.1
+
 /**
  * @param rows - List rows, with card data once loaded.
  * @param commanders - Commander names in commander formats; their color identity decides alone.
- * @returns Color identity in WUBRG order: the commanders', else the union of the cards'. `C` when that
- * identity is empty: colorless commanders, or a list whose cards are all colorless (once all have loaded).
+ * @returns Color identity in WUBRG order: the commanders', else the colors of at least a tenth of the
+ * colored nonland copies (all the cards' when none is colored). `C` when that identity is empty:
+ * colorless commanders, or a list whose cards are all colorless (once all have loaded).
  */
 export function listColors(
-  rows: Array<{ line: { name: string }; info?: { colorIdentity: string[] } | null }>,
+  rows: Array<{ line: { name: string; qty: number }; info?: { colorIdentity: string[]; typeLine: string } | null }>,
   commanders: string[]
 ): ColorFilter[] {
   if (commanders.length > 0) {
@@ -92,10 +96,37 @@ export function listColors(
     const identity = new Set(infos.flatMap((info) => info!.colorIdentity))
     return identity.size === 0 ? ['C'] : STAT_COLORS.filter((color) => identity.has(color))
   }
+  // Lands are left out: a fetch land or a tapland names colors the spells may not.
+  const spells = rows.filter((row) => row.info && row.info.colorIdentity.length > 0 && !frontTypeWords(row.info.typeLine).includes('Land'))
+  const copies = sumOf(spells, (row) => row.line.qty)
+  if (copies > 0) {
+    const share = (color: string) => sumOf(spells, (row) => (row.info!.colorIdentity.includes(color) ? row.line.qty : 0)) / copies
+    return STAT_COLORS.filter((color) => share(color) >= SPLASH_SHARE)
+  }
   const identity = new Set(rows.flatMap((row) => row.info?.colorIdentity ?? []))
   if (identity.size > 0) return STAT_COLORS.filter((color) => identity.has(color))
   const loaded = rows.length > 0 && rows.every((row) => row.info !== undefined) && rows.some((row) => row.info)
   return loaded ? ['C'] : []
+}
+
+/**
+ * @param rows - A deck's rows, with card data once loaded.
+ * @param named - The Card its banner header names, if any.
+ * @returns The row whose art heads a deck without a commander: the named Card, else the nonland Card of
+ * highest mana value (the first listed on a tie), once all the cards have loaded, so it doesn't change
+ * as they come in; null until then, or when none has an image.
+ */
+export function bannerRow(rows: Row[], named: string | null): Row | null {
+  const pictured = rows.filter((row) => !row.bundledIds && row.resolution?.printing?.imageNormal)
+  const chosen = named && pictured.find((row) => nameKey(row.line.name) === nameKey(named))
+  if (chosen) return chosen
+  if (rows.some((row) => row.info === undefined)) return null
+  let best: Row | null = null
+  for (const row of pictured) {
+    if (!row.info || row.side || frontTypeWords(row.info.typeLine).includes('Land')) continue
+    if (!best || row.info.manaValue > best.info!.manaValue) best = row
+  }
+  return best
 }
 
 /** A commander's Background, or the list's Companion, as a list header pictures it: a badge by the commander's portrait. */

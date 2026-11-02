@@ -1,6 +1,6 @@
 /**
  * Personal list settings: how you keep a list, not what the deck is. They are written as header lines
- * (`// Color: Blue`, `// Unbuilt: Yes`, `// Upgrade of: …`, `// Upgrade version: Duel`,
+ * (`// Color: Blue`, `// Palette: Gruul`, `// Badge: square`, `// Texture: grain`, `// Typeface: Anton`, `// Banner: …`, `// Unbuilt: Yes`, `// Upgrade of: …`, `// Upgrade version: Duel`,
  * `// Preferred Versions: Innistrad`, `// Token Versions: …`) while the
  * app works with a list, but stored apart from its file, in `lists.json`, so the file holds only the
  * deck: copying, sharing or opening it elsewhere gives no personal settings. A file that has such
@@ -13,11 +13,16 @@
 export type ListMeta = Partial<Record<MetaField, string>>
 
 /** A personal setting. */
-export type MetaField = 'color' | 'unbuilt' | 'upgradeOf' | 'upgradeVersion' | 'preferredVersions' | 'tokenVersions' | 'energyCurve'
+export type MetaField = 'color' | 'palette' | 'badge' | 'texture' | 'typeface' | 'banner' | 'unbuilt' | 'upgradeOf' | 'upgradeVersion' | 'preferredVersions' | 'tokenVersions' | 'energyCurve'
 
 /** Each setting's header label, as written, and the label pattern read back; in the order written. */
 const FIELDS: { field: MetaField; label: string; pattern: string }[] = [
   { field: 'color', label: 'Color', pattern: 'colou?r' },
+  { field: 'palette', label: 'Palette', pattern: 'palette' },
+  { field: 'badge', label: 'Badge', pattern: 'badge' },
+  { field: 'texture', label: 'Texture', pattern: 'texture' },
+  { field: 'typeface', label: 'Typeface', pattern: 'typeface' },
+  { field: 'banner', label: 'Banner', pattern: 'banner' },
   { field: 'unbuilt', label: 'Unbuilt', pattern: 'unbuilt' },
   { field: 'upgradeOf', label: 'Upgrade of', pattern: 'upgrade\\s+of' },
   { field: 'upgradeVersion', label: 'Upgrade version', pattern: 'upgrade\\s+version' },

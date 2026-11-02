@@ -4,7 +4,12 @@ import { cardLines, nameKey } from '@shared/decklist'
 import { choosesColor, listCompanion, rulebreakerColor } from '@shared/deckRules'
 import { STAT_COLORS } from '@shared/deckStats'
 import { otherVersions, type Version } from '@shared/inventory'
-import { listColor } from '@shared/listColor'
+import { deckPalette, identityKey } from '@shared/deckPalettes'
+import { listColor, listPalette } from '@shared/listColor'
+import { listBadge } from '@shared/listBadge'
+import { listBanner } from '@shared/listBanner'
+import { listTexture } from '@shared/listTexture'
+import { listTypeface } from '@shared/listTypeface'
 import { preferredVersions } from '@shared/listPreference'
 import { isUnbuilt } from '@shared/listUnbuilt'
 import { showsEnergyCurve } from '@shared/listEnergy'
@@ -29,7 +34,10 @@ import type { CardLine, InventoryItem } from '@shared/types'
 import { ui } from '@shared/text'
 import { getCardInfo } from '../stores/cardinfo'
 import { useCommanderThemes } from '../features/deckWizard'
-import { headerBadge, headerLeaders, listColors } from '../lib/listFigures'
+import { DeckThemeContext, paletteStyle, temperamentStyle } from '../lib/deckStyle'
+import { artCrop } from '../lib/artwork'
+import { epigraphOf } from '../lib/epigraph'
+import { bannerRow, headerBadge, headerLeaders, listColors } from '../lib/listFigures'
 import { HAND_SIZE } from '../lib/startingHand'
 import { cleanError } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
@@ -143,12 +151,26 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   /** Cards a starting hand draws from: the main deck, its commanders aside. */
   const drawable = mainRows.reduce((sum, row) => sum + (isCommander(row) || analysis.isCompanion(row) ? 0 : row.line.qty), 0)
   const leaderRows = leaders.rows
+  // A deck page outside commander formats is headed by a Card's art: the one its banner header names, else its biggest spell.
+  const fallsBack = !format?.commander && (isDeck || !!format)
+  const banner = fallsBack ? bannerRow(mainRows, listBanner(list.lines)) : null
+  const bannerArt = banner && settings.cardImages ? artCrop(banner.resolution?.printing) : null
   // The commanders' color identity, else the colors of all the cards.
   const colors = listColors(rows, leaderRows.map((row) => row.line.name))
   // EDHREC covers paper Commander only.
   const themes = useCommanderThemes(format?.arena ? [] : leaderRows.map((row) => row.line.name))
+  // A deck, or a wishlist planned as one (it has a format), takes its identity's palette, or the one its color header names.
+  const identity = identityKey(colors)
+  // Simple UI (Settings) keeps the app's plain look: every decoration of the page hangs on its palette.
+  const palette = (isDeck || format) && !settings.simpleUI ? deckPalette(listPalette(list.lines) ?? identity) : null
+  // Its banner texture and display face are only ever the list's own choices: none, and the app's face, until it makes them.
+  const texture = palette ? listTexture(list.lines) : null
+  const typeface = palette ? listTypeface(list.lines) : null
+  const style = useMemo(() => (palette ? { ...paletteStyle(palette), ...temperamentStyle(typeface) } : undefined), [palette, typeface])
+  const deckTheme = useMemo(() => (palette && style ? { palette: palette.key, style } : null), [palette, style])
   /** The Companion's row, pictured in the banner. */
   const companionRow = rows.find(analysis.isCompanion) ?? null
+  const epigraph = palette ? flavorTextOf([...leaderRows, ...(companionRow ? [companionRow] : [])]) : null
   /** Cards that can be the Companion: those with a Companion ability, commanders aside. */
   const companions = [...new Set(rows.filter((row) => row.info?.companion && !isCommander(row)).map((row) => row.line.name))]
   const leaderInfos = leaderRows.flatMap((row) => (row.info ? [row.info] : []))
@@ -385,194 +407,211 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   )
 
   return (
-    <div className="view" data-color={listColor(list.lines) ?? undefined}>
-      <ListHeader
-        name={list.name}
-        arts={leaders.arts}
-        leaders={leaders.names}
-        themes={themes}
-        background={leaders.background}
-        companionBadge={companionRow ? headerBadge(companionRow, settings.cardImages) : null}
-        colors={colors}
-        noun={noun}
-        format={format}
-        picking={picking}
-        hasCommander={hasCommander}
-        canPickCommander={canPickCommander}
-        partnerKind={partnerKind}
-        canPickPartner={canPickPartner}
-        leaderName={leaderName}
-        legalityErrors={legalityErrors}
-        listProblems={analysis.listProblems}
-        ownershipErrors={ownershipErrors}
-        onlyProblems={onlyProblems}
-        onToggleProblems={() => setOnlyProblems(!onlyProblems)}
-        onTogglePicking={togglePicking}
-        variants={variants}
-        baseLabel={baseLabel(list.lines)}
-        version={version}
-        versionFormat={other ? versionFormatLabel(list.lines, other) : null}
-        onVersion={setVersion}
-        formatVariant={formatVariant}
-        onAddFormatVersion={addFormatVersion}
-        onAddVersion={() => setDialog({ kind: 'version-name', version: null })}
-        onRenameVersion={other && !other.format ? () => setDialog({ kind: 'version-name', version: other.label }) : undefined}
-        onDeleteVersion={other ? deleteVersion : undefined}
-        onFormat={changeFormat}
-        companions={other ? [] : companions}
-        companion={listCompanion(shown.lines)}
-        onCompanion={(name) => actions.setListCompanion(list, name)}
-        colorChoices={other ? null : colorChoices}
-        rulebreakerColor={rulebreakerColor(shown.lines)}
-        onRulebreakerColor={(color) => actions.setRulebreakerColor(list, color)}
-        onEditText={() => setDialog({ kind: 'text' })}
-        onStartingHand={drawable >= HAND_SIZE ? () => setDialog({ kind: 'hand' }) : undefined}
-        onColor={() => setDialog({ kind: 'color' })}
-        onUpgrade={list.kind === 'wishlist' ? () => setDialog({ kind: 'upgrade' }) : undefined}
-        preferred={preferred}
-        onPreferredVersions={isDeck ? undefined : () => setDialog({ kind: 'preferred' })}
-        onMakeWishlist={isBrew ? () => void makeWishlist() : undefined}
-        unbuilt={isDeck && isUnbuilt(list.lines)}
-        onToggleUnbuilt={isDeck && !holdsNoCopies(format) ? toggleUnbuilt : undefined}
-        energyCurve={energyCurve}
-        onRename={() => setDialog({ kind: 'rename' })}
-        onDelete={() => setDialog({ kind: 'delete' })}
-      />
-
-      {complete && (
-        <CompleteBanner cards={summary.cards} brew={isBrew} upgrades={upgrades?.name ?? null} onMove={upgrades ? applyUpgrade : moveToDecks} />
-      )}
-
-      <div className="facts-row">
-      <ListValueCards
-        isDeck={asDeck}
-        brew={isBrew}
-        summary={summary}
-        mainCards={mainCards}
-        size={size}
-        target={isDeck ? (format?.deckSize ?? null) : null}
-        lands={landCount(mainRows)}
-        sideboard={analysis.sideboardCards}
-        gameChangers={showsGameChangers ? sumOf(mainRows, (row) => (row.info?.gameChanger ? row.line.qty : 0)) : 0}
-        basis={settings.priceBasis}
-      />
-
-      <DeckStats
-        rows={statsRows}
-        leaders={leaderRows.map((row) => row.line.name)}
-        table={format}
-        energy={energyOn}
-        manaValue={filters.manaValue}
-        onManaValue={(manaValue) => setFilters({ ...filters, manaValue })}
-      />
-
-      {isBrew && (
-        <p className="brew-note">
-          <Icon name="info" />
-          {ui.list.brewNote}
-        </p>
-      )}
-      </div>
-
-      {!other && !upgradeChanges && (
-        <ListAddCards
-          list={list}
-          inventory={inventory}
-          pool={pool}
-          actions={viewActions}
+    <DeckThemeContext.Provider value={deckTheme}>
+      <div className="view" data-color={listColor(list.lines) ?? undefined} data-palette={palette?.key} data-texture={texture ?? undefined} data-motion={palette && settings.deckMotion ? '' : undefined} style={style}>
+        <ListHeader
+          name={list.name}
+          arts={bannerArt ? [bannerArt] : leaders.arts}
+          leaders={leaders.names}
+          themes={themes}
+          background={leaders.background}
+          companionBadge={companionRow ? headerBadge(companionRow, settings.cardImages) : null}
+          colors={colors}
+          noun={noun}
           format={format}
-          copiesOf={copiesOf}
-          capsFor={capsFor}
+          picking={picking}
+          hasCommander={hasCommander}
+          canPickCommander={canPickCommander}
+          partnerKind={partnerKind}
+          canPickPartner={canPickPartner}
+          leaderName={leaderName}
+          legalityErrors={legalityErrors}
+          listProblems={analysis.listProblems}
+          ownershipErrors={ownershipErrors}
+          onlyProblems={onlyProblems}
+          onToggleProblems={() => setOnlyProblems(!onlyProblems)}
+          onTogglePicking={togglePicking}
+          variants={variants}
+          baseLabel={baseLabel(list.lines)}
+          version={version}
+          versionFormat={other ? versionFormatLabel(list.lines, other) : null}
+          onVersion={setVersion}
+          formatVariant={formatVariant}
+          onAddFormatVersion={addFormatVersion}
+          onAddVersion={() => setDialog({ kind: 'version-name', version: null })}
+          onRenameVersion={other && !other.format ? () => setDialog({ kind: 'version-name', version: other.label }) : undefined}
+          onDeleteVersion={other ? deleteVersion : undefined}
+          onFormat={changeFormat}
+          companions={other ? [] : companions}
+          companion={listCompanion(shown.lines)}
+          onCompanion={(name) => actions.setListCompanion(list, name)}
+          colorChoices={other ? null : colorChoices}
+          rulebreakerColor={rulebreakerColor(shown.lines)}
+          onRulebreakerColor={(color) => actions.setRulebreakerColor(list, color)}
+          onEditText={() => setDialog({ kind: 'text' })}
+          onStartingHand={drawable >= HAND_SIZE ? () => setDialog({ kind: 'hand' }) : undefined}
+          onColor={() => setDialog({ kind: 'color' })}
+          onUpgrade={list.kind === 'wishlist' ? () => setDialog({ kind: 'upgrade' }) : undefined}
+          preferred={preferred}
+          onPreferredVersions={isDeck ? undefined : () => setDialog({ kind: 'preferred' })}
+          onMakeWishlist={isBrew ? () => void makeWishlist() : undefined}
+          unbuilt={isDeck && isUnbuilt(list.lines)}
+          onToggleUnbuilt={isDeck && !holdsNoCopies(format) ? toggleUnbuilt : undefined}
+          energyCurve={energyCurve}
+          epigraph={epigraph}
+          badgeShape={listBadge(list.lines) ?? 'circle'}
+          badgeChoice={listBadge(list.lines)}
+          onBadgeShape={palette && !other ? (shape) => actions.setBadgeShape(list, shape) : undefined}
+          stylable={!!palette}
+          onRename={() => setDialog({ kind: 'rename' })}
+          onDelete={() => setDialog({ kind: 'delete' })}
+        />
+
+        {complete && (
+          <CompleteBanner cards={summary.cards} brew={isBrew} upgrades={upgrades?.name ?? null} onMove={upgrades ? applyUpgrade : moveToDecks} />
+        )}
+
+        <div className="facts-row">
+        <ListValueCards
+          isDeck={asDeck}
+          brew={isBrew}
+          summary={summary}
+          mainCards={mainCards}
+          size={size}
+          target={isDeck ? (format?.deckSize ?? null) : null}
+          lands={landCount(mainRows)}
+          sideboard={analysis.sideboardCards}
+          gameChangers={showsGameChangers ? sumOf(mainRows, (row) => (row.info?.gameChanger ? row.line.qty : 0)) : 0}
+          basis={settings.priceBasis}
+        />
+
+        <DeckStats
+          rows={statsRows}
+          leaders={leaderRows.map((row) => row.line.name)}
+          table={format}
+          energy={energyOn}
+          manaValue={filters.manaValue}
+          onManaValue={(manaValue) => setFilters({ ...filters, manaValue })}
+        />
+
+        {isBrew && (
+          <p className="brew-note">
+            <Icon name="info" />
+            {ui.list.brewNote}
+          </p>
+        )}
+        </div>
+
+        {!other && !upgradeChanges && (
+          <ListAddCards
+            list={list}
+            inventory={inventory}
+            pool={pool}
+            actions={viewActions}
+            format={format}
+            copiesOf={copiesOf}
+            capsFor={capsFor}
+            limitFor={limitFor}
+            sideboardAllowed={sideboardAllowed}
+            maybeboard
+            onAddPrecon={() => setDialog({ kind: 'precon' })}
+            onAdding={setAdding}
+          />
+        )}
+
+        {other && (
+          <SwapTable
+            swaps={swaps}
+            changes={ui.swaps.changes(other.label, baseLabel(list.lines))}
+            outLabel={ui.swaps.cutFrom(baseLabel(list.lines))}
+            inLabel={ui.swaps.onlyIn(other.label)}
+            target={ui.swaps.version(other.label)}
+            none={ui.swaps.none(other.label)}
+            rows={rows}
+            outChoices={outChoices}
+            onCut={(name) => versionEdits?.setCopies({ name, foil: false, qty: 0 }, copiesOf(name) - 1)}
+            onKeep={(line) => versionEdits?.setCopies(line, copiesOf(line.name) + line.qty)}
+            onDrop={(line) => versionEdits?.setCopies(line, copiesOf(line.name) - line.qty)}
+            adder={{ list, inventory, pool, actions: viewActions, format, copiesOf, capsFor, limitFor, sideboardAllowed: false }}
+            addPlaceholder={ui.swaps.addInstead}
+          />
+        )}
+
+        {upgradeChanges && (
+          <SwapTable
+            swaps={upgradeChanges.swaps}
+            changes={ui.upgradeSwaps.changes(upgradeChanges.deckLabel)}
+            outLabel={ui.upgradeSwaps.cutFrom(upgradeChanges.deckLabel)}
+            inLabel={ui.upgradeSwaps.added}
+            target={ui.upgradeSwaps.target}
+            none={ui.upgradeSwaps.none(upgradeChanges.deckLabel)}
+            rows={rows}
+            ownership
+            outChoices={upgradeChanges.outChoices}
+            onCut={(name) => actions.removeCopies(list, name, 1)}
+            onKeep={({ id: _id, kind: _kind, ...card }) => actions.addCards(list, [card])}
+            onDrop={(line) => actions.removeCopies(list, line.name, line.qty)}
+            adder={{ list, inventory, pool, actions, format, copiesOf, capsFor, limitFor, sideboardAllowed }}
+            addPlaceholder={ui.upgradeSwaps.add}
+          />
+        )}
+
+        {(other || upgradeChanges) && cards.length > 0 ? (
+          <Collapsible
+            open={fullListOpen || onlyProblems}
+            onToggle={toggleFullList}
+            className="version-list"
+            title={other ? ui.list.fullList(other.label) : ui.upgradeSwaps.fullList}
+            summary={ui.count.cards(summary.cards)}
+          >
+            {table}
+          </Collapsible>
+        ) : cards.length > 0 ? (
+          table
+        ) : (
+          !adding && (
+            <div className="empty">
+              <p>{ui.list.empty(noun)}</p>
+              <p className="muted">{isDeck ? ui.list.emptyDeckHint : ui.list.emptyListHint}</p>
+            </div>
+          )
+        )}
+
+        {cards.length > 0 && (
+          <DeckTokens names={mainRows.map((row) => row.line.name)} list={list} actions={actions} universe={preferredGroup(list)} />
+        )}
+
+        <ListDialogs
+          dialog={dialog}
+          onClose={() => setDialog(null)}
+          list={list}
+          lists={lists}
+          format={format}
+          analysis={analysis}
+          rows={tableRows}
+          actions={viewActions}
+          formatCap={(name) => capsFor(name).formatCap}
+          maxFor={maxFor}
           limitFor={limitFor}
-          sideboardAllowed={sideboardAllowed}
-          maybeboard
-          onAddPrecon={() => setDialog({ kind: 'precon' })}
-          onAdding={setAdding}
+          freeCopies={freeCopies}
+          inventory={inventory}
+          onOpenList={onOpenList}
+          shownVariant={other}
+          onVersion={setVersion}
+          banner={fallsBack ? { row: banner } : null}
+          palette={palette ? { identity, key: palette.key, banner: palette.banner } : null}
         />
-      )}
-
-      {other && (
-        <SwapTable
-          swaps={swaps}
-          changes={ui.swaps.changes(other.label, baseLabel(list.lines))}
-          outLabel={ui.swaps.cutFrom(baseLabel(list.lines))}
-          inLabel={ui.swaps.onlyIn(other.label)}
-          target={ui.swaps.version(other.label)}
-          none={ui.swaps.none(other.label)}
-          rows={rows}
-          outChoices={outChoices}
-          onCut={(name) => versionEdits?.setCopies({ name, foil: false, qty: 0 }, copiesOf(name) - 1)}
-          onKeep={(line) => versionEdits?.setCopies(line, copiesOf(line.name) + line.qty)}
-          onDrop={(line) => versionEdits?.setCopies(line, copiesOf(line.name) - line.qty)}
-          adder={{ list, inventory, pool, actions: viewActions, format, copiesOf, capsFor, limitFor, sideboardAllowed: false }}
-          addPlaceholder={ui.swaps.addInstead}
-        />
-      )}
-
-      {upgradeChanges && (
-        <SwapTable
-          swaps={upgradeChanges.swaps}
-          changes={ui.upgradeSwaps.changes(upgradeChanges.deckLabel)}
-          outLabel={ui.upgradeSwaps.cutFrom(upgradeChanges.deckLabel)}
-          inLabel={ui.upgradeSwaps.added}
-          target={ui.upgradeSwaps.target}
-          none={ui.upgradeSwaps.none(upgradeChanges.deckLabel)}
-          rows={rows}
-          ownership
-          outChoices={upgradeChanges.outChoices}
-          onCut={(name) => actions.removeCopies(list, name, 1)}
-          onKeep={({ id: _id, kind: _kind, ...card }) => actions.addCards(list, [card])}
-          onDrop={(line) => actions.removeCopies(list, line.name, line.qty)}
-          adder={{ list, inventory, pool, actions, format, copiesOf, capsFor, limitFor, sideboardAllowed }}
-          addPlaceholder={ui.upgradeSwaps.add}
-        />
-      )}
-
-      {(other || upgradeChanges) && cards.length > 0 ? (
-        <Collapsible
-          open={fullListOpen || onlyProblems}
-          onToggle={toggleFullList}
-          className="version-list"
-          title={other ? ui.list.fullList(other.label) : ui.upgradeSwaps.fullList}
-          summary={ui.count.cards(summary.cards)}
-        >
-          {table}
-        </Collapsible>
-      ) : cards.length > 0 ? (
-        table
-      ) : (
-        !adding && (
-          <div className="empty">
-            <p>{ui.list.empty(noun)}</p>
-            <p className="muted">{isDeck ? ui.list.emptyDeckHint : ui.list.emptyListHint}</p>
-          </div>
-        )
-      )}
-
-      {cards.length > 0 && (
-        <DeckTokens names={mainRows.map((row) => row.line.name)} list={list} actions={actions} universe={preferredGroup(list)} />
-      )}
-
-      <ListDialogs
-        dialog={dialog}
-        onClose={() => setDialog(null)}
-        list={list}
-        lists={lists}
-        format={format}
-        analysis={analysis}
-        rows={tableRows}
-        actions={viewActions}
-        formatCap={(name) => capsFor(name).formatCap}
-        maxFor={maxFor}
-        limitFor={limitFor}
-        freeCopies={freeCopies}
-        inventory={inventory}
-        onOpenList={onOpenList}
-        shownVariant={other}
-        onVersion={setVersion}
-      />
-    </div>
+      </div>
+    </DeckThemeContext.Provider>
   )
+}
+
+function flavorTextOf(rows: Row[]): string | null {
+  for (const row of rows) {
+    const text = row.resolution?.printing?.flavorText
+    if (text) return epigraphOf(text)
+  }
+  return null
 }
 
 /** @returns Version of a pinned line, used when its copies are added to the inventory; undefined if unpinned. */

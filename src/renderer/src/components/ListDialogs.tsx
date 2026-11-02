@@ -1,6 +1,10 @@
 import { useState } from 'react'
 import { capEntries, listCommanders, namedPartner, type DeckFormat } from '@shared/formats'
-import { listColor } from '@shared/listColor'
+import type { IdentityKey } from '@shared/deckPalettes'
+import { listBanner } from '@shared/listBanner'
+import { listTexture } from '@shared/listTexture'
+import { listTypeface } from '@shared/listTypeface'
+import { listColor, listPalette } from '@shared/listColor'
 import { stripMeta, withMetaOf } from '@shared/listMeta'
 import { upgradeTarget, upgradeVersion } from '@shared/listUpgrade'
 import {
@@ -30,7 +34,7 @@ import type { Row } from '../lib/summary'
 import { useCopy } from '../hooks/useCopy'
 import { useSettings } from '../stores/settings'
 import { CardDialog } from './CardDialog'
-import { ColorOptions } from './Controls'
+import { ColorOptions, PaletteOptions, TextureOptions, TypefaceOptions } from './Controls'
 import { ConfirmDialog, PromptDialog, TextEditorDialog } from './Dialogs'
 import { Modal } from './Modal'
 import { PreconDialog } from './PreconDialog'
@@ -89,6 +93,14 @@ interface ListDialogsProps {
   shownVariant?: Variant | null
   /** Shows a version: one just added or renamed, or the list itself after its version is deleted. */
   onVersion: (version: ListVersion) => void
+  /** A deck without a commander: the row whose art heads its page, if any. */
+  banner?: { row: Row | null } | null
+  /**
+   * A deck page with a palette, styled in the Style dialog: the deck's own identity, which its palette
+   * follows unless the list names one; its banner's colors, which the texture and typeface choices are
+   * drawn on.
+   */
+  palette?: { identity: IdentityKey | null; key: IdentityKey; banner: { ground: string; text: string } } | null
 }
 
 /** Renders the active list page dialog. Precon imports into a formatted list are capped to format limits. */
@@ -247,6 +259,16 @@ export function ListDialogs(props: ListDialogsProps) {
                 }
               : undefined
           }
+          banner={
+            props.banner && !cardRow.bundledIds && cardRow.resolution?.printing?.imageNormal
+              ? {
+                  heads: props.banner.row?.line.id === cardRow.line.id,
+                  chosen: listBanner(list.lines) !== null,
+                  onUse: () => actions.setBanner(list, cardRow.line.name),
+                  onReset: () => actions.setBanner(list, null)
+                }
+              : undefined
+          }
           onClose={onClose}
         />
       ) : null
@@ -291,7 +313,29 @@ export function ListDialogs(props: ListDialogsProps) {
         />
       )
     case 'color':
-      return (
+      return props.palette ? (
+        <Modal title={text.style.title(isDeck)} size="wide" onClose={onClose}>
+          <div className="style-sections">
+            <section>
+              <h2>{ui.listDialogs.palette.label}</h2>
+              <PaletteOptions value={listPalette(list.lines)} identity={props.palette.identity} onChange={(key) => actions.setListPalette(list, key)} />
+            </section>
+            <section>
+              <h2>{text.style.texture}</h2>
+              <TextureOptions value={listTexture(list.lines)} banner={props.palette.banner} palette={props.palette.key} onChange={(texture) => actions.setBannerTexture(list, texture)} />
+            </section>
+            <section>
+              <h2>{text.style.typeface}</h2>
+              <TypefaceOptions
+                value={listTypeface(list.lines)}
+                sample={list.name}
+                banner={props.palette.banner}
+                onChange={(typeface) => actions.setTypeface(list, typeface)}
+              />
+            </section>
+          </div>
+        </Modal>
+      ) : (
         <Modal title={text.color(isDeck)} size="medium" onClose={onClose}>
           <ColorOptions
             value={listColor(list.lines)}

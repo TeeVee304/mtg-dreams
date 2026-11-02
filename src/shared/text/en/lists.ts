@@ -34,15 +34,15 @@ export const list = {
     version: 'Version',
     baseHint: (noun: string) => `The ${noun} itself`,
     variantHint: (version: string, noun: string) => `Its ${version} Version: the same ${noun} with its ${version} swaps`,
-    cancelPicking: 'Cancel (Esc)',
+    cancelPicking: 'Cancel',
     pickHint: (noun: string, format: string, rule: string, hasCommander: boolean) =>
       `Then click the Card that leads this ${noun}. In ${format} it must be ${rule}.${hasCommander ? ' Click a Commander to remove it.' : ''}`,
-    picking: 'Click your Commander… (Esc to cancel)',
+    picking: 'Click your Commander…',
     setCommander: 'Set Commander',
     partnerKinds: { Partner: 'Partner', Background: 'Background' },
     joinHint: (leader: string) => `Then click the Card that joins ${leader} as your second Commander.`,
     joinFirst: (leader: string, noun: string) => `Add a Card that can join ${leader} to this ${noun} first.`,
-    pickingPartner: (kind: string) => `Click a ${kind}… (Esc to cancel)`,
+    pickingPartner: (kind: string) => `Click a ${kind}…`,
     addPartner: (kind: string) => `Add ${kind}`,
     breaksRules: (n: number) => `${n} Illegal ${n === 1 ? 'Card' : 'Cards'}`,
     needsCopies: (n: number) => `${n} ${n === 1 ? 'Card needs' : 'Cards need'} more Copies`,
@@ -54,6 +54,10 @@ export const list = {
     noCompanion: 'None',
     rulebreakerColor: 'Rulebreaker color',
     color: 'Color',
+    style: 'Style…',
+    badge: 'Badge shape',
+    badgeAuto: 'By Theme',
+    badgeShapes: { circle: 'Circle', square: 'Square', diamond: 'Diamond' },
     format: 'Format',
     advanced: 'Advanced',
     rename: 'Rename',
@@ -167,6 +171,41 @@ export const listDialogs = {
     confirm: (target: number) => (target === 0 ? 'Remove all' : `Reduce to ${target}`)
   },
   color: (isDeck: boolean) => `${isDeck ? 'Deck' : 'List'} color`,
+  style: {
+    title: (isDeck: boolean) => `${isDeck ? 'Deck' : 'List'} style`,
+    texture: 'Banner texture',
+    textureNone: 'None',
+    textures: {
+      grain: 'Grain',
+      mezzotint: 'Mezzotint',
+      halftone: 'Halftone',
+      hatch: 'Hatch',
+      crosshatch: 'Crosshatch',
+      ruled: 'Ruled',
+      chevron: 'Chevron',
+      guilloche: 'Guilloché',
+      perlage: 'Perlage',
+      sunburst: 'Sunburst',
+      identity: 'Identity'
+    },
+    identityOnly: 'Mono-color and two-color Decks only',
+    typeface: 'Typeface',
+    typefaceDefault: 'Default'
+  },
+  palette: {
+    label: 'Palette',
+    auto: 'By identity',
+    autoHint: (identity: string) => `Follows the Deck's color identity: ${identity}`,
+    groups: {
+      mono: 'Mono-color',
+      guilds: 'Guilds',
+      shards: 'Shards',
+      wedges: 'Wedges',
+      four: 'Four colors',
+      five: 'Five colors',
+      colorless: 'Colorless'
+    } as Record<string, string>
+  },
   deleteVersion: {
     title: (version: string) => `Delete the ${version} Version?`,
     message: (swaps: number, base: string) => `Its ${count.swaps(swaps)} will be deleted. The ${base} Version stays as it is.`,

@@ -54,7 +54,7 @@ export const upgradeSwaps = {
 /** A Deck's Statistics: mana curve and colors. */
 export const stats = {
   title: 'Statistics',
-  average: (value: string) => `Average mana value ${value}`,
+  average: 'Average Mana',
   loading: (cards: number) => ` · ${count.cards(cards)} loading`,
   filterHint: 'Filter the list by mana value',
   showEvery: 'Click to show every Card',
@@ -83,7 +83,8 @@ export const stats = {
   searches: 'Land Searches',
   sources: 'Colored sources',
   targetHint: (target: number, card: string, turn: number) => `${card} needs ${target} to be cast on turn ${turn}, 9 times in 10`,
-  energyMade: 'Energy made',
+  energy: 'Energy',
+  energyMade: 'Made',
   energySpent: 'Spent',
   energyOf: (made: number, spent: number) => `Makes ${made}, spends ${spent}`
 }

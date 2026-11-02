@@ -39,6 +39,8 @@ const ALLOWED: Record<string, true | string[]> = {
   'shared/colorIdentity.ts': true,
   'shared/basics.ts': true,
   'shared/languages.ts': true,
+  // Deck page temperaments: CSS font stacks.
+  'shared/temperaments.ts': true,
   // Magic's Companions and keywords, and the Companion and Rulebreaker color headers of list files.
   'shared/deckRules.ts': true,
   // Magic's worlds, named as Preferred Versions in list files.
@@ -51,7 +53,7 @@ const ALLOWED: Record<string, true | string[]> = {
     '{} /DeckList.json', '{} /decks/ {} .json', 'Deck name'],
   'shared/deckWizard/averageDeck.ts': ['Exhibition', 'Core', 'Upgraded', 'Optimized'],
   // List files: the headers and markers the app writes and reads back.
-  'shared/listMeta.ts': ['Color', 'Unbuilt', 'Upgrade of', 'Upgrade version', 'Preferred Versions', 'Token Versions', 'Energy curve'],
+  'shared/listMeta.ts': ['Color', 'Palette', 'Badge', 'Texture', 'Typeface', 'Banner', 'Unbuilt', 'Upgrade of', 'Upgrade version', 'Preferred Versions', 'Token Versions', 'Energy curve'],
   'shared/listUnbuilt.ts': ['Yes'],
   'shared/listEnergy.ts': ['Yes'],
   'shared/decklist.ts': ['Sideboard', 'Maybeboard', '{Stand-in}'],

@@ -175,27 +175,48 @@ By then, most of what it needs already exists.
 **Repository:** https://github.com/mattdesl/dictionary-of-colour-combinations
 
 - Principles:
-  - Ma: whitespace is a design element.
-  - Restraint: one palette, one display typeface and one icon set per deck.
-  - Layers: depth comes from translucent washes, not gradients or shadows.
-  - Legibility: text contrast of at least 4.5:1, or 3:1 for large text. A validator enforces it.
-  - Light and dark modes are designed separately.
+  - Ma: whitespace is a design element. ***DONE***
+  - Restraint: one palette, one display typeface and one icon set per deck. ***DONE***
+  - Layers: depth comes from translucent washes, not gradients or shadows. ***DONE***
+    - One exception: the Commander art still fades into the banner.
+  - Legibility: text contrast of at least 4.5:1, or 3:1 for large text. A validator enforces it. ***DONE***
+    - The validator checks all 32 palettes in both modes.
+  - Light and dark modes are designed separately. ***DONE***
 - Palette:
-  - Each color identity (32 in total) picks a family of combinations from the book. 
+  - Each color identity (32 in total) picks a family of combinations from the book. ***DONE***
     - Sometimes, this will not be possible. For example, Grull (Red-Green) does not have a clear match. In cases like this, alternatives shall be discussed.
-  - Mono-color decks use tints and shades of one hue.
-  - Colorless decks use paper and ink tones.
-- Typography: one display face per preset. One neutral body face for all card text and numbers.
+    - Two more sources fill the gaps: Vanderpoel's *Color Problems* (1902) and Le Corbusier's architectural colors.
+  - Mono-color decks use tints and shades of one hue. ***DONE***
+  - Colorless decks use paper and ink tones. ***DONE***
+    - They use grey and pink instead, desaturated.
+- Typography: one display face per preset. One neutral body face for all card text and numbers. ***DONE***
+  - The user picks the display face in the Style dialog. Nothing is picked from the Commander's Themes.
+  - Eleven faces to pick from: Cinzel, IM Fell English, Anton, Uncial Antiqua, Bodoni Moda, Archivo Expanded, Silkscreen, Pirata One, Rye, Limelight and Henny Penny.
+  - Without a pick, the title uses the app's face, Fraunces.
+- Decoration: ***DONE***
+  - A watermark behind the cards, for mono-color, guild and five-color Decks. ***DONE***
+  - A banner texture, picked by the user. None by default. ***DONE***
+  - The Commander's flavor text under the title. ***DONE***
+  - Card type symbols on the sections. ***DONE***
+  - Background and Companion badges as a circle, square or diamond. ***DONE***
+  - Cards settle in when a Deck opens. A Settings switch turns motion off. ***DONE***
+- Statistics keep every feature, restyled in the Deck's palette. ***DONE***
 
 **Note:** This update should likely replace light and dark themes, as trying to combine unique color harmony with such broad restrictions would degrade the desing in the end. *Comments?*
+- Light and dark stay. Each palette is tuned for both modes.
 
 ## Deck Customization
 
-- More visual customization for decks. Currently we have Color Themes, the Commander banner and Universes, but most are Commander-specific.
-  - Color themes for mixed color identities (*see Visual Revision*).
-  - Treat theme, banner and universe as optional, generic layers.
-  - Non-Commander decks need a fallback banner (*e.g., first card art or format symbol*).
-  
+- More visual customization for decks. Currently we have Color Themes, the Commander banner and Universes, but most are Commander-specific. ***DONE***
+  - Color themes for mixed color identities (*see Visual Revision*). ***DONE***
+    - The Color menu offers all 32 palettes, grouped.
+    - By default, a Deck follows its color identity.
+    - Without a Commander, a color counts if it is on at least 10% of the colored nonland Cards.
+  - Treat theme, banner and universe as optional, generic layers. ***DONE***
+    - Any Deck, or Wishlist with a format, gets a palette.
+  - Non-Commander decks need a fallback banner (*e.g., first card art or format symbol*). ***DONE***
+    - It shows the nonland Card with the highest mana value.
+    - "Use as Banner" in a Card's dialog picks another.
 
 ## Documentation
 **Relevant plugin(s):** `/humanizer:humanizer`
@@ -243,7 +264,7 @@ A place in Settings to see and clear what the app stores. ***DONE***
 - Deckbuilding tools, such as per-tag, per-color card search - essentially, tools for users that want to learn to build a deck from scratch.
   - Card research: search cards for their own sake. Build it on Scryfall's online search, which has colors, types and tags.
 - Tool that may prepare a page for proxy printing. This option needs to be considered carefully, as it may be controversial.
-- Include `/dist` installer in the repository.
-- FIX: The Foil animation on the card image does not loop.
-- FIX: In card view, the "Show back" / "Show front" button should just be a circle button, on the bottom of the card art, with a flip icon. When pressed, there should be a flip animation.
+- Include `/dist` installer in the repository. ***DONE***
+- FIX: The Foil animation on the card image does not loop. ***DONE***
+- FIX: In card view, the "Show back" / "Show front" button should just be a circle button, on the bottom of the card art, with a flip icon. When pressed, there should be a flip animation. ***DONE***
 - Other quality of life features that should help players set up their dream decks.

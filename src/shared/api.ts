@@ -21,6 +21,13 @@ export interface AppSettings {
   wishlistsReserve: boolean
   /** Brews ignore the inventory: no owned copies, just their cards and prices. */
   plainBrews: boolean
+  /** Deck pages move: Card sections settle in when a Deck opens. */
+  deckMotion: boolean
+  /**
+   * Deck pages in the app's plain look: no palettes, textures, display faces, watermarks, flavor text
+   * or motion. Each list keeps its Style choices for when it is turned off.
+   */
+  simpleUI: boolean
   /**
    * The cheapest Version the app picks for a Card skips Universes Beyond printings, unless the Card
    * has no other, or the list's Universe is that franchise.

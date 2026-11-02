@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react'
-import { isCardSort, sortOptionsFor, type SortKey, type SortView } from '@shared/cards'
+import { isCardSort, sortOptionsFor, type ColorFilter, type SortKey, type SortView } from '@shared/cards'
 import { FORMATS, formatGroup, type FormatGroup } from '@shared/formats'
+import { colorIdentityName } from '@shared/colorIdentity'
+import { deckPalette, PALETTE_GROUPS, type IdentityKey } from '@shared/deckPalettes'
+import { DEFAULT_FACE, TEMPERAMENTS, TEXTURES, hasIdentityTexture, type Temperament, type Texture } from '@shared/temperaments'
 import { THEME_COLORS, type ThemeColor } from '@shared/themes'
 import { ui } from '@shared/text'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
@@ -197,6 +200,153 @@ export function ColorOptions({ value, onChange, inherit }: ColorOptionsProps) {
           `${color.label} (${color.look})`
         )
       )}
+    </div>
+  )
+}
+
+/** Props of {@link PaletteOptions}. */
+interface PaletteOptionsProps {
+  /** Selected palette; null to follow `identity`. */
+  value: IdentityKey | null
+  /** The deck's own identity, which the leading option follows. */
+  identity: IdentityKey | null
+  onChange: (key: IdentityKey | null) => void
+}
+
+/** Palette choice: the deck's own identity first, then every identity's palette, grouped. */
+export function PaletteOptions({ value, identity, onChange }: PaletteOptionsProps) {
+  const text = ui.listDialogs.palette
+  const nameOf = (key: IdentityKey) => colorIdentityName(key.split('') as ColorFilter[]) ?? key
+  const option = (key: IdentityKey | null, label: string, title?: string) => {
+    const shown = key ?? identity
+    const palette = shown ? deckPalette(shown) : null
+    return (
+      <button
+        key={key ?? 'auto'}
+        type="button"
+        role="radio"
+        aria-checked={value === key}
+        className={`palette-option${value === key ? ' selected' : ''}${key ? '' : ' auto'}`}
+        onClick={() => onChange(key)}
+        title={title}
+      >
+        <span className="palette-strip" aria-hidden="true">
+          {palette?.swatches.map((swatch, index) => <span key={index} style={{ background: swatch }} />)}
+        </span>
+        <span className="palette-label">
+          {shown && shown !== 'C' && (
+            <span className="palette-mana">
+              {shown.split('').map((color) => (
+                <img key={color} src={MANA_SYMBOLS[color as ColorFilter]} alt="" draggable={false} />
+              ))}
+            </span>
+          )}
+          {label}
+        </span>
+      </button>
+    )
+  }
+  return (
+    <div className="palette-options" role="radiogroup" aria-label={text.label}>
+      {option(null, text.auto, identity ? text.autoHint(nameOf(identity)) : undefined)}
+      {PALETTE_GROUPS.map((group) => (
+        <section key={group.id} className="palette-group">
+          <h3>{text.groups[group.id]}</h3>
+          <div className="palette-grid">{group.keys.map((key) => option(key, nameOf(key)))}</div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+/** A deck banner's colors, which texture and typeface choices are drawn on. */
+interface BannerColors {
+  ground: string
+  text: string
+}
+
+/** Props of {@link TextureOptions}. */
+interface TextureOptionsProps {
+  /** Selected texture; null for none. */
+  value: Texture | null
+  banner: BannerColors
+  /** Key of the palette the banner uses, which the identity texture draws. */
+  palette: string | null
+  onChange: (texture: Texture | null) => void
+}
+
+/** Banner texture choice: none first, then each texture as a small swatch of the deck's banner. */
+export function TextureOptions({ value, banner, palette, onChange }: TextureOptionsProps) {
+  const text = ui.listDialogs.style
+  return (
+    <div className="style-grid" role="radiogroup" aria-label={text.texture}>
+      {([null, ...TEXTURES] as const).map((texture) => {
+        const unavailable = texture === 'identity' && !hasIdentityTexture(palette)
+        return (
+          <button
+            key={texture ?? 'none'}
+            type="button"
+            role="radio"
+            aria-checked={value === texture}
+            className={`palette-option${value === texture ? ' selected' : ''}`}
+            disabled={unavailable}
+            title={unavailable ? text.identityOnly : undefined}
+            onClick={() => onChange(texture)}
+          >
+            <span className="texture-swatch" data-texture={texture ?? undefined} data-palette={palette ?? undefined} style={{ background: banner.ground }} aria-hidden="true" />
+            <span className="palette-label">{texture ? text.textures[texture] : text.textureNone}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Props of {@link TypefaceOptions}. */
+interface TypefaceOptionsProps {
+  /** Selected face, by its temperament; null for the app's own. */
+  value: Temperament | null
+  /** Text each face is shown in: the list's name. */
+  sample: string
+  banner: BannerColors
+  onChange: (temperament: Temperament | null) => void
+}
+
+/** Typeface choice: the app's own face first, then every display face, each set in the list's name. */
+export function TypefaceOptions({ value, sample, banner, onChange }: TypefaceOptionsProps) {
+  const text = ui.listDialogs.style
+  const option = (temperament: Temperament | null) => {
+    const style = temperament ? TEMPERAMENTS[temperament] : DEFAULT_FACE
+    return (
+      <button
+        key={temperament ?? 'default'}
+        type="button"
+        role="radio"
+        aria-checked={value === temperament}
+        className={`palette-option${value === temperament ? ' selected' : ''}`}
+        onClick={() => onChange(temperament)}
+      >
+        <span
+          className="typeface-sample"
+          style={{
+            background: banner.ground,
+            color: banner.text,
+            fontFamily: style.face,
+            fontWeight: style.weight,
+            fontStyle: style.slanted ? 'italic' : 'normal',
+            textTransform: style.caps ? 'uppercase' : 'none'
+          }}
+        >
+          {sample}
+        </span>
+        <span className="palette-label">{temperament ? style.name : text.typefaceDefault}</span>
+      </button>
+    )
+  }
+  return (
+    <div className="style-grid" role="radiogroup" aria-label={text.typeface}>
+      {option(null)}
+      {(Object.keys(TEMPERAMENTS) as Temperament[]).map(option)}
     </div>
   )
 }

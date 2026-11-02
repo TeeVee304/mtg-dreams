@@ -1,0 +1,541 @@
+/* A deck page in its palette (shared/deckPalettes.ts): the `.view` carries the palette's colors as
+   --deck-* properties (lib/deckStyle.ts), mapped here onto the app's tokens so every part of the page
+   takes them. Depth comes from washes, not shadows or gradients; text stays in the palette's ink and
+   paper. The sidebar and other pages keep the app's own colors. */
+
+.view[data-palette],
+.modal[data-palette] {
+  --bg: var(--deck-ground);
+  --panel: var(--deck-panel);
+  --panel-2: var(--deck-wash-1);
+  --hover: color-mix(in srgb, var(--deck-text) 6%, var(--deck-ground));
+  --border: var(--deck-line);
+  --text: var(--deck-text);
+  --muted: var(--deck-muted);
+  --faint: var(--deck-muted);
+  --accent: var(--deck-accent);
+  --accent-text: var(--deck-accent-text);
+  --accent-ink: var(--deck-accent-ink);
+  --accent-soft: var(--deck-track);
+  --bad: var(--deck-bad);
+  --bad-soft: color-mix(in srgb, var(--deck-bad) 12%, transparent);
+  --warn: var(--deck-warn);
+  --warn-soft: color-mix(in srgb, var(--deck-warn) 12%, transparent);
+  --shadow: none;
+  color: var(--text);
+}
+
+/* The Statistics panel's name in the deck's display face; its summary stays in the body face. */
+.view[data-palette] .stats-title-name {
+  font-family: var(--font-display);
+  font-size: 1.15em;
+  font-weight: var(--deck-title-weight);
+  font-style: var(--deck-title-style);
+  text-transform: var(--deck-title-case);
+}
+
+/* The card and token views extend the page: its colors, and its display face on their titles. The
+   Starting Hand has no window, so only its bar takes the colors. */
+.modal[data-palette] .modal-head h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: var(--deck-title-weight);
+  font-style: var(--deck-title-style);
+  text-transform: var(--deck-title-case);
+}
+
+/* The ground under the whole page, past the view's own width, behind the sidebar. */
+.view[data-palette]::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--deck-ground);
+  pointer-events: none;
+}
+
+/* Banner ------------------------------------------------------------------------- */
+
+/* A flat field of the palette's banner color: no blurred art, no dark gradient. */
+.view[data-palette] .art-hero {
+  background: var(--deck-banner);
+  color: var(--deck-banner-text);
+}
+
+/* The one gradient on the page, in two layers. The art blurred, as a bridge behind the art's own fade:
+   eased in from the flat banner color, so the art melts into its own colors first and those into
+   the palette's, with no muddy band where unrelated hues meet. The title's side stays flat. */
+.view[data-palette] .hero-backdrop {
+  --bridge-start: calc(100% - var(--portrait-width, 46%) - 16%);
+  -webkit-mask-image: linear-gradient(to right, transparent var(--bridge-start), rgb(0 0 0 / 0.1) calc(var(--bridge-start) + 5%), rgb(0 0 0 / 0.38) calc(var(--bridge-start) + 10%), rgb(0 0 0 / 0.68) calc(var(--bridge-start) + 15%), rgb(0 0 0 / 0.9) calc(var(--bridge-start) + 20%), #000 calc(var(--bridge-start) + 26%));
+  mask-image: linear-gradient(to right, transparent var(--bridge-start), rgb(0 0 0 / 0.1) calc(var(--bridge-start) + 5%), rgb(0 0 0 / 0.38) calc(var(--bridge-start) + 10%), rgb(0 0 0 / 0.68) calc(var(--bridge-start) + 15%), rgb(0 0 0 / 0.9) calc(var(--bridge-start) + 20%), #000 calc(var(--bridge-start) + 26%));
+}
+
+.view[data-palette] .hero-backdrop img {
+  filter: blur(30px) saturate(1.15) brightness(0.8);
+}
+
+/* The art's own fade, wider and eased (an S-curve, not a straight ramp), so it has no visible start or end. */
+.view[data-palette] .hero-portrait img:first-child {
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 8%, rgb(0 0 0 / 0.15) 16%, rgb(0 0 0 / 0.32) 24%, rgb(0 0 0 / 0.5) 32%, rgb(0 0 0 / 0.68) 40%, rgb(0 0 0 / 0.85) 48%, rgb(0 0 0 / 0.96) 56%, #000 64%);
+  mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 8%, rgb(0 0 0 / 0.15) 16%, rgb(0 0 0 / 0.32) 24%, rgb(0 0 0 / 0.5) 32%, rgb(0 0 0 / 0.68) 40%, rgb(0 0 0 / 0.85) 48%, rgb(0 0 0 / 0.96) 56%, #000 64%);
+}
+
+/* The deck's texture, faint, where the dark shade toward the title used to be. */
+.view[data-palette] .art-hero::before {
+  z-index: -2;
+  background: var(--deck-texture, none);
+  opacity: var(--deck-texture-opacity, 0);
+}
+
+/* Each banner texture at the opacity it reads at: printed or engraved, faint enough to sit under any art.
+   Keyed to any element, so the Style dialog's swatches draw them too. */
+[data-texture='grain'] {
+  --deck-texture: url('../assets/textures/grain.svg');
+  --deck-texture-opacity: 0.3;
+}
+
+[data-texture='halftone'] {
+  --deck-texture: url('../assets/textures/halftone.svg');
+  --deck-texture-opacity: 0.13;
+}
+
+[data-texture='hatch'] {
+  --deck-texture: url('../assets/textures/hatch.svg');
+  --deck-texture-opacity: 0.12;
+}
+
+[data-texture='crosshatch'] {
+  --deck-texture: url('../assets/textures/crosshatch.svg');
+  --deck-texture-opacity: 0.11;
+}
+
+[data-texture='guilloche'] {
+  --deck-texture: url('../assets/textures/guilloche.svg');
+  --deck-texture-opacity: 0.15;
+}
+
+[data-texture='mezzotint'] {
+  --deck-texture: url('../assets/textures/mezzotint.svg');
+  --deck-texture-opacity: 0.32;
+}
+
+[data-texture='ruled'] {
+  --deck-texture: url('../assets/textures/ruled.svg');
+  --deck-texture-opacity: 0.11;
+}
+
+[data-texture='chevron'] {
+  --deck-texture: url('../assets/textures/chevron.svg');
+  --deck-texture-opacity: 0.11;
+}
+
+[data-texture='perlage'] {
+  --deck-texture: url('../assets/textures/perlage.svg');
+  --deck-texture-opacity: 0.12;
+}
+
+/* Not a tile: rays fanning from behind the art, drawn once across the banner. */
+[data-texture='sunburst'] {
+  --deck-texture: url('../assets/textures/sunburst.svg') right center / cover no-repeat;
+  --deck-texture-opacity: 0.13;
+}
+
+/* The deck's watermark as small staggered marks, for mono-color and two-color palettes only. */
+[data-texture='identity'] {
+  --deck-texture-opacity: 0.1;
+}
+
+[data-texture='identity'][data-palette='W'] { --deck-texture: url('../assets/textures/identity-w.svg'); }
+[data-texture='identity'][data-palette='U'] { --deck-texture: url('../assets/textures/identity-u.svg'); }
+[data-texture='identity'][data-palette='B'] { --deck-texture: url('../assets/textures/identity-b.svg'); }
+[data-texture='identity'][data-palette='R'] { --deck-texture: url('../assets/textures/identity-r.svg'); }
+[data-texture='identity'][data-palette='G'] { --deck-texture: url('../assets/textures/identity-g.svg'); }
+[data-texture='identity'][data-palette='WU'] { --deck-texture: url('../assets/textures/identity-wu.svg'); }
+[data-texture='identity'][data-palette='UB'] { --deck-texture: url('../assets/textures/identity-ub.svg'); }
+[data-texture='identity'][data-palette='BR'] { --deck-texture: url('../assets/textures/identity-br.svg'); }
+[data-texture='identity'][data-palette='RG'] { --deck-texture: url('../assets/textures/identity-rg.svg'); }
+[data-texture='identity'][data-palette='WG'] { --deck-texture: url('../assets/textures/identity-wg.svg'); }
+[data-texture='identity'][data-palette='WB'] { --deck-texture: url('../assets/textures/identity-wb.svg'); }
+[data-texture='identity'][data-palette='UR'] { --deck-texture: url('../assets/textures/identity-ur.svg'); }
+[data-texture='identity'][data-palette='BG'] { --deck-texture: url('../assets/textures/identity-bg.svg'); }
+[data-texture='identity'][data-palette='WR'] { --deck-texture: url('../assets/textures/identity-wr.svg'); }
+[data-texture='identity'][data-palette='UG'] { --deck-texture: url('../assets/textures/identity-ug.svg'); }
+
+.view[data-palette] .art-hero h1 {
+  color: var(--deck-banner-text);
+}
+
+/* The title in the list's display face, else the app's (shared/temperaments.ts), as large as the face needs. */
+.view[data-palette] .view-header h1 {
+  font-size: var(--deck-title-size);
+  font-weight: var(--deck-title-weight);
+  font-style: var(--deck-title-style);
+  text-transform: var(--deck-title-case);
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+.view[data-palette] .art-hero .header-leaders,
+.view[data-palette] .art-hero .header-meta {
+  color: var(--deck-banner-muted);
+}
+
+.view[data-palette] .art-hero .header-actions > button,
+.view[data-palette] .art-hero .header-actions .menu-trigger,
+.view[data-palette] .hero-art-picks .icon-btn {
+  background: var(--deck-banner-button);
+  backdrop-filter: none;
+}
+
+/* Theme stickers in the palette's own colors, each with a deep or light ink of its own hue. */
+.view[data-palette] .theme-tag:nth-child(1) {
+  --tag: var(--deck-sticker-1);
+  --tag-ink: var(--deck-sticker-ink-1);
+}
+
+.view[data-palette] .theme-tag:nth-child(2) {
+  --tag: var(--deck-sticker-2);
+  --tag-ink: var(--deck-sticker-ink-2);
+}
+
+.view[data-palette] .theme-tag:nth-child(3) {
+  --tag: var(--deck-sticker-3);
+  --tag-ink: var(--deck-sticker-ink-3);
+}
+
+/* Figures and Statistics ---------------------------------------------------------- */
+
+/* The figures and Statistics as palette cards on one row. Folded, Statistics is a third card beside
+   Deck value and Cards; open, the figures stack on the left and the whole panel opens beside them,
+   every part of it as before (statistics-decisions). */
+.view[data-palette] .facts-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(190px, 260px)) minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+}
+
+.view[data-palette] .facts-row .summary-item {
+  order: 0;
+  margin-left: 0;
+  padding: 14px 18px 16px;
+  border-radius: 12px;
+  background: var(--deck-panel);
+  justify-content: center;
+}
+
+.view[data-palette] .facts-row .summary-item.accent .summary-value {
+  color: var(--deck-accent-text);
+}
+
+.view[data-palette] .facts-row .collapsible {
+  order: 0;
+  border: none;
+  border-radius: 12px;
+  background: var(--deck-panel);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.view[data-palette] .facts-row .brew-note {
+  grid-column: 1 / -1;
+}
+
+.view[data-palette] .facts-row:has(.collapsible.open) {
+  grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  align-items: start;
+}
+
+.view[data-palette] .facts-row:has(.collapsible.open) .summary-item {
+  grid-column: 1;
+}
+
+.view[data-palette] .facts-row .collapsible.open {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-content: flex-start;
+}
+
+/* Short of room for the curve and the mana base side by side beside the figures, the panel opens
+   under them, where they still sit side by side. */
+@media (max-width: 1560px) {
+  .view[data-palette] .facts-row:has(.collapsible.open) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+
+  .view[data-palette] .facts-row:has(.collapsible.open) .summary-item {
+    grid-column: auto;
+  }
+
+  .view[data-palette] .facts-row .collapsible.open {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
+}
+
+/* Table: a wash per section ------------------------------------------------------- */
+
+/* The table itself disappears into the page; each Card type's section is its own rounded wash, the
+   Commander's the strongest, separated by strips of the ground. */
+.view[data-palette] .cards-table {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.view[data-palette] .cards-table thead th {
+  background: var(--deck-ground);
+}
+
+.view[data-palette] .cards-table tbody {
+  --row-wash: var(--deck-wash-1);
+}
+
+.view[data-palette] .cards-table tbody:nth-of-type(4n + 2) {
+  --row-wash: var(--deck-wash-2);
+}
+
+.view[data-palette] .cards-table tbody:nth-of-type(4n + 3) {
+  --row-wash: var(--deck-wash-3);
+}
+
+.view[data-palette] .cards-table tbody:nth-of-type(4n) {
+  --row-wash: var(--deck-wash-4);
+}
+
+.view[data-palette] .cards-table tbody.commander-section {
+  --row-wash: var(--deck-lead);
+}
+
+.view[data-palette] .cards-table tbody td,
+.view[data-palette] .cards-table .section-row td,
+.view[data-palette] .cards-table .commander-section .section-row td {
+  background: var(--row-wash) !important;
+  background-clip: padding-box !important;
+}
+
+.view[data-palette] .cards-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--deck-text) 6%, var(--row-wash)) !important;
+}
+
+/* The gap between sections is the next section's top border, in the ground's color. */
+.view[data-palette] .cards-table tbody + tbody tr:first-child td {
+  border-top: 8px solid var(--deck-ground);
+}
+
+.view[data-palette] .cards-table tbody tr:first-child td:first-child {
+  border-top-left-radius: 10px;
+}
+
+.view[data-palette] .cards-table tbody tr:first-child td:last-child {
+  border-top-right-radius: 10px;
+}
+
+.view[data-palette] .cards-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 10px;
+}
+
+.view[data-palette] .cards-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 10px;
+}
+
+/* The identity's watermark behind the cards, as on a card's text box: one large mark in the deck's ink,
+   faint. Only mono decks, the ten guilds and WUBRG have one. */
+.view[data-palette] .cards-table,
+.view[data-palette] .card-grid-view {
+  position: relative;
+}
+
+:is(.view[data-palette='W'], .view[data-palette='U'], .view[data-palette='B'], .view[data-palette='R'], .view[data-palette='G'],
+  .view[data-palette='WU'], .view[data-palette='UB'], .view[data-palette='BR'], .view[data-palette='RG'], .view[data-palette='WG'],
+  .view[data-palette='WB'], .view[data-palette='UR'], .view[data-palette='BG'], .view[data-palette='WR'], .view[data-palette='UG'],
+  .view[data-palette='WUBRG'])
+  :is(.cards-table, .card-grid-view)::after {
+  content: '';
+  position: absolute;
+  top: 56px;
+  right: 48px;
+  width: calc(min(340px, 40%) * var(--deck-watermark-scale, 1));
+  aspect-ratio: 1;
+  background: var(--deck-text);
+  -webkit-mask: var(--deck-watermark) center / contain no-repeat;
+  mask: var(--deck-watermark) center / contain no-repeat;
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+/* Each mark, scaled by eye: the solid ones (a skull, a flame, a drop) look larger than the open sun or pie at one size. */
+.view[data-palette='W'] { --deck-watermark: url('../assets/watermarks/mono-w.svg'); }
+.view[data-palette='U'] { --deck-watermark: url('../assets/watermarks/mono-u.svg'); --deck-watermark-scale: 0.8; }
+.view[data-palette='B'] { --deck-watermark: url('../assets/watermarks/mono-b.svg'); --deck-watermark-scale: 0.78; }
+.view[data-palette='R'] { --deck-watermark: url('../assets/watermarks/mono-r.svg'); --deck-watermark-scale: 0.8; }
+.view[data-palette='G'] { --deck-watermark: url('../assets/watermarks/mono-g.svg'); --deck-watermark-scale: 0.76; }
+.view[data-palette='WU'] { --deck-watermark: url('../assets/watermarks/guild-azorius.svg'); }
+.view[data-palette='UB'] { --deck-watermark: url('../assets/watermarks/guild-dimir.svg'); }
+.view[data-palette='BR'] { --deck-watermark: url('../assets/watermarks/guild-rakdos.svg'); }
+.view[data-palette='RG'] { --deck-watermark: url('../assets/watermarks/guild-gruul.svg'); }
+.view[data-palette='WG'] { --deck-watermark: url('../assets/watermarks/guild-selesnya.svg'); --deck-watermark-scale: 0.94; }
+.view[data-palette='WB'] { --deck-watermark: url('../assets/watermarks/guild-orzhov.svg'); }
+.view[data-palette='UR'] { --deck-watermark: url('../assets/watermarks/guild-izzet.svg'); --deck-watermark-scale: 0.82; }
+.view[data-palette='BG'] { --deck-watermark: url('../assets/watermarks/guild-golgari.svg'); --deck-watermark-scale: 0.92; }
+.view[data-palette='WR'] { --deck-watermark: url('../assets/watermarks/guild-boros.svg'); --deck-watermark-scale: 0.92; }
+.view[data-palette='UG'] { --deck-watermark: url('../assets/watermarks/guild-simic.svg'); --deck-watermark-scale: 0.9; }
+.view[data-palette='WUBRG'] { --deck-watermark: url('../assets/watermarks/colorpie.svg'); }
+
+/* Each Card type's symbol by its section's name, in the text's color. */
+.section-type {
+  display: none;
+}
+
+.view[data-palette] .section-type:is([data-type='Creature'], [data-type='Planeswalker'], [data-type='Instant'], [data-type='Sorcery'],
+  [data-type='Artifact'], [data-type='Enchantment'], [data-type='Land']) {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 2px;
+  background: var(--muted);
+  -webkit-mask: var(--type-symbol) center / contain no-repeat;
+  mask: var(--type-symbol) center / contain no-repeat;
+  vertical-align: -2px;
+}
+
+.section-type[data-type='Creature'] { --type-symbol: url('../assets/types/creature.svg'); }
+.section-type[data-type='Planeswalker'] { --type-symbol: url('../assets/types/planeswalker.svg'); }
+.section-type[data-type='Instant'] { --type-symbol: url('../assets/types/instant.svg'); }
+.section-type[data-type='Sorcery'] { --type-symbol: url('../assets/types/sorcery.svg'); }
+.section-type[data-type='Artifact'] { --type-symbol: url('../assets/types/artifact.svg'); }
+.section-type[data-type='Enchantment'] { --type-symbol: url('../assets/types/enchantment.svg'); }
+.section-type[data-type='Land'] { --type-symbol: url('../assets/types/land.svg'); }
+
+/* The same washes in the card grid view. */
+.view[data-palette] .grid-section {
+  background: var(--deck-wash-1);
+  border-radius: 10px;
+  padding: 4px 12px 12px;
+}
+
+.view[data-palette] .grid-section:nth-of-type(4n + 2) {
+  background: var(--deck-wash-2);
+}
+
+.view[data-palette] .grid-section:nth-of-type(4n + 3) {
+  background: var(--deck-wash-3);
+}
+
+.view[data-palette] .grid-section:nth-of-type(4n) {
+  background: var(--deck-wash-4);
+}
+
+.view[data-palette] .grid-section.commander-section {
+  background: var(--deck-lead);
+}
+
+/* Palette details: the selection and the caret in the deck's own colors. */
+.view[data-palette] ::selection {
+  background: var(--deck-track);
+  color: var(--deck-text);
+}
+
+.view[data-palette] input,
+.view[data-palette] textarea {
+  caret-color: var(--deck-accent);
+}
+
+/* Banner details ---------------------------------------------------------------- */
+
+/* The commanders' flavor text under the title, in the display face's italic when it has one. */
+.header-epigraph {
+  margin: 4px 0 0;
+  max-width: 46ch;
+  font-family: var(--deck-epigraph-font, var(--font-body));
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.4;
+  white-space: pre-line;
+  color: var(--muted);
+}
+
+.view[data-palette] .art-hero .header-epigraph {
+  color: var(--deck-banner-muted);
+}
+
+/* Background and Companion badges in the deck's shape: circle (layout.css), square or diamond. */
+.view[data-palette] .hero-background[data-shape='square'] img {
+  border-radius: 18px;
+}
+
+.view[data-palette] .hero-background[data-shape='diamond'] {
+  z-index: 0;
+}
+
+.view[data-palette] .hero-background[data-shape='diamond'] img {
+  border-radius: 0;
+  box-shadow: none;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+/* The diamond's ring: the badge's color, then a rim of the banner, as the circle's box-shadow draws it. */
+.view[data-palette] .hero-background[data-shape='diamond']::before,
+.view[data-palette] .hero-background[data-shape='diamond']::after {
+  content: '';
+  position: absolute;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.view[data-palette] .hero-background[data-shape='diamond']::before {
+  inset: -7px;
+  z-index: -2;
+  background: var(--deck-banner);
+}
+
+.view[data-palette] .hero-background[data-shape='diamond']::after {
+  inset: -4px;
+  z-index: -1;
+  background: var(--tag);
+}
+
+/* Motion (Settings › Deck page motion; never under reduced motion) ----------------- */
+
+/* The deal: once, when a Deck opens, its sections settle onto the page like dealt cards. */
+@keyframes deck-deal {
+  from {
+    opacity: 0.3;
+    transform: translateY(16px) rotate(-0.6deg);
+  }
+}
+
+/* The watermark's parallax: it drifts down at most of the page's pace, a layer far deeper than the
+   Cards, so it nearly holds still on screen while they slide over it. */
+@keyframes deck-watermark-drift {
+  to {
+    transform: translateY(1360px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The page's scroll, named: the watermark's own nearest scroller would be the table. */
+  .main:has(> .view[data-motion]) {
+    scroll-timeline: --deck-page block;
+  }
+
+  .view[data-motion] :is(.cards-table, .card-grid-view)::after {
+    animation: deck-watermark-drift linear both;
+    animation-timeline: --deck-page;
+    animation-range: 0 1600px;
+  }
+
+  .view[data-motion] .cards-table tbody,
+  .view[data-motion] .grid-section {
+    animation: deck-deal 520ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .view[data-motion] :is(.cards-table tbody, .grid-section):nth-of-type(2) { animation-delay: 70ms; }
+  .view[data-motion] :is(.cards-table tbody, .grid-section):nth-of-type(3) { animation-delay: 140ms; }
+  .view[data-motion] :is(.cards-table tbody, .grid-section):nth-of-type(4) { animation-delay: 210ms; }
+  .view[data-motion] :is(.cards-table tbody, .grid-section):nth-of-type(5) { animation-delay: 280ms; }
+  .view[data-motion] :is(.cards-table tbody, .grid-section):nth-of-type(n + 6) { animation-delay: 350ms; }
+}

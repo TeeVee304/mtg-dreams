@@ -1,6 +1,7 @@
-import { useState, type CSSProperties } from 'react'
+import { useContext, useState, type CSSProperties } from 'react'
 import { ui } from '@shared/text'
 import type { Row } from '../lib/summary'
+import { DeckThemeContext } from '../lib/deckStyle'
 import { fanPlace, HAND_SIZE, libraryOf, putOnBottom, shuffled, toBottom } from '../lib/startingHand'
 import { Modal } from './Modal'
 import { FoilSheen } from './Placeholders'
@@ -65,6 +66,7 @@ export function StartingHand({ rows, onClose }: StartingHandProps) {
     <Modal
       title={text.title}
       size="stage"
+      theme={useContext(DeckThemeContext)}
       onClose={onClose}
       footer={
         <>

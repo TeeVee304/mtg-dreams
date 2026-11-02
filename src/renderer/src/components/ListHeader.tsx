@@ -5,7 +5,8 @@ import type { PickMode } from '../hooks/useCommanderPicking'
 import { BASE, sameVersion, type ListVersion, type Variant } from '@shared/listVersion'
 import { ui } from '@shared/text'
 import { MANA_SYMBOLS } from '../lib/artwork'
-import { leadersLabel, THEME_TAGS, themeTagColors } from '../lib/themeTags'
+import type { BadgeShape } from '@shared/temperaments'
+import { leadersLabel, stickerTilt, THEME_TAGS, themeTagColors } from '../lib/themeTags'
 import { FORMAT_GROUPS, Segmented } from './Controls'
 import { Icon } from './Icon'
 import { HeroPortrait } from './HeroArt'
@@ -101,6 +102,16 @@ interface ListHeaderProps {
   onRenameVersion?: () => void
   /** A version shown: deletes it (the list stays). */
   onDeleteVersion?: () => void
+  /** Deck pages in a palette: the commanders' flavor text, under the title; null for none. */
+  epigraph?: string | null
+  /** Shape of the Background and Companion badges. */
+  badgeShape?: BadgeShape
+  /** The shape the list sets; null when it follows the deck's theme. */
+  badgeChoice?: BadgeShape | null
+  /** Sets the badges' shape, or `null` to follow the theme; absent where badges take no shape. */
+  onBadgeShape?: (shape: BadgeShape | null) => void
+  /** Deck pages in a palette: Color opens the Style dialog (palette, texture, typeface). */
+  stylable?: boolean
   /** Brews: makes it a wishlist; the header then shows it is a brew. */
   onMakeWishlist?: () => void
   onRename: () => void
@@ -183,7 +194,12 @@ export function ListHeader(props: ListHeaderProps) {
         </div>
       )}
       {arts.length > 0 && props.background?.art && (
-        <figure className="hero-background" data-mana={props.background.color} title={text.backgroundHint(props.background.name)}>
+        <figure
+          className="hero-background"
+          data-mana={props.background.color}
+          data-shape={props.badgeShape}
+          title={text.backgroundHint(props.background.name)}
+        >
           <img src={props.background.art} alt="" draggable={false} />
           <figcaption>{text.background}</figcaption>
         </figure>
@@ -192,6 +208,7 @@ export function ListHeader(props: ListHeaderProps) {
         <figure
           className={`hero-background${props.background?.art ? ' beside' : ''}`}
           data-mana={props.companionBadge.color}
+          data-shape={props.badgeShape}
           title={text.companionHint(props.companionBadge.name)}
         >
           <img src={props.companionBadge.art} alt="" draggable={false} />
@@ -209,10 +226,17 @@ export function ListHeader(props: ListHeaderProps) {
           brewBadge
         )}
         <h1>{name}</h1>
+        {props.epigraph && <p className="header-epigraph">{props.epigraph}</p>}
         {(tags.length > 0 || universeTag) && (
           <ul className="theme-tags" aria-label={text.themes}>
             {tags.map((theme, i) => (
-              <li key={theme} className="theme-tag" data-mana={tagColors[i]} title={text.themeHint(leadersName)}>
+              <li
+                key={theme}
+                className="theme-tag"
+                data-mana={tagColors[i]}
+                title={text.themeHint(leadersName)}
+                style={{ transform: stickerTilt(name, i) }}
+              >
                 {theme}
               </li>
             ))}
@@ -312,7 +336,22 @@ export function ListHeader(props: ListHeaderProps) {
           label={text.more(noun)}
           items={[
             ...(canChangeCommander ? [{ label: text.changeCommander, onSelect: () => props.onTogglePicking('commander') }] : []),
-            { label: text.color, onSelect: props.onColor },
+            { label: props.stylable ? text.style : text.color, onSelect: props.onColor },
+            ...(props.onBadgeShape && (props.background?.art || props.companionBadge?.art)
+              ? [
+                  {
+                    label: text.badge,
+                    items: [
+                      { label: text.badgeAuto, checked: !props.badgeChoice, onSelect: () => props.onBadgeShape!(null) },
+                      ...(['circle', 'square', 'diamond'] as const).map((shape) => ({
+                        label: text.badgeShapes[shape],
+                        checked: props.badgeChoice === shape,
+                        onSelect: () => props.onBadgeShape!(shape)
+                      }))
+                    ]
+                  }
+                ]
+              : []),
             { label: text.rename, onSelect: props.onRename },
             // In a version's view, deleting deletes that version only; the list stays.
             other && props.onDeleteVersion

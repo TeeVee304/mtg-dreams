@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import { FORMATS, type DeckFormat, type LegalityIssue } from '@shared/formats'
 import { languageLabel } from '@shared/languages'
 import { finishFor, hasFoil, singleFinish } from '@shared/pricing'
@@ -15,7 +15,9 @@ import { CardmarketButton } from './CardCells'
 import { PickerBody, usePrintingsFor } from './CardEditors'
 import { Icon } from './Icon'
 import { ManaCost, RulesText, SymbolText, TypeLine } from './ManaText'
+import { DeckThemeContext } from '../lib/deckStyle'
 import { Modal } from './Modal'
+import { FoilSheen } from './Placeholders'
 import { Stepper } from './Stepper'
 import { AUTO, VersionPicker } from './VersionPicker'
 
@@ -44,6 +46,11 @@ interface CardDialogProps {
    * beside the list's only commander (`onJoin`, when it can partner with it).
    */
   commander?: { leads: boolean; canLead: boolean; onMake: () => void; onJoin?: () => void }
+  /**
+   * Decks without a commander: whether the card's art heads the Deck page, whether the list names it
+   * (`chosen`), and how to name it or go back to the automatic pick.
+   */
+  banner?: { heads: boolean; chosen: boolean; onUse: () => void; onReset: () => void }
   onClose: () => void
 }
 
@@ -53,7 +60,7 @@ interface CardDialogProps {
  * cost, type and rules text (Oracle, or printed as Settings ask). Legality in every format and the
  * rulings are folded away; the list's own format shows as a chip.
  */
-export function CardDialog({ row, format, issues, allowed, maxQty, maxTitle, onUpdate, board, commander, onClose }: CardDialogProps) {
+export function CardDialog({ row, format, issues, allowed, maxQty, maxTitle, onUpdate, board, commander, banner, onClose }: CardDialogProps) {
   const { line, resolution, unit, info } = row
   const entry = usePrintingsFor(line.name)
   const printings = entry?.data?.printings ?? []
@@ -66,7 +73,8 @@ export function CardDialog({ row, format, issues, allowed, maxQty, maxTitle, onU
   /** The version hovered in Change version: the large image shows it until the pointer leaves. */
   const [previewing, setPreviewing] = useState<Printing | null>(null)
   const shown = previewing ?? printing
-  const showBack = flipped && !!shown?.imageBack
+  const hasBack = !!(shown?.imageNormal && shown?.imageBack)
+  const showBack = flipped && hasBack
   const rulings = useRulings(line.name, printing?.id)
 
   const selectVersion = (id: string) => {
@@ -80,36 +88,57 @@ export function CardDialog({ row, format, issues, allowed, maxQty, maxTitle, onU
   }
 
   return (
-    <Modal title={row.flavorName ?? line.name} onClose={onClose} size="wide">
+    <Modal title={row.flavorName ?? line.name} onClose={onClose} size="wide" theme={useContext(DeckThemeContext)}>
       <div className="card-view">
         <div className="card-view-media">
           <div className="card-view-image">
-            {shown?.imageNormal ? (
-              <img src={showBack ? shown.imageBack! : shown.imageNormal} alt={showBack ? text.back(line.name) : line.name} />
+            {hasBack ? (
+              <div className={`card-flip-stage${flipped ? ' flipped' : ''}`}>
+                <div className="card-flip-face card-flip-front">
+                  <img src={shown.imageNormal!} alt={line.name} />
+                  {line.foil && <FoilSheen />}
+                </div>
+                <div className="card-flip-face card-flip-back">
+                  <img src={shown.imageBack!} alt={text.back(line.name)} />
+                  {line.foil && <FoilSheen />}
+                </div>
+              </div>
+            ) : shown?.imageNormal ? (
+              <>
+                <img src={shown.imageNormal} alt={line.name} />
+                {line.foil && <FoilSheen />}
+              </>
             ) : (
               <span>{ui.card.picker.noImage}</span>
             )}
+            {hasBack && (
+              <button
+                type="button"
+                className="flip-btn"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setFlipped(!flipped)
+                }}
+                aria-pressed={showBack}
+                aria-label={showBack ? text.showFront : text.showBack}
+                title={showBack ? text.showFront : text.showBack}
+              >
+                <Icon name="flip" />
+              </button>
+            )}
           </div>
-          {printing?.imageBack && (
-            <button type="button" className="flip-btn" onClick={() => setFlipped(!flipped)} aria-pressed={showBack}>
-              <Icon name="flip" /> {showBack ? text.showFront : text.showBack}
-            </button>
-          )}
         </div>
         <div className="card-view-info">
           {row.flavorName && <p className="muted small">{text.printedName(line.name)}</p>}
           {info && <CardText info={info} line={line} printing={printing} back={flipped && !!printing?.imageBack} />}
-          {format && info && (
+          {/* Only what breaks or bends the format's rules: All formats, below, says where it is legal. */}
+          {format && info && (issues.length > 0 || allowed.length > 0) && (
             <p className="card-view-rules">
-              {issues.length > 0 ? (
-                issues.map((issue) => (
-                  <span key={issue.code} className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`}>
-                    {issue.detail}
-                  </span>
-                ))
-              ) : (
-                <span className="chip legal">{text.legalIn(format.label)}</span>
-              )}
+              {issues.map((issue) => (
+                <span key={issue.code} className={`chip ${issue.severity === 'error' ? 'illegal' : 'restricted'}`}>
+                  {issue.detail}
+                </span>
+              ))}
               {allowed.map((reason) => (
                 <span key={reason} className="muted small">
                   {reason}
@@ -212,6 +241,21 @@ export function CardDialog({ row, format, issues, allowed, maxQty, maxTitle, onU
             {commander && !commander.leads && commander.canLead && (
               <button type="button" onClick={commander.onMake}>
                 <Icon name="crown" /> {text.makeCommander(!!commander.onJoin)}
+              </button>
+            )}
+            {banner?.heads && (
+              <span className="chip" title={banner.chosen ? undefined : text.bannerHint}>
+                <Icon name="image" /> {text.banner}
+              </span>
+            )}
+            {banner?.heads && banner.chosen && (
+              <button type="button" className="link-btn" onClick={banner.onReset}>
+                {text.bannerReset}
+              </button>
+            )}
+            {banner && !banner.heads && (
+              <button type="button" onClick={banner.onUse}>
+                <Icon name="image" /> {text.useAsBanner}
               </button>
             )}
             {printing?.cardmarketUrl && <CardmarketButton url={printing.cardmarketUrl} labeled />}

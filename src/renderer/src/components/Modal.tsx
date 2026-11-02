@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react'
+import type { DeckTheme } from '../lib/deckStyle'
 import { createPortal } from 'react-dom'
 import { ui } from '@shared/text'
 import { Icon } from './Icon'
@@ -24,10 +25,12 @@ interface ModalProps {
   dismissable?: boolean
   /** Extra class of the dialog, for its own styles. */
   className?: string
+  /** The deck page it extends, whose palette and display face it takes on. */
+  theme?: DeckTheme | null
 }
 
 /** Modal dialog with title, body and optional footer; closes on Escape or, unless not `dismissable`, a backdrop click. */
-export function Modal({ title, onClose, children, footer, size = 'normal', icon, onBack, after, dismissable = true, className }: ModalProps) {
+export function Modal({ title, onClose, children, footer, size = 'normal', icon, onBack, after, dismissable = true, className, theme }: ModalProps) {
   const stage = size === 'stage'
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
@@ -56,7 +59,14 @@ export function Modal({ title, onClose, children, footer, size = 'normal', icon,
         if (dismissable && event.target === event.currentTarget) onClose()
       }}
     >
-      <div className={`modal ${size}${className ? ` ${className}` : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        className={`modal ${size}${className ? ` ${className}` : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        data-palette={theme?.palette}
+        style={theme?.style}
+      >
         {!stage && (
           <header className="modal-head">
             {onBack && (

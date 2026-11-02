@@ -1,10 +1,11 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useContext, useEffect, useState } from 'react'
 import type { ColorFilter } from '@shared/cards'
 import { tokenInSets, tokenTitle, type FeaturedToken, type TokenInfo } from '@shared/tokens'
 import type { SetGroup } from '@shared/setGroups'
 import type { ThemeColor } from '@shared/themes'
 import { ui } from '@shared/text'
 import { MANA_SYMBOLS } from '../lib/artwork'
+import { DeckThemeContext } from '../lib/deckStyle'
 import { Modal } from './Modal'
 import { Skeleton } from './Placeholders'
 
@@ -51,6 +52,7 @@ export function TokenVersionsDialog({ token, universe, color, onPick, onClose }:
       ))}
       size="medium"
       className="token-picker"
+      theme={useContext(DeckThemeContext)}
       onClose={onClose}
     >
       <div className="token-versions" data-color={color ?? undefined}>

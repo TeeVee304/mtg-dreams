@@ -190,6 +190,13 @@ Card data, images and mana symbols come from [Scryfall](https://scryfall.com). P
 [Cardmarket](https://www.cardmarket.com)'s price guide. Official decklists come from [MTGJSON](https://mtgjson.com).
 Average decks come from [EDHREC](https://edhrec.com).
 
+Deck palettes come from Sanzo Wada's *A Dictionary of Color Combinations* (data by
+[Matt DesLauriers](https://github.com/mattdesl/dictionary-of-colour-combinations)), Emily Noyes Vanderpoel's
+*Color Problems* (1902) and Le Corbusier's *Polychromie architecturale*. Watermarks and card type symbols come
+from Andrew Gioia's [Mana](https://github.com/andrewgioia/mana) font. The display faces (Fraunces, IM Fell English, Anton,
+Uncial Antiqua, Bodoni Moda, Archivo, Silkscreen, Cinzel, Pirata One, Rye, Limelight, Henny Penny) are
+under the SIL Open Font License.
+
 *Magic: The Gathering* is © Wizards of the Coast. This project is not affiliated with or endorsed by Scryfall,
 MTGJSON, Cardmarket, EDHREC or Wizards of the Coast.
 

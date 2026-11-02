@@ -4,7 +4,12 @@ import { withEnergyCurve } from '@shared/listEnergy'
 import { cardLines, nameKey, parseInventory, parseList, serializeList } from '@shared/decklist'
 import { listFormat, withCommanders, withFormat, withoutMissingCommanders } from '@shared/formats'
 import type { Version } from '@shared/inventory'
-import { withColor } from '@shared/listColor'
+import { withBadge } from '@shared/listBadge'
+import { withBanner } from '@shared/listBanner'
+import { withTexture } from '@shared/listTexture'
+import { withTypeface } from '@shared/listTypeface'
+import { withColor, withPalette } from '@shared/listColor'
+import type { IdentityKey } from '@shared/deckPalettes'
 import { withPreferredVersions } from '@shared/listPreference'
 import { withUnbuilt } from '@shared/listUnbuilt'
 import { appliedUpgrade, upgradeOf, upgradeTarget, withUpgradeOf } from '@shared/listUpgrade'
@@ -22,6 +27,7 @@ import {
 import { withPrintedNames, type PrintedNameFix } from '@shared/printedNames'
 import { moveToBoard, type Board, type BoardEntry } from '@shared/sideboard'
 import { withTokenVersion } from '@shared/tokens'
+import type { BadgeShape, Temperament, Texture } from '@shared/temperaments'
 import type { ThemeColor } from '@shared/themes'
 import { serializeSnapshot, type TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
@@ -420,6 +426,11 @@ export class LibraryStore {
       this.updateLines(target, (lines) => withColor(lines, color), { label: ui.changes.color })
     },
 
+    /** Sets a deck's palette by its identity, or leaves it to the deck's own identity (`null`). */
+    setListPalette: (target: ListRef, key: IdentityKey | null) => {
+      this.updateLines(target, (lines) => withPalette(lines, key), { label: ui.changes.color })
+    },
+
     /**
      * Moves a wishlist to place `to` in the wishlist order (0 is the top); its cards count more in
      * Most Wanted the higher it is.
@@ -501,6 +512,26 @@ export class LibraryStore {
     /** Sets the color a Rulebreaker commander lets the list add, or removes it (`null`). */
     setRulebreakerColor: (target: ListRef, color: string | null) => {
       this.updateLines(target, (lines) => withRulebreakerColor(lines, color), { label: ui.changes.rulebreakerColor })
+    },
+
+    /** Sets the shape of the Background and Companion badges, or leaves it round (`null`). */
+    setBadgeShape: (target: ListRef, shape: BadgeShape | null) => {
+      this.updateLines(target, (lines) => withBadge(lines, shape), { label: ui.changes.badgeShape })
+    },
+
+    /** Sets the banner's texture, or none (`null`). */
+    setBannerTexture: (target: ListRef, texture: Texture | null) => {
+      this.updateLines(target, (lines) => withTexture(lines, texture), { label: ui.changes.texture })
+    },
+
+    /** Sets the display face, by its temperament, or goes back to the app's own (`null`). */
+    setTypeface: (target: ListRef, temperament: Temperament | null) => {
+      this.updateLines(target, (lines) => withTypeface(lines, temperament), { label: ui.changes.typeface })
+    },
+
+    /** Sets the Card whose art heads a deck without a commander, or leaves it to the deck (`null`). */
+    setBanner: (target: ListRef, name: string | null) => {
+      this.updateLines(target, (lines) => withBanner(lines, name), { label: ui.changes.banner })
     },
 
     /** Replaces a list's content from raw text; announced. */

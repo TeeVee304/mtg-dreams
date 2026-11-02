@@ -181,6 +181,11 @@ function flavorNameOf(card: any): string | undefined {
   return card.flavor_name ?? card.card_faces?.[0]?.flavor_name ?? undefined
 }
 
+/** @returns The flavor text of a card, or of its first face that has one (a back face's, on transforming cards). */
+function flavorTextOf(card: any): string | undefined {
+  return card.flavor_text ?? card.card_faces?.find((face: any) => face.flavor_text)?.flavor_text ?? undefined
+}
+
 /**
  * Maps a Scryfall card to a {@link Printing}. Scryfall EUR prices (Cardmarket trend) become the
  * fallback for guide prices; image URLs drop the `?version` query.
@@ -212,6 +217,7 @@ function toPrinting(card: any): Printing {
     labels: labelsFor(card),
     autoEligible: card.border_color !== 'gold' && card.set_type !== 'memorabilia',
     ...(flavorNameOf(card) && { flavorName: flavorNameOf(card) }),
+    ...(flavorTextOf(card) && { flavorText: flavorTextOf(card) }),
     ...(illustrationOf(card) && { illustrationId: illustrationOf(card) }),
     ...((card.promo_types ?? []).includes('universesbeyond') && { universesBeyond: true as const }),
     ...(card.digital === true && { digital: true as const })

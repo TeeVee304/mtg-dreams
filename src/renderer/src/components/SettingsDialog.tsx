@@ -78,6 +78,38 @@ export function SettingsDialog(props: SettingsDialogProps) {
       </section>
 
       <section className="settings-section">
+        <h3>{text.ui}</h3>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.simpleUI}</span>
+            <span className="muted small">{text.simpleUIHint}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.simpleUI}
+            onChange={(event) => change({ simpleUI: event.target.checked })}
+          />
+        </label>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.deckMotion}</span>
+            <span className="muted small">{text.deckMotionHint}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.deckMotion}
+            // Simple UI has no animations to turn on.
+            disabled={settings.simpleUI}
+            onChange={(event) => change({ deckMotion: event.target.checked })}
+          />
+        </label>
+      </section>
+
+      <section className="settings-section">
         <h3>{text.lists}</h3>
         <label className="setting-toggle">
           <span className="setting-text">

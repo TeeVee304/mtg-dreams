@@ -26,7 +26,7 @@ const SAVE_DELAY_MS = 2_000
 /** Max time changes stay unsaved under continuous updates. */
 const MAX_SAVE_DELAY_MS = 60_000
 /** Cache schema version. */
-const VERSION = 19
+const VERSION = 20
 /** How long a card no list, inventory or trade uses stays cached after its last use. */
 export const RECENT_MS = 7 * 24 * 60 * 60 * 1000
 /** Most cards no list, inventory or trade uses kept at once; the least recently used go first. */
@@ -253,8 +253,9 @@ export function loadScryfallCache(): Promise<void> {
           // for Lightning Greaves): entries found by another name go, and are looked up again when needed.
           const matched = !entry.notFound && nameKey(entry.name) !== key
           if (matched && file.version < 12) continue
-          // Before v11, printings had no artwork ids or Universes Beyond flags: all refresh, in the background.
-          const fetchedAt = file.version < 11 || outdated ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
+          // Before v11, printings had no artwork ids or Universes Beyond flags, and before v20 no flavor text:
+          // all refresh, in the background.
+          const fetchedAt = file.version < 20 ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
           // Before v13, a card found by another name was stored again under that name: it becomes an alias.
           const own = nameKey(entry.name)
           if (matched && scryfallCache.entries[own]) scryfallCache.aliases[key] = entry.lang ? { key: own, lang: entry.lang } : { key: own }

@@ -400,9 +400,26 @@
   text-align: left;
 }
 
+/* The summary beside the title is plain text, not part of the title; its figure stands out. */
+.collapsible-toggle > .muted {
+  font-weight: 400;
+}
+
+.collapsible-toggle > .muted b {
+  font-weight: 600;
+}
+
+/* Statistics: the mini curve stands on the text's baseline, and the summary keeps a little more room. */
+.stats-title {
+  align-items: baseline;
+  margin-right: 6px;
+}
+
 .collapsible-chevron {
   display: inline-block;
-  width: 10px;
+  width: 12px;
+  font-size: 1.3em;
+  line-height: 1;
   transition: transform 0.15s ease;
 }
 
@@ -598,7 +615,7 @@
   padding: 4px 10px 3px;
   border-radius: 4px;
   background: var(--tag);
-  color: var(--glow-ink);
+  color: var(--tag-ink, var(--glow-ink));
   font-size: var(--fs-md);
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -621,26 +638,32 @@
 /* Bright on any page, under dark ink: the dark theme's mana colors. */
 :is(.theme-tag, .hero-background)[data-mana='W'] {
   --tag: var(--glow-w);
+  --tag-ink: #14121f;
 }
 
 :is(.theme-tag, .hero-background)[data-mana='U'] {
   --tag: var(--glow-u);
+  --tag-ink: #07152b;
 }
 
 :is(.theme-tag, .hero-background)[data-mana='B'] {
   --tag: var(--glow-b);
+  --tag-ink: #ffffff;
 }
 
 :is(.theme-tag, .hero-background)[data-mana='R'] {
   --tag: var(--glow-r);
+  --tag-ink: #14121f;
 }
 
 :is(.theme-tag, .hero-background)[data-mana='G'] {
   --tag: var(--glow-g);
+  --tag-ink: #07211a;
 }
 
 :is(.theme-tag, .hero-background)[data-mana='C'] {
   --tag: var(--glow-c);
+  --tag-ink: #14121f;
 }
 
 /* A commander's Background: a round badge where the portrait fades in, ringed in its color, labeled
@@ -673,7 +696,7 @@
   padding: 2px 7px 1px;
   border-radius: 4px;
   background: var(--tag);
-  color: var(--glow-ink);
+  color: var(--tag-ink, var(--glow-ink));
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -772,7 +795,6 @@
   align-items: flex-end;
   gap: 3px;
   height: 22px;
-  align-self: center;
 }
 
 .mini-curve span {

@@ -1,6 +1,7 @@
 node_modules/
 out/
-dist/
+dist/*
+!dist/*.exe
 *.log
 .vite/
 .DS_Store

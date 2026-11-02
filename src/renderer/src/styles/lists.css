@@ -146,6 +146,132 @@
   height: 14px;
 }
 
+/* Deck palettes: each a strip of its swatches over its mana symbols and name. */
+.palette-options {
+  display: grid;
+  gap: 14px;
+}
+
+.palette-group h3 {
+  margin: 0 0 6px;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.palette-option {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 6px 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  text-align: left;
+}
+
+.palette-option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.palette-option.auto {
+  max-width: calc((100% - 32px) / 5);
+}
+
+.palette-option.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.palette-strip {
+  display: flex;
+  height: 26px;
+  overflow: hidden;
+  border-radius: calc(var(--radius) - 3px);
+  transition: transform 0.15s ease;
+}
+
+.palette-strip > span {
+  flex: 1;
+}
+
+.palette-option:hover .palette-strip {
+  transform: translateY(-2px);
+}
+
+.palette-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-sm);
+}
+
+.palette-mana {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.palette-mana img {
+  width: 13px;
+  height: 13px;
+}
+
+/* The Style dialog: palette, banner texture and typeface, one section each. */
+.style-sections {
+  display: grid;
+  gap: 26px;
+}
+
+.style-sections h2 {
+  margin: 0 0 10px;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+.style-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+/* A texture on the deck's banner color, at the opacity the banner draws it (deck-page.css). */
+.texture-swatch {
+  position: relative;
+  height: 40px;
+  overflow: hidden;
+  border-radius: calc(var(--radius) - 3px);
+}
+
+.texture-swatch::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--deck-texture, none);
+  opacity: var(--deck-texture-opacity, 0);
+}
+
+/* The list's name in a display face, on the deck's banner color. */
+.typeface-sample {
+  height: 44px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  border-radius: calc(var(--radius) - 3px);
+  font-size: 22px;
+  line-height: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
 .theme-option {
   display: flex;
   flex-direction: column;

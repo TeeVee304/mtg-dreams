@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { headerBadge, headerLeaders } from './listFigures'
+import { bannerRow, headerBadge, headerLeaders, listColors } from './listFigures'
 import type { Row } from './summary'
 
 /** A commander row: its type line, colors and art, once loaded. */
@@ -45,5 +45,56 @@ describe("a list header's Companion", () => {
     const lurrus = leader('Lurrus of the Dream-Den', 'Legendary Creature — Cat Nightmare', ['B', 'W'])
     expect(headerBadge(lurrus, true)).toEqual({ name: 'Lurrus of the Dream-Den', art: art('Lurrus of the Dream-Den'), color: 'W' })
     expect(headerBadge(lurrus, false).art).toBeNull()
+  })
+})
+
+/** A card row: its quantity, type line, colors and mana value. */
+const card = (name: string, qty: number, typeLine: string, colorIdentity: string[], manaValue = 0) =>
+  ({
+    line: { name, qty },
+    side: false,
+    info: { typeLine, colorIdentity, manaValue },
+    resolution: { printing: { imageNormal: `https://cards.scryfall.io/normal/${name}.jpg` } }
+  }) as unknown as Row
+
+describe("a list's colors without a commander", () => {
+  it('leaves out a color under a tenth of the colored nonland copies, and the lands', () => {
+    const rows = [
+      card('Lightning Bolt', 4, 'Instant', ['R']),
+      card('Goblin Guide', 4, 'Creature — Goblin Scout', ['R']),
+      card('Fireblast', 4, 'Instant', ['R']),
+      card('Bloodstained Mire', 4, 'Land', ['B', 'R']),
+      card('Kolaghan’s Command', 1, 'Instant', ['B', 'R'])
+    ]
+    expect(listColors(rows, [])).toEqual(['R'])
+    expect(listColors([...rows, card('Bloodghast', 1, 'Creature — Vampire Spirit', ['B'])], [])).toEqual(['B', 'R'])
+  })
+
+  it('takes the lands alone when no spell has a color, and C when nothing does', () => {
+    expect(listColors([card('Sol Ring', 1, 'Artifact', []), card('Island', 10, 'Basic Land — Island', ['U'])], [])).toEqual(['U'])
+    expect(listColors([card('Sol Ring', 1, 'Artifact', [])], [])).toEqual(['C'])
+  })
+})
+
+describe('the banner of a deck without a commander', () => {
+  const rows = [
+    card('Lightning Bolt', 4, 'Instant', ['R'], 1),
+    card('Glorybringer', 2, 'Creature — Dragon', ['R'], 5),
+    card('Ultimatum', 1, 'Sorcery', ['R'], 5),
+    card('Mountain', 20, 'Basic Land — Mountain', ['R'])
+  ]
+
+  it('is the nonland Card of highest mana value, the first listed on a tie', () => {
+    expect(bannerRow(rows, null)?.line.name).toBe('Glorybringer')
+  })
+
+  it('waits for all the cards to load', () => {
+    const loading = { ...card('Ultimatum', 1, 'Sorcery', ['R'], 5), info: undefined } as unknown as Row
+    expect(bannerRow([rows[0], loading], null)).toBeNull()
+  })
+
+  it('is the Card the banner header names, when listed', () => {
+    expect(bannerRow(rows, 'mountain')?.line.name).toBe('Mountain')
+    expect(bannerRow(rows, 'Shock')?.line.name).toBe('Glorybringer')
   })
 })

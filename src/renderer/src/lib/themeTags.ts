@@ -75,6 +75,21 @@ export function themeTagColors(themes: string[], identity: ColorFilter[]): Color
 }
 
 /**
+ * A theme sticker's tilt, slapped on at its own angle: from a hash of the list's name, so each deck's
+ * stickers land differently but stay put between visits.
+ * @returns A CSS transform.
+ */
+export function stickerTilt(seed: string, index: number): string {
+  let hash = 2166136261
+  for (const char of seed) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619) >>> 0
+  hash = Math.imul(hash ^ (index + 1), 2654435761) >>> 0
+  const raw = ((hash % 17) - 8) / 2 || 1.5
+  const angle = index % 2 === 0 ? -Math.abs(raw) : Math.abs(raw)
+  const lift = ((hash >>> 8) % 5) - 2
+  return `rotate(${angle}deg) translateY(${lift}px)`
+}
+
+/**
  * @returns How a header names its commanders: one in full; two partners by their short names before
  * the comma (`Okaun & Zndrsplt`), which fit one line.
  */

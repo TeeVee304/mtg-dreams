@@ -8,7 +8,7 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 32px 32px;
-  padding: 20px 24px 28px;
+  padding: 6px 24px 24px;
 }
 
 /* The curve: a grid of row labels, then one column a mana value, sharing the width. */
@@ -28,7 +28,7 @@
 }
 
 .stats-label {
-  padding-right: 12px;
+  padding-right: 8px;
   color: var(--faint);
   font-size: var(--fs-xs);
   white-space: nowrap;

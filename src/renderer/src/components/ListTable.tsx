@@ -205,6 +205,8 @@ function SectionTitle({ section, open, onToggle }: SectionHeadProps) {
           <Icon name="chevron" />
         </span>
         {leaders && <Icon name="crown" />}
+        {/* The Card type's symbol, shown on deck pages in a palette (deck-page.css). */}
+        <span className="section-type" data-type={section.id} aria-hidden="true" />
         <span className="section-label">
           {section.label} · {cards}
         </span>

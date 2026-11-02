@@ -52,14 +52,20 @@ export function DeckStats({ rows, leaders, table, energy, manaValue, onManaValue
       open={open}
       onToggle={toggle}
       title={
-        <span className="nav-icon-name">
+        <span className="nav-icon-name stats-title">
           <MiniCurve stats={stats} />
-          {ui.stats.title}
+          <span className="stats-title-name">{ui.stats.title}</span>
         </span>
       }
       summary={
         <>
-          {stats.averageManaValue !== null ? ui.stats.average(stats.averageManaValue.toFixed(2)) : ui.count.lands(stats.lands)}
+          {stats.averageManaValue !== null ? (
+            <>
+              {ui.stats.average} <b>{stats.averageManaValue.toFixed(2)}</b>
+            </>
+          ) : (
+            ui.count.lands(stats.lands)
+          )}
           {stats.pending > 0 && ui.stats.loading(stats.pending)}
         </>
       }
@@ -97,7 +103,17 @@ function dotFill(card: CurveCard): string | undefined {
  * Height of the curve's plot, in px, that the dots and the land lines share; the room above its 100%,
  * clear of the counts; and the room under its 0%, the columns' bottom padding.
  */
-const PLOT = { height: 276, top: 30, bottom: 4 }
+interface Plot {
+  height: number
+  top: number
+  bottom: number
+  /** Highest the dots stack, in px, before they shrink. */
+  dots: number
+}
+
+/** The plot alone, and shorter by the energy rows' height when they show, so the panel keeps its height. */
+const PLOT: Plot = { height: 260, top: 16, bottom: 4, dots: 224 }
+const PLOT_WITH_ENERGY: Plot = { height: 170, top: 16, bottom: 4, dots: 134 }
 
 /** Width of a curve column, in px, unless its dots need more; and the most it grows to, given the room. */
 const COLUMN = { min: 60, max: 112 }
@@ -108,15 +124,15 @@ const COUNT = { height: 18, gap: 6, clear: 8 }
 /** Room between a land line's last point and its name, in px. */
 const NAME_GAP = 18
 
-/** Highest the curve's dots stack, in px, before they shrink; then 3 abreast when 2 would be too small. */
-const CURVE = { height: 236, dot: 22, minDot: 12, smallestDot: 8 }
+/** Largest dot, in px; then 3 abreast when 2 would be smaller than `minDot`; never under `smallestDot`. */
+const CURVE = { dot: 22, minDot: 12, smallestDot: 8 }
 
-/** Dot size, gap and count abreast that fit the tallest column, of `tallest` Cards, in {@link CURVE}'s height. */
-function dotLayout(tallest: number): { dot: number; gap: number; abreast: number } {
+/** Dot size, gap and count abreast that fit the tallest column, of `tallest` Cards, in the plot's `height` for dots. */
+function dotLayout(tallest: number, height: number): { dot: number; gap: number; abreast: number } {
   const fit = (abreast: number) => {
     const rows = Math.max(1, Math.ceil(tallest / abreast))
     const gap = 4
-    return Math.floor((CURVE.height + gap) / rows - gap)
+    return Math.floor((height + gap) / rows - gap)
   }
   const abreast = fit(2) >= CURVE.minDot ? 2 : 3
   const dot = Math.max(CURVE.smallestDot, Math.min(CURVE.dot, fit(abreast)))
@@ -132,22 +148,23 @@ function linePoints(columns: CurveColumn[]) {
 const centerOf = (index: number, columns: number) => ((index + 0.5) / columns) * 100
 
 /** A chance's height in the plot, in px from its top: 100% under the counts, 0% on the columns' floor. */
-const heightOf = (chance: number) => PLOT.top + (1 - chance) * (PLOT.height - PLOT.top - PLOT.bottom)
+const heightOf = (chance: number, plot: Plot) => plot.top + (1 - chance) * (plot.height - plot.top - plot.bottom)
 
 /** Props of the land lines' layers. */
 interface LandLinesProps {
   columns: CurveColumn[]
   base: ManaBase
+  plot: Plot
 }
 
 /**
  * How far to lift a column's count, in px (0 or less), so a Lands point never lands on it: over the
  * point, when the point would cover it.
  */
-function countLift(cards: number, layout: { dot: number; gap: number; abreast: number }, point: number | null): number {
+function countLift(cards: number, layout: { dot: number; gap: number; abreast: number }, point: number | null, plot: Plot): number {
   if (point === null || cards === 0) return 0
   const rows = Math.ceil(cards / layout.abreast)
-  const bottom = PLOT.height - PLOT.bottom - (rows * layout.dot + (rows - 1) * layout.gap) - COUNT.gap
+  const bottom = plot.height - plot.bottom - (rows * layout.dot + (rows - 1) * layout.gap) - COUNT.gap
   const top = bottom - COUNT.height
   if (point < top - COUNT.clear || point > bottom + COUNT.clear) return 0
   return Math.min(0, point - COUNT.clear - bottom)
@@ -158,18 +175,18 @@ function countLift(cards: number, layout: { dot: number; gap: number; abreast: n
  * as a level the curve stands in, held flat out to the plot's edges. The plot stretches across, so it
  * is drawn in shares of its width.
  */
-function OnCurveTide({ columns, base }: LandLinesProps) {
+function OnCurveTide({ columns, base, plot }: LandLinesProps) {
   // React's ids hold characters a url() reference can trip on.
   const id = `tide${useId().replace(/[^\w-]/g, '')}`
   const points = linePoints(columns)
   if (points.length < 2) return null
   const x = (index: number) => centerOf(index, columns.length)
-  const first = heightOf(base.onTime[points[0].turn - 1])
-  const last = heightOf(base.onTime[points[points.length - 1].turn - 1])
-  const floor = PLOT.height - PLOT.bottom
-  const edge = points.map(({ index, turn }) => `L${x(index)},${heightOf(base.onTime[turn - 1])}`).join(' ')
+  const first = heightOf(base.onTime[points[0].turn - 1], plot)
+  const last = heightOf(base.onTime[points[points.length - 1].turn - 1], plot)
+  const floor = plot.height - plot.bottom
+  const edge = points.map(({ index, turn }) => `L${x(index)},${heightOf(base.onTime[turn - 1], plot)}`).join(' ')
   return (
-    <svg className="stats-tide" viewBox={`0 0 100 ${PLOT.height}`} preserveAspectRatio="none" aria-hidden="true">
+    <svg className="stats-tide" viewBox={`0 0 100 ${plot.height}`} preserveAspectRatio="none" aria-hidden="true">
       <defs>
         <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" />
@@ -186,28 +203,28 @@ function OnCurveTide({ columns, base }: LandLinesProps) {
  * height: Lands alone, solid, on a halo that keeps it clear of the dots; Lands and cheap ramp, dashed,
  * when there is cheap ramp. Each line is named at its end; the values sit in the On curve row.
  */
-function OnCurveLines({ columns, base }: LandLinesProps) {
+function OnCurveLines({ columns, base, plot }: LandLinesProps) {
   const text = ui.stats
   const points = linePoints(columns)
   const last = points[points.length - 1]
   if (!last) return null
   const x = (index: number) => centerOf(index, columns.length)
-  const path = (chances: number[]) => points.map(({ index, turn }, i) => `${i === 0 ? 'M' : 'L'}${x(index)},${heightOf(chances[turn - 1])}`).join(' ')
+  const path = (chances: number[]) => points.map(({ index, turn }, i) => `${i === 0 ? 'M' : 'L'}${x(index)},${heightOf(chances[turn - 1], plot)}`).join(' ')
   const withRamp = base.ramp.cheap > 0
   // The names at the lines' ends, kept a line apart: the ramp line is never below the Lands one.
-  const landsEnd = heightOf(base.onTime[last.turn - 1])
-  const rampEnd = Math.min(heightOf(base.onTimeRamp[last.turn - 1]), landsEnd - 16)
+  const landsEnd = heightOf(base.onTime[last.turn - 1], plot)
+  const rampEnd = Math.min(heightOf(base.onTimeRamp[last.turn - 1], plot), landsEnd - 16)
   const at = (index: number, top: number): CSSProperties => ({ left: `${x(index)}%`, top })
   return (
     <div className="stats-lines" aria-hidden="true">
-      <svg viewBox={`0 0 100 ${PLOT.height}`} preserveAspectRatio="none">
+      <svg viewBox={`0 0 100 ${plot.height}`} preserveAspectRatio="none">
         {withRamp && <path className="halo" d={path(base.onTimeRamp)} vectorEffect="non-scaling-stroke" />}
         {withRamp && <path className="ramp" d={path(base.onTimeRamp)} vectorEffect="non-scaling-stroke" />}
         <path className="halo" d={path(base.onTime)} vectorEffect="non-scaling-stroke" />
         <path className="lands" d={path(base.onTime)} vectorEffect="non-scaling-stroke" />
       </svg>
       {points.map(({ index, turn }) => (
-        <i key={turn} className="stats-point" style={at(index, heightOf(base.onTime[turn - 1]))} />
+        <i key={turn} className="stats-point" style={at(index, heightOf(base.onTime[turn - 1], plot))} />
       ))}
       <span className="stats-line-name" style={{ ...at(last.index, landsEnd), marginLeft: NAME_GAP }}>
         {text.landsLine}
@@ -253,7 +270,8 @@ function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) 
   const made = sumOf(stats.curve, (column) => column.energy.made)
   const spent = sumOf(stats.curve, (column) => column.energy.spent)
   const energyMax = Math.max(1, ...stats.curve.map((column) => Math.max(column.energy.made, column.energy.spent)))
-  const layout = dotLayout(Math.max(0, ...columns.map(totalOf)))
+  const plot = energy ? PLOT_WITH_ENERGY : PLOT
+  const layout = dotLayout(Math.max(0, ...columns.map(totalOf)), plot.dots)
   const { dot, gap, abreast } = layout
   // A column is never narrower than its dots, with room either side; it widens into spare room.
   const width = Math.max(COLUMN.min, dot * abreast + gap * (abreast - 1) + 12)
@@ -261,6 +279,12 @@ function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) 
   // measured again as the columns widen or narrow.
   const curveRef = useRef<HTMLDivElement>(null)
   const [overhang, setOverhang] = useState(0)
+  // The widest name: its overhang at the narrowest columns sets the least width, whatever the columns'
+  // width now. Measured from the live overhang, the least width would shrink as the columns widen, and a
+  // curve that just wrapped under the figures could fit again, unwrap, narrow and wrap, flickering.
+  const [names, setNames] = useState(0)
+  // The row labels' width: with the narrowest columns and the overhang, the least the curve needs.
+  const [labels, setLabels] = useState(0)
   const withRamp = base.ramp.cheap > 0
   useLayoutEffect(() => {
     const curve = curveRef.current
@@ -270,6 +294,8 @@ function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) 
       if (plot === undefined) return
       const ends = [...curve.querySelectorAll('.stats-line-name')].map((span) => span.getBoundingClientRect().right)
       setOverhang(Math.max(0, Math.ceil(Math.max(plot, ...ends) - plot)))
+      setNames(Math.ceil(Math.max(0, ...[...curve.querySelectorAll('.stats-line-name')].map((span) => span.getBoundingClientRect().width))))
+      setLabels(Math.ceil(Math.max(0, ...[...curve.querySelectorAll('.stats-label')].map((label) => label.getBoundingClientRect().width))))
     }
     measure()
     // On the next frame, so a resize never answers its own notification.
@@ -293,20 +319,22 @@ function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) 
         {
           gridTemplateColumns: `max-content repeat(${columns.length}, minmax(${width}px, ${Math.max(width, COLUMN.max)}px))`,
           paddingRight: overhang,
+          // Its least width, from the narrowest columns: a grid's min-content would take the widest.
+          minWidth: labels + columns.length * width + Math.max(0, Math.ceil(names + NAME_GAP - width / 2)),
           '--stats-dot': `${dot}px`,
           '--stats-gap': `${gap}px`,
           '--stats-abreast': abreast,
-          '--stats-plot': `${PLOT.height}px`
+          '--stats-plot': `${plot.height}px`
         } as CSSProperties
       }
     >
       <span className="stats-plot-start" />
-      <OnCurveTide columns={columns} base={base} />
+      <OnCurveTide columns={columns} base={base} plot={plot} />
       {columns.map((column, index) => {
         const total = totalOf(column)
         const on = selected === column.manaValue
-        const point = column.manaValue > 0 ? heightOf(base.onTime[column.manaValue - 1]) : null
-        const lift = countLift(total, layout, point)
+        const point = column.manaValue > 0 ? heightOf(base.onTime[column.manaValue - 1], plot) : null
+        const lift = countLift(total, layout, point, plot)
         return (
           <button
             key={column.manaValue}
@@ -335,7 +363,7 @@ function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) 
           </button>
         )
       })}
-      <OnCurveLines columns={columns} base={base} />
+      <OnCurveLines columns={columns} base={base} plot={plot} />
       {hovered && <CurveTip column={hovered.column} left={hovered.left} on={selected === hovered.column.manaValue} />}
 
       <span className="stats-label stats-rule">{text.manaValueRow}</span>
@@ -363,6 +391,8 @@ function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) 
         <>
           <span className="stats-label stats-energy-label stats-rule">
             <span>
+              {text.energy}
+              <br />
               {text.energyMade} <b>{made}</b>
               <br />
               {text.energySpent} <b>{spent}</b>
