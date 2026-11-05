@@ -82,6 +82,76 @@ By then, most of what it needs already exists.
 - Replace term '***Five-Color***' with '***WUBRG***'. ***DONE***
 - Optional *Bracket* calculator, for Commander. To Discuss.
 
+## Ordered
+**Suggested by:** a user.<br>
+**Relevant plugin(s):** `/engineering:system-design`, `/design:ux-copy`
+
+A place for Cards that are paid for but not here yet.
+It sits between Most Wanted and the Inventory.
+Today, "Bought" puts Cards straight into the Inventory.
+That is wrong while the order is still in the mail.
+
+- What the user sees:
+  - A new sidebar page, **Ordered**, between Most Wanted and Inventory.
+  - It shows a count of Cards on the way.
+  - It hides when nothing is on the way. *(To Discuss: hide it, or show an empty page?)*
+  - Cards are grouped by order.
+  - An order has a name, such as a seller or a shop. The name is optional.
+  - An order has a date. It defaults to today.
+  - Each order shows its Cards, their versions and what they cost.
+  - Each order shows how many days it has been on the way.
+- Getting Cards in:
+  - In Most Wanted, the **Bought** button becomes **Ordered**.
+  - It opens a small panel: pick an order or start a new one.
+  - The panel offers the shared "choose version" step (*see "Shared Foundation: Card Versions"*).
+  - The Budget Planner's "Mark all as bought" becomes "Mark all as ordered". It makes one order.
+  - A Card can also be added by hand, with the usual card search.
+  - Pasting a list works too, in the inventory text format.
+  - *(To Discuss: keep a second "Already here" button that skips Ordered, for Cards bought in person?)*
+- Getting Cards out:
+  - **Arrived** on a Card moves it to the Inventory, with its version.
+  - **Arrived** on an order moves the whole order. One write, one undo step.
+  - A Card can arrive in part, e.g. 2 of 4.
+  - **Cancel** removes a Card or an order. Its Cards go back to Most Wanted.
+  - An order disappears when its last Card arrives or is cancelled.
+  - *(Later:)* the Card Scanner tray can match scanned Cards with ordered ones.
+- How ordered Cards count:
+  - They are not owned. They are not in the Inventory.
+  - They count as covered in Most Wanted. Its "To buy" subtracts them.
+  - The Budget Planner leaves them out too.
+  - In a list, a covered line shows an "on the way" marker instead of a tick.
+  - The marker's tooltip names the order.
+  - A list with only ordered Cards left shows "Complete when your orders arrive".
+  - They stay out of the copy pool. A built Deck cannot hold a Card that is not here.
+  - They stay out of Inventory Value.
+  - They stay out of the Trade list.
+  - They count once, like a bought copy: one ordered copy serves every Wishlist (*see "Wishlists reserve no copies"*).
+- Prices:
+  - Each ordered Card keeps the price it was ordered at.
+  - The default is the current price. The user can type what they paid.
+  - An order shows its total.
+  - *(Later:)* the Inventory could show paid price against today's price. Not part of this feature.
+- Storage:
+  - One plain text file in the data folder: `ordered.txt`.
+  - Same line format as `inventory.txt`, so versions, `{DE}` and foil work as they do there.
+  - Each order starts with a header line, e.g. `// Order: Cardmarket · 2026-11-05`.
+  - Paid prices go in a token on the line, e.g. `{Paid 1.20}`.
+  - It joins the existing write guard and conflict check, like the inventory.
+  - A schema step creates nothing. A missing file means no orders.
+  - Undo and redo cover every change, like the inventory.
+  - "Edit as text" works, like the inventory.
+- Code:
+  - A pure module, `src/shared/ordered.ts`: parse, serialize, add, arrive, cancel.
+  - `mostWanted` takes the ordered quantities and subtracts them from `buy`.
+  - `withAddedOwned` handles arrival. It already keeps versions and language.
+  - Store actions in `libraryStore.ts`: `addOrdered`, `arrive`, `cancelOrdered`.
+  - Text in a new `src/shared/text/en/ordered.ts`.
+  - Tests: parse round trip, partial arrival, Most Wanted subtraction, undo of a whole order.
+- Open questions:
+  - The name: "Ordered", "On the Way" or "Incoming"?
+  - Do Brews ignore ordered Cards, as they ignore the collection when that setting is on?
+  - Should an old order warn the user? For example, after 30 days.
+
 ## Card Scanner
 **Relevant plugin(s):** `/design:design-system`, `/engineering:system-design`, `/engineering:testing-strategy`
 - Scan cards with the camera to add them to the inventory.

@@ -42,6 +42,7 @@ import { HAND_SIZE } from '../lib/startingHand'
 import { cleanError } from '../lib/format'
 import type { CardList, LibraryActions, ListRef } from '../stores/library'
 import { priceChange, useBaselines } from '../stores/history'
+import { requestCardInfos, useCardInfoVersion } from '../stores/cardinfo'
 import { getPrintingsEntry, requestPrintings, usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { preferredGroup } from '../stores/setGroups'
@@ -93,6 +94,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const toast = useToast()
   const moveListTo = useListMover(actions)
   const printingsVersion = usePrintingsVersion()
+  useCardInfoVersion()
   const isDeck = list.kind === 'deck'
   const isBrew = list.kind === 'brew'
   const noun = ui.terms.noun(isDeck)
@@ -325,6 +327,11 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       onPick={() => chooseCommander(row)}
     />
   )
+
+  // The shown list's card data in one batched lookup (75 Cards a request), ahead of their printings,
+  // which load one search at a time: Statistics, types and filters fill in at once.
+  const namesKey = cards.map((line) => line.name).join('\n')
+  useEffect(() => requestCardInfos(namesKey ? namesKey.split('\n') : [], bundleBasics), [namesKey, bundleBasics])
 
   const needAllVersions = tableRows
     .filter((row) => row.resolution?.pinMissing && row.entry?.data?.partial && !row.entry.refreshing)

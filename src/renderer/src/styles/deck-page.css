@@ -16,6 +16,8 @@
   --accent: var(--deck-accent);
   --accent-text: var(--deck-accent-text);
   --accent-ink: var(--deck-accent-ink);
+  --accent-label: var(--deck-accent-label);
+  --accent-label-fill: var(--deck-accent-label-fill);
   --accent-soft: var(--deck-track);
   --bad: var(--deck-bad);
   --bad-soft: color-mix(in srgb, var(--deck-bad) 12%, transparent);
@@ -64,21 +66,24 @@
 
 /* The one gradient on the page, in two layers. The art blurred, as a bridge behind the art's own fade:
    eased in from the flat banner color, so the art melts into its own colors first and those into
-   the palette's, with no muddy band where unrelated hues meet. The title's side stays flat. */
+   the palette's, with no muddy band where unrelated hues meet. The title's side stays flat. Its edge is
+   the rim of a tall ellipse at the banner's right, not a straight line: broadly rounded toward the title,
+   furthest out at mid-height, where it starts at --bridge-start. */
 .view[data-palette] .hero-backdrop {
   --bridge-start: calc(100% - var(--portrait-width, 46%) - 16%);
-  -webkit-mask-image: linear-gradient(to right, transparent var(--bridge-start), rgb(0 0 0 / 0.1) calc(var(--bridge-start) + 5%), rgb(0 0 0 / 0.38) calc(var(--bridge-start) + 10%), rgb(0 0 0 / 0.68) calc(var(--bridge-start) + 15%), rgb(0 0 0 / 0.9) calc(var(--bridge-start) + 20%), #000 calc(var(--bridge-start) + 26%));
-  mask-image: linear-gradient(to right, transparent var(--bridge-start), rgb(0 0 0 / 0.1) calc(var(--bridge-start) + 5%), rgb(0 0 0 / 0.38) calc(var(--bridge-start) + 10%), rgb(0 0 0 / 0.68) calc(var(--bridge-start) + 15%), rgb(0 0 0 / 0.9) calc(var(--bridge-start) + 20%), #000 calc(var(--bridge-start) + 26%));
+  -webkit-mask-image: radial-gradient(ellipse calc(100% - var(--bridge-start)) 170% at 100% 50%, #000 58%, rgb(0 0 0 / 0.9) 68%, rgb(0 0 0 / 0.68) 76%, rgb(0 0 0 / 0.38) 84%, rgb(0 0 0 / 0.1) 92%, transparent 100%);
+  mask-image: radial-gradient(ellipse calc(100% - var(--bridge-start)) 170% at 100% 50%, #000 58%, rgb(0 0 0 / 0.9) 68%, rgb(0 0 0 / 0.68) 76%, rgb(0 0 0 / 0.38) 84%, rgb(0 0 0 / 0.1) 92%, transparent 100%);
 }
 
 .view[data-palette] .hero-backdrop img {
   filter: blur(30px) saturate(1.15) brightness(0.8);
 }
 
-/* The art's own fade, wider and eased (an S-curve, not a straight ramp), so it has no visible start or end. */
+/* The art's own fade, wider and eased (an S-curve, not a straight ramp), so it has no visible start or end;
+   rounded like the bridge behind it, on the rim of a tall ellipse at the banner's right. */
 .view[data-palette] .hero-portrait img:first-child {
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 8%, rgb(0 0 0 / 0.15) 16%, rgb(0 0 0 / 0.32) 24%, rgb(0 0 0 / 0.5) 32%, rgb(0 0 0 / 0.68) 40%, rgb(0 0 0 / 0.85) 48%, rgb(0 0 0 / 0.96) 56%, #000 64%);
-  mask-image: linear-gradient(to right, transparent 0%, rgb(0 0 0 / 0.04) 8%, rgb(0 0 0 / 0.15) 16%, rgb(0 0 0 / 0.32) 24%, rgb(0 0 0 / 0.5) 32%, rgb(0 0 0 / 0.68) 40%, rgb(0 0 0 / 0.85) 48%, rgb(0 0 0 / 0.96) 56%, #000 64%);
+  -webkit-mask-image: radial-gradient(ellipse 100% 170% at 100% 50%, #000 36%, rgb(0 0 0 / 0.96) 44%, rgb(0 0 0 / 0.85) 52%, rgb(0 0 0 / 0.68) 60%, rgb(0 0 0 / 0.5) 68%, rgb(0 0 0 / 0.32) 76%, rgb(0 0 0 / 0.15) 84%, rgb(0 0 0 / 0.04) 92%, transparent 100%);
+  mask-image: radial-gradient(ellipse 100% 170% at 100% 50%, #000 36%, rgb(0 0 0 / 0.96) 44%, rgb(0 0 0 / 0.85) 52%, rgb(0 0 0 / 0.68) 60%, rgb(0 0 0 / 0.5) 68%, rgb(0 0 0 / 0.32) 76%, rgb(0 0 0 / 0.15) 84%, rgb(0 0 0 / 0.04) 92%, transparent 100%);
 }
 
 /* The deck's texture, faint, where the dark shade toward the title used to be. */

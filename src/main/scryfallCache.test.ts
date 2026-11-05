@@ -139,14 +139,18 @@ describe('the cache file', () => {
     expect(Date.now() - entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
   })
 
-  it('refreshes printings from before version 20, which had no flavor text, keeping card data', async () => {
+  it('refreshes legendary printings from before version 20, which had no flavor text, keeping card data', async () => {
     const { userData, file } = await setup()
     const sol = { name: 'Sol Ring', colors: [], colorIdentity: [], typeLine: 'Artifact', manaValue: 1, rarity: 'uncommon', legalities: {} }
+    const gisa = { ...sol, name: 'Gisa and Geralf', typeLine: 'Legendary Creature — Human Wizard', manaValue: 4 }
     writeFileSync(
       file,
       JSON.stringify({
         version: 19,
-        entries: { 'sol ring': { ...result([]), name: sol.name, card: sol } },
+        entries: {
+          'sol ring': { ...result([]), name: sol.name, card: sol },
+          'gisa and geralf': { ...result([]), name: gisa.name, card: gisa }
+        },
         cards: { 'sol ring': { fetchedAt: Date.now(), card: sol } }
       })
     )
@@ -154,7 +158,9 @@ describe('the cache file', () => {
     await v19.cache.loadScryfallCache()
     const { entries, cards } = v19.cache.scryfallCache
     expect(Object.keys(cards)).toEqual(['sol ring'])
-    expect(Date.now() - entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
+    expect(Date.now() - entries['gisa and geralf'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
+    // Only legendary cards show flavor text: the rest keep their printings.
+    expect(Date.now() - entries['sol ring'].fetchedAt).toBeLessThan(PRINTINGS_MAX_AGE_MS)
   })
 
   it('survives a restart', async () => {

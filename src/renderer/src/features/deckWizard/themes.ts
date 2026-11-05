@@ -4,6 +4,14 @@ import { promiseCache } from '@shared/promiseCache'
 
 /** Theme names by commanders, asked for once while they hold. */
 const cache = promiseCache<string[]>(40)
+const countCache = promiseCache<number>(200)
+
+export function commanderDeckCount(name: string): Promise<number> {
+  return countCache.get(name, async () => {
+    const result = await window.deckWizard.averageDeck([name], NO_FILTERS).catch(() => null)
+    return result?.status === 'ok' ? result.deck.decks : 0
+  })
+}
 
 /** @returns The commanders' themes on EDHREC, most decks first; null when it has no deck for them. */
 async function themesOf(commanders: string[]): Promise<string[] | null> {

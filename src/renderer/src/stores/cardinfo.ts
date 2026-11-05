@@ -5,8 +5,9 @@ import { createSignal } from '../lib/signal'
 import { getPrintingsEntry } from './printings'
 
 /**
- * Card data store for cards without a printings lookup (inventory). Requests in the same tick are
- * batched into one IPC call.
+ * Card data store for cards without a printings lookup yet (inventory, and list rows while their
+ * printings load: one batched request fills a whole list's types and costs). Requests in the same
+ * tick are batched into one IPC call.
  *
  * @packageDocumentation
  */
@@ -65,3 +66,5 @@ async function flush(): Promise<void> {
 
 /** Hook re-rendering on card data changes. @returns Store version. */
 export const useCardInfoVersion = changes.useVersion
+/** @returns The store's version, for memoized readers outside React. */
+export const getCardInfoVersion = changes.version

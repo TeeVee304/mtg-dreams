@@ -41,6 +41,8 @@ export function paletteStyle(palette: DeckPalette): CSSProperties {
     '--deck-accent': both('accent'),
     '--deck-accent-text': both('accentText'),
     '--deck-accent-ink': both('accentInk'),
+    '--deck-accent-label': both('accentLabel'),
+    '--deck-accent-label-fill': both('accentLabelFill'),
     '--deck-track': both('track'),
     '--deck-bad': both('bad'),
     '--deck-warn': both('warn'),

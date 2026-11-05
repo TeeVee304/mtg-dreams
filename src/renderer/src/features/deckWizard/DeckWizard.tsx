@@ -9,6 +9,7 @@ import {
   averageDeckText,
   BRACKETS,
   EDHREC_SITE,
+  MIN_COMMANDER_DECKS,
   NO_FILTERS,
   type AverageDeck,
   type AverageDeckFilters,
@@ -34,6 +35,7 @@ import { HeroPortrait } from '../../components/HeroArt'
 import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Modal'
 import { WizardHat } from './WizardHat'
+import { commanderDeckCount } from './themes'
 import './wizard.css'
 import { openExternal } from '../../lib/desktop'
 
@@ -58,8 +60,6 @@ type DeckState =
 
 /** Themes shown as chips; the rest are in a menu. */
 const THEME_CHIPS = 5
-/** Commanders you own offered before searching. */
-const OWNED_SHOWN = 6
 /** @returns The type section of an EDHREC card type, as the app's lists group cards; `Other` for one they don't name. */
 const groupOf = (type: string) => TYPE_GROUPS.find((group) => group.id === type)?.id ?? 'Other'
 /** The Commander format, whose leaders the wizard offers. */
@@ -76,7 +76,7 @@ const NEW_LIST = { kind: 'brew' as const, name: '' }
 export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWizardProps) {
   const { priceBasis, bundleBasics } = useSettings()
   usePrintingsVersion()
-  useCardInfoVersion()
+  const cardInfoVersion = useCardInfoVersion()
   /** The commander, then its partner if it has one. */
   const [commanders, setCommanders] = useState<string[]>([])
   const commander = commanders[0] ?? null
@@ -125,16 +125,43 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
     for (const card of deck?.cards ?? []) requestPrintings(card.name)
   }, [leadersKey, deck])
 
-  /** Cards you own, whether or not they lead a deck already. */
-  const owned = useMemo(() => [...inventory.values()], [inventory])
+  const [deckCounts, setDeckCounts] = useState<Map<string, number>>(new Map())
+
+  /** Eligible commanders from your inventory (qty > 0 and can lead Commander). */
+  const owned = useMemo(() => [...inventory.values()].filter((item) => item.qty > 0), [inventory])
   useEffect(() => requestCardInfos(owned.map((item) => item.name), bundleBasics), [owned, bundleBasics])
   useEffect(() => requestCardInfos(COMPANIONS), [])
-  const suggestions = owned
-    .filter((item) => {
-      const info = getCardInfo(item.name, bundleBasics)
-      return info ? canLead(COMMANDER, info) : false
-    })
-    .slice(0, OWNED_SHOWN)
+  const eligible = useMemo(
+    () =>
+      owned.filter((item) => {
+        const info = getCardInfo(item.name, bundleBasics)
+        return info ? canLead(COMMANDER, info) : false
+      }),
+    [owned, bundleBasics, cardInfoVersion]
+  )
+
+  useEffect(() => {
+    let current = true
+    for (const item of eligible) {
+      if (deckCounts.has(item.name)) continue
+      commanderDeckCount(item.name).then((count) => {
+        if (!current) return
+        setDeckCounts((prev) => new Map(prev).set(item.name, count))
+      })
+    }
+    return () => {
+      current = false
+    }
+  }, [eligible, deckCounts])
+
+  const suggestions = useMemo(
+    () => eligible.filter((item) => (deckCounts.get(item.name) ?? 0) >= MIN_COMMANDER_DECKS),
+    [eligible, deckCounts]
+  )
+
+  useEffect(() => {
+    for (const item of suggestions) requestPrintings(item.name)
+  }, [suggestions])
 
   /** Leads with `leaders`, over all their decks. */
   const lead = (leaders: string[]) => {

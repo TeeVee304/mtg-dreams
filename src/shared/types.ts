@@ -98,7 +98,7 @@ export interface Printing {
   labels: string[]
   /** Printed name when it differs from the oracle name (e.g. Universes Within / Marvel reprints). */
   flavorName?: string
-  /** The printing's flavor text (front face); absent when it has none, and in older caches. */
+  /** The printing's flavor text, legendary cards only (a deck page's epigraph); absent when it has none, and in older caches. */
   flavorText?: string
   /** False for gold-bordered and memorabilia printings; never selected as cheapest. */
   autoEligible: boolean

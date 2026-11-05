@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { contrast, distance } from './color'
+import { apca, contrast, distance } from './color'
 import { deckPalette, identityKey, PALETTE_GROUPS, PALETTE_KEYS } from './deckPalettes'
 
 /**
@@ -41,6 +41,9 @@ describe('deck palettes', () => {
       expect(contrast(t.accent, t.ground)).toBeGreaterThanOrEqual(3)
       expect(contrast(t.accent, t.panel)).toBeGreaterThanOrEqual(3)
       expect(contrast(t.accentInk, t.accent)).toBeGreaterThanOrEqual(4.5)
+      // Bold labels on their fill: WCAG's 4.5:1 and APCA's floor for bold text.
+      expect(contrast(t.accentLabel, t.accentLabelFill)).toBeGreaterThanOrEqual(4.5)
+      expect(apca(t.accentLabel, t.accentLabelFill)).toBeGreaterThanOrEqual(60)
     })
 
     it('keeps the accent apart from errors and warnings', () => {

@@ -99,6 +99,13 @@ export interface PaletteTokens {
   accentText: string
   /** Text on the accent. */
   accentInk: string
+  /**
+   * Bold labels on the accent (the default token Version): a light shade of its hue where APCA reads
+   * it better than `accentInk`, as on a mid-tone accent in dark mode, where dark ink passes WCAG but looks murky.
+   */
+  accentLabel: string
+  /** The fill under `accentLabel`: the accent, moved away from it in lightness until it reads (4.5:1, APCA Lc 60). */
+  accentLabelFill: string
   /** Progress tracks, focus rings, the selection. */
   track: string
   /** Errors and warnings: the app's own, unless the accent would pass for one of them. */
@@ -203,10 +210,31 @@ function tokensOf(pick: Pick, mode: 'light' | 'dark', paper: string, ink: string
     accent,
     accentText,
     accentInk: light ? WHITE : ground,
+    accentLabel: accentLabelOf(accent, light ? WHITE : ground),
+    accentLabelFill: accentLabelFillOf(accent, accentLabelOf(accent, light ? WHITE : ground)),
     track: rgba(accent, light ? 0.16 : 0.26),
     bad,
     warn: alertOf(alerts.warn, [accent, accentText], surfaces, [bad])
   }
+}
+
+/** @returns A light shade of `accent`'s hue for bold labels on it, or `ink` when APCA reads that better. */
+function accentLabelOf(accent: string, ink: string): string {
+  const [, a, b] = oklab(accent)
+  const light = fromOklab([0.97, a * 0.2, b * 0.2])
+  return apca(light, accent) > apca(ink, accent) ? light : ink
+}
+
+/**
+ * @returns `accent`, moved away from `label` in its own hue (darker under a light label, lighter under a
+ * dark one) until the label reads on it at 4.5:1 and APCA Lc 60.
+ */
+function accentLabelFillOf(accent: string, label: string): string {
+  const step = lightness(label) < 0.5 ? 0.01 : -0.01
+  const [L, a, b] = oklab(accent)
+  let fill = accent
+  for (let l = L; (contrast(label, fill) < 4.5 || apca(label, fill) < 60) && l > 0.15 && l < 0.95; l += step) fill = fromOklab([l, a, b])
+  return fill
 }
 
 /** Least contrast between a sticker and the banner it sits on, so a dark sticker never sinks into it. */

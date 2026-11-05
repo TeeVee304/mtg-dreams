@@ -7,7 +7,7 @@ export const wizard = {
   saveAs: { deck: 'Save as Deck', wishlist: 'Save as Wishlist', brew: 'Save as Brew' },
   intro: 'Pick a Commander: the wizard shows the Deck most of its players on EDHREC build.',
   anyCommander: 'Any Commander…',
-  owned: 'Commanders you own',
+  owned: 'Eligible Commanders',
   commanders: (n: number) => (n > 1 ? 'Commanders' : 'Commander'),
   decksOnEdhrec: (decks: string) => `${decks} Decks on EDHREC`,
   addSecond: {

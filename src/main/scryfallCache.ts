@@ -253,9 +253,11 @@ export function loadScryfallCache(): Promise<void> {
           // for Lightning Greaves): entries found by another name go, and are looked up again when needed.
           const matched = !entry.notFound && nameKey(entry.name) !== key
           if (matched && file.version < 12) continue
-          // Before v11, printings had no artwork ids or Universes Beyond flags, and before v20 no flavor text:
-          // all refresh, in the background.
-          const fetchedAt = file.version < 20 ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
+          // Before v11, printings had no artwork ids or Universes Beyond flags, and before v19 card data had no
+          // rules text: all refresh, in the background. Before v20, no flavor text, which only legendary cards
+          // keep: those refresh.
+          const legendary = /\bLegendary\b/.test(entry.card?.typeLine ?? '')
+          const fetchedAt = outdated || (file.version < 20 && legendary) ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
           // Before v13, a card found by another name was stored again under that name: it becomes an alias.
           const own = nameKey(entry.name)
           if (matched && scryfallCache.entries[own]) scryfallCache.aliases[key] = entry.lang ? { key: own, lang: entry.lang } : { key: own }

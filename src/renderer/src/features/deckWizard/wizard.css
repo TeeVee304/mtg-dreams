@@ -13,7 +13,7 @@
   flex-direction: column;
 }
 
-/* Picking a commander: the commanders you own as art tiles, filling the dialog's fixed height. */
+/* Picking a commander: eligible commanders as art tiles, filling the dialog's fixed height. */
 .wizard-start {
   flex: 1;
   min-height: 0;

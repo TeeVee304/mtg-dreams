@@ -622,11 +622,11 @@
   text-align: left;
 }
 
-/* The default Version: filled in the list's color, its text in the matching ink. */
+/* The default Version: filled in the list's color, its text in the matching ink (a deck's lighter label ink). */
 .token-version.linked,
 .token-version.linked:hover:not(:disabled) {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--accent-label-fill, var(--accent));
+  color: var(--accent-label, var(--accent-ink));
   font-weight: 600;
 }
 

@@ -10,6 +10,7 @@ import type { CopyPool, HeldCopies } from '@shared/copies'
 import type { SetGroup } from '@shared/setGroups'
 import type { CardInfo, CardLine, InventoryItem, PriceBasis } from '@shared/types'
 import type { CardList } from '../stores/library'
+import { getCardInfo, getCardInfoVersion } from '../stores/cardinfo'
 import { getPrintingsEntry, getPrintingsVersion, type PrintingsEntry } from '../stores/printings'
 import { preferredGroup } from '../stores/setGroups'
 import { memoLast } from './memo'
@@ -124,7 +125,8 @@ export function buildRows(
       ...allocations[index],
       inventoryQty,
       unit: resolution?.unitPrice ?? null,
-      info: data?.card,
+      // Until its printings load, the card's data from the batched lookup, so a list's types and costs show at once.
+      info: data?.card ?? (data ? undefined : (getCardInfo(line.name) ?? undefined)),
       rarity: resolution?.printing?.rarity ?? data?.card?.rarity,
       flavorName: resolution?.pinned || resolution?.preferred ? resolution.printing?.flavorName : undefined,
       ...(resolution?.preferred && group && { preferredFrom: group.name }),
@@ -136,7 +138,7 @@ export function buildRows(
 /** Per list: its rows, kept until the inventory, settings, copy claims or prices change. */
 const listRowsCache = new WeakMap<
   CardList,
-  (...args: [Map<string, InventoryItem>, boolean, PriceBasis, boolean, boolean, boolean, CopyPool, SetGroup | undefined, number]) => Row[]
+  (...args: [Map<string, InventoryItem>, boolean, PriceBasis, boolean, boolean, boolean, CopyPool, SetGroup | undefined, number, number]) => Row[]
 >()
 
 /**
@@ -152,7 +154,7 @@ export function listRows(
 ): Row[] {
   let rows = listRowsCache.get(list)
   if (!rows) {
-    rows = memoLast((items, bundleBasics, priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian, claims, prefer, _version) =>
+    rows = memoLast((items, bundleBasics, priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian, claims, prefer, _version, _infoVersion) =>
       buildRows(
         baseCardLines(list.lines),
         items,
@@ -166,13 +168,13 @@ export function listRows(
     listRowsCache.set(list, rows)
   }
   const items = list.kind === 'brew' && settings.plainBrews ? NO_INVENTORY : inventory
-  return rows(items, settings.bundleBasics, settings.priceBasis, !!settings.skipUniversesBeyond, !!settings.skipSecretLair, !!settings.skipPhyrexian, pool, preferredGroup(list), getPrintingsVersion())
+  return rows(items, settings.bundleBasics, settings.priceBasis, !!settings.skipUniversesBeyond, !!settings.skipSecretLair, !!settings.skipPhyrexian, pool, preferredGroup(list), getPrintingsVersion(), getCardInfoVersion())
 }
 
 /** Per list: its maybeboard rows, kept like {@link listRowsCache}. */
 const maybeRowsCache = new WeakMap<
   CardList,
-  (...args: [Map<string, InventoryItem>, PriceBasis, boolean, boolean, boolean, CopyPool, SetGroup | undefined, number]) => Row[]
+  (...args: [Map<string, InventoryItem>, PriceBasis, boolean, boolean, boolean, CopyPool, SetGroup | undefined, number, number]) => Row[]
 >()
 
 /**
@@ -187,7 +189,7 @@ export function maybeRows(
 ): Row[] {
   let rows = maybeRowsCache.get(list)
   if (!rows) {
-    rows = memoLast((items, priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian, claims, prefer, _version) => {
+    rows = memoLast((items, priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian, claims, prefer, _version, _infoVersion) => {
       const maybe = maybeboardIds(list.lines)
       const lines = cardLines(list.lines).filter((line) => maybe.has(line.id))
       return buildRows(lines, items, { bundleBasics: false, priceBasis, skipUniversesBeyond, skipSecretLair, skipPhyrexian }, NO_IDS, (key) =>
@@ -198,7 +200,7 @@ export function maybeRows(
     maybeRowsCache.set(list, rows)
   }
   const items = list.kind === 'brew' && settings.plainBrews ? NO_INVENTORY : inventory
-  return rows(items, settings.priceBasis, !!settings.skipUniversesBeyond, !!settings.skipSecretLair, !!settings.skipPhyrexian, pool, preferredGroup(list), getPrintingsVersion())
+  return rows(items, settings.priceBasis, !!settings.skipUniversesBeyond, !!settings.skipSecretLair, !!settings.skipPhyrexian, pool, preferredGroup(list), getPrintingsVersion(), getCardInfoVersion())
 }
 
 /** List totals. Values are EUR over priced rows. */

@@ -15,6 +15,8 @@ import { ui } from '../text'
 export const EDHREC_JSON = 'https://json.edhrec.com/pages/average-decks'
 /** EDHREC's site, for "Open on EDHREC". */
 export const EDHREC_SITE = 'https://edhrec.com/average-decks'
+/** Fewest EDHREC Decks a Commander needs to be listed among the Eligible Commanders. */
+export const MIN_COMMANDER_DECKS = 500
 
 /** Power brackets, 1 to 5, by EDHREC's path name and the bracket's own name. */
 export const BRACKETS = [

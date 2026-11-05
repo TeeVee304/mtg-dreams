@@ -181,8 +181,12 @@ function flavorNameOf(card: any): string | undefined {
   return card.flavor_name ?? card.card_faces?.[0]?.flavor_name ?? undefined
 }
 
-/** @returns The flavor text of a card, or of its first face that has one (a back face's, on transforming cards). */
+/**
+ * @returns The flavor text of a legendary card, or of its first face that has one (a back face's, on
+ * transforming cards): only commanders, Backgrounds and Companions show it, as a deck page's epigraph.
+ */
 function flavorTextOf(card: any): string | undefined {
+  if (!/\bLegendary\b/.test(card.type_line ?? '')) return undefined
   return card.flavor_text ?? card.card_faces?.find((face: any) => face.flavor_text)?.flavor_text ?? undefined
 }
 
