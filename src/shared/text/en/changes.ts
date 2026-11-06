@@ -22,6 +22,7 @@ export const changes = {
   enterName: 'Please enter a name.',
   saveFailed: (error: string) => `Could not save: ${error}`,
   orderFailed: (error: string) => `Could not save the Wishlist order: ${error}`,
+  orderedFailed: (error: string) => `Could not save the Ordered stamps: ${error}`,
   moved: (card: string, board: string) => `Moved ${card} to the ${board}`,
   changed: (what: string) => `Changed ${what}`,
   removed: (card: string) => `Removed ${card}`,

@@ -1,6 +1,6 @@
 import { useMemo, useState, type CSSProperties, type DragEvent } from 'react'
 import { listColor } from '@shared/listColor'
-import { sumOf } from '@shared/totals'
+import type { OrderStamps } from '@shared/ordered'
 import type { TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { ui } from '@shared/text'
@@ -13,7 +13,7 @@ import { usePrintingsVersion } from '../stores/printings'
 import { useSettings } from '../stores/settings'
 import { listFigures } from '../lib/listFigures'
 import { MANA_SYMBOLS, THEME_ICONS } from '../lib/artwork'
-import { wantedOverview } from '../lib/wanted'
+import { unordered, wantedOverview } from '../lib/wanted'
 import { useCopyPool } from '../hooks/useCopyPool'
 import { useNarrow } from '../hooks/useNarrow'
 import { useStoredToggle } from '../hooks/useStoredToggle'
@@ -38,6 +38,8 @@ export type View =
 interface SidebarProps {
   lists: CardList[]
   inventory: Map<string, InventoryItem>
+  /** Most Wanted cards stamped as ordered; they leave its count. */
+  ordered: OrderStamps
   view: View | null
   onSelect: (view: View) => void
   onNew: (kind: ListKind) => void
@@ -66,7 +68,7 @@ interface SidebarProps {
  */
 export function Sidebar(props: SidebarProps) {
   const { lists, inventory, view, onSelect, onNew, onMoveWishlist, onMoveKind, onSettings, pricedAt, onRefreshPrices } = props
-  const { trades, onWizard, wizardOpen } = props
+  const { trades, onWizard, wizardOpen, ordered } = props
   const [refreshing, setRefreshing] = useState(false)
   const online = useOnline()
   /**
@@ -86,6 +88,7 @@ export function Sidebar(props: SidebarProps) {
   const [brewFilter, setBrewFilter] = useState('')
   const pool = useCopyPool(lists)
   const wanted = wantedOverview(lists, inventory, settings, pool)
+  const toBuy = unordered(wanted, ordered)
   const worth = inventoryValue(inventory, settings.bundleBasics)
   /** Each list's figures; recomputed when the data or prices change, not when navigating. */
   const figures = useMemo(
@@ -300,8 +303,8 @@ export function Sidebar(props: SidebarProps) {
           <span className="nav-text">
             <span className="nav-name">{ui.sidebar.mostWanted}</span>
             <span className="nav-meta">
-              {ui.count.cards(sumOf(wanted.cards, (card) => card.toBuy))}
-              {wanted.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(wanted.total)}`}
+              {ui.count.cards(toBuy.copies)}
+              {toBuy.cards.length > 0 && wanted.loading === 0 && ` · ${formatEur(toBuy.total)}`}
             </span>
           </span>
         </button>

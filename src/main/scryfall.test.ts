@@ -286,6 +286,15 @@ describe('getCardInfos', () => {
     expect(hits).toEqual(['/cards/search', '/cards/collection'])
   })
 
+  it('keeps the release date of a card not out yet only', async () => {
+    const { scryfall } = await setup()
+    expect(scryfall.toCardInfo({ name: 'Kobayashi Maru Scenario', released_at: '2999-11-13' }).releasesOn).toBe('2999-11-13')
+    expect(scryfall.toCardInfo({ name: 'Sol Ring', released_at: '1993-08-05' }).releasesOn).toBeUndefined()
+    // A reprint in a set not out yet is legal somewhere already: it is not new.
+    const reprint = { name: 'Sol Ring', released_at: '2999-11-13', legalities: { commander: 'legal', modern: 'not_legal' } }
+    expect(scryfall.toCardInfo(reprint).releasesOn).toBeUndefined()
+  })
+
   it("reads a reversible card's name, type and mana value from its front face", async () => {
     const { scryfall } = await setup()
     const face = { name: 'Krark, the Thumbless', mana_cost: '{1}{R}', cmc: 2, type_line: 'Legendary Creature — Goblin Wizard', colors: ['R'], oracle_text: '' }

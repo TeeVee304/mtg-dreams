@@ -141,7 +141,7 @@ describe('the cache file', () => {
 
   it('refreshes legendary printings from before version 20, which had no flavor text, keeping card data', async () => {
     const { userData, file } = await setup()
-    const sol = { name: 'Sol Ring', colors: [], colorIdentity: [], typeLine: 'Artifact', manaValue: 1, rarity: 'uncommon', legalities: {} }
+    const sol = { name: 'Sol Ring', colors: [], colorIdentity: [], typeLine: 'Artifact', manaValue: 1, rarity: 'uncommon', legalities: { commander: 'legal' } }
     const gisa = { ...sol, name: 'Gisa and Geralf', typeLine: 'Legendary Creature — Human Wizard', manaValue: 4 }
     writeFileSync(
       file,
@@ -163,12 +163,35 @@ describe('the cache file', () => {
     expect(Date.now() - entries['sol ring'].fetchedAt).toBeLessThan(PRINTINGS_MAX_AGE_MS)
   })
 
+  it('refreshes cards legal nowhere from before version 21, which may be previews with no release date', async () => {
+    const { userData, file } = await setup()
+    const sol = { name: 'Sol Ring', colors: [], colorIdentity: [], typeLine: 'Artifact', manaValue: 1, rarity: 'uncommon', legalities: { commander: 'legal' } }
+    const maru = { ...sol, name: 'Kobayashi Maru Scenario', typeLine: 'Enchantment', legalities: { commander: 'not_legal' } }
+    writeFileSync(
+      file,
+      JSON.stringify({
+        version: 20,
+        entries: {
+          'sol ring': { ...result([]), name: sol.name, card: sol },
+          'kobayashi maru scenario': { ...result([]), name: maru.name, card: maru }
+        },
+        cards: { 'sol ring': { fetchedAt: Date.now(), card: sol }, 'kobayashi maru scenario': { fetchedAt: Date.now(), card: maru } }
+      })
+    )
+    const v20 = await setup(userData)
+    await v20.cache.loadScryfallCache()
+    const { entries, cards } = v20.cache.scryfallCache
+    expect(Object.keys(cards)).toEqual(['sol ring'])
+    expect(Date.now() - entries['kobayashi maru scenario'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
+    expect(Date.now() - entries['sol ring'].fetchedAt).toBeLessThan(PRINTINGS_MAX_AGE_MS)
+  })
+
   it('survives a restart', async () => {
     const first = await setup()
     first.cache.scryfallCache.entries['sol ring'] = result([printing('aaa'), printing('bbb')])
     first.cache.scryfallCacheChanged()
     first.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(20)
+    expect(JSON.parse(readFileSync(first.file, 'utf8')).version).toBe(21)
 
     const restarted = await setup(first.userData)
     await restarted.cache.loadScryfallCache()
@@ -184,7 +207,7 @@ describe('the cache file', () => {
     expect(v5.cache.scryfallCache.entries['sol ring'].printings).toEqual(entry.printings)
     expect(Date.now() - v5.cache.scryfallCache.entries['sol ring'].fetchedAt).toBeGreaterThan(PRINTINGS_MAX_AGE_MS)
     v5.cache.flushScryfallCache()
-    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(20)
+    expect(JSON.parse(readFileSync(file, 'utf8')).version).toBe(21)
 
     const v6Printing = { ...v5.cache.packPrinting(printing('aaa')), eurFoil: null }
     writeFileSync(file, JSON.stringify({ version: 6, entries: { 'sol ring': { ...entry, printings: [v6Printing] } }, cards: {} }))

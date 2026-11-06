@@ -123,6 +123,9 @@ export const card = {
     bannerHint: 'Without a Commander, the Deck page is headed by the nonland Card of highest mana value.',
     allFormats: 'All Formats',
     legalCount: (legal: number, total: number) => ` · legal in ${legal} of ${total}`,
+    /** A previewed Card: Scryfall sets its legality on release. */
+    outOn: (date: string) => ` · out on ${date}`,
+    notOutYet: 'Not out yet',
     legality: 'Format legality',
     statuses: { legal: 'Legal', not_legal: 'Not legal', banned: 'Banned', restricted: 'Restricted' } as Record<string, string>,
     changeVersion: 'Change Version',

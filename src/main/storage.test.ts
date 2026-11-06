@@ -45,6 +45,7 @@ describe('lists on disk', () => {
       inventory: '',
       trades: [],
       wishlistOrder: [],
+      ordered: {},
       unreadable: [],
       readOnly: false
     })
@@ -63,6 +64,20 @@ describe('lists on disk', () => {
 
     await storage.writeWishlistOrder(['Someday', 'Goblins', 'Angels'])
     expect((await storage.loadData()).wishlistOrder).toEqual(['Someday', 'Goblins', 'Angels'])
+  })
+
+  it('keeps Ordered stamps in lists.json, beside the wishlist order', async () => {
+    const { data, storage } = await setup()
+    await storage.createList('wishlist', 'Angels', '1 Smothering Tithe\n')
+    await storage.loadData()
+    await storage.writeOrdered({ 'smothering tithe': { qty: 1, date: '2026-11-06' } })
+    const index = JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8'))
+    expect(index.ordered).toEqual({ 'smothering tithe': { qty: 1, date: '2026-11-06' } })
+    expect(index.wishlistOrder).toEqual(['Angels'])
+    expect((await storage.loadData()).ordered).toEqual({ 'smothering tithe': { qty: 1, date: '2026-11-06' } })
+
+    await storage.writeOrdered({})
+    expect(JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).ordered).toBeUndefined()
   })
 
   it('keeps personal settings in lists.json, and gives them back as headers', async () => {
@@ -317,6 +332,7 @@ describe('schema versions', () => {
     await expect(storage.deleteList('deck', 'Burn')).rejects.toThrow('newer MTG Dreams')
     await expect(storage.writeInventory('4 Island\n')).rejects.toThrow('newer MTG Dreams')
     await expect(storage.writeWishlistOrder([])).rejects.toThrow('newer MTG Dreams')
+    await expect(storage.writeOrdered({})).rejects.toThrow('newer MTG Dreams')
     expect(readFileSync(join(data, 'lists.json'), 'utf8')).toBe(index)
     expect(readFileSync(join(data, 'decks', 'Burn.txt'), 'utf8')).toBe('// Color: Red\n4 Lightning Bolt\n')
     expect(readdirSync(join(data, 'decks'))).toEqual(['Burn.txt'])

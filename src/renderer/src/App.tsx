@@ -117,6 +117,7 @@ export default function App() {
       <Sidebar
         lists={state.lists}
         inventory={state.inventory}
+        ordered={state.ordered}
         view={view}
         onSelect={setView}
         onNew={newList}
@@ -151,6 +152,7 @@ export default function App() {
           <WantedView
             lists={planned}
             inventory={state.inventory}
+            ordered={state.ordered}
             trades={state.trades}
             actions={actions}
             onOpenList={openList}

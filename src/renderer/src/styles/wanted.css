@@ -1,11 +1,17 @@
-/* Most Wanted page: tabs, badges, budget planner. */
+/* Most Wanted page: tabs, badges, budget planner, Ordered stamps. */
+
+/* Stamp ink: the red of a rubber stamp, readable in both modes. */
+.wanted-view {
+  --stamp: var(--bad);
+  --stamp-soft: var(--bad-soft);
+}
 
 .wanted-tabs {
   align-self: flex-start;
 }
 
 .wanted-table .col-actions {
-  width: 150px;
+  width: 250px;
 }
 
 .chip.completes-chip {
@@ -27,7 +33,8 @@
   vertical-align: -2px;
 }
 
-.bought-btn {
+.bought-btn,
+.stamp-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -267,4 +274,178 @@
   align-items: center;
   gap: 6px;
   align-self: center;
+}
+
+/* Ordered stamps --------------------------------------------------------------------------- */
+
+.stamp-btn {
+  margin-right: 6px;
+}
+
+.stamp-btn[aria-pressed='true'] {
+  border-color: var(--stamp);
+  background: var(--stamp-soft);
+  color: var(--stamp);
+  font-weight: 600;
+}
+
+.bought-btn[aria-pressed='true'] {
+  border-color: var(--good);
+  background: var(--good-soft);
+  color: var(--good);
+  font-weight: 600;
+}
+
+/* A pressed stamp button stays in view, like the stamp it stands for. */
+.cards-table td.col-actions > :is(.stamp-btn, .bought-btn)[aria-pressed='true'] {
+  opacity: 1;
+}
+
+/* A stamped row fades under its stamp; its buttons stay clear. */
+.wanted-table :is(tr.is-ordered, tr.is-acquired) > td:not(.col-actions):not(.stamp-cell),
+.wanted-table :is(tr.is-ordered, tr.is-acquired) .stamp-cell > .chips {
+  opacity: 0.42;
+}
+
+.stamp-cell {
+  position: relative;
+}
+
+/* Ordered: red, tilted left. Acquired: green, tilted right. */
+.order-stamp {
+  --tilt: -7deg;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 14px 3px;
+  border: 3px double var(--stamp);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--panel) 60%, transparent);
+  color: var(--stamp);
+  line-height: 1;
+  white-space: nowrap;
+  transform: translate(-50%, -50%) rotate(var(--tilt));
+  cursor: help;
+}
+
+.order-stamp.acquired {
+  --tilt: 7deg;
+  border-color: var(--good);
+  color: var(--good);
+  cursor: default;
+}
+
+/* An Ordered stamp under an Acquired one fades back, still in view. */
+.order-stamp.dim {
+  opacity: 0.3;
+  transition: opacity 300ms ease-out;
+}
+
+.order-stamp-word {
+  font-family: var(--font-display);
+  font-size: var(--fs-stat);
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  /* Letter spacing trails the last letter; this centres the word. */
+  padding-left: 0.2em;
+  text-transform: uppercase;
+}
+
+.order-stamp-line {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+/* A fresh stamp drops in large and tilted, lands, and leaves an ink ring. */
+.order-stamp.fresh {
+  animation: stamp-slam 560ms cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+
+.order-stamp.fresh::after {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border: 2px solid currentColor;
+  border-radius: 10px;
+  opacity: 0;
+  animation: stamp-puff 650ms 240ms ease-out;
+  pointer-events: none;
+}
+
+/* Angles follow the stamp's --tilt, so both stamps swing in from their own side. */
+@keyframes stamp-slam {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(calc(var(--tilt) * 2.3)) scale(2.3);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(calc(var(--tilt) * 0.86)) scale(0.9);
+  }
+  70% {
+    transform: translate(-50%, -50%) rotate(calc(var(--tilt) * 1.07)) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--tilt)) scale(1);
+  }
+}
+
+@keyframes stamp-puff {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+/* Undone, a stamp lifts off: its landing, backwards. LIFT_MS in WantedView matches. */
+.order-stamp.lift {
+  animation: stamp-slam 560ms cubic-bezier(0.2, 0.9, 0.3, 1.25) reverse both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .order-stamp.lift,
+  .order-stamp.fresh,
+  .order-stamp.fresh::before,
+  .order-stamp.fresh::after {
+    animation: none;
+  }
+}
+
+/* The Ordered group's heading row, after the cards still to buy. */
+.wanted-table .ordered-divider td {
+  padding-top: 18px;
+  color: var(--stamp);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.chip.partly-ordered {
+  border: 1px dashed var(--stamp);
+  background: transparent;
+  color: var(--stamp);
+  cursor: help;
+}
+
+.ordered-divider svg,
+.chip.partly-ordered svg,
+.on-the-way svg {
+  width: 12px;
+  height: 12px;
+  vertical-align: -2px;
+}
+
+.on-the-way {
+  color: var(--stamp);
 }

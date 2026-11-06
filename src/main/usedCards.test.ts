@@ -14,6 +14,7 @@ describe('Cards the data folder uses', () => {
       inventory: '2 Sol Ring\n',
       trades: [{ name: 'Dani', text: trade }, { name: 'Broken', text: '{ not json' }],
       wishlistOrder: [],
+      ordered: {},
       unreadable: [],
       readOnly: false
     }

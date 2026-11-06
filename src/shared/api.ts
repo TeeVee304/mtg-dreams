@@ -1,4 +1,5 @@
 import type { SortKey } from './cards'
+import type { OrderStamps } from './ordered'
 import type { DeckTokenData, TokenInfo } from './tokens'
 import type { SetGroup } from './setGroups'
 import type { ThemeColor } from './themes'
@@ -96,6 +97,8 @@ export interface LoadedData {
   trades: ListFile[]
   /** Wishlist names, top first; wishlists not in it come after, by name. */
   wishlistOrder: string[]
+  /** Most Wanted cards stamped as ordered, from `lists.json`. */
+  ordered: OrderStamps
   /** Relative paths of unreadable files that were skipped, e.g. "decks/Burn.txt". */
   unreadable: string[]
   /** The data folder was saved by a newer MTG Dreams: every save is refused. */
@@ -152,6 +155,8 @@ export interface TrackerApi {
   deleteList(kind: ListKind, name: string): Promise<void>
   /** Saves the wishlist order, top first. */
   writeWishlistOrder(names: string[]): Promise<void>
+  /** Saves the Most Wanted cards stamped as ordered. */
+  writeOrdered(stamps: OrderStamps): Promise<void>
   /** @throws `CONFLICT_ERROR` if the file changed externally and `force` is not set. */
   writeInventory(text: string, force?: boolean): Promise<void>
   /** Saves a friend's trade list, replacing any of the same name. */

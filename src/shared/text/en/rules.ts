@@ -20,6 +20,9 @@ export const rules = {
   bannedIn: (format: string) => `Banned in ${format}`,
   notLegal: 'Not legal',
   notLegalIn: (format: string) => `Not legal in ${format}`,
+  /** A previewed Card: Scryfall sets its legality on release. */
+  unreleased: 'Not out yet',
+  unreleasedOn: (date: string) => `Release date ${date.split('-').reverse().join('-')}. Scryfall sets its legality once it is out.`,
   /** A Rulebreaker commander: allowed to lead, with a warning. */
   playtest: (format: string) => `Not legal in ${format}: Rulebreakers are playtest Cards`,
   restricted: 'Restricted',

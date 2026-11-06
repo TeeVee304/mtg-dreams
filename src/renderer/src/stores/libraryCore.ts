@@ -3,6 +3,7 @@ import { nameKey, parseInventory, parseList, serializeInventory, serializeList }
 import { addCopies, itemFromCopies, withTotal, type Version } from '@shared/inventory'
 import { sameDeckName, upgradeOf, upgradeVariant, withUpgradeOf } from '@shared/listUpgrade'
 import { baseCardLines, sameVersion, variantFor, type ListVersion } from '@shared/listVersion'
+import { NO_STAMPS, type OrderStamps } from '@shared/ordered'
 import { addToBoard, type BoardEntry } from '@shared/sideboard'
 import { parseTradeText, tradeName, type TradeSnapshot } from '@shared/trade'
 import type { CardLine, InventoryItem, ListKind, ListLine, OwnedCopy } from '@shared/types'
@@ -47,10 +48,12 @@ export interface LibraryState {
   trades: TradeSnapshot[]
   /** The data folder was saved by a newer MTG Dreams: nothing can be changed. */
   readOnly: boolean
+  /** Most Wanted cards stamped as ordered. */
+  ordered: OrderStamps
 }
 
 /** State before the first load. */
-export const LOADING: LibraryState = { status: 'loading', dataDir: '', lists: [], inventory: new Map(), trades: [], readOnly: false }
+export const LOADING: LibraryState = { status: 'loading', dataDir: '', lists: [], inventory: new Map(), trades: [], readOnly: false, ordered: NO_STAMPS }
 
 /** Card line fields for additions. */
 export type NewCard = Omit<CardLine, 'id' | 'kind'>
@@ -188,7 +191,12 @@ export function mergeLoaded(previous: LibraryState, data: LoadedData, force = fa
     }
     tradeSources.set(trades, tradeFiles)
   }
-  return changed ? { status: 'ready', dataDir: data.dataDir, lists, inventory, trades, readOnly: data.readOnly } : null
+  let ordered = previous.ordered
+  if (JSON.stringify(data.ordered) !== JSON.stringify(previous.ordered)) {
+    ordered = data.ordered
+    changed = true
+  }
+  return changed ? { status: 'ready', dataDir: data.dataDir, lists, inventory, trades, readOnly: data.readOnly, ordered } : null
 }
 
 /** @returns The message for files that could not be read, naming the first. */

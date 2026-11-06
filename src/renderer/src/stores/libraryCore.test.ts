@@ -40,6 +40,7 @@ const data = (patch: Partial<LoadedData> = {}): LoadedData => ({
   // Saved as the app saves them: JSON, with the date they were made.
   trades: [{ name: 'Dani', text: serializeSnapshot(parseTradeText('4 Lightning Bolt', 'Dani', new Date(0))) }],
   wishlistOrder: ['Goblins', 'Burn'],
+  ordered: {},
   unreadable: [],
   readOnly: false,
   ...patch

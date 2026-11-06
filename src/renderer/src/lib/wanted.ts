@@ -1,6 +1,8 @@
 import type { AppSettings } from '@shared/api'
 import { bundledBasic } from '@shared/basics'
 import type { CopyPool } from '@shared/copies'
+import { withoutOrdered, type OrderStamps } from '@shared/ordered'
+import { sumOf } from '@shared/totals'
 import type { InventoryItem, PriceBasis, Printing } from '@shared/types'
 import { costOf, mostWanted, type MostWanted, type UnitPrice, type WantedCard } from '@shared/wanted'
 import type { CardList } from '../stores/library'
@@ -53,4 +55,30 @@ export function wantedOverview(
   pool: CopyPool
 ): WantedOverview {
   return sharedPricing(sharedWanted(plannedLists(lists), inventory, pool), bundleBasics, priceBasis, getPrintingsVersion())
+}
+
+/** What is left to buy once ordered copies arrive: copies and their cost. */
+export interface Unordered {
+  /** Nonbasic cards less their ordered copies ({@link withoutOrdered}). */
+  cards: WantedCard[]
+  /** Copies still to buy. */
+  copies: number
+  /** Cost of the priced ones. */
+  total: number
+  /** Copies ordered (nonbasic cards). */
+  ordered: number
+}
+
+/** @returns Most Wanted's nonbasic cards without their ordered copies, with copy and cost totals. */
+export function unordered(overview: WantedOverview, stamps: OrderStamps): Unordered {
+  const cards = withoutOrdered(overview, stamps).cards
+  let copies = 0
+  let total = 0
+  for (const card of cards) {
+    copies += card.toBuy
+    const cost = costOf(card, overview.unitOf(card))
+    if (typeof cost === 'number') total += cost
+  }
+  const ordered = sumOf(overview.cards, (card) => card.toBuy) - copies
+  return { cards, copies, total, ordered }
 }

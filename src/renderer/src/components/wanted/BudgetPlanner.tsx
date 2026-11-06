@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { countLines } from '@shared/decklist'
 import { sumOf } from '@shared/totals'
+import { withoutOrdered, withStamp, type OrderStamps } from '@shared/ordered'
 import { planPurchases, sortWanted } from '@shared/wanted'
 import { ui } from '@shared/text'
 import { useStoredToggle } from '../../hooks/useStoredToggle'
@@ -36,6 +37,10 @@ function stepped(value: string, before: string, typed: boolean): string {
 /** Props of {@link BudgetPlanner}. */
 interface BudgetPlannerProps {
   overview: WantedOverview
+  /** Cards stamped as ordered: the plan buys only what they leave. */
+  ordered: OrderStamps
+  /** Today, `YYYY-MM-DD`. */
+  today: string
   actions: LibraryActions
   onCopy: (text: string, what: string) => void
 }
@@ -44,14 +49,15 @@ interface BudgetPlannerProps {
  * Collapsible budget planner, closed by default: picks the cards with the most benefit per euro
  * within a budget ({@link planPurchases}).
  */
-export function BudgetPlanner({ overview, actions, onCopy }: BudgetPlannerProps) {
+export function BudgetPlanner({ overview, ordered: stamps, today, actions, onCopy }: BudgetPlannerProps) {
   const toast = useToast()
   const [open, toggle] = useStoredToggle('mtg-dreams.plannerOpen', false)
   const [budgetText, setBudgetText] = useStoredValue<string>('mtg-dreams.budget', '50', isBudget)
   const [draft, setDraft] = useState(budgetText)
   const budget = Number(budgetText)
-  const ordered = sortWanted(overview.cards, 'value', overview.unitOf, () => null)
-  const plan = open ? planPurchases(ordered, overview.unitOf, budget, overview) : null
+  const left = withoutOrdered(overview, stamps)
+  const ordered = sortWanted(left.cards, 'value', overview.unitOf, () => null)
+  const plan = open ? planPurchases(ordered, overview.unitOf, budget, left) : null
   const needs = plan ? sumOf(plan.items, (item) => item.lists.length) : 0
   const copies = plan ? sumOf(plan.items, (item) => item.copies) : 0
 
@@ -109,6 +115,20 @@ export function BudgetPlanner({ overview, actions, onCopy }: BudgetPlannerProps)
               }}
             >
               <Icon name="check" /> {ui.wanted.planner.markAll}
+            </button>
+            <button
+              type="button"
+              disabled={plan.items.length === 0}
+              onClick={() => {
+                const stamped = plan.items.reduce(
+                  (all, item) => withStamp(all, item.card.key, (all[item.card.key]?.qty ?? 0) + item.copies, today),
+                  stamps
+                )
+                actions.setOrdered(stamped)
+                toast(ui.wanted.stampedAll(copies))
+              }}
+            >
+              <Icon name="stamp" /> {ui.wanted.planner.stampAll}
             </button>
           </div>
           {plan.items.length > 0 ? (

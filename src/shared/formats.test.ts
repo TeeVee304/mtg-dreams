@@ -254,6 +254,17 @@ describe('legalityIssue', () => {
     expect(legalityIssue(modern, card({}), 1)?.message).toBe('Not legal')
   })
 
+  it('warns, instead, about a card not out yet', () => {
+    expect(legalityIssue(commander, card({ commander: 'not_legal' }, { releasesOn: '2999-11-13' }), 1)).toEqual({
+      code: 'unreleased',
+      severity: 'warning',
+      message: 'Not out yet',
+      detail: 'Release date 13-11-2999. Scryfall sets its legality once it is out.'
+    })
+    expect(legalityIssue(commander, card({ commander: 'not_legal' }, { releasesOn: '2000-01-01' }), 1)?.code).toBe('notLegal')
+    expect(legalityIssue(commander, card({ commander: 'banned' }, { releasesOn: '2999-11-13' }), 1)?.code).toBe('banned')
+  })
+
   it('handles restricted cards', () => {
     expect(legalityIssue(vintage, card({ vintage: 'restricted' }), 1)?.severity).toBe('warning')
     expect(legalityIssue(vintage, card({ vintage: 'restricted' }), 2)?.severity).toBe('error')

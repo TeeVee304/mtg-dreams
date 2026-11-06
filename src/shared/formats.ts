@@ -1,4 +1,4 @@
-import { frontTypeWords, isBasicLand } from './cards'
+import { frontTypeWords, isBasicLand, upcomingRelease } from './cards'
 import { cardLines, listHeader, nameKey, newLineId } from './decklist'
 import { ui } from './text'
 import type { CardInfo, ListLine, PartnerAbility, Printing } from './types'
@@ -325,6 +325,7 @@ export type IssueCode =
   | 'cantLead'
   | 'banned'
   | 'notLegal'
+  | 'unreleased'
   | 'restricted'
   | 'maxCopies'
   | 'outsideColors'
@@ -362,7 +363,12 @@ export function legalityIssue(format: DeckFormat, card: CardInfo, copies: number
   if (status === 'banned') return issue('banned', rules.banned, rules.bannedIn(format.label))
   // Scryfall's Pauper Commander legality covers the 99; what leads is checked by rarity instead.
   const byRarity = asCommander && format.commander?.leads === 'uncommonCreature'
-  if (status === 'not_legal' && !byRarity) return issue('notLegal', rules.notLegal, rules.notLegalIn(format.label))
+  if (status === 'not_legal' && !byRarity) {
+    // Scryfall has a card not legal anywhere until its set is out.
+    const release = upcomingRelease(card)
+    if (release) return issue('unreleased', rules.unreleased, rules.unreleasedOn(release), 'warning')
+    return issue('notLegal', rules.notLegal, rules.notLegalIn(format.label))
+  }
   if (status === 'restricted') {
     return copies > 1
       ? issue('restricted', rules.restricted, rules.restrictedOver(format.label))

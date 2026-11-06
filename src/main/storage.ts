@@ -4,6 +4,7 @@ import { basename, dirname, join } from 'node:path'
 import { CONFLICT_ERROR, type AppSettings, type ListFile, type LoadedData, type Theme } from '@shared/api'
 import { fileNameProblem } from '@shared/filenames'
 import { joinMeta, sameMeta, splitMeta, validMeta, type ListMeta } from '@shared/listMeta'
+import { validStamps, type OrderStamps } from '@shared/ordered'
 import { validSettings } from '@shared/settings'
 import { TRADE_EXTENSION } from '@shared/trade'
 import { ui } from '@shared/text'
@@ -321,6 +322,8 @@ interface ListsIndex {
   wishlistOrder: string[] | null
   /** Personal settings by {@link metaKey}; lists without any have no entry. */
   lists: Record<string, ListMeta>
+  /** Most Wanted cards stamped as ordered. */
+  ordered: OrderStamps
 }
 
 /** `lists.json` path. */
@@ -351,7 +354,12 @@ async function readIndex(): Promise<ListsIndex> {
   const names = (raw: unknown) => (Array.isArray(raw) ? raw.filter((name): name is string => typeof name === 'string') : null)
   const stored = parse(await readIfExists(indexPath()))
   if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
-    const { schemaVersion, wishlistOrder, lists: rawLists } = stored as { schemaVersion?: unknown; wishlistOrder?: unknown; lists?: unknown }
+    const { schemaVersion, wishlistOrder, lists: rawLists, ordered } = stored as {
+      schemaVersion?: unknown
+      wishlistOrder?: unknown
+      lists?: unknown
+      ordered?: unknown
+    }
     const lists: Record<string, ListMeta> = {}
     if (rawLists && typeof rawLists === 'object') {
       for (const [key, raw] of Object.entries(rawLists)) {
@@ -362,10 +370,11 @@ async function readIndex(): Promise<ListsIndex> {
     return {
       schemaVersion: schemaVersion === undefined ? null : readVersion(schemaVersion),
       wishlistOrder: names(wishlistOrder) ?? names(parse(await readIfExists(legacyOrderPath()))),
-      lists
+      lists,
+      ordered: validStamps(ordered)
     }
   }
-  return { schemaVersion: null, wishlistOrder: names(parse(await readIfExists(legacyOrderPath()))), lists: {} }
+  return { schemaVersion: null, wishlistOrder: names(parse(await readIfExists(legacyOrderPath()))), lists: {}, ordered: {} }
 }
 
 /** @returns The data directory's `lists.json`, read once. */
@@ -381,8 +390,10 @@ async function listsIndex(): Promise<ListsIndex> {
 async function saveIndex(index: ListsIndex): Promise<void> {
   const lists = Object.fromEntries(Object.entries(index.lists).sort(([a], [b]) => a.localeCompare(b)))
   const order = index.wishlistOrder ? { wishlistOrder: index.wishlistOrder } : {}
+  const keys = Object.keys(index.ordered).sort()
+  const ordered = keys.length > 0 ? { ordered: Object.fromEntries(keys.map((key) => [key, index.ordered[key]])) } : {}
   const schemaVersion = index.schemaVersion ?? DATA_VERSION
-  await writeText(indexPath(), `${JSON.stringify({ schemaVersion, ...order, lists }, null, 2)}\n`)
+  await writeText(indexPath(), `${JSON.stringify({ schemaVersion, ...order, lists, ...ordered }, null, 2)}\n`)
   if (index.wishlistOrder) await rm(legacyOrderPath(), { force: true })
 }
 
@@ -460,6 +471,13 @@ export async function writeWishlistOrder(names: string[]): Promise<void> {
   await saveIndex(index)
 }
 
+/** Saves the Most Wanted cards stamped as ordered. */
+export async function writeOrdered(stamps: OrderStamps): Promise<void> {
+  const index = await listsIndex()
+  index.ordered = validStamps(stamps)
+  await saveIndex(index)
+}
+
 /**
  * Reads all lists, trades and the inventory, creating list directories if needed, after upgrading an
  * older data folder. Each list comes with its personal settings from `lists.json` as headers; personal
@@ -524,6 +542,7 @@ export async function loadData(): Promise<LoadedData> {
     inventory,
     trades,
     wishlistOrder: index.wishlistOrder,
+    ordered: index.ordered,
     unreadable,
     readOnly
   }

@@ -1,5 +1,5 @@
 import type { PrintingsOptions } from '@shared/api'
-import { isBasicLand } from '@shared/cards'
+import { awaitsLegality, isBasicLand, releasedSinceFetch } from '@shared/cards'
 import { nameKey } from '@shared/decklist'
 import { companionOf, hasActivatedAbility, repeatsManaSymbol, rulebreakerOf } from '@shared/deckRules'
 import { partnerAbility } from '@shared/formats'
@@ -298,6 +298,7 @@ export function toCardInfo(card: any): CardInfo {
     manaValue: card.cmc ?? faces[0]?.cmc ?? 0,
     rarity: card.rarity ?? 'common',
     legalities: card.legalities ?? {},
+    ...(awaitsLegality(card.released_at, card.legalities ?? {}) && { releasesOn: card.released_at }),
     ...(deckLimit !== undefined && { deckLimit }),
     ...(LEADS_RE.test(text) && { canBeCommander: true as const }),
     ...(partnerAbility(text) && { partner: partnerAbility(text) }),
@@ -620,9 +621,11 @@ export async function getCardInfos(names: string[]): Promise<Record<string, Card
     const key = nameKey(name)
     if (!key || key in result || missing.has(key)) continue
     const printings = cachedEntry(key)
-    if (printings && now - printings.fetchedAt < CARD_INFO_TTL_MS && (printings.card || (printings.notFound && !staleMiss(printings, name)))) {
+    const fresh = (entry: { fetchedAt: number; card?: CardInfo | null }) =>
+      now - entry.fetchedAt < CARD_INFO_TTL_MS && !releasedSinceFetch(entry.card, entry.fetchedAt)
+    if (printings && fresh(printings) && (printings.card || (printings.notFound && !staleMiss(printings, name)))) {
       result[key] = printings.card ?? null
-    } else if (scryfallCache.cards[key] && now - scryfallCache.cards[key].fetchedAt < CARD_INFO_TTL_MS) {
+    } else if (scryfallCache.cards[key] && fresh(scryfallCache.cards[key])) {
       result[key] = scryfallCache.cards[key].card
     } else {
       missing.set(key, name)

@@ -156,6 +156,11 @@ export interface CardInfo {
   rarity: string
   /** Legality by format id: `legal`, `not_legal`, `banned` or `restricted`. */
   legalities: Record<string, string>
+  /**
+   * Release date (`yyyy-mm-dd`) of a Card not out when fetched. Until then, Scryfall has it not legal
+   * everywhere.
+   */
+  releasesOn?: string
   /** Copy-limit override from rules text: `any` (Relentless Rats) or a number (Seven Dwarves). */
   deckLimit?: 'any' | number
   /** Rules text allows this noncreature card as commander. */

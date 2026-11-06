@@ -24,6 +24,7 @@ import {
   type CardPick,
   type ListVersion
 } from '@shared/listVersion'
+import type { OrderStamps } from '@shared/ordered'
 import { withPrintedNames, type PrintedNameFix } from '@shared/printedNames'
 import { moveToBoard, type Board, type BoardEntry } from '@shared/sideboard'
 import { withTokenVersion } from '@shared/tokens'
@@ -81,6 +82,7 @@ export type LibraryIO = Pick<
   | 'moveList'
   | 'deleteList'
   | 'writeWishlistOrder'
+  | 'writeOrdered'
   | 'writeInventory'
   | 'writeTrade'
   | 'deleteTrade'
@@ -583,6 +585,16 @@ export class LibraryStore {
     setOwned: (name: string, qty: number, version?: Version) => {
       const { inventory, change } = withOwned(this.state.inventory, name, qty, version)
       this.saveInventory(inventory, change)
+    },
+
+    /**
+     * Replaces the Most Wanted cards stamped as ordered, saved to `lists.json`. Not undoable: a stamp
+     * is removed the way it is set.
+     */
+    setOrdered: (ordered: OrderStamps) => {
+      if (JSON.stringify(ordered) === JSON.stringify(this.state.ordered)) return
+      this.commit({ ...this.state, ordered })
+      this.io.writeOrdered(ordered).catch((error) => this.callbacks.onError(ui.changes.orderedFailed(cleanError(error))))
     },
 
     /** Adds owned copies in bulk with optional versions. */

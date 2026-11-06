@@ -9,8 +9,11 @@ import {
   matchesFilters,
   pairByType,
   NO_FILTERS,
+  awaitsLegality,
+  releasedSinceFetch,
   sortFor,
   typeGroup,
+  upcomingRelease,
   type CardFilters
 } from './cards'
 import type { CardInfo } from './types'
@@ -41,6 +44,36 @@ describe('mana value filter', () => {
     expect(matchesFilters('Niv-Mizzet, Parun', niv, undefined, filters({ manaValue: 1 }))).toBe(false)
     expect(matchesFilters('Command Tower', tower, undefined, filters({ manaValue: 0 }))).toBe(false)
     expect(matchesFilters('Lightning Bolt', undefined, undefined, filters({ manaValue: 1 }))).toBe(false)
+  })
+})
+
+describe('upcomingRelease', () => {
+  it('names the release date of a card not out yet', () => {
+    expect(upcomingRelease(info({ releasesOn: '2026-11-13' }), '2026-11-06')).toBe('2026-11-13')
+    // Scryfall can take a while to make it legal: it stays new for a few days after release.
+    expect(upcomingRelease(info({ releasesOn: '2026-11-13' }), '2026-11-15')).toBe('2026-11-13')
+    expect(upcomingRelease(info({ releasesOn: '2026-11-13' }), '2026-11-16')).toBeNull()
+    expect(upcomingRelease(info({}), '2026-11-06')).toBeNull()
+  })
+
+  it('takes only a card legal nowhere, from a printing not out or just out, for new', () => {
+    expect(awaitsLegality('2026-11-13', { commander: 'not_legal' }, '2026-11-06')).toBe(true)
+    expect(awaitsLegality('2026-11-04', { commander: 'not_legal' }, '2026-11-06')).toBe(true)
+    expect(awaitsLegality('2026-11-03', { commander: 'not_legal' }, '2026-11-06')).toBe(false)
+    expect(awaitsLegality('2026-11-13', { commander: 'legal', modern: 'not_legal' }, '2026-11-06')).toBe(false)
+    expect(awaitsLegality(undefined, {}, '2026-11-06')).toBe(false)
+  })
+
+  it('marks card data fetched before a release that has come as out of date', () => {
+    const at = (day: string) => Date.parse(`${day}T12:00:00Z`)
+    const card = info({ releasesOn: '2026-11-13' })
+    expect(releasedSinceFetch(card, at('2026-11-05'), '2026-11-06')).toBe(false)
+    expect(releasedSinceFetch(card, at('2026-11-05'), '2026-11-13')).toBe(true)
+    // Looked up again once a day while Scryfall has it legal nowhere.
+    expect(releasedSinceFetch(card, at('2026-11-13'), '2026-11-13')).toBe(false)
+    expect(releasedSinceFetch(card, at('2026-11-13'), '2026-11-14')).toBe(true)
+    expect(releasedSinceFetch(info({}), at('2026-11-05'), '2026-11-13')).toBe(false)
+    expect(releasedSinceFetch(undefined, at('2026-11-05'))).toBe(false)
   })
 })
 

@@ -1,4 +1,5 @@
 import { useContext, useEffect, useState } from 'react'
+import { upcomingRelease } from '@shared/cards'
 import { FORMATS, type DeckFormat, type LegalityIssue } from '@shared/formats'
 import { languageLabel } from '@shared/languages'
 import { finishFor, hasFoil, singleFinish } from '@shared/pricing'
@@ -62,6 +63,7 @@ interface CardDialogProps {
  */
 export function CardDialog({ row, format, issues, allowed, maxQty, maxTitle, onUpdate, board, commander, banner, onClose }: CardDialogProps) {
   const { line, resolution, unit, info } = row
+  const release = info && upcomingRelease(info)
   const entry = usePrintingsFor(line.name)
   const printings = entry?.data?.printings ?? []
   const printing = resolution?.printing ?? null
@@ -265,16 +267,20 @@ export function CardDialog({ row, format, issues, allowed, maxQty, maxTitle, onU
               <summary>
                 {text.allFormats}
                 <span className="muted small">
-                  {text.legalCount(FORMATS.filter((f) => info.legalities[f.id] === 'legal').length, FORMATS.length)}
+                  {release
+                    ? text.outOn(formatIsoDate(release))
+                    : text.legalCount(FORMATS.filter((f) => info.legalities[f.id] === 'legal').length, FORMATS.length)}
                 </span>
               </summary>
               <div className="legality-grid" aria-label={text.legality}>
                 {FORMATS.map((f) => {
                   const status = info.legalities[f.id] ?? 'not_legal'
+                  // Scryfall has a card not legal anywhere until its set is out.
+                  const label = release && status === 'not_legal' ? text.notOutYet : (STATUS_LABELS[status] ?? status)
                   return (
                     <div key={f.id} className={`legality ${status}${format?.id === f.id ? ' current' : ''}`}>
                       <span>{f.label}</span>
-                      <span className="legality-status">{STATUS_LABELS[status] ?? status}</span>
+                      <span className="legality-status">{label}</span>
                     </div>
                   )
                 })}

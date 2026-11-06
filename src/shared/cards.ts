@@ -14,6 +14,50 @@ export function isBasicLand(name: string): boolean {
   return BASIC_LANDS.has(nameKey(name))
 }
 
+/** @returns Today's date, `yyyy-mm-dd` (UTC). */
+export const isoToday = (): string => new Date().toISOString().slice(0, 10)
+
+/** @returns The UTC day of a timestamp, `yyyy-mm-dd`. */
+const isoDay = (timestamp: number): string => new Date(timestamp).toISOString().slice(0, 10)
+
+/** @returns `day` (`yyyy-mm-dd`) moved by `days` days. */
+const addDays = (day: string, days: number): string => isoDay(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000)
+
+/**
+ * Days after its release a card legal nowhere still counts as new: Scryfall can take a while to make
+ * it legal. After that, "not legal" is what it is.
+ */
+export const RELEASE_GRACE_DAYS = 3
+
+/**
+ * @param releasedAt - The printing's release date, `yyyy-mm-dd`.
+ * @returns Whether a card is a new one Scryfall has not made legal yet: legal in no format, from a
+ * printing not out yet or only just out. A reprint is legal somewhere already, so it never is.
+ */
+export function awaitsLegality(releasedAt: unknown, legalities: Record<string, string>, today = isoToday()): releasedAt is string {
+  return (
+    typeof releasedAt === 'string' &&
+    releasedAt > addDays(today, -RELEASE_GRACE_DAYS) &&
+    !Object.values(legalities).includes('legal')
+  )
+}
+
+/**
+ * @returns The release date of a new card whose legality Scryfall has not set yet (not out, or out
+ * for less than {@link RELEASE_GRACE_DAYS}); null otherwise.
+ */
+export function upcomingRelease(card: CardInfo, today = isoToday()): string | null {
+  return card.releasesOn && today < addDays(card.releasesOn, RELEASE_GRACE_DAYS) ? card.releasesOn : null
+}
+
+/**
+ * @returns Whether card data fetched at `fetchedAt` may hold an out-of-date legality: the card is
+ * out, and it was not fetched since today began. So a new card is looked up again each day after its
+ * release until Scryfall makes it legal.
+ */
+export const releasedSinceFetch = (card: CardInfo | null | undefined, fetchedAt: number, today = isoToday()): boolean =>
+  !!card?.releasesOn && card.releasesOn <= today && isoDay(fetchedAt) < today
+
 /** Color filter token; `C` = colorless. */
 export type ColorFilter = 'W' | 'U' | 'B' | 'R' | 'G' | 'C'
 /** Color names by letter, WUBRG order, then colorless. */

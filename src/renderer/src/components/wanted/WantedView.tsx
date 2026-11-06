@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AppSettings, PriceBaseline } from '@shared/api'
 import { matchesFilters, NO_FILTERS, type CardFilters } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { countLines, nameKey } from '@shared/decklist'
-import { sumOf } from '@shared/totals'
+import { dayOf, fullyOrdered, orderedCopies, prunedStamps, withStamp, type OrderStamps } from '@shared/ordered'
 import type { TradeSnapshot } from '@shared/trade'
 import type { InventoryItem, ListKind } from '@shared/types'
 import { DEFAULT_WANTED_SORT, isWantedSort, sortWanted, type WantedCard, type WantedSort } from '@shared/wanted'
@@ -12,7 +12,7 @@ import { useCopyPool } from '../../hooks/useCopyPool'
 import { useStoredValue } from '../../hooks/useStoredValue'
 import { formatEur } from '../../lib/format'
 import { listRows } from '../../lib/summary'
-import { wantedOverview } from '../../lib/wanted'
+import { unordered, wantedOverview } from '../../lib/wanted'
 import { getCardInfo, useCardInfoVersion } from '../../stores/cardinfo'
 import { priceChange, useBaselines } from '../../stores/history'
 import type { CardList, LibraryActions, ListRef } from '../../stores/library'
@@ -25,9 +25,25 @@ import { BasicsTab } from './BasicsTab'
 import { BudgetPlanner } from './BudgetPlanner'
 import { WishlistShelf } from './WishlistShelf'
 import { CardsTab, type CardPriceChange, type FriendHaves } from './CardsTab'
-import { listMetas } from './parts'
+import { listMetas, type StampMotion } from './parts'
 import { TokensTab } from './TokensTab'
+import { Icon } from '../Icon'
 import { useCopy } from '../../hooks/useCopy'
+
+/** How long a fresh stamp takes to land before its row joins the Ordered group, in ms. */
+const LANDING_MS = 1300
+
+/** How long the Acquired stamp shows before the card goes to the Inventory, in ms; a click within it undoes. */
+const ACQUIRE_MS = 2000
+
+/** How long a stamp takes to lift off: its landing, played backwards, in ms. Matches wanted.css. */
+const LIFT_MS = 560
+
+/** @returns `keys` with `key`. */
+const withKey = (keys: ReadonlySet<string>, key: string): ReadonlySet<string> => new Set([...keys, key])
+
+/** @returns `keys` without `key`. */
+const withoutKey = (keys: ReadonlySet<string>, key: string): ReadonlySet<string> => new Set([...keys].filter((k) => k !== key))
 
 /** Page tab. */
 type WantedTab = 'cards' | 'basics' | 'tokens'
@@ -40,6 +56,8 @@ interface WantedViewProps {
   /** All decks and wishlists. */
   lists: CardList[]
   inventory: Map<string, InventoryItem>
+  /** Cards stamped as ordered. */
+  ordered: OrderStamps
   /** Friends' trade lists, for "a friend has it" hints. */
   trades: TradeSnapshot[]
   actions: LibraryActions
@@ -96,7 +114,7 @@ function friendHaves(trades: TradeSnapshot[]): FriendHaves {
  * across lists and ranked for buying (best value by default), with a budget planner. Basic lands
  * and the tokens wishlist cards create have their own tabs, shown when they have something to show.
  */
-export function WantedView({ lists, inventory, trades, actions, onOpenList, onOpenTrade, onNew }: WantedViewProps) {
+export function WantedView({ lists, inventory, ordered, trades, actions, onOpenList, onOpenTrade, onNew }: WantedViewProps) {
   const toast = useToast()
   usePrintingsVersion()
   useCardInfoVersion()
@@ -122,10 +140,24 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   )
   const basics = [...overview.basics].sort((a, b) => b.toBuy - a.toBuy || a.name.localeCompare(b.name))
   const noLists = lists.length === 0
-  const toBuy = (cards: WantedCard[]) => sumOf(cards, (card) => card.toBuy)
+  const left = unordered(overview, ordered)
+  const today = dayOf(new Date())
+  /** Cards just stamped, while their stamp lands. */
+  const [landing, setLanding] = useState<ReadonlySet<string>>(new Set())
+  const landed = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(landed.current), [])
+
+  // Stamps of cards no longer wanted (bought, or dropped from every list) go when the page opens.
+  // Only then: pruning while it is open would drop a stamp before Bought is undone.
+  useEffect(() => {
+    const keys = [...overview.cards, ...overview.basics].map((card) => card.key)
+    const pruned = prunedStamps(ordered, keys)
+    if (Object.keys(pruned).length < Object.keys(ordered).length) actions.setOrdered(pruned)
+  }, [])
+
   const tabs = (
     [
-      { id: 'cards', label: ui.wanted.tabs.cards(toBuy(overview.cards)) },
+      { id: 'cards', label: ui.wanted.tabs.cards(left.copies) },
       { id: 'basics', label: ui.wanted.tabs.basics },
       { id: 'tokens', label: ui.wanted.tokens }
     ] as const
@@ -134,15 +166,80 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
   const copyable = tab === 'cards' ? visible.length > 0 : tab === 'basics'
   const completers = overview.cards.filter((card) => card.completes.length > 0).length
 
+  /** Stamps in motion: Ordered lifting off, Acquired showing or lifting off. */
+  const [lifting, setLifting] = useState<ReadonlySet<string>>(new Set())
+  const [acquiring, setAcquiring] = useState<ReadonlySet<string>>(new Set())
+  const [unacquiring, setUnacquiring] = useState<ReadonlySet<string>>(new Set())
+  const motion: StampMotion = { landing, lifting, acquiring, unacquiring }
+  /** The latest stamps, for what finishes after a motion. */
+  const orderedNow = useRef(ordered)
+  orderedNow.current = ordered
+  /** What finishes each motion, by `kind:key`: run when it ends, or at once when the page closes. */
+  const pending = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; finish: () => void }>())
+  const later = (id: string, ms: number, finish: () => void) => {
+    const timer = setTimeout(() => {
+      pending.current.delete(id)
+      finish()
+    }, ms)
+    pending.current.set(id, { timer, finish })
+  }
+  useEffect(
+    () => () => {
+      for (const { timer, finish } of [...pending.current.values()]) {
+        clearTimeout(timer)
+        finish()
+      }
+      pending.current.clear()
+    },
+    []
+  )
+
+  /** Acquired: the stamp shows for {@link ACQUIRE_MS}, then the copies go to the Inventory. A second click within that time lifts the stamp off instead. */
   const markBought = (card: WantedCard) => {
-    actions.setOwned(card.name, card.owned + card.toBuy)
-    toast(ui.wanted.markedBought(card.toBuy, card.name))
+    if (unacquiring.has(card.key)) return
+    const id = `acquire:${card.key}`
+    const due = pending.current.get(id)
+    if (due) {
+      clearTimeout(due.timer)
+      pending.current.delete(id)
+      setUnacquiring((keys) => withKey(keys, card.key))
+      later(`unacquire:${card.key}`, LIFT_MS, () => {
+        setAcquiring((keys) => withoutKey(keys, card.key))
+        setUnacquiring((keys) => withoutKey(keys, card.key))
+      })
+      return
+    }
+    setAcquiring((keys) => withKey(keys, card.key))
+    later(id, ACQUIRE_MS, () => {
+      actions.setOwned(card.name, card.owned + card.toBuy)
+      toast(ui.wanted.markedBought(card.toBuy, card.name))
+      setAcquiring((keys) => withoutKey(keys, card.key))
+    })
+  }
+
+  /** Ordered: the stamp lands; on a stamped card, it lifts off first, then goes. */
+  const stamp = (card: WantedCard) => {
+    if (lifting.has(card.key)) return
+    if (fullyOrdered(card, ordered)) {
+      setLifting((keys) => withKey(keys, card.key))
+      later(`lift:${card.key}`, LIFT_MS, () => {
+        actions.setOrdered(withStamp(orderedNow.current, card.key, 0, today))
+        toast(ui.wanted.unstamped(card.name))
+        setLifting((keys) => withoutKey(keys, card.key))
+      })
+      return
+    }
+    actions.setOrdered(withStamp(ordered, card.key, card.toBuy, today))
+    toast(ui.wanted.stamped(card.toBuy - orderedCopies(card, ordered), card.name))
+    setLanding((keys) => withKey(keys, card.key))
+    clearTimeout(landed.current)
+    landed.current = setTimeout(() => setLanding(new Set()), LANDING_MS)
   }
   const copyText = useCopy()
   const copy = (text: string, what: string) => copyText(text, ui.wanted.copied(what))
   const copyTab = () => {
-    const cards = tab === 'cards' ? visible : basics
-    void copy(countLines(cards.map((card) => ({ qty: card.toBuy, name: card.name }))).join('\n'), tab === 'cards' ? ui.wanted.cardsToBuy : ui.wanted.basicLands)
+    const cards = (tab === 'cards' ? visible : basics).map((card) => ({ qty: card.toBuy - orderedCopies(card, ordered), name: card.name }))
+    void copy(countLines(cards.filter((card) => card.qty > 0)).join('\n'), tab === 'cards' ? ui.wanted.cardsToBuy : ui.wanted.basicLands)
   }
 
   return (
@@ -152,9 +249,15 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
           <h1>{ui.wanted.title}</h1>
           {!noLists && (
             <p className="muted">
-              {ui.wanted.summary(toBuy(overview.cards), formatEur(overview.total), withDecks)}
+              {ui.wanted.summary(left.copies, formatEur(left.total), withDecks)}
               {overview.loading > 0 && ui.wanted.stillLoading(overview.loading)}
               {completers > 0 && ui.wanted.completers(completers)}
+              {left.ordered > 0 && (
+                <span className="on-the-way">
+                  {' · '}
+                  <Icon name="stamp" /> {ui.wanted.onTheWay(left.ordered)}
+                </span>
+              )}
             </p>
           )}
         </div>
@@ -169,7 +272,7 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
 
       <WishlistShelf lists={lists} inventory={inventory} onOpenList={onOpenList} />
 
-      {overview.cards.length > 0 && <BudgetPlanner overview={overview} actions={actions} onCopy={copy} />}
+      {left.cards.length > 0 && <BudgetPlanner overview={overview} ordered={ordered} today={today} actions={actions} onCopy={copy} />}
 
       {tabs.length > 1 && <Segmented label={ui.wanted.title} tabs className="wanted-tabs" options={tabs} value={tab} onChange={setTab} />}
 
@@ -188,6 +291,10 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
           meta={meta}
           infoOf={infoOf}
           onBought={markBought}
+          stamps={ordered}
+          today={today}
+          motion={motion}
+          onStamp={stamp}
           onOpenList={onOpenList}
           onOpenTrade={onOpenTrade}
           onNew={onNew}
@@ -200,6 +307,10 @@ export function WantedView({ lists, inventory, trades, actions, onOpenList, onOp
           bundleBasics={settings.bundleBasics}
           meta={meta}
           onBought={markBought}
+          stamps={ordered}
+          today={today}
+          motion={motion}
+          onStamp={stamp}
           onOpenList={onOpenList}
         />
       )}

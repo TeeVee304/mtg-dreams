@@ -26,7 +26,7 @@ const SAVE_DELAY_MS = 2_000
 /** Max time changes stay unsaved under continuous updates. */
 const MAX_SAVE_DELAY_MS = 60_000
 /** Cache schema version. */
-const VERSION = 20
+const VERSION = 21
 /** How long a card no list, inventory or trade uses stays cached after its last use. */
 export const RECENT_MS = 7 * 24 * 60 * 60 * 1000
 /** Most cards no list, inventory or trade uses kept at once; the least recently used go first. */
@@ -244,6 +244,9 @@ export function loadScryfallCache(): Promise<void> {
       // Before v18, a reversible card (Secret Lair's two-art printings, "X // X") had mana value 0:
       // those cards go, and are looked up again when needed.
       const twoArt = (info?: CardInfo | null) => file.version < 18 && !!info && /^(.+) \/\/ \1$/.test(info.name)
+      // Before v21, card data had no release date: a card legal nowhere may be a preview, which
+      // Scryfall has not legal until it is out. Those refresh, in the background.
+      const previewed = (info?: CardInfo | null) => !!info && !Object.values(info.legalities).includes('legal')
       for (const [key, entry] of Object.entries(file.entries)) {
         if (!(entry?.fetchedAt > cutoff)) continue
         try {
@@ -257,7 +260,7 @@ export function loadScryfallCache(): Promise<void> {
           // rules text: all refresh, in the background. Before v20, no flavor text, which only legendary cards
           // keep: those refresh.
           const legendary = /\bLegendary\b/.test(entry.card?.typeLine ?? '')
-          const fetchedAt = outdated || (file.version < 20 && legendary) ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
+          const fetchedAt = outdated || (file.version < 20 && legendary) || (file.version < 21 && previewed(entry.card)) ? Math.min(entry.fetchedAt, stale) : entry.fetchedAt
           // Before v13, a card found by another name was stored again under that name: it becomes an alias.
           const own = nameKey(entry.name)
           if (matched && scryfallCache.entries[own]) scryfallCache.aliases[key] = entry.lang ? { key: own, lang: entry.lang } : { key: own }
@@ -270,7 +273,9 @@ export function loadScryfallCache(): Promise<void> {
         } catch {}
       }
       for (const [key, info] of Object.entries(file.cards ?? {})) {
-        if (info.fetchedAt > cutoff && !outdated && !twoArt(info.card)) scryfallCache.cards[key] = info
+        if (info.fetchedAt > cutoff && !outdated && !twoArt(info.card) && !(file.version < 21 && previewed(info.card))) {
+          scryfallCache.cards[key] = info
+        }
       }
       for (const [key, answer] of Object.entries(file.resolved ?? {})) {
         if (answer?.fetchedAt > cutoff) scryfallCache.resolved[key] = answer

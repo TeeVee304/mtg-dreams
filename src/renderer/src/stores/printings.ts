@@ -1,4 +1,5 @@
 import type { PrintingsOptions } from '@shared/api'
+import { releasedSinceFetch } from '@shared/cards'
 import { nameKey } from '@shared/decklist'
 import { pickSkips, PRINTINGS_MAX_AGE_MS, resolveLine } from '@shared/pricing'
 import type { PriceBasis, Printing, PrintingsResult } from '@shared/types'
@@ -48,8 +49,9 @@ function setEntry(key: string, entry: PrintingsEntry): void {
   changes.emit()
 }
 
-/** Printings older than {@link PRINTINGS_MAX_AGE_MS}. */
-const isStale = (data: PrintingsResult) => Date.now() - data.fetchedAt > PRINTINGS_MAX_AGE_MS
+/** Printings older than {@link PRINTINGS_MAX_AGE_MS}, or of a new card out since, whose legality may have come. */
+const isStale = (data: PrintingsResult) =>
+  Date.now() - data.fetchedAt > PRINTINGS_MAX_AGE_MS || releasedSinceFetch(data.card, data.fetchedAt)
 /** Attempted within {@link RETRY_AFTER_MS}. */
 const triedRecently = (entry: PrintingsEntry) => !!entry.triedAt && Date.now() - entry.triedAt < RETRY_AFTER_MS
 

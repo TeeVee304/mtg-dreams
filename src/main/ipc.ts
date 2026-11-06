@@ -2,6 +2,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, session, s
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import type { PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '@shared/api'
+import { validStamps } from '@shared/ordered'
 import { isPriceBasis } from '@shared/pricing'
 import { settingsPatch } from '@shared/settings'
 import { ui } from '@shared/text'
@@ -123,6 +124,7 @@ export function registerIpc(): void {
     if (!Array.isArray(names) || !names.every((name) => typeof name === 'string')) throw new Error(ui.errors.invalid('Wishlist order'))
     return storage.writeWishlistOrder(names)
   })
+  ipcMain.handle('wanted:ordered', (_e, stamps: unknown) => storage.writeOrdered(validStamps(stamps)))
   ipcMain.handle('inventory:write', (_e, body: unknown, force: unknown) =>
     storage.writeInventory(text(body, 'inventory text'), force === true)
   )

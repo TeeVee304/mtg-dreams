@@ -14,6 +14,7 @@ const DATA: LoadedData = {
   inventory: '2 Sol Ring\n',
   trades: [],
   wishlistOrder: ['Goblins', 'Burn'],
+  ordered: {},
   unreadable: [],
   readOnly: false
 }
@@ -34,6 +35,7 @@ async function loaded(data: LoadedData = DATA) {
     moveList: vi.fn(async (_from: string, _to: string, name: string) => name),
     deleteList: vi.fn(async () => {}),
     writeWishlistOrder: vi.fn(async () => {}),
+    writeOrdered: vi.fn(async () => {}),
     writeInventory: vi.fn(async (_text: string, _force?: boolean) => {}),
     writeTrade: vi.fn(async () => {}),
     deleteTrade: vi.fn(async () => {}),
@@ -211,6 +213,17 @@ describe('library store', () => {
     store.actions.moveWishlist(burn, 0)
     expect(store.state.lists.map((list) => list.name)).toEqual(['Elves', 'Burn', 'Goblins'])
     expect(io.writeWishlistOrder).toHaveBeenCalledWith(['Burn', 'Goblins'])
+  })
+
+  it('saves Ordered stamps, outside the undo history', async () => {
+    const { store, io } = await loaded()
+    const stamps = { 'sol ring': { qty: 2, date: '2026-11-06' } }
+    store.actions.setOrdered(stamps)
+    expect(store.state.ordered).toEqual(stamps)
+    expect(io.writeOrdered).toHaveBeenCalledWith(stamps)
+    store.actions.setOrdered({ 'sol ring': { qty: 2, date: '2026-11-06' } })
+    expect(io.writeOrdered).toHaveBeenCalledOnce()
+    expect(store.actions.undo()).toEqual({ message: 'Nothing to undo', kind: 'info' })
   })
 
   it('keeps a renamed list’s undo steps, and drops a deleted one’s', async () => {
