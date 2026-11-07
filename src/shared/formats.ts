@@ -65,7 +65,7 @@ export type FormatGroup = 'constructed' | 'commander' | 'arena'
 /** @returns The format's menu group: Arena formats together, then paper commander and constructed ones. */
 export const formatGroup = (format: DeckFormat): FormatGroup => (format.arena ? 'arena' : format.commander ? 'commander' : 'constructed')
 
-/** @returns Whether the format's Decks are always unbuilt: Arena ones hold no paper copies. */
+/** @returns Whether the format's Decks never hold copies: Arena ones use no paper copies. */
 export const holdsNoCopies = (format: DeckFormat | null | undefined) => !!format?.arena
 
 /** Main deck size against its format, from {@link deckSizeCheck}. */

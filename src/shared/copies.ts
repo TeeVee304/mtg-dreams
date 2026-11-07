@@ -1,11 +1,12 @@
 /**
- * How owned copies count toward lists. Built decks hold acquired cards: each copy belongs to one
- * deck, handed out by deck name. Everything else only plans and reserves nothing: an unbuilt deck
- * (see {@link isUnbuilt}) uses every owned copy, and a wishlist uses every copy the built decks do
- * not hold, without competing with other wishlists. An upgrade (see {@link upgradeTarget}) follows
- * its deck: it also uses the copies a built deck holds, or every copy for an unbuilt deck.
+ * How owned copies count toward lists. Decks hold acquired cards (see {@link holdsCopies}): each copy
+ * belongs to one deck, handed out in the deck order you give them (the sidebar's), top first.
+ * Everything else reserves nothing: a deck that holds no copies uses every owned copy, and a wishlist
+ * uses every copy the holding decks leave, without competing with other wishlists. An upgrade (see
+ * {@link upgradeTarget}) follows its deck: it also uses the copies its deck holds, or every copy for a
+ * deck that holds none.
  *
- * With {@link PoolOptions.wishlistsReserve}, wishlists reserve copies too, after every built deck,
+ * With {@link PoolOptions.wishlistsReserve}, wishlists reserve copies too, after every holding deck,
  * from the top of the wishlist order down; an upgrade reserves only what it needs beyond its deck.
  *
  * @packageDocumentation
@@ -13,7 +14,7 @@
 
 import { nameKey } from './decklist'
 import { unionCardLines } from './listVersion'
-import { isUnbuilt } from './listUnbuilt'
+import { holdsCopies } from './listHolds'
 import { upgradeTarget } from './listUpgrade'
 import { sumOf } from './totals'
 import { coverLines, wantsVersion, type Version } from './inventory'
@@ -63,10 +64,9 @@ export function cardTotals(lines: ListLine[]): Map<string, { name: string; qty: 
   return totals
 }
 
-/** @returns Copy of `lists` in allocation order: decks by name, then wishlists in their order in `lists`. */
+/** @returns Copy of `lists` in allocation order: decks, then wishlists, each in their order in `lists`. */
 export function allocationOrder<L extends PoolList>(lists: L[]): L[] {
-  const decks = lists.filter((list) => list.kind === 'deck').sort((a, b) => a.name.localeCompare(b.name))
-  return [...decks, ...lists.filter((list) => list.kind === 'wishlist')]
+  return [...lists.filter((list) => list.kind === 'deck'), ...lists.filter((list) => list.kind === 'wishlist')]
 }
 
 /** Owned copies of a card that one list gets. */
@@ -78,36 +78,38 @@ export interface HeldCopies extends ListKey {
 export interface CopyPool {
   /**
    * Copies of a card that other lists hold before `list`, of the `owned` copies, at most `owned`:
-   * built decks ahead of a deck; all built decks for a wishlist; none for an unbuilt deck or its
-   * upgrades. An upgrade of a built deck does not count the copies its deck holds, since it uses them
-   * too. Unknown lists come last.
+   * holding decks ahead of a deck; all holding decks for a wishlist; none for a deck that holds no
+   * copies, or its upgrades. An upgrade of a holding deck does not count the copies its deck holds,
+   * since it uses them too. Unknown lists come last.
    */
   held(list: ListKey, key: string, owned: number): number
   /**
-   * Built decks holding the copies {@link held} counts, with the copies each holds, in allocation
-   * order; none for an unbuilt deck or its upgrades. An upgrade's deck is left out, as in {@link held}.
+   * Decks holding the copies {@link held} counts, with the copies each holds, in allocation order;
+   * none for a deck that holds no copies, or its upgrades. An upgrade's deck is left out, as in {@link held}.
    */
   holders(list: ListKey, key: string, owned: number): HeldCopies[]
   /**
-   * Lists using some of the `owned` copies of a card, with the copies each uses: built decks, in
-   * allocation order; then the unbuilt decks and wishlists using the copies built decks leave.
+   * Lists using some of the `owned` copies of a card, with the copies each uses: holding decks, in
+   * allocation order; then the decks holding none and wishlists using the copies holding decks leave.
    */
   usedBy(key: string, owned: number): HeldCopies[]
   /**
-   * Copies of a card the lists keep, of the `owned` copies or not: what built decks hold, plus the
-   * most any wishlist wants beyond its deck's copies; or the most an unbuilt deck or one of its
+   * Copies of a card the lists keep, of the `owned` copies or not: what holding decks hold, plus the
+   * most any wishlist wants beyond its deck's copies; or the most a deck holding none or one of its
    * upgrades wants, if more. Kept copies are never offered in trades.
    */
   inUse(key: string, owned: number): number
-  /** Copies of a card in built decks other than `list`; none for an unbuilt deck, which may use any. */
+  /** Copies of a card in holding decks other than `list`; none for a deck that holds none, which may use any. */
   inOtherDecks(list: ListKey, key: string): number
-  /** Copies of a card the built decks hold together; unbuilt decks reserve none, nor do wishlists for this. */
+  /** Copies of a card the holding decks hold together; wishlists count for nothing here, even when they reserve. */
   claimed(key: string, owned: number): number
 }
 
 /** How a {@link copyPool} hands copies out. */
 export interface PoolOptions {
-  /** Wishlists reserve the copies they use, after built decks, in their order (the setting). */
+  /** Decks hold their copies unless they set their own Hold Copies (the setting); true by default. */
+  decksHold?: boolean
+  /** Wishlists reserve the copies they use, after holding decks, in their order (the setting). */
   wishlistsReserve?: boolean
 }
 
@@ -118,37 +120,37 @@ interface Claim {
   list: ListKey
   /** {@link listId} of a deck; null for wishlists. */
   deck: string | null
-  /** A built deck's, or a wishlist's when wishlists reserve: it holds its copies. Other lists use copies without reserving them. */
+  /** A holding deck's, or a wishlist's when wishlists reserve: it holds its copies. Other lists use copies without reserving them. */
   reserves: boolean
-  /** An unbuilt deck's or its upgrade's: it may use every owned copy. */
-  unbuilt: boolean
+  /** A deck's that holds no copies, or its upgrade's: it may use every owned copy. */
+  usesAll: boolean
   /** {@link listId} of the deck an upgrade shares copies with; null for other lists. */
   upgrades: string | null
   qty: number
 }
 
 /** @returns Copy claims of `lists`; recompute when lists or options change. */
-export function copyPool(lists: PoolList[], { wishlistsReserve = false }: PoolOptions = {}): CopyPool {
+export function copyPool(lists: PoolList[], { decksHold = true, wishlistsReserve = false }: PoolOptions = {}): CopyPool {
   const order = allocationOrder(lists)
   const index = new Map(order.map((list, i) => [listId(list), i]))
   /** Deck each upgrade shares copies with, by {@link listId}. */
   const decks = new Map<string, string>()
-  /** Unbuilt decks and their upgrades by {@link listId}. */
-  const unbuilt = new Set<string>()
+  /** Decks that hold no copies, and their upgrades, by {@link listId}: they may use every owned copy. */
+  const usesAll = new Set<string>()
   const claims = new Map<string, Claim[]>()
   order.forEach((list, at) => {
     const target = upgradeTarget(list, lists)
     if (target) decks.set(listId(list), listId(target))
     const isDeck = list.kind === 'deck'
-    // Decks come first, so a deck is known to be unbuilt before its upgrades.
-    if (isDeck ? isUnbuilt(list.lines) : target !== null && unbuilt.has(listId(target))) unbuilt.add(listId(list))
+    // Decks come first, so whether a deck holds copies is known before its upgrades.
+    if (isDeck ? !holdsCopies(list.lines, decksHold) : target !== null && usesAll.has(listId(target))) usesAll.add(listId(list))
     for (const [key, total] of cardTotals(list.lines)) {
       const claim = {
         at,
         list: { kind: list.kind, name: list.name },
         deck: isDeck ? listId(list) : null,
-        reserves: (isDeck || (wishlistsReserve && list.kind === 'wishlist')) && !unbuilt.has(listId(list)),
-        unbuilt: unbuilt.has(listId(list)),
+        reserves: (isDeck || (wishlistsReserve && list.kind === 'wishlist')) && !usesAll.has(listId(list)),
+        usesAll: usesAll.has(listId(list)),
         upgrades: target ? listId(target) : null,
         qty: total.qty
       }
@@ -158,7 +160,7 @@ export function copyPool(lists: PoolList[], { wishlistsReserve = false }: PoolOp
     }
   })
   /**
-   * Claims on a card's `owned` copies, in allocation order: built decks, then, when they reserve,
+   * Claims on a card's `owned` copies, in allocation order: holding decks, then, when they reserve,
    * wishlists. An upgrade claims only the copies it wants beyond its deck's.
    * @returns The claims, and the copies each reserving list holds by {@link listId}.
    */
@@ -196,17 +198,17 @@ export function copyPool(lists: PoolList[], { wishlistsReserve = false }: PoolOp
   return {
     held: (list, key, owned) => {
       const id = listId(list)
-      if (unbuilt.has(id)) return 0
+      if (usesAll.has(id)) return 0
       const at = index.get(id) ?? Infinity
       const { claims: entries, got } = allocate(key, owned)
       const held = sumOf(entries, (claim) => (claim.at < at ? claim.qty : 0))
-      // An upgrade of a built deck uses the copies its deck holds, then what all the built decks leave.
+      // An upgrade of a holding deck uses the copies its deck holds, then what all the holding decks leave.
       const deck = decks.get(id)
       return Math.max(0, Math.min(owned, held) - (deck ? (got.get(deck) ?? 0) : 0))
     },
     holders: (list, key, owned) => {
       const id = listId(list)
-      if (unbuilt.has(id)) return []
+      if (usesAll.has(id)) return []
       const deck = decks.get(id)
       const given = handOut(key, owned, index.get(id) ?? Infinity)
       return deck ? given.filter((held) => listId(held) !== deck) : given
@@ -225,14 +227,14 @@ export function copyPool(lists: PoolList[], { wishlistsReserve = false }: PoolOp
       let beyond = 0
       let peak = 0
       for (const claim of claims.get(key) ?? []) {
-        if (claim.unbuilt) peak = Math.max(peak, claim.qty)
+        if (claim.usesAll) peak = Math.max(peak, claim.qty)
         else if (!claim.reserves) beyond = Math.max(beyond, claim.qty - (claim.upgrades ? (got.get(claim.upgrades) ?? 0) : 0))
       }
       return Math.max(held + beyond, peak)
     },
     inOtherDecks: (list, key) =>
       // Built deck claims do not depend on the copies owned.
-      unbuilt.has(listId(list)) ? 0 : sum(key, 0, (claim) => claim.deck !== null && claim.deck !== listId(list)),
+      usesAll.has(listId(list)) ? 0 : sum(key, 0, (claim) => claim.deck !== null && claim.deck !== listId(list)),
     claimed: (key, owned) => sum(key, owned, (claim) => claim.deck !== null)
   }
 }
@@ -241,7 +243,7 @@ export function copyPool(lists: PoolList[], { wishlistsReserve = false }: PoolOp
 export type CardToAdd = { name: string; qty: number } & Partial<Version>
 
 /**
- * Copies to add to the inventory so `cards` (e.g. a new deck) are covered by owned copies no built
+ * Copies to add to the inventory so `cards` (e.g. a new deck) are covered by owned copies no holding
  * deck holds. A card's missing copies take the versions of its lines, in order: a `{ES}` line adds
  * Spanish copies.
  * @returns The copies to add, a card's split by version; covered cards omitted.
@@ -293,8 +295,8 @@ export interface CardNeed {
   missing: number
   /**
    * Copies to buy for this list once the lists ahead have theirs; possibly 0. Fewer than `missing`
-   * where copies bought for others serve this list too: only built decks reserve what is bought for
-   * them, so a copy bought for a wishlist or an unbuilt deck serves every list that could use it, and
+   * where copies bought for others serve this list too: only holding decks reserve what is bought for
+   * them, so a copy bought for a wishlist or a deck holding none serves every list that could use it, and
    * an upgrade shares its deck's.
    */
   buy: number

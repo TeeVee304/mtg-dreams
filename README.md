@@ -30,11 +30,12 @@
 
 ### Decks and Wishlists
 - **Decks** are built from your inventory: you can only add cards you own, up to the copies you have.
-- **Owned copies** belong to decks: each built deck holds its own copies, handed out by deck name. Wishlists are plans,
+- **Owned copies** belong to decks: each deck holds its own copies, handed out in your deck order. Wishlists are plans,
   so they hold none: each one counts every copy no deck holds, without competing with other wishlists.
-  **Settings → Copies → Wishlists reserve Copies** makes them hold copies too, from the top of your order down.
-- Mark a deck you put together only when you play it **Unbuilt** (⋯ menu, Advanced): it uses every copy you own without
-  reserving any, so other decks keep theirs. Its copies still stay off your trade list.
+  **Settings → Copies → Wishlists hold Copies** makes them hold copies too, from the top of your order down.
+- Turn off **Hold Copies** (⋯ menu, Advanced) for a deck you put together only when you play it: it uses every copy you
+  own without reserving any, so other decks keep theirs. Its copies still stay off your trade list. Arena decks never hold copies.
+  **Settings → Copies → Decks hold Copies** (on by default) sets this for every deck; a deck's own Hold Copies wins.
 - Make a wishlist an **Upgrade of** a deck (⋯ menu, Advanced): it holds the whole deck as you want it to be, and uses
   the deck's copies of the cards they share. Once you own every card, apply it: the deck becomes the upgrade.
 - Give a Commander deck a **Duel version** (⋯ menu, Advanced), or a Duel Commander deck an **EDH version**: the same
@@ -47,6 +48,8 @@
   between Wishlists and Brews to switch. **Settings → Copies → Brews ignore Inventory** shows just their cards and prices.
 - **Order your wishlists** by dragging them in the sidebar, most wanted first.
   The higher a wishlist, the more its cards count in Most Wanted and the budget planner. New wishlists start at the bottom.
+- **Order your decks** the same way. When you own fewer copies of a card than your decks need, the decks higher up
+  get them first. New decks start at the bottom.
 - A **Statistics** panel shows the mana curve and the colors of the cards besides lands.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers the cards create, with which cards make each one.
 
@@ -111,7 +114,7 @@ Documents\MTG Dreams\
 ├── brews\brew.txt
 ├── trades\friend.mtgtrade
 ├── inventory.txt
-└── lists.json            (wishlist order, and each list's color, upgrade and unbuilt settings)
+└── lists.json            (wishlist and deck orders, and each list's color, upgrade and Hold Copies settings)
 ```
 
 - List files hold only the deck, so you can copy or share them as they are.

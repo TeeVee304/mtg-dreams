@@ -2,18 +2,42 @@ import { describe, expect, it } from 'vitest'
 import { allocationOrder, copiesToAdd, copyPool, listNeeds, listWeights, unownedCards } from './copies'
 import { parseInventory, parseList } from './decklist'
 
-// Wishlists in your order: Goblins, Angels, Someday.
+// Decks in your order: Burn, Zombies. Wishlists in your order: Goblins, Angels, Someday.
 const lists = [
   { kind: 'wishlist' as const, name: 'Goblins', lines: parseList('1 Sol Ring') },
-  { kind: 'deck' as const, name: 'Zombies', lines: parseList('1 Sol Ring') },
-  { kind: 'wishlist' as const, name: 'Angels', lines: parseList('1 Sol Ring\n1 Smothering Tithe') },
   { kind: 'deck' as const, name: 'Burn', lines: parseList('1 Sol Ring\n1 Lightning Bolt') },
+  { kind: 'wishlist' as const, name: 'Angels', lines: parseList('1 Sol Ring\n1 Smothering Tithe') },
+  { kind: 'deck' as const, name: 'Zombies', lines: parseList('1 Sol Ring') },
   { kind: 'wishlist' as const, name: 'Someday', lines: parseList('2 Sol Ring') }
 ]
 
 describe('allocationOrder', () => {
-  it('puts decks first by name, then wishlists in your order', () => {
+  it('puts decks first, then wishlists, each in your order', () => {
     expect(allocationOrder(lists).map((list) => list.name)).toEqual(['Burn', 'Zombies', 'Goblins', 'Angels', 'Someday'])
+  })
+
+  it('lets no deck hold copies with the setting off, unless it sets its own', () => {
+    const decks = [
+      { kind: 'deck' as const, name: 'Zur', lines: parseList('1 Sol Ring') },
+      { kind: 'deck' as const, name: 'Atraxa', lines: parseList('// Hold copies: Yes\n1 Sol Ring') },
+      { kind: 'deck' as const, name: 'Tymna', lines: parseList('1 Sol Ring') }
+    ]
+    const pool = copyPool(decks, { decksHold: false })
+    expect(pool.held(decks[0], 'sol ring', 1)).toBe(0)
+    expect(pool.held(decks[2], 'sol ring', 1)).toBe(0)
+    expect(pool.claimed('sol ring', 1)).toBe(1)
+    expect(pool.holders(decks[2], 'sol ring', 1)).toEqual([])
+  })
+
+  it('hands short copies to the deck higher in your order, whatever its name', () => {
+    const decks = [
+      { kind: 'deck' as const, name: 'Zur', lines: parseList('1 Sol Ring') },
+      { kind: 'deck' as const, name: 'Atraxa', lines: parseList('1 Sol Ring') }
+    ]
+    const pool = copyPool(decks)
+    expect(pool.held(decks[0], 'sol ring', 1)).toBe(0)
+    expect(pool.held(decks[1], 'sol ring', 1)).toBe(1)
+    expect(pool.usedBy('sol ring', 1)).toEqual([{ kind: 'deck', name: 'Zur', qty: 1 }])
   })
 })
 

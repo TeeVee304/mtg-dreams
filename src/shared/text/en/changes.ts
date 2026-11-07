@@ -21,7 +21,7 @@ export const changes = {
   changedVersions: (card: string) => `Changed the Versions of ${card} you own`,
   enterName: 'Please enter a name.',
   saveFailed: (error: string) => `Could not save: ${error}`,
-  orderFailed: (error: string) => `Could not save the Wishlist order: ${error}`,
+  orderFailed: (error: string) => `Could not save the order of your lists: ${error}`,
   orderedFailed: (error: string) => `Could not save the Ordered stamps: ${error}`,
   moved: (card: string, board: string) => `Moved ${card} to the ${board}`,
   changed: (what: string) => `Changed ${what}`,
@@ -40,7 +40,7 @@ export const changes = {
   banner: 'Changed the Banner',
   color: 'Changed the color',
   energyCurve: (list: string, on: boolean) => (on ? `Showed the energy curve of ${list}` : `Hid the energy curve of ${list}`),
-  unbuilt: (list: string, unbuilt: boolean) => (unbuilt ? `Made ${list} unbuilt` : `Made ${list} built`),
+  holdsCopies: (list: string, holds: boolean) => (holds ? `Made ${list} hold its Copies` : `Made ${list} hold no Copies`),
   tokenVersion: (token: string, list: string) => `Changed the Version of ${token} in ${list}`,
   preferredVersions: (list: string, group: string | null) =>
     group ? `Made ${list} prefer ${group} Versions` : `Made ${list} stop preferring Versions`,

@@ -109,26 +109,33 @@ export function inventoryText(inventory: Map<string, InventoryItem>): string {
 export const byName = (a: { name: string }, b: { name: string }) =>
   a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
 
-/** @returns `lists` with decks by name, then wishlists in their current order, then brews by name. */
+/** @returns `lists` with decks, then wishlists, each in their current order, then brews by name. */
 export function arranged(lists: CardList[]): CardList[] {
   return [
-    ...lists.filter((list) => list.kind === 'deck').sort(byName),
+    ...lists.filter((list) => list.kind === 'deck'),
     ...lists.filter((list) => list.kind === 'wishlist'),
     ...lists.filter((list) => list.kind === 'brew').sort(byName)
   ]
 }
 
-/** @returns `lists` with decks by name, then wishlists in `order`; those not in it come after, by name. */
-export function inOrder(lists: CardList[], order: string[]): CardList[] {
+/**
+ * @returns `lists` with decks in `deckOrder`, then wishlists in `wishlistOrder`, then brews by name;
+ * decks and wishlists not in their order come after, by name.
+ */
+export function inOrder(lists: CardList[], wishlistOrder: string[], deckOrder: string[] = []): CardList[] {
   const place = (list: CardList) => {
+    const order = list.kind === 'deck' ? deckOrder : wishlistOrder
     const at = order.indexOf(list.name)
     return at < 0 ? order.length : at
   }
   return arranged([...lists].sort((a, b) => place(a) - place(b) || byName(a, b)))
 }
 
-/** @returns Wishlist names in order, top first. */
-export const wishlistNames = (lists: CardList[]) => lists.filter((list) => list.kind === 'wishlist').map((list) => list.name)
+/** Kinds of list you put in order: decks (the order they hold copies in) and wishlists. */
+export type OrderedKind = 'deck' | 'wishlist'
+
+/** @returns Names of the lists of `kind` in order, top first. */
+export const listNames = (lists: CardList[], kind: OrderedKind) => lists.filter((list) => list.kind === kind).map((list) => list.name)
 
 /** Parses trade files (name taken from the file), skipping invalid ones; sorted by name. */
 export function toTrades(files: ListFile[]): TradeSnapshot[] {
@@ -170,7 +177,7 @@ export function mergeLoaded(previous: LibraryState, data: LoadedData, force = fa
     changed = true
     return fresh
   })
-  const lists = inOrder(read, data.wishlistOrder)
+  const lists = inOrder(read, data.wishlistOrder, data.deckOrder)
   const ids = (all: CardList[]) => all.map((list) => `${list.kind}/${list.name}`).join('\n')
   if (ids(lists) !== ids(previous.lists)) changed = true
   let inventory = previous.inventory
@@ -345,14 +352,17 @@ export function withFewerCopies(lines: ListLine[], name: string, qty: number): L
     .reverse()
 }
 
-/** @returns `lists` with wishlist `target` moved to place `to` (0 is the top); null if it is not there or already in place. */
-export function withMovedWishlist(lists: CardList[], target: ListRef, to: number): CardList[] | null {
-  const wishlists = lists.filter((list) => list.kind === 'wishlist')
-  const from = wishlists.findIndex((list) => list.name === target.name)
+/**
+ * @returns `lists` with deck or wishlist `target` moved to place `to` among its kind (0 is the top);
+ * null if it is not there or already in place.
+ */
+export function withMovedList(lists: CardList[], target: ListRef & { kind: OrderedKind }, to: number): CardList[] | null {
+  const same = lists.filter((list) => list.kind === target.kind)
+  const from = same.findIndex((list) => list.name === target.name)
   if (from < 0 || from === to) return null
-  const [moved] = wishlists.splice(from, 1)
-  wishlists.splice(Math.max(0, Math.min(to, wishlists.length)), 0, moved)
-  return [...lists.filter((list) => list.kind !== 'wishlist'), ...wishlists]
+  const [moved] = same.splice(from, 1)
+  same.splice(Math.max(0, Math.min(to, same.length)), 0, moved)
+  return arranged([...lists.filter((list) => list.kind !== target.kind), ...same])
 }
 
 /** A list and the lines it should get. */

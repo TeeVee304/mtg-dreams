@@ -15,7 +15,7 @@ import { DATA_STEPS, DATA_VERSION, SETTINGS_STEPS, SETTINGS_VERSION, pendingStep
 /**
  * File storage. Lists, inventory and trades are plain text files in a user-visible data directory
  * (default `Documents/MTG Dreams`): `decks/*.txt`, `lists/*.txt` (wishlists), `brews/*.txt`,
- * `inventory.txt`, `trades/*.mtgtrade`, and `lists.json`: the wishlist order and each list's personal
+ * `inventory.txt`, `trades/*.mtgtrade`, and `lists.json`: the wishlist and deck orders and each list's personal
  * settings (see {@link splitMeta}), kept out of the list files. Settings are in `userData/settings.json`. Writes are atomic, serialized per file, and guarded
  * against external modification. `lists.json` and `settings.json` carry a schema version (see `./schema`):
  * older ones are upgraded on load, and a data folder saved by a newer app is read-only.
@@ -320,6 +320,8 @@ interface ListsIndex {
   schemaVersion: number | null
   /** Wishlist names, top first; null until known (no `lists.json` nor legacy order file yet). */
   wishlistOrder: string[] | null
+  /** Deck names, top first: the order decks hold copies in; null until you order them (then by name). */
+  deckOrder: string[] | null
   /** Personal settings by {@link metaKey}; lists without any have no entry. */
   lists: Record<string, ListMeta>
   /** Most Wanted cards stamped as ordered. */
@@ -354,9 +356,10 @@ async function readIndex(): Promise<ListsIndex> {
   const names = (raw: unknown) => (Array.isArray(raw) ? raw.filter((name): name is string => typeof name === 'string') : null)
   const stored = parse(await readIfExists(indexPath()))
   if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
-    const { schemaVersion, wishlistOrder, lists: rawLists, ordered } = stored as {
+    const { schemaVersion, wishlistOrder, deckOrder, lists: rawLists, ordered } = stored as {
       schemaVersion?: unknown
       wishlistOrder?: unknown
+      deckOrder?: unknown
       lists?: unknown
       ordered?: unknown
     }
@@ -370,11 +373,12 @@ async function readIndex(): Promise<ListsIndex> {
     return {
       schemaVersion: schemaVersion === undefined ? null : readVersion(schemaVersion),
       wishlistOrder: names(wishlistOrder) ?? names(parse(await readIfExists(legacyOrderPath()))),
+      deckOrder: names(deckOrder),
       lists,
       ordered: validStamps(ordered)
     }
   }
-  return { schemaVersion: null, wishlistOrder: names(parse(await readIfExists(legacyOrderPath()))), lists: {}, ordered: {} }
+  return { schemaVersion: null, wishlistOrder: names(parse(await readIfExists(legacyOrderPath()))), deckOrder: null, lists: {}, ordered: {} }
 }
 
 /** @returns The data directory's `lists.json`, read once. */
@@ -389,7 +393,10 @@ async function listsIndex(): Promise<ListsIndex> {
  */
 async function saveIndex(index: ListsIndex): Promise<void> {
   const lists = Object.fromEntries(Object.entries(index.lists).sort(([a], [b]) => a.localeCompare(b)))
-  const order = index.wishlistOrder ? { wishlistOrder: index.wishlistOrder } : {}
+  const order = {
+    ...(index.wishlistOrder && { wishlistOrder: index.wishlistOrder }),
+    ...(index.deckOrder && { deckOrder: index.deckOrder })
+  }
   const keys = Object.keys(index.ordered).sort()
   const ordered = keys.length > 0 ? { ordered: Object.fromEntries(keys.map((key) => [key, index.ordered[key]])) } : {}
   const schemaVersion = index.schemaVersion ?? DATA_VERSION
@@ -471,6 +478,13 @@ export async function writeWishlistOrder(names: string[]): Promise<void> {
   await saveIndex(index)
 }
 
+/** Saves the deck order, top first. */
+export async function writeDeckOrder(names: string[]): Promise<void> {
+  const index = await listsIndex()
+  index.deckOrder = names
+  await saveIndex(index)
+}
+
 /** Saves the Most Wanted cards stamped as ordered. */
 export async function writeOrdered(stamps: OrderStamps): Promise<void> {
   const index = await listsIndex()
@@ -542,6 +556,7 @@ export async function loadData(): Promise<LoadedData> {
     inventory,
     trades,
     wishlistOrder: index.wishlistOrder,
+    deckOrder: index.deckOrder ?? [],
     ordered: index.ordered,
     unreadable,
     readOnly

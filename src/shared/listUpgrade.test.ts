@@ -27,7 +27,8 @@ describe('list upgrade', () => {
     const upgrade = parseList('// Upgrade of: Elves\n// Color: Red\n1 Sol Ring')
     expect(serializeList(appliedUpgrade(upgrade, parseList('// Color: Green\n1 Llanowar Elves')))).toBe('// Color: Green\n1 Sol Ring\n')
     expect(serializeList(appliedUpgrade(upgrade, parseList('1 Llanowar Elves')))).toBe('// Color: Red\n1 Sol Ring\n')
-    expect(serializeList(appliedUpgrade(upgrade, parseList('// Unbuilt: Yes\n1 Llanowar Elves')))).toBe('// Unbuilt: Yes\n// Color: Red\n1 Sol Ring\n')
+    expect(serializeList(appliedUpgrade(upgrade, parseList('// Hold copies: No\n1 Llanowar Elves')))).toBe('// Hold copies: No\n// Color: Red\n1 Sol Ring\n')
+    expect(serializeList(appliedUpgrade(upgrade, parseList('// Unbuilt: Yes\n1 Llanowar Elves')))).toBe('// Hold copies: No\n// Color: Red\n1 Sol Ring\n')
   })
 })
 

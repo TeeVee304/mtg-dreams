@@ -9,14 +9,16 @@ import { useSettings } from '../stores/settings'
  */
 export const plannedLists = memoLast((lists: CardList[]): CardList[] => lists.filter((list) => list.kind !== 'brew'))
 
-/** One copy pool for every component, rebuilt only when the lists or the reserving setting change. */
-const sharedPool = memoLast((lists: CardList[], wishlistsReserve: boolean) => copyPool(lists, { wishlistsReserve }))
+/** One copy pool for every component, rebuilt only when the lists or the copy settings change. */
+const sharedPool = memoLast((lists: CardList[], decksHold: boolean, wishlistsReserve: boolean) =>
+  copyPool(lists, { decksHold, wishlistsReserve })
+)
 
 /**
  * @returns Copy claims of the decks and wishlists ({@link plannedLists}) of `lists`, shared by every
- * caller; wishlists reserve copies when the setting says so.
+ * caller; decks hold copies and wishlists reserve them as the settings say.
  */
 export function useCopyPool(lists: CardList[]): CopyPool {
-  const { wishlistsReserve } = useSettings()
-  return sharedPool(plannedLists(lists), wishlistsReserve)
+  const { decksHoldCopies, wishlistsReserve } = useSettings()
+  return sharedPool(plannedLists(lists), decksHoldCopies, wishlistsReserve)
 }

@@ -45,6 +45,8 @@ interface SidebarProps {
   onNew: (kind: ListKind) => void
   /** Moves a wishlist to place `to` in the order (0 is the top). */
   onMoveWishlist: (list: ListRef, to: number) => void
+  /** Moves a deck to place `to` in the order (0 is the top); decks higher up hold copies first. */
+  onMoveDeck: (list: ListRef, to: number) => void
   /** Makes a wishlist a brew, or a brew a wishlist at place `at` in the order. */
   onMoveKind: (list: ListRef, to: 'wishlist' | 'brew', at?: number) => void
   onSettings: () => void
@@ -61,21 +63,21 @@ interface SidebarProps {
 
 /**
  * Navigation: Most Wanted, inventory and Trades stay in place; decks, wishlists and brews (collapsible
- * sections with price-drop counts and color symbols on hover; wishlists in your order, dragged to reorder;
+ * sections with price-drop counts and color symbols on hover; decks and wishlists in your order, dragged to reorder;
  * brews by name, the first few until all are shown, with a filter for many; a list dragged between
  * Wishlists and Brews changes kind) scroll below them. The footer holds the offline status, the price status and settings. In narrow windows it is an icon rail: icons and list initials, with
  * every list shown and names in tooltips (and for screen readers).
  */
 export function Sidebar(props: SidebarProps) {
-  const { lists, inventory, view, onSelect, onNew, onMoveWishlist, onMoveKind, onSettings, pricedAt, onRefreshPrices } = props
+  const { lists, inventory, view, onSelect, onNew, onMoveWishlist, onMoveDeck, onMoveKind, onSettings, pricedAt, onRefreshPrices } = props
   const { trades, onWizard, wizardOpen, ordered } = props
   const [refreshing, setRefreshing] = useState(false)
   const online = useOnline()
   /**
-   * Wishlist or brew being dragged (`from`: a wishlist's place in the order), and where it would drop:
-   * a place among the wishlists (`at`), or into Brews.
+   * List being dragged (`from`: a deck's or wishlist's place in its order), and where it would drop:
+   * a place among the decks or wishlists (`at`), or into Brews. Decks only move among decks.
    */
-  const [drag, setDrag] = useState<{ list: ListRef; from: number | null; into: 'wishlist' | 'brew' | null; at: number | null } | null>(null)
+  const [drag, setDrag] = useState<{ list: ListRef; from: number | null; into: ListKind | null; at: number | null } | null>(null)
   const rail = useNarrow()
   const version = usePrintingsVersion()
   const settings = useSettings()
@@ -97,9 +99,11 @@ export function Sidebar(props: SidebarProps) {
     [lists, inventory, settings, baselines, pool, version]
   )
 
-  /** Drops the dragged list where it is over: in its new place among the wishlists, or into Brews. */
+  /** Drops the dragged list where it is over: in its new place among the decks or wishlists, or into Brews. */
   const drop = () => {
-    if (drag?.into === 'wishlist' && drag.at !== null) {
+    if (drag?.into === 'deck' && drag.at !== null && drag.from !== null) {
+      onMoveDeck(drag.list, drag.at > drag.from ? drag.at - 1 : drag.at)
+    } else if (drag?.into === 'wishlist' && drag.at !== null) {
       if (drag.from !== null) onMoveWishlist(drag.list, drag.at > drag.from ? drag.at - 1 : drag.at)
       else onMoveKind(drag.list, 'wishlist', drag.at)
     } else if (drag?.into === 'brew' && drag.list.kind === 'wishlist') {
@@ -109,23 +113,24 @@ export function Sidebar(props: SidebarProps) {
   }
 
   /**
-   * Drag handlers of a wishlist at `index` in the order, or of a brew: a wishlist drops the dragged list
-   * above or below it by pointer half; over a brew, its section takes the drop ({@link dropZone}).
+   * Drag handlers of a deck or wishlist at `index` in its order, or of a brew: a deck or wishlist drops
+   * the dragged list of its section above or below it by pointer half; over a brew, its section takes
+   * the drop ({@link dropZone}). A deck takes only decks, a wishlist anything else.
    */
   const dragProps = (list: CardList, index: number) => ({
     draggable: true,
     onDragStart: (event: DragEvent) => {
       event.dataTransfer.effectAllowed = 'move'
       event.dataTransfer.setData('text/plain', list.name)
-      setDrag({ list: { kind: list.kind, name: list.name }, from: list.kind === 'wishlist' ? index : null, into: null, at: null })
+      setDrag({ list: { kind: list.kind, name: list.name }, from: list.kind === 'brew' ? null : index, into: null, at: null })
     },
     onDragOver: (event: DragEvent<HTMLElement>) => {
-      if (!drag || list.kind !== 'wishlist') return
+      if (!drag || list.kind === 'brew' || (list.kind === 'deck') !== (drag.list.kind === 'deck')) return
       event.preventDefault()
       event.stopPropagation()
       const box = event.currentTarget.getBoundingClientRect()
       const at = index + (event.clientY > box.top + box.height / 2 ? 1 : 0)
-      if (at !== drag.at || drag.into !== 'wishlist') setDrag({ ...drag, into: 'wishlist', at })
+      if (at !== drag.at || drag.into !== list.kind) setDrag({ ...drag, into: list.kind, at })
     },
     onDrop: (event: DragEvent) => {
       event.preventDefault()
@@ -136,15 +141,16 @@ export function Sidebar(props: SidebarProps) {
   })
 
   /**
-   * Drop handlers of the Wishlists or Brews section as a whole: a brew dropped on Wishlists (its title,
-   * or past its lists) joins them first or last; a wishlist dropped on Brews becomes a brew.
+   * Drop handlers of a section as a whole: a deck dropped on Decks (its title, or past its lists) goes
+   * first or last; so does a brew dropped on Wishlists, joining them; a wishlist dropped on Brews
+   * becomes a brew.
    */
-  const dropZone = (kind: 'wishlist' | 'brew', count: number) => ({
+  const dropZone = (kind: ListKind, count: number) => ({
     onDragOver: (event: DragEvent<HTMLElement>) => {
-      if (!drag || (kind === 'brew' && drag.list.kind !== 'wishlist')) return
+      if (!drag || (kind === 'deck') !== (drag.list.kind === 'deck') || (kind === 'brew' && drag.list.kind !== 'wishlist')) return
       event.preventDefault()
       const onTitle = (event.target as HTMLElement).closest('.nav-section') !== null
-      const at = kind === 'wishlist' ? (onTitle ? 0 : count) : null
+      const at = kind === 'brew' ? null : onTitle ? 0 : count
       if (drag.into !== kind || drag.at !== at) setDrag({ ...drag, into: kind, at })
     },
     onDrop: (event: DragEvent) => {
@@ -155,9 +161,8 @@ export function Sidebar(props: SidebarProps) {
 
   const renderList = (list: CardList, index: number) => {
     const { format, summary, mainCards, size, cheaper, pricier, colors, art } = figures.get(list)!
-    const isWishlist = list.kind === 'wishlist'
     const isBrew = list.kind === 'brew'
-    const over = isWishlist && drag?.into === 'wishlist'
+    const over = !isBrew && drag?.into === list.kind
     const dropMark = over && drag.at === index ? ' drop-before' : over && drag.at === index + 1 ? ' drop-after' : ''
     const dragged = drag !== null && sameList(drag.list, list)
     const active = view?.page === 'list' && sameList(view.list, list)
@@ -173,7 +178,7 @@ export function Sidebar(props: SidebarProps) {
         style={colors.length > 0 ? ({ '--colors': colors.length } as CSSProperties) : undefined}
         title={rail ? list.name : undefined}
         onClick={() => onSelect({ page: 'list', list: { kind: list.kind, name: list.name } })}
-        {...(isWishlist || isBrew ? dragProps(list, index) : {})}
+        {...dragProps(list, index)}
       >
         <span className="nav-thumb" aria-hidden="true">
           {art && settings.cardImages ? <img src={art} alt="" loading="lazy" draggable={false} /> : <Initials name={list.name} />}
@@ -238,9 +243,9 @@ export function Sidebar(props: SidebarProps) {
     // A drop on the section itself: into Brews, or onto an empty Wishlists.
     const dropInto = drag?.into === kind && (kind === 'brew' || items.length === 0)
     return (
-      <div className="nav-group" {...(kind === 'deck' ? {} : dropZone(kind, items.length))}>
+      <div className="nav-group" {...dropZone(kind, items.length)}>
         <div className={`nav-section${dropInto ? ' drop-into' : ''}`}>
-          <span className="nav-section-title">
+          <span className="nav-section-title" title={kind === 'deck' && items.length > 1 ? ui.sidebar.deckOrder : undefined}>
             {title}
             {!open && items.length > 0 && <span className="nav-section-count"> · {items.length}</span>}
           </span>

@@ -11,7 +11,7 @@ import { withTypeface } from '@shared/listTypeface'
 import { withColor, withPalette } from '@shared/listColor'
 import type { IdentityKey } from '@shared/deckPalettes'
 import { withPreferredVersions } from '@shared/listPreference'
-import { withUnbuilt } from '@shared/listUnbuilt'
+import { withHoldsCopies } from '@shared/listHolds'
 import { appliedUpgrade, upgradeOf, upgradeTarget, withUpgradeOf } from '@shared/listUpgrade'
 import {
   withAbsorbedIns,
@@ -54,12 +54,12 @@ import {
   savedTrade,
   toCardList,
   unreadableMessage,
-  wishlistNames,
+  listNames,
   withAddedOwned,
   withBundledQty,
   withCopies,
   withFewerCopies,
-  withMovedWishlist,
+  withMovedList,
   withOwned,
   withTrade,
   type CardList,
@@ -68,6 +68,7 @@ import {
   type Conflict,
   type LibraryState,
   type ListRef,
+  type OrderedKind,
   type NewCard,
   type UndoResult
 } from './libraryCore'
@@ -82,6 +83,7 @@ export type LibraryIO = Pick<
   | 'moveList'
   | 'deleteList'
   | 'writeWishlistOrder'
+  | 'writeDeckOrder'
   | 'writeOrdered'
   | 'writeInventory'
   | 'writeTrade'
@@ -239,15 +241,18 @@ export class LibraryStore {
     return { message: `Undone: ${taken.label}`, kind: 'info' }
   }
 
-  /** Commits `lists`, kept in {@link arranged} order, and saves the wishlist order if it changed. */
+  /**
+   * Commits `lists`, kept in {@link arranged} order, and saves the deck and wishlist orders that
+   * changed. A new deck comes last, so it holds copies after the decks you have.
+   */
   private commitLists(lists: CardList[]): void {
-    const before = wishlistNames(this.state.lists)
+    const previous = this.state.lists
     const next = arranged(lists)
     this.commit({ ...this.state, lists: next })
-    const after = wishlistNames(next)
-    if (after.join('\n') !== before.join('\n')) {
-      this.io.writeWishlistOrder(after).catch((error) => this.callbacks.onError(ui.changes.orderFailed(cleanError(error))))
-    }
+    const failed = (error: unknown) => this.callbacks.onError(ui.changes.orderFailed(cleanError(error)))
+    const changed = (kind: OrderedKind) => listNames(next, kind).join('\n') !== listNames(previous, kind).join('\n')
+    if (changed('deck')) this.io.writeDeckOrder(listNames(next, 'deck')).catch(failed)
+    if (changed('wishlist')) this.io.writeWishlistOrder(listNames(next, 'wishlist')).catch(failed)
   }
 
   /** Points the upgrades of deck `from` at deck `to`, or makes them plain wishlists (`to` null); not undoable. */
@@ -438,19 +443,28 @@ export class LibraryStore {
      * Most Wanted the higher it is.
      */
     moveWishlist: (target: ListRef, to: number) => {
-      const lists = withMovedWishlist(this.state.lists, target, to)
+      const lists = withMovedList(this.state.lists, { ...target, kind: 'wishlist' }, to)
       if (lists) this.commitLists(lists)
     },
 
-    /** Makes a deck unbuilt, using every owned copy without reserving any, or built again. */
+    /** Moves a deck to place `to` among the decks (0 is the top): decks higher up hold copies first. */
+    moveDeck: (target: ListRef, to: number) => {
+      const lists = withMovedList(this.state.lists, { ...target, kind: 'deck' }, to)
+      if (lists) this.commitLists(lists)
+    },
+
     /** Shows a list's energy curve in Statistics, or stops showing it. */
     setEnergyCurve: (target: ListRef, on: boolean) => {
       this.updateLines(target, (lines) => withEnergyCurve(lines, on), { label: ui.changes.energyCurve(target.name, on) })
     },
 
-    setUnbuilt: (target: ListRef, unbuilt: boolean) => {
-      this.updateLines(target, (lines) => withUnbuilt(lines, unbuilt), {
-        label: ui.changes.unbuilt(target.name, unbuilt)
+    /**
+     * Makes a deck hold its copies, or hold none (it then uses every owned copy without reserving any),
+     * whatever the Decks hold Copies setting says.
+     */
+    setHoldsCopies: (target: ListRef, holds: boolean) => {
+      this.updateLines(target, (lines) => withHoldsCopies(lines, holds), {
+        label: ui.changes.holdsCopies(target.name, holds)
       })
     },
 

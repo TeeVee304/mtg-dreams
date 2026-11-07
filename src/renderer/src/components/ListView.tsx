@@ -11,7 +11,7 @@ import { listBanner } from '@shared/listBanner'
 import { listTexture } from '@shared/listTexture'
 import { listTypeface } from '@shared/listTypeface'
 import { preferredVersions } from '@shared/listPreference'
-import { isUnbuilt } from '@shared/listUnbuilt'
+import { holdsCopies } from '@shared/listHolds'
 import { showsEnergyCurve } from '@shared/listEnergy'
 import { activeVariant, BASE, baseLabel, variantSwaps, versionFormatLabel } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
@@ -370,12 +370,15 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       ? { on: energyOn, onToggle: () => actions.setEnergyCurve(list, !energyOn) }
       : undefined
 
-  const toggleUnbuilt = () => {
-    const unbuilt = !isUnbuilt(list.lines)
-    actions.setUnbuilt(list, unbuilt)
-    toast(
-      unbuilt ? ui.list.unbuilt(list.name) : ui.list.built(list.name)
-    )
+  /** Toggles whether the Deck holds its Copies; an Arena Deck never does, and says why. */
+  const toggleHoldsCopies = () => {
+    if (holdsNoCopies(format)) {
+      toast(ui.list.arenaHoldsNoCopies)
+      return
+    }
+    const holds = !holdsCopies(list.lines, settings.decksHoldCopies)
+    actions.setHoldsCopies(list, holds)
+    toast(holds ? ui.list.holdsCopies(list.name) : ui.list.holdsNoCopies(list.name))
   }
 
   const applyUpgrade = async () => {
@@ -462,8 +465,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
           preferred={preferred}
           onPreferredVersions={isDeck ? undefined : () => setDialog({ kind: 'preferred' })}
           onMakeWishlist={isBrew ? () => void makeWishlist() : undefined}
-          unbuilt={isDeck && isUnbuilt(list.lines)}
-          onToggleUnbuilt={isDeck && !holdsNoCopies(format) ? toggleUnbuilt : undefined}
+          holdsCopies={isDeck && holdsCopies(list.lines, settings.decksHoldCopies)}
+          onToggleHoldsCopies={isDeck ? toggleHoldsCopies : undefined}
           energyCurve={energyCurve}
           epigraph={epigraph}
           badgeShape={listBadge(list.lines) ?? 'circle'}

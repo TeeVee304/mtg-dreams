@@ -1,6 +1,6 @@
 import { listHeader } from './decklist'
 import { listColor, withColor } from './listColor'
-import { isUnbuilt, withUnbuilt } from './listUnbuilt'
+import { ownHoldsCopies, withHoldsCopies } from './listHolds'
 import { withMaybeboardOf } from './sideboard'
 import {
   BASE,
@@ -67,14 +67,14 @@ export function upgradeTarget<L extends { kind: ListKind; name: string }>(
  * @param deck - Lines of the deck it upgrades.
  * @returns The deck's new lines. An upgrade of one of the deck's versions (while it has it) becomes
  * that version's swaps, the deck itself unchanged. Otherwise the deck becomes the upgrade's list,
- * without its wishlist headers, in the deck's color if it has one, unbuilt if the deck was, and with
+ * without its wishlist headers, in the deck's color if it has one, with the deck's own Hold Copies if it sets one, and with
  * the deck's versions. Either way, the maybeboard keeps the Cards of both.
  */
 export function appliedUpgrade(upgrade: ListLine[], deck: ListLine[]): ListLine[] {
   const own = withUpgradeOf(upgrade, null)
   const version = upgradeVariant(upgrade)
   if (version && findVariant(deck, version)) return withMaybeboardOf(withVariantCards(deck, version, baseCardLines(own)), own)
-  const lines = withUnbuilt(own, isUnbuilt(deck))
+  const lines = withHoldsCopies(own, ownHoldsCopies(deck))
   const color = listColor(deck)
   return withVariantOf(withMaybeboardOf(color ? withColor(lines, color) : lines, deck), deck)
 }

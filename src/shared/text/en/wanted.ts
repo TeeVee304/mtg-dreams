@@ -40,7 +40,7 @@ export const wanted = {
   orderedGroup: 'Ordered',
   orderedGroupHint: 'Paid for, not here yet. They leave the totals; click Acquired when they arrive.',
   columns: { card: 'Card', wantedIn: 'Wanted in', toBuy: 'To buy', cost: 'Cost', actions: 'Actions' },
-  toBuyHint: 'Copies to buy so every list is covered: each built Deck needs its own; Wishlists, upgrades and unbuilt Decks share',
+  toBuyHint: 'Copies to buy so every list is covered.',
   noLists: 'No Decks or Wishlists yet.',
   noListsHint: 'Most Wanted gathers the Cards your Decks and Wishlists still miss.',
   newDeck: 'New Deck',

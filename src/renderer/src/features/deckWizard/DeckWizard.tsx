@@ -64,8 +64,6 @@ const THEME_CHIPS = 5
 const groupOf = (type: string) => TYPE_GROUPS.find((group) => group.id === type)?.id ?? 'Other'
 /** The Commander format, whose leaders the wizard offers. */
 const COMMANDER = FORMATS.find((format) => format.id === 'commander')!
-/** Stands for a new list in copy claims: it gets the copies no list reserves. */
-const NEW_LIST = { kind: 'brew' as const, name: '' }
 
 /**
  * The Deck Wizard: pick a commander (and its partner, if it has one), and it shows EDHREC's average
@@ -172,11 +170,11 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
   }
   const pick = (card: string) => lead([card])
 
-  /** Copies of a card you can build with: those no list reserves. */
+  /** Copies of a card you can build with: those no built deck holds, as when a new deck is added. */
   const free = (card: string) => {
     const key = nameKey(card)
     const qty = inventory.get(key)?.qty ?? 0
-    return Math.max(0, qty - pool.held(NEW_LIST, key, qty))
+    return Math.max(0, qty - pool.claimed(key, qty))
   }
   const rows = (deck?.cards ?? []).map((card) => {
     const basic = Boolean(bundledBasic(card.name, bundleBasics))

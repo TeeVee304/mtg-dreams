@@ -86,7 +86,7 @@ By then, most of what it needs already exists.
 **Suggested by:** a user.<br>
 **Relevant plugin(s):** `/engineering:system-design`, `/design:ux-copy`
 
-A place for Cards that are paid for but not here yet.
+A place for Cards that are paid for but not here yet. ***DONE***
 It sits between Most Wanted and the Inventory.
 Today, "Bought" puts Cards straight into the Inventory.
 That is wrong while the order is still in the mail.

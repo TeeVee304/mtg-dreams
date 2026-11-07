@@ -13,6 +13,7 @@ export const sidebar = {
   progress: (owned: number, total: number, toGo: string | null) => `${owned} of ${total}${toGo ? ` · ${toGo} to go` : ''}`,
   newList: (kind: string) => `New ${kind}`,
   collapse: (section: string) => `Collapse ${section}`,
+  deckOrder: 'Drag to reorder.',
   show: (section: string) => `Show ${section}`,
   findBrew: 'Find a Brew',
   findBrewPlaceholder: 'Find a Brew…',

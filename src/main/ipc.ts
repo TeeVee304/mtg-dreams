@@ -124,6 +124,10 @@ export function registerIpc(): void {
     if (!Array.isArray(names) || !names.every((name) => typeof name === 'string')) throw new Error(ui.errors.invalid('Wishlist order'))
     return storage.writeWishlistOrder(names)
   })
+  ipcMain.handle('list:deck-order', (_e, names: unknown) => {
+    if (!Array.isArray(names) || !names.every((name) => typeof name === 'string')) throw new Error(ui.errors.invalid('Deck order'))
+    return storage.writeDeckOrder(names)
+  })
   ipcMain.handle('wanted:ordered', (_e, stamps: unknown) => storage.writeOrdered(validStamps(stamps)))
   ipcMain.handle('inventory:write', (_e, body: unknown, force: unknown) =>
     storage.writeInventory(text(body, 'inventory text'), force === true)

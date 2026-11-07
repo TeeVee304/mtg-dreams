@@ -21,7 +21,7 @@ import {
   withFewerCopies,
   withCopies,
   withAddedOwned,
-  withMovedWishlist,
+  withMovedList,
   withOwned,
   type CardList,
   type ChangeTarget,
@@ -40,6 +40,7 @@ const data = (patch: Partial<LoadedData> = {}): LoadedData => ({
   // Saved as the app saves them: JSON, with the date they were made.
   trades: [{ name: 'Dani', text: serializeSnapshot(parseTradeText('4 Lightning Bolt', 'Dani', new Date(0))) }],
   wishlistOrder: ['Goblins', 'Burn'],
+  deckOrder: [],
   ordered: {},
   unreadable: [],
   readOnly: false,
@@ -173,10 +174,16 @@ describe('undo history', () => {
 describe('list edits', () => {
   it('moves a wishlist within the order, clamped to its ends', () => {
     const lists = [list('deck', 'Elves', ''), list('wishlist', 'A', ''), list('wishlist', 'B', ''), list('wishlist', 'C', '')]
-    expect(names(withMovedWishlist(lists, { kind: 'wishlist', name: 'C' }, 0)!)).toEqual(['deck/Elves', 'wishlist/C', 'wishlist/A', 'wishlist/B'])
-    expect(names(withMovedWishlist(lists, { kind: 'wishlist', name: 'A' }, 99)!)).toEqual(['deck/Elves', 'wishlist/B', 'wishlist/C', 'wishlist/A'])
-    expect(withMovedWishlist(lists, { kind: 'wishlist', name: 'A' }, 0)).toBeNull()
-    expect(withMovedWishlist(lists, { kind: 'wishlist', name: 'Gone' }, 0)).toBeNull()
+    expect(names(withMovedList(lists, { kind: 'wishlist', name: 'C' }, 0)!)).toEqual(['deck/Elves', 'wishlist/C', 'wishlist/A', 'wishlist/B'])
+    expect(names(withMovedList(lists, { kind: 'wishlist', name: 'A' }, 99)!)).toEqual(['deck/Elves', 'wishlist/B', 'wishlist/C', 'wishlist/A'])
+    expect(withMovedList(lists, { kind: 'wishlist', name: 'A' }, 0)).toBeNull()
+    expect(withMovedList(lists, { kind: 'wishlist', name: 'Gone' }, 0)).toBeNull()
+  })
+
+  it('moves a deck within the deck order, leaving the wishlists', () => {
+    const lists = [list('deck', 'Elves', ''), list('deck', 'Burn', ''), list('wishlist', 'A', '')]
+    expect(names(withMovedList(lists, { kind: 'deck', name: 'Burn' }, 0)!)).toEqual(['deck/Burn', 'deck/Elves', 'wishlist/A'])
+    expect(withMovedList(lists, { kind: 'deck', name: 'Elves' }, 0)).toBeNull()
   })
 
   it('collapses a bundled basic into one plain line where its first line was', () => {

@@ -28,7 +28,7 @@ describe('personal list settings', () => {
   })
 
   it('keeps the first value, as headers are read', () => {
-    expect(splitMeta('// Unbuilt: Yes\n// Unbuilt: No\n1 Sol Ring').meta).toEqual({ unbuilt: 'Yes' })
+    expect(splitMeta('// Hold copies: No\n// Hold copies: Yes\n1 Sol Ring').meta).toEqual({ holdsCopies: 'No' })
   })
 
   it('gives edited text back its settings, unless it sets them itself', () => {
@@ -38,9 +38,17 @@ describe('personal list settings', () => {
   })
 
   it('compares and validates settings', () => {
-    expect(sameMeta({ color: 'Blue' }, { color: 'Blue', unbuilt: '' })).toBe(true)
+    expect(sameMeta({ color: 'Blue' }, { color: 'Blue', holdsCopies: '' })).toBe(true)
     expect(sameMeta({ color: 'Blue' }, {})).toBe(false)
-    expect(validMeta({ color: ' Blue ', unbuilt: 3, other: 'x' })).toEqual({ color: 'Blue' })
+    expect(validMeta({ color: ' Blue ', holdsCopies: 3, other: 'x' })).toEqual({ color: 'Blue' })
     expect(validMeta(null)).toEqual({})
+  })
+
+  it('reads the old Unbuilt setting as Hold copies', () => {
+    expect(splitMeta('// Unbuilt: Yes\n1 Sol Ring')).toEqual({ text: '1 Sol Ring', meta: { holdsCopies: 'No' } })
+    expect(splitMeta('// Unbuilt: No\n1 Sol Ring')).toEqual({ text: '1 Sol Ring', meta: {} })
+    expect(validMeta({ unbuilt: 'Yes' })).toEqual({ holdsCopies: 'No' })
+    expect(validMeta({ unbuilt: 'No' })).toEqual({})
+    expect(validMeta({ unbuilt: 'Yes', holdsCopies: 'Yes' })).toEqual({ holdsCopies: 'Yes' })
   })
 })

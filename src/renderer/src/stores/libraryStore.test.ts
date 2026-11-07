@@ -14,6 +14,7 @@ const DATA: LoadedData = {
   inventory: '2 Sol Ring\n',
   trades: [],
   wishlistOrder: ['Goblins', 'Burn'],
+  deckOrder: [],
   ordered: {},
   unreadable: [],
   readOnly: false
@@ -35,6 +36,7 @@ async function loaded(data: LoadedData = DATA) {
     moveList: vi.fn(async (_from: string, _to: string, name: string) => name),
     deleteList: vi.fn(async () => {}),
     writeWishlistOrder: vi.fn(async () => {}),
+    writeDeckOrder: vi.fn(async () => {}),
     writeOrdered: vi.fn(async () => {}),
     writeInventory: vi.fn(async (_text: string, _force?: boolean) => {}),
     writeTrade: vi.fn(async () => {}),
@@ -213,6 +215,14 @@ describe('library store', () => {
     store.actions.moveWishlist(burn, 0)
     expect(store.state.lists.map((list) => list.name)).toEqual(['Elves', 'Burn', 'Goblins'])
     expect(io.writeWishlistOrder).toHaveBeenCalledWith(['Burn', 'Goblins'])
+  })
+
+  it('reorders decks and saves the order; a new deck comes last', async () => {
+    const { store, io } = await loaded({ ...DATA, decks: [...DATA.decks, { name: 'Angels', text: '1 Sol Ring\n' }] })
+    store.actions.moveDeck({ kind: 'deck', name: 'Elves' }, 0)
+    expect(io.writeDeckOrder).toHaveBeenLastCalledWith(['Elves', 'Angels'])
+    await store.actions.createList('deck', 'Burn deck', '1 Lightning Bolt\n')
+    expect(io.writeDeckOrder).toHaveBeenLastCalledWith(['Elves', 'Angels', 'Burn deck'])
   })
 
   it('saves Ordered stamps, outside the undo history', async () => {

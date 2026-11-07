@@ -76,10 +76,10 @@ interface ListHeaderProps {
   preferred?: { name: string; icon?: string } | null
   /** Wishlists and brews: opens the Universes picker. */
   onPreferredVersions?: () => void
-  /** Decks: whether it is unbuilt, using your cards without reserving them. */
-  unbuilt?: boolean
-  /** Decks: toggles unbuilt. */
-  onToggleUnbuilt?: () => void
+  /** Decks: whether it holds its Copies; one holding none uses your Cards without reserving them. */
+  holdsCopies?: boolean
+  /** Decks: toggles holding Copies. */
+  onToggleHoldsCopies?: () => void
   /** Lists with Cards that make or spend energy: whether Statistics shows the energy curve, and its toggle. */
   energyCurve?: { on: boolean; onToggle: () => void }
   /** The list's versions (Duel or EDH, then named ones); none for a list without. */
@@ -160,7 +160,7 @@ export function ListHeader(props: ListHeaderProps) {
   )
   const advanced = [
     ...(props.onUpgrade ? [{ label: text.upgradeOf, onSelect: props.onUpgrade }] : []),
-    ...(props.onToggleUnbuilt ? [{ label: text.unbuilt, checked: !!props.unbuilt, onSelect: props.onToggleUnbuilt }] : []),
+    ...(props.onToggleHoldsCopies ? [{ label: text.holdsCopies, checked: !!props.holdsCopies, onSelect: props.onToggleHoldsCopies }] : []),
     ...(props.energyCurve ? [{ label: text.energyCurve, checked: props.energyCurve.on, onSelect: props.energyCurve.onToggle }] : []),
     ...(formatVariant ? [{ label: text.addFormatVersion(formatVariant.label), onSelect: props.onAddFormatVersion }] : []),
     { label: text.addVersion, onSelect: props.onAddVersion },

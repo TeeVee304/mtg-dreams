@@ -45,6 +45,7 @@ describe('lists on disk', () => {
       inventory: '',
       trades: [],
       wishlistOrder: [],
+      deckOrder: [],
       ordered: {},
       unreadable: [],
       readOnly: false
@@ -64,6 +65,10 @@ describe('lists on disk', () => {
 
     await storage.writeWishlistOrder(['Someday', 'Goblins', 'Angels'])
     expect((await storage.loadData()).wishlistOrder).toEqual(['Someday', 'Goblins', 'Angels'])
+    await storage.writeDeckOrder(['Zur', 'Atraxa'])
+    const reloaded = await storage.loadData()
+    expect(reloaded.deckOrder).toEqual(['Zur', 'Atraxa'])
+    expect(reloaded.wishlistOrder).toEqual(['Someday', 'Goblins', 'Angels'])
   })
 
   it('keeps Ordered stamps in lists.json, beside the wishlist order', async () => {
@@ -82,16 +87,16 @@ describe('lists on disk', () => {
 
   it('keeps personal settings in lists.json, and gives them back as headers', async () => {
     const { base, data, storage } = await setup()
-    const text = '// Format: Modern\n// Color: Red\n// Unbuilt: Yes\n4 Lightning Bolt\n'
+    const text = '// Format: Modern\n// Color: Red\n// Hold copies: No\n4 Lightning Bolt\n'
     await storage.createList('deck', 'Burn', text)
     expect(readFileSync(join(data, 'decks', 'Burn.txt'), 'utf8')).toBe('// Format: Modern\n4 Lightning Bolt\n')
-    expect(JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).lists).toEqual({ 'deck/Burn': { color: 'Red', unbuilt: 'Yes' } })
+    expect(JSON.parse(readFileSync(join(data, 'lists.json'), 'utf8')).lists).toEqual({ 'deck/Burn': { color: 'Red', holdsCopies: 'No' } })
     // The app gets its own text back, headers where it put them.
     expect((await storage.loadData()).decks).toEqual([{ name: 'Burn', text }])
 
     // After a restart, the settings come first.
     const restarted = await setup(base)
-    expect((await restarted.storage.loadData()).decks[0].text).toBe('// Color: Red\n// Unbuilt: Yes\n// Format: Modern\n4 Lightning Bolt\n')
+    expect((await restarted.storage.loadData()).decks[0].text).toBe('// Color: Red\n// Hold copies: No\n// Format: Modern\n4 Lightning Bolt\n')
   })
 
   it('moves personal headers found in a file to lists.json', async () => {
@@ -382,14 +387,14 @@ describe('schema versions', () => {
 describe('settings', () => {
   it('defaults, saves, and survives a restart; bad values fall back', async () => {
     const first = await setup()
-    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, wishlistsReserve: false, plainBrews: false, deckMotion: true, simpleUI: false, skipUniversesBeyond: false, skipSecretLair: false, skipPhyrexian: false, rulesText: 'oracle', cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
+    expect(first.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: true, decksHoldCopies: true, wishlistsReserve: false, plainBrews: false, deckMotion: true, simpleUI: false, skipUniversesBeyond: false, skipSecretLair: false, skipPhyrexian: false, rulesText: 'oracle', cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     first.storage.updateAppSettings({ theme: 'dark', color: 'G', sort: 'mana' })
     const settingsFile = join(first.base, 'userData', 'settings.json')
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).toMatchObject({ theme: 'dark', color: 'G', sort: 'mana' })
 
     writeFileSync(settingsFile, JSON.stringify({ theme: 'neon', color: 'teal', sort: 'price', bundleBasics: false, copies: 'some' }))
     const restarted = await setup(first.base)
-    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, wishlistsReserve: false, plainBrews: false, deckMotion: true, simpleUI: false, skipUniversesBeyond: false, skipSecretLair: false, skipPhyrexian: false, rulesText: 'oracle', cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
+    expect(restarted.storage.getAppSettings()).toEqual({ theme: 'system', color: 'W', bundleBasics: false, decksHoldCopies: true, wishlistsReserve: false, plainBrews: false, deckMotion: true, simpleUI: false, skipUniversesBeyond: false, skipSecretLair: false, skipPhyrexian: false, rulesText: 'oracle', cardImages: true, cardView: 'table', tradeName: '', sort: 'file', sortReverse: false, priceBasis: 'trend', dropAlertPercent: 10, dropAlertMinEur: 0.1, riseAlertMinEur: 0.5 })
     restarted.storage.updateAppSettings({ theme: 'light' })
     expect(JSON.parse(readFileSync(settingsFile, 'utf8'))).not.toHaveProperty('copies')
   })

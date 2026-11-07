@@ -11,6 +11,7 @@ const api: TrackerApi = {
   moveList: (from, to, name) => ipcRenderer.invoke('list:move', from, to, name),
   deleteList: (kind, name) => ipcRenderer.invoke('list:delete', kind, name),
   writeWishlistOrder: (names) => ipcRenderer.invoke('list:order', names),
+  writeDeckOrder: (names) => ipcRenderer.invoke('list:deck-order', names),
   writeOrdered: (stamps) => ipcRenderer.invoke('wanted:ordered', stamps),
   writeInventory: (text, force) => ipcRenderer.invoke('inventory:write', text, force === true),
   writeTrade: (name, text) => ipcRenderer.invoke('trade:write', name, text),

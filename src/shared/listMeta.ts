@@ -1,10 +1,11 @@
 /**
  * Personal list settings: how you keep a list, not what the deck is. They are written as header lines
- * (`// Color: Blue`, `// Palette: Gruul`, `// Badge: square`, `// Texture: grain`, `// Typeface: Anton`, `// Banner: …`, `// Unbuilt: Yes`, `// Upgrade of: …`, `// Upgrade version: Duel`,
+ * (`// Color: Blue`, `// Palette: Gruul`, `// Badge: square`, `// Texture: grain`, `// Typeface: Anton`, `// Banner: …`, `// Hold copies: No`, `// Upgrade of: …`, `// Upgrade version: Duel`,
  * `// Preferred Versions: Innistrad`, `// Token Versions: …`) while the
  * app works with a list, but stored apart from its file, in `lists.json`, so the file holds only the
  * deck: copying, sharing or opening it elsewhere gives no personal settings. A file that has such
- * headers (an old file, or text pasted with them) gives them up to `lists.json` when saved.
+ * headers (an old file, or text pasted with them) gives them up to `lists.json` when saved. The old
+ * `// Unbuilt: Yes` header, and `unbuilt` in `lists.json`, are read as `// Hold copies: No`.
  *
  * @packageDocumentation
  */
@@ -13,7 +14,7 @@
 export type ListMeta = Partial<Record<MetaField, string>>
 
 /** A personal setting. */
-export type MetaField = 'color' | 'palette' | 'badge' | 'texture' | 'typeface' | 'banner' | 'unbuilt' | 'upgradeOf' | 'upgradeVersion' | 'preferredVersions' | 'tokenVersions' | 'energyCurve'
+export type MetaField = 'color' | 'palette' | 'badge' | 'texture' | 'typeface' | 'banner' | 'holdsCopies' | 'upgradeOf' | 'upgradeVersion' | 'preferredVersions' | 'tokenVersions' | 'energyCurve'
 
 /** Each setting's header label, as written, and the label pattern read back; in the order written. */
 const FIELDS: { field: MetaField; label: string; pattern: string }[] = [
@@ -23,7 +24,7 @@ const FIELDS: { field: MetaField; label: string; pattern: string }[] = [
   { field: 'texture', label: 'Texture', pattern: 'texture' },
   { field: 'typeface', label: 'Typeface', pattern: 'typeface' },
   { field: 'banner', label: 'Banner', pattern: 'banner' },
-  { field: 'unbuilt', label: 'Unbuilt', pattern: 'unbuilt' },
+  { field: 'holdsCopies', label: 'Hold copies', pattern: 'holds?\\s+copies' },
   { field: 'upgradeOf', label: 'Upgrade of', pattern: 'upgrade\\s+of' },
   { field: 'upgradeVersion', label: 'Upgrade version', pattern: 'upgrade\\s+version' },
   { field: 'preferredVersions', label: 'Preferred Versions', pattern: 'preferred\\s+versions' },
@@ -31,11 +32,18 @@ const FIELDS: { field: MetaField; label: string; pattern: string }[] = [
   { field: 'energyCurve', label: 'Energy curve', pattern: 'energy\\s+curve' }
 ]
 
-/** Matches a personal header line; group 1 is the label, group 2 the value. */
-const HEADER = new RegExp(`^\\s*//\\s*(${FIELDS.map((field) => field.pattern).join('|')})\\s*:\\s*(.*?)\\s*$`, 'i')
+/** Label pattern of the old Unbuilt header, read as Hold copies (see {@link fromUnbuilt}). */
+const UNBUILT = 'unbuilt'
 
-/** @returns The setting a label names. */
-const fieldOf = (label: string) => FIELDS.find((field) => new RegExp(`^${field.pattern}$`, 'i').test(label.trim()))!.field
+/** @returns The Hold copies value an old Unbuilt value stands for: `No` for a yes; unset for a no. */
+const fromUnbuilt = (value: string) => (/^(no|false)$/i.test(value.trim()) ? undefined : 'No')
+
+/** Matches a personal header line; group 1 is the label, group 2 the value. */
+const HEADER = new RegExp(`^\\s*//\\s*(${[...FIELDS.map((field) => field.pattern), UNBUILT].join('|')})\\s*:\\s*(.*?)\\s*$`, 'i')
+
+/** @returns The setting a label names; `unbuilt` for the old Unbuilt header. */
+const fieldOf = (label: string): MetaField | typeof UNBUILT =>
+  FIELDS.find((field) => new RegExp(`^${field.pattern}$`, 'i').test(label.trim()))?.field ?? UNBUILT
 
 /**
  * Splits a list's text into its file text, without personal headers, and its personal settings (the
@@ -50,8 +58,10 @@ export function splitMeta(text: string): { text: string; meta: ListMeta } {
       kept.push(line)
       continue
     }
-    const field = fieldOf(match[1])
-    if (match[2] && meta[field] === undefined) meta[field] = match[2]
+    const label = fieldOf(match[1])
+    const field = label === UNBUILT ? 'holdsCopies' : label
+    const value = label === UNBUILT ? fromUnbuilt(match[2]) : match[2]
+    if (value && meta[field] === undefined) meta[field] = value
   }
   return { text: kept.join('\n'), meta }
 }
@@ -81,13 +91,18 @@ export function sameMeta(a: ListMeta, b: ListMeta): boolean {
   return FIELDS.every(({ field }) => (a[field] ?? '') === (b[field] ?? ''))
 }
 
-/** @returns Settings with only known, non-empty string fields; for reading `lists.json`. */
+/** @returns Settings with only known, non-empty string fields, an old `unbuilt` read as `holdsCopies`; for reading `lists.json`. */
 export function validMeta(raw: unknown): ListMeta {
   const meta: ListMeta = {}
   if (typeof raw !== 'object' || raw === null) return meta
   for (const { field } of FIELDS) {
     const value = (raw as Record<string, unknown>)[field]
     if (typeof value === 'string' && value.trim()) meta[field] = value.trim()
+  }
+  const unbuilt = (raw as Record<string, unknown>)[UNBUILT]
+  if (meta.holdsCopies === undefined && typeof unbuilt === 'string' && unbuilt.trim()) {
+    const holds = fromUnbuilt(unbuilt)
+    if (holds) meta.holdsCopies = holds
   }
   return meta
 }

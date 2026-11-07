@@ -193,6 +193,19 @@ export function SettingsDialog(props: SettingsDialogProps) {
         <h3>{text.copies}</h3>
         <label className="setting-toggle">
           <span className="setting-text">
+            <span className="setting-label">{text.decksHoldCopies}</span>
+            <span className="muted small">{text.decksHoldCopiesHint}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.decksHoldCopies}
+            onChange={(event) => change({ decksHoldCopies: event.target.checked })}
+          />
+        </label>
+        <label className="setting-toggle">
+          <span className="setting-text">
             <span className="setting-label">{text.wishlistsReserve}</span>
             <span className="muted small">{text.wishlistsReserveHint}</span>
           </span>

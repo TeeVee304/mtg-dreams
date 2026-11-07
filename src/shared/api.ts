@@ -15,6 +15,8 @@ export interface AppSettings {
   color: ThemeColor
   /** Treat all printings of each regular basic land (the five, and Wastes) as one generic, zero-cost card. */
   bundleBasics: boolean
+  /** Decks hold their copies, so no other Deck uses them, unless a Deck sets its own Hold Copies. */
+  decksHoldCopies: boolean
   /**
    * Wishlists reserve the copies they use, after built decks, from the top of the wishlist order
    * down; otherwise each wishlist sees every copy built decks don't hold.
@@ -97,6 +99,8 @@ export interface LoadedData {
   trades: ListFile[]
   /** Wishlist names, top first; wishlists not in it come after, by name. */
   wishlistOrder: string[]
+  /** Deck names, top first, the order decks hold copies in; decks not in it come after, by name. */
+  deckOrder: string[]
   /** Most Wanted cards stamped as ordered, from `lists.json`. */
   ordered: OrderStamps
   /** Relative paths of unreadable files that were skipped, e.g. "decks/Burn.txt". */
@@ -155,6 +159,8 @@ export interface TrackerApi {
   deleteList(kind: ListKind, name: string): Promise<void>
   /** Saves the wishlist order, top first. */
   writeWishlistOrder(names: string[]): Promise<void>
+  /** Saves the deck order, top first. */
+  writeDeckOrder(names: string[]): Promise<void>
   /** Saves the Most Wanted cards stamped as ordered. */
   writeOrdered(stamps: OrderStamps): Promise<void>
   /** @throws `CONFLICT_ERROR` if the file changed externally and `force` is not set. */

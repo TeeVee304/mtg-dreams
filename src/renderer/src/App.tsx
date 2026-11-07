@@ -122,6 +122,7 @@ export default function App() {
         onSelect={setView}
         onNew={newList}
         onMoveWishlist={actions.moveWishlist}
+        onMoveDeck={actions.moveDeck}
         onMoveKind={(target, to, at) => void moveKind(target, to, at)}
         onSettings={() => setDialog({ kind: 'settings' })}
         pricedAt={pricedAt}
