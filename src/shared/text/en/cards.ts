@@ -19,14 +19,14 @@ export const card = {
     yours: 'You own',
     copies: (n: number) => count.copies(n),
     keep: 'Keep',
-    keepHint: (wanted: string, yours: string) => `Keep wanting ${wanted}; your ${yours} counts meanwhile`,
+    keepHint: (wanted: string, yours: string) => `Still want ${wanted}; your ${yours} counts until then`,
     replace: 'Replace',
     replaceHint: (yours: string) => `Want ${yours} instead`,
     undo: 'Undo',
     undoHint: (wanted: string) => `Stop counting your Copy: want ${wanted} again`,
-    counted: (card: string) => `Your Copy now stands in for ${card}`,
-    switched: (card: string, version: string) => `${card} now wants ${version}`,
-    uncounted: (card: string) => `${card} wants its Version again`
+    counted: (card: string) => `Your Copy counts for ${card}`,
+    switched: (card: string, version: string) => `Wanted Version of ${card}: ${version}`,
+    uncounted: (card: string) => `Wanted Version of ${card} restored`
   },
   ownedHint: (complete: boolean, inInventory: number, held: number) =>
     `${complete ? 'Owned; unchecking takes them out of your Inventory.' : 'Check once you own them: adds them to your Inventory.'} ${inInventory} in Inventory${held > 0 ? `; Decks hold ${held} of them` : ''}.`,
@@ -38,7 +38,6 @@ export const card = {
   bundledTileHint: 'Bundled basic Land: any Version counts, for free',
   officialName: "The Card's official name",
   gameChanger: 'On the Commander Game Changer list',
-  gameChangerTag: 'GC',
   onlyIn: (version: string) => `Only in the ${version} Version`,
   only: (version: string) => `${version} only`,
   priceChange: (was: string, date: string, now: string) => `${was} when added on ${date}, now ${now}`,
@@ -95,7 +94,6 @@ export const card = {
     printedText: (language: string) => `Printed text · ${language}`,
     /** Why Oracle text shows though Settings ask for printed text. */
     noPrintedText: {
-      english: 'Oracle text · Scryfall has no printed text for English printings',
       missing: 'Oracle text · Scryfall has no printed text for this Version',
       loading: 'Oracle text · looking up the printed text…'
     },
@@ -129,7 +127,7 @@ export const card = {
     legality: 'Format legality',
     statuses: { legal: 'Legal', not_legal: 'Not legal', banned: 'Banned', restricted: 'Restricted' } as Record<string, string>,
     changeVersion: 'Change Version',
-    changeHint: 'Pick a Version to use it right away; the price updates immediately.'
+    changeHint: 'Pick a Version to use it'
   },
   /** Picking a Version: the printings of a Card, and adding it to a list. */
   picker: {

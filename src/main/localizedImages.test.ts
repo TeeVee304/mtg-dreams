@@ -68,7 +68,7 @@ beforeEach(async () => {
 async function setup() {
   vi.resetModules()
   const { setEnvironment } = await import('./environment')
-  setEnvironment({ userData: dir, documents: dir, appData: dir, trash: async () => undefined, userAgent: 'MTGDreams/test', scryfallApi: base, mtgjsonApi: base, priceGuideUrl: base, edhrecJson: base, cardImagesUrl: base })
+  setEnvironment({ userData: dir, documents: dir, appData: dir, trash: async () => undefined, userAgent: 'MTGDreams/test', scryfallApi: base, mtgjsonApi: base, priceGuideUrl: base, edhrecJson: base, edhrecTop: base, spellbookApi: base, cardImagesUrl: base })
   return import('./localizedImages')
 }
 

@@ -22,7 +22,7 @@ describe('the welcome page', () => {
   it('starts a new player with their collection', () => {
     const text = textOf(renderToStaticMarkup(<Welcome owned={0} onPaste={noop} onAddPrecon={noop} onNew={noop} onWizard={noop} />))
     expect(text).toContain('Paste your Collection')
-    expect(text).toContain('Let the Deck Wizard plan a Commander Deck')
+    expect(text).toContain('Plan a Commander Deck with the Deck Wizard')
   })
 
   it('offers a deck from the cards a player owns', () => {

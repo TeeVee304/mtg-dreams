@@ -1,0 +1,574 @@
+/* Commander Brackets: the Bracket section beside Statistics, the bracket picker, and the marks on
+   Card rows. Colors come from the page's tokens, so a deck page paints them in its palette. */
+
+/* The section --------------------------------------------------------------------- */
+
+.bracket-panel .collapsible-toggle {
+  align-items: center;
+}
+
+.bracket-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  margin-right: 6px;
+}
+
+.bracket-heading {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bracket-medal {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #fff;
+  border: 1.5px solid var(--accent);
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.bracket-medal.range {
+  font-size: var(--fs-md);
+}
+
+.bracket-medal.unset {
+  background: transparent;
+  color: var(--text);
+  border: 1.5px dashed var(--muted);
+}
+
+.bracket-panel.above .bracket-medal:not(.unset) {
+  box-shadow: 0 0 0 3px var(--warn-soft);
+  border-color: var(--warn);
+}
+
+.bracket-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.bracket-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 6px 24px 18px;
+}
+
+.bracket-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px 32px;
+}
+
+.bracket-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bracket-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+.bracket-verdict.good {
+  color: var(--accent-text);
+}
+
+.bracket-verdict.warn {
+  color: var(--warn);
+}
+
+.bracket-turn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-md);
+}
+
+.bracket-declare {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.bracket-columns {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 22px 32px;
+}
+
+/* The rules, one row each, against the five brackets. */
+.bracket-table-box {
+  flex: 3 1 460px;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.bracket-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-md);
+}
+
+.bracket-table thead th {
+  padding: 4px 0 8px;
+  font-weight: 400;
+  color: var(--muted);
+  text-align: center;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.bracket-table thead th:first-child {
+  text-align: left;
+  font-size: var(--fs-sm);
+  vertical-align: bottom;
+}
+
+.bracket-table thead th.declared {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.bracket-level {
+  display: block;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+}
+
+.bracket-level-name {
+  display: block;
+  font-size: var(--fs-xs);
+}
+
+.bracket-table tbody th {
+  padding: 10px 12px 10px 0;
+  font-weight: 400;
+  text-align: left;
+  border-top: 1px solid var(--border);
+}
+
+.bracket-rule {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.bracket-rule svg {
+  color: var(--accent-text);
+}
+
+.bracket-rule .muted {
+  font-weight: 400;
+}
+
+.bracket-rule-cards {
+  display: block;
+  margin: 3px 0 0 24px;
+}
+
+.bracket-table td {
+  width: 60px;
+  padding: 10px 0;
+  text-align: center;
+  vertical-align: middle;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+.bracket-table td > span {
+  display: inline-flex;
+}
+
+.bracket-table td.fits {
+  color: var(--accent-text);
+  opacity: 0.55;
+}
+
+.bracket-table td.declared {
+  background: var(--accent-soft);
+  opacity: 1;
+}
+
+.bracket-table td.breaks.declared {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+/* Combos and salt. */
+.bracket-side {
+  flex: 2 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.bracket-side section,
+.bracket-salty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bracket-body h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.bracket-body h4 .chip.salt-versus {
+  margin-left: auto;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.bracket-body section p {
+  margin: 0;
+}
+
+.bracket-combo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+  color: var(--text);
+  text-decoration: none;
+}
+
+a.bracket-combo:hover {
+  background: var(--hover);
+}
+
+.bracket-combo > svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent-text);
+}
+
+.bracket-combo.early > svg {
+  color: var(--warn);
+}
+
+.bracket-combo.offline {
+  align-items: center;
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+
+.bracket-combo.offline span {
+  flex: 1;
+}
+
+.bracket-combo-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* "+N more": the combos past the table's bottom, and back. */
+.bracket-more {
+  height: 36px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+}
+
+.bracket-more:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.bracket-tag {
+  flex: none;
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bracket-combo.early .bracket-tag {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.bracket-salt-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Salt under the table, when beside it the column would run past the table: one line of Cards,
+   each its name and score over its bar. */
+.bracket-salty.strip {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 24px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.bracket-salty.strip h4 {
+  flex: none;
+  gap: 10px;
+}
+
+.bracket-salty.strip h4 .chip.salt-versus {
+  margin-left: 4px;
+}
+
+.bracket-salty.strip .bracket-salt-rows {
+  flex: 1 1 480px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 20px;
+}
+
+.bracket-salty.strip .bracket-salt-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+}
+
+.bracket-salty.strip .bracket-salt-bar {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  height: 5px;
+}
+
+.bracket-salt-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 36px;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-md);
+}
+
+.bracket-salt-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.bracket-salt-bar {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+
+.bracket-salt-bar span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.bracket-salt-row .muted {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bracket-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.bracket-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.bracket-sources a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+}
+
+.bracket-sources svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* The picker: Not set, then 1 to 5 --------------------------------------------------- */
+
+.bracket-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.bracket-picker button {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+.bracket-picker button:hover {
+  border-color: var(--muted);
+}
+
+/* The declared bracket: filled, like the medal. */
+.bracket-picker button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.bracket-picker-number {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.bracket-picker.compact button.unset {
+  padding: 0 12px;
+}
+
+.bracket-picker.compact button.unset .bracket-picker-number {
+  font-family: inherit;
+  font-size: var(--fs-md);
+  font-weight: 400;
+}
+
+.bracket-picker.tiles {
+  display: grid;
+  grid-template-columns: 1.3fr repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.bracket-picker.tiles button {
+  height: 60px;
+  background: var(--panel-2);
+}
+
+.bracket-picker.tiles button[aria-pressed='true'] {
+  background: var(--accent);
+}
+
+.bracket-picker-name {
+  font-size: var(--fs-xs);
+  line-height: 1.2;
+}
+
+/* The New list dialog's bracket. */
+.bracket-field {
+  border: none;
+  margin: 0 0 14px;
+  padding: 0;
+  min-width: 0;
+}
+
+.bracket-field legend {
+  padding: 0;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: var(--fs-md);
+}
+
+.bracket-field .bracket-turn {
+  margin-top: 8px;
+}
+
+/* Card rows ------------------------------------------------------------------------ */
+
+.bracket-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  vertical-align: middle;
+  border-radius: var(--radius-pill);
+  background: var(--hover);
+  color: var(--muted);
+}
+
+.bracket-mark svg {
+  width: 12px;
+  height: 12px;
+}
+
+.bracket-mark.game-changer {
+  margin-left: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.bracket-mark.early {
+  color: var(--warn);
+}
+
+.chip.above-bracket {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.chip.above-bracket svg {
+  width: 11px;
+  height: 11px;
+}

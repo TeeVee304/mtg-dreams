@@ -36,7 +36,7 @@ afterAll(() => rm(dir, { recursive: true, force: true }))
 describe('the caches', () => {
   it('add up by what Settings calls them, folders included', async () => {
     expect(await cacheSizes()).toEqual({
-      bytes: { cards: 120, prices: 50, images: 10, precons: 10, edhrec: 9, tokens: 2, setGroups: 0 },
+      bytes: { cards: 120, prices: 50, images: 10, precons: 10, edhrec: 9, brackets: 0, tokens: 2, setGroups: 0 },
       cards: 2
     })
   })

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 import type { CardFilters, ColorFilter, SortKey } from '@shared/cards'
 import { MAYBEBOARD_SECTION, type Section } from '@shared/listModel'
 import { ui } from '@shared/text'
@@ -21,6 +21,19 @@ const FOLDED_AT_FIRST = [MAYBEBOARD_SECTION]
 
 /** Session-only folded section ids per list key. */
 const folded = new Map<string, Set<string>>()
+
+/** Drag data type of a card line dragged between category sections. */
+const LINE_DRAG = 'application/x-mtg-dreams-line'
+
+/** What a list grouped by category does with its rows and sections, when its categories can be edited. */
+export interface CategoryControls {
+  /** A right-click on a main-deck row, by its line id; returns whether a menu opened. */
+  onRowMenu: (lineId: string, x: number, y: number) => boolean
+  /** A right-click on a category section's title. */
+  onSectionMenu: (section: Section<Row>, x: number, y: number) => void
+  /** A row dropped on a section: its category, or null for Uncategorized. */
+  onDrop: (lineId: string, category: string | null) => void
+}
 
 /** Props of {@link ListTable}. */
 interface ListTableProps {
@@ -56,6 +69,8 @@ interface ListTableProps {
   dataLoading: boolean
   /** Commander picking mode; forces all sections open. */
   picking: boolean
+  /** A list grouped by category whose categories can be edited: right-click menus and dragging rows between sections. */
+  categories?: CategoryControls
 }
 
 /** Filter bar plus foldable type sections (commander first) rendered as table or grid per settings. */
@@ -72,6 +87,7 @@ export function ListTable(props: ListTableProps) {
     folded.set(props.listKey, next)
     setClosed(next)
   }
+  const drag = useCategoryDrag(props.categories)
   return (
     <>
       <FilterBar
@@ -113,8 +129,12 @@ export function ListTable(props: ListTableProps) {
           {sections.map((section) => {
             const open = props.picking || !closed.has(section.id)
             return (
-              <section key={section.id} className={`grid-section${section.id === 'Commander' ? ' commander-section' : ''}`}>
-                <div className={`section-row grid-section-head${open ? '' : ' folded'}`}>
+              <section
+                key={section.id}
+                className={`grid-section${section.id === 'Commander' ? ' commander-section' : ''}${drag.over === section.id ? ' drop-into' : ''}`}
+                {...drag.sectionProps(section)}
+              >
+                <div className={`section-row grid-section-head${open ? '' : ' folded'}`} {...drag.headProps(section)}>
                   <SectionHead section={section} open={open} onToggle={() => toggle(section.id)} />
                 </div>
                 {open && <div className="card-grid">{section.rows.map(props.renderTile)}</div>}
@@ -145,8 +165,12 @@ export function ListTable(props: ListTableProps) {
           {sections.map((section) => {
             const open = props.picking || !closed.has(section.id)
             return (
-              <tbody key={section.id} className={section.id === 'Commander' ? 'commander-section' : undefined}>
-                <tr className={`section-row${open ? '' : ' folded'}`}>
+              <tbody
+                key={section.id}
+                className={[section.id === 'Commander' && 'commander-section', drag.over === section.id && 'drop-into'].filter(Boolean).join(' ') || undefined}
+                {...drag.sectionProps(section)}
+              >
+                <tr className={`section-row${open ? '' : ' folded'}`} {...drag.headProps(section)}>
                   <td colSpan={(isDeck ? 3 : 4) - (narrow ? 1 : 0)}>
                     <SectionTitle section={section} open={open} onToggle={() => toggle(section.id)} />
                   </td>
@@ -164,6 +188,69 @@ export function ListTable(props: ListTableProps) {
       {props.visibleRows === 0 && <p className="muted empty-filter">{ui.list.table.noMatch}</p>}
     </>
   )
+}
+
+/** @returns The id of the card line an event happened on (`data-line-id`), with its element; null if none. */
+function lineAt(target: EventTarget): { id: string; element: HTMLElement } | null {
+  const element = target instanceof Element ? target.closest<HTMLElement>('[data-line-id]') : null
+  return element?.dataset.lineId ? { id: element.dataset.lineId, element } : null
+}
+
+/**
+ * Right-click menus and dragging rows between the sections of a list grouped by category: props for
+ * each section (its rows' menus, and dropping) and its title (its own menu), and the section a row
+ * is dragged over. Without controls, all props are empty.
+ */
+function useCategoryDrag(controls: CategoryControls | undefined) {
+  const [over, setOver] = useState<string | null>(null)
+  if (!controls) return { over: null, sectionProps: () => ({}), headProps: () => ({}) }
+  const dragged = (event: DragEvent) => event.dataTransfer.types.includes(LINE_DRAG)
+  return {
+    over,
+    sectionProps: (section: Section<Row>) => ({
+      onDragStart: (event: DragEvent) => {
+        const line = lineAt(event.target)
+        if (!line) return
+        event.dataTransfer.setData(LINE_DRAG, line.id)
+        event.dataTransfer.effectAllowed = 'move'
+      },
+      onDragEnd: () => setOver(null),
+      onContextMenu: (event: MouseEvent) => {
+        const line = lineAt(event.target)
+        // A table thumbnail keeps its image menu (Copy image); selected text, its Copy.
+        const image = event.target instanceof HTMLImageElement && !line?.element.classList.contains('card-tile')
+        if (!line || image || window.getSelection()?.toString().trim()) return
+        if (controls.onRowMenu(line.id, event.clientX, event.clientY)) event.preventDefault()
+      },
+      ...(section.category !== undefined && {
+        onDragOver: (event: DragEvent) => {
+          if (!dragged(event)) return
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'move'
+          if (over !== section.id) setOver(section.id)
+        },
+        onDragLeave: (event: DragEvent) => {
+          if (!(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) setOver(null)
+        },
+        onDrop: (event: DragEvent) => {
+          event.preventDefault()
+          setOver(null)
+          const id = event.dataTransfer.getData(LINE_DRAG)
+          if (id) controls.onDrop(id, section.category ?? null)
+        }
+      })
+    }),
+    headProps: (section: Section<Row>) =>
+      section.category
+        ? {
+            onContextMenu: (event: MouseEvent) => {
+              event.preventDefault()
+              event.stopPropagation()
+              controls.onSectionMenu(section, event.clientX, event.clientY)
+            }
+          }
+        : {}
+  }
 }
 
 /** Props of {@link SectionHead}. */

@@ -1,12 +1,16 @@
 import { useMemo, useState } from 'react'
+import { BRACKET_TURNS, type BracketLevel } from '@shared/brackets'
 import { cardLines, parseInventory, parseList, unrecognizedLines } from '@shared/decklist'
+import { findFormat } from '@shared/formats'
 import { totalCopies } from '@shared/totals'
 import type { ListKind } from '@shared/types'
 import { ui } from '@shared/text'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { useCopy } from '../hooks/useCopy'
 import { localizeText } from '../lib/localize'
+import { BracketPicker } from './BracketPicker'
 import { FormatSelect } from './Controls'
+import { Icon } from './Icon'
 import { Modal } from './Modal'
 
 /** Props of {@link PromptDialog}. */
@@ -231,8 +235,11 @@ export function TextEditorDialog({ title, initial, mode, copied, copyText = (tex
 /** Props of {@link NewListDialog}. */
 interface NewListDialogProps {
   kind: ListKind
-  /** Creates the list. `addToInventory` (decks): raise inventory totals to cover the imported cards. */
-  onCreate: (name: string, text: string, formatId: string | null, addToInventory: boolean) => Promise<void>
+  /**
+   * Creates the list. `bracket`: the one declared, in a format with brackets. `addToInventory` (decks):
+   * raise inventory totals to cover the imported cards.
+   */
+  onCreate: (name: string, text: string, formatId: string | null, bracket: BracketLevel | null, addToInventory: boolean) => Promise<void>
   /** Switches to precon import. */
   onFromPrecon: () => void
   /** Opens the Deck Wizard instead; offered for wishlists. */
@@ -247,8 +254,11 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
   const [format, setFormat] = useState('')
   const [text, setText] = useState('')
   const [addToInventory, setAddToInventory] = useState(true)
+  const [bracket, setBracket] = useState<BracketLevel | null>(null)
+  const brackets = !!findFormat(format)?.commander?.brackets
   const { error, busy, run } = useAsyncAction()
-  const submit = () => run(async () => onCreate(name, await localizeText(text), format || null, isDeck && addToInventory))
+  const submit = () =>
+    run(async () => onCreate(name, await localizeText(text), format || null, brackets ? bracket : null, isDeck && addToInventory))
   return (
     <Modal
       title={ui.dialogs.newList.title(kind)}
@@ -283,6 +293,18 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
         <span>{ui.dialogs.format}</span>
         <FormatSelect value={format} onChange={setFormat} />
       </label>
+      {brackets && (
+        <fieldset className="field bracket-field">
+          <legend>
+            {ui.bracket.title} <span className="muted">{ui.bracket.optional}</span>
+          </legend>
+          <BracketPicker value={bracket} onChange={setBracket} variant="tiles" />
+          <span className="muted small bracket-turn">
+            <Icon name="hourglass" />
+            {bracket === null ? ui.bracket.leaveUnset : ui.bracket.turn(BRACKET_TURNS[bracket])}
+          </span>
+        </fieldset>
+      )}
       <label className="field">
         <span>{isDeck ? ui.dialogs.newList.importDeck : ui.dialogs.newList.importCards}</span>
         <textarea

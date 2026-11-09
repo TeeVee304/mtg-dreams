@@ -2,6 +2,7 @@ import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeTheme, session, s
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
 import type { PriceBaseline, PrintingsOptions, Theme, TrackerApi } from '@shared/api'
+import { MAX_COMBO_CARDS, MAX_COMBO_COMMANDERS } from '@shared/brackets'
 import { validStamps } from '@shared/ordered'
 import { isPriceBasis } from '@shared/pricing'
 import { settingsPatch } from '@shared/settings'
@@ -19,6 +20,7 @@ import { getSetGroups } from './setGroups'
 import { cachedTokenIds, getDeckTokens, getTokenVersions } from './tokens'
 import { getLocalizedImage } from './localizedImages'
 import { getRulings } from './rulings'
+import { getBracketCombos, getBracketSalt, getBracketTags } from './brackets'
 import { loadPriceGuide, priceGuideDate, refreshPriceGuide, withMarketPrices } from './priceGuide'
 import { getBaselines, pricesAt, recordCurrentPrices, trackPrices, updateBaselines } from './priceHistory'
 import { autocomplete, getCardImages, getCardInfos, getPrintings } from './scryfall'
@@ -26,7 +28,7 @@ import * as storage from './storage'
 import { arrayOf, cardNames, cardQueries, localizedQuery, numbers, scryfallIds, text } from './validate'
 
 /** Hosts (and subdomains) allowed for external links. */
-const EXTERNAL_HOSTS = ['cardmarket.com', 'scryfall.com', 'edhrec.com']
+const EXTERNAL_HOSTS = ['cardmarket.com', 'scryfall.com', 'edhrec.com', 'commanderspellbook.com']
 /** Max imported trade file size. */
 const MAX_TRADE_FILE_BYTES = 5 * 1024 * 1024
 
@@ -227,6 +229,11 @@ export function registerIpc(): void {
   )
   ipcMain.handle('tokens:deck', (_e, names: unknown, chosen: unknown) =>
     getDeckTokens(cardNames(names, 3000, 200), chosen === undefined ? [] : scryfallIds(chosen, 500))
+  )
+  ipcMain.handle('brackets:tags', () => getBracketTags())
+  ipcMain.handle('brackets:salt', () => getBracketSalt())
+  ipcMain.handle('brackets:combos', (_e, commanders: unknown, cards: unknown) =>
+    getBracketCombos(cardNames(commanders, MAX_COMBO_COMMANDERS, 200), cardNames(cards, MAX_COMBO_CARDS, 200))
   )
   ipcMain.handle('tokens:versions', (_e, oracleId: unknown) => getTokenVersions(scryfallIds([oracleId], 1)[0]))
   ipcMain.handle('images:localized', (_e, query: unknown) => getLocalizedImage(localizedQuery(query)))

@@ -22,7 +22,7 @@ export const rules = {
   notLegalIn: (format: string) => `Not legal in ${format}`,
   /** A previewed Card: Scryfall sets its legality on release. */
   unreleased: 'Not out yet',
-  unreleasedOn: (date: string) => `Release date ${date.split('-').reverse().join('-')}. Scryfall sets its legality once it is out.`,
+  unreleasedOn: (date: string) => `Releases ${date.split('-').reverse().join('-')}`,
   /** A Rulebreaker commander: allowed to lead, with a warning. */
   playtest: (format: string) => `Not legal in ${format}: Rulebreakers are playtest Cards`,
   restricted: 'Restricted',
@@ -40,8 +40,8 @@ export const rules = {
   companionShort: 'Deck too small',
   companionShortOf: (companion: string, missing: number) => `${companion} needs ${missing} more Cards in the Deck`,
   unchecked: 'Not checked',
-  uncheckedCompanion: (companion: string) => `${companion}'s condition is new to MTG Dreams: it isn't checked`,
-  uncheckedRulebreaker: (commander: string) => `${commander}'s Rulebreaker rule is new to MTG Dreams: it isn't applied`,
+  uncheckedCompanion: (companion: string) => `${companion}'s condition isn't checked yet`,
+  uncheckedRulebreaker: (commander: string) => `${commander}'s Rulebreaker rule isn't applied yet`,
   /** More problems than the chip shows: `+1`. */
   more: (n: number) => `+${n}`,
   /** Why a Card is allowed despite a rule, on hover and in the Card dialog. */
@@ -89,5 +89,6 @@ export const sections = {
   commander: (n: number) => (n > 1 ? 'Commanders' : 'Commander'),
   companion: 'Companion',
   sideboard: 'Sideboard',
-  maybeboard: 'Maybeboard'
+  maybeboard: 'Maybeboard',
+  uncategorized: 'Uncategorized'
 }

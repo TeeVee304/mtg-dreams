@@ -16,6 +16,7 @@ import { trades } from './trades'
 import { inventory } from './inventory'
 import { value } from './value'
 import { card } from './cards'
+import { bracket } from './brackets'
 import { deckTokens, filters, startingHand, stats, swaps, upgradeSwaps } from './panels'
 
 /** The English catalog: every text the app shows, by area. */
@@ -42,6 +43,7 @@ export const en = {
   inventory,
   value,
   card,
+  bracket,
   swaps,
   upgradeSwaps,
   startingHand,

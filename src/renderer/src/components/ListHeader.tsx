@@ -10,7 +10,7 @@ import { leadersLabel, stickerTilt, THEME_TAGS, themeTagColors } from '../lib/th
 import { FORMAT_GROUPS, Segmented } from './Controls'
 import { Icon } from './Icon'
 import { HeroPortrait } from './HeroArt'
-import { MenuButton } from './MenuButton'
+import { MenuButton, type MenuItem } from './MenuButton'
 import type { HeaderBackground } from '../lib/listFigures'
 
 /** Props of {@link ListHeader}. */
@@ -82,6 +82,10 @@ interface ListHeaderProps {
   onToggleHoldsCopies?: () => void
   /** Lists with Cards that make or spend energy: whether Statistics shows the energy curve, and its toggle. */
   energyCurve?: { on: boolean; onToggle: () => void }
+  /** The main deck is split by the Cards' categories rather than by type. */
+  groupByCategory: boolean
+  /** Groups the main deck by category (true) or by type. */
+  onGroupBy: (byCategory: boolean) => void
   /** The list's versions (Duel or EDH, then named ones); none for a list without. */
   variants: Variant[]
   /** The list itself, named in the version toggle: `Commander`, `Duel`, `Main`. */
@@ -162,10 +166,97 @@ export function ListHeader(props: ListHeaderProps) {
     ...(props.onUpgrade ? [{ label: text.upgradeOf, onSelect: props.onUpgrade }] : []),
     ...(props.onToggleHoldsCopies ? [{ label: text.holdsCopies, checked: !!props.holdsCopies, onSelect: props.onToggleHoldsCopies }] : []),
     ...(props.energyCurve ? [{ label: text.energyCurve, checked: props.energyCurve.on, onSelect: props.energyCurve.onToggle }] : []),
-    ...(formatVariant ? [{ label: text.addFormatVersion(formatVariant.label), onSelect: props.onAddFormatVersion }] : []),
-    { label: text.addVersion, onSelect: props.onAddVersion },
-    ...(other && props.onRenameVersion ? [{ label: text.renameVersion(other.label), onSelect: props.onRenameVersion }] : [])
+    ...(formatVariant ? [{ label: text.addFormatVersion(formatVariant.label), onSelect: props.onAddFormatVersion }] : [])
   ]
+  const menu = menuGroups([
+    // The deck: its format first, then what the format and its commanders allow.
+    [
+      // A version follows its own format, shown locked in the header.
+      ...(other
+        ? []
+        : [
+            {
+              label: text.format,
+              items: [
+                { label: ui.common.noFormat, checked: !format, onSelect: () => props.onFormat(null) },
+                ...FORMAT_GROUPS.map((group) => ({
+                  label: group.label,
+                  items: group.formats.map((choice) => ({
+                    label: choice.label,
+                    checked: format?.id === choice.id,
+                    onSelect: () => props.onFormat(choice.id)
+                  }))
+                }))
+              ]
+            }
+          ]),
+      ...(canChangeCommander ? [{ label: text.changeCommander, onSelect: () => props.onTogglePicking('commander') }] : []),
+      ...(props.companions.length > 0 || props.companion
+        ? [
+            {
+              label: text.companion,
+              items: [
+                { label: text.noCompanion, checked: !props.companion, onSelect: () => props.onCompanion(null) },
+                ...props.companions.map((card) => ({ label: card, checked: props.companion === card, onSelect: () => props.onCompanion(card) }))
+              ]
+            }
+          ]
+        : []),
+      ...(props.colorChoices
+        ? [
+            {
+              label: text.rulebreakerColor,
+              items: props.colorChoices.map((color) => ({
+                label: COLOR_NAMES[color],
+                checked: props.rulebreakerColor === color,
+                onSelect: () => props.onRulebreakerColor(props.rulebreakerColor === color ? null : color)
+              }))
+            }
+          ]
+        : [])
+    ],
+    // How it shows.
+    [
+      { label: props.stylable ? text.style : text.color, onSelect: props.onColor },
+      ...(props.onBadgeShape && (props.background?.art || props.companionBadge?.art)
+        ? [
+            {
+              label: text.badge,
+              items: [
+                { label: text.badgeAuto, checked: !props.badgeChoice, onSelect: () => props.onBadgeShape!(null) },
+                ...(['circle', 'square', 'diamond'] as const).map((shape) => ({
+                  label: text.badgeShapes[shape],
+                  checked: props.badgeChoice === shape,
+                  onSelect: () => props.onBadgeShape!(shape)
+                }))
+              ]
+            }
+          ]
+        : []),
+      {
+        label: text.groupBy,
+        items: [
+          { label: text.groupByType, checked: !props.groupByCategory, onSelect: () => props.onGroupBy(false) },
+          { label: text.groupByCategory, checked: props.groupByCategory, onSelect: () => props.onGroupBy(true) }
+        ]
+      },
+      ...(props.onPreferredVersions ? [{ label: text.preferredVersions, icon: 'star' as const, onSelect: props.onPreferredVersions }] : [])
+    ],
+    // Versions, and the settings few lists need.
+    [
+      { label: text.addVersion, onSelect: props.onAddVersion },
+      ...(advanced.length > 0 ? [{ label: text.advanced, items: advanced }] : [])
+    ],
+    // The list itself; in a version's view, renaming and deleting act on that version only.
+    [
+      other && props.onRenameVersion
+        ? { label: text.renameVersion(other.label), onSelect: props.onRenameVersion }
+        : { label: text.rename, onSelect: props.onRename },
+      other && props.onDeleteVersion
+        ? { label: text.deleteVersion(other.label), onSelect: props.onDeleteVersion, danger: true }
+        : { label: text.delete, onSelect: props.onDelete, danger: true }
+    ]
+  ])
   // The list's Universe: its set symbol, or a star while the groups load.
   const preferred = props.preferred
   const symbol = () =>
@@ -332,82 +423,13 @@ export function ListHeader(props: ListHeaderProps) {
         <button type="button" onClick={props.onEditText}>
           {text.editAsText}
         </button>
-        <MenuButton
-          label={text.more(noun)}
-          items={[
-            ...(canChangeCommander ? [{ label: text.changeCommander, onSelect: () => props.onTogglePicking('commander') }] : []),
-            { label: props.stylable ? text.style : text.color, onSelect: props.onColor },
-            ...(props.onBadgeShape && (props.background?.art || props.companionBadge?.art)
-              ? [
-                  {
-                    label: text.badge,
-                    items: [
-                      { label: text.badgeAuto, checked: !props.badgeChoice, onSelect: () => props.onBadgeShape!(null) },
-                      ...(['circle', 'square', 'diamond'] as const).map((shape) => ({
-                        label: text.badgeShapes[shape],
-                        checked: props.badgeChoice === shape,
-                        onSelect: () => props.onBadgeShape!(shape)
-                      }))
-                    ]
-                  }
-                ]
-              : []),
-            { label: text.rename, onSelect: props.onRename },
-            // In a version's view, deleting deletes that version only; the list stays.
-            other && props.onDeleteVersion
-              ? { label: text.deleteVersion(other.label), onSelect: props.onDeleteVersion, danger: true }
-              : { label: text.delete, onSelect: props.onDelete, danger: true },
-            ...(props.onPreferredVersions ? [{ label: text.preferredVersions, icon: 'star' as const, onSelect: props.onPreferredVersions }] : []),
-            ...(props.companions.length > 0 || props.companion
-              ? [
-                  {
-                    label: text.companion,
-                    items: [
-                      { label: text.noCompanion, checked: !props.companion, onSelect: () => props.onCompanion(null) },
-                      ...props.companions.map((card) => ({
-                        label: card,
-                        checked: props.companion === card,
-                        onSelect: () => props.onCompanion(card)
-                      }))
-                    ]
-                  }
-                ]
-              : []),
-            ...(props.colorChoices
-              ? [
-                  {
-                    label: text.rulebreakerColor,
-                    items: props.colorChoices.map((color) => ({
-                      label: COLOR_NAMES[color],
-                      checked: props.rulebreakerColor === color,
-                      onSelect: () => props.onRulebreakerColor(props.rulebreakerColor === color ? null : color)
-                    }))
-                  }
-                ]
-              : []),
-            // A version follows its own format, shown locked in the header.
-            ...(other
-              ? []
-              : [
-                  {
-                    label: text.format,
-                    items: [
-                      { label: ui.common.noFormat, checked: !format, onSelect: () => props.onFormat(null) },
-                      ...FORMAT_GROUPS.map((group) => ({
-                        label: group.label,
-                        items: group.formats.map((choice) => ({
-                          label: choice.label,
-                          checked: format?.id === choice.id,
-                          onSelect: () => props.onFormat(choice.id)
-                        }))
-                      }))
-                    ]
-                  }
-                ]),
-            ...(advanced.length > 0 ? [{ label: text.advanced, items: advanced }] : [])
-          ]}
-        />
+        <MenuButton label={text.more(noun)} items={menu} />
       </div>
     </header>
   )
+}
+
+/** @returns The groups' entries in order, each group but the first set off by a line. Empty groups are left out. */
+function menuGroups(groups: MenuItem[][]): MenuItem[] {
+  return groups.filter((group) => group.length > 0).flatMap((group) => group.map((item, i) => (i === 0 ? { ...item, separated: true } : item)))
 }

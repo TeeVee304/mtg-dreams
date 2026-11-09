@@ -1,5 +1,5 @@
 appId: app.mtgdreams
-productName: MTG Dreams
+productName: Dreams
 directories:
   buildResources: build
   output: dist
@@ -22,8 +22,8 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: MTG Dreams
-  # Adds an "Uninstall MTG Dreams" Start Menu entry (build/installer.nsh).
+  shortcutName: Dreams
+  # Adds an "Uninstall Dreams" Start Menu entry (build/installer.nsh).
   include: build/installer.nsh
   artifactName: mtg-dreams-setup-${version}.${ext}
 portable:

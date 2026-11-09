@@ -11,7 +11,7 @@ export const swaps = {
   in: 'In',
   cutFrom: (base: string) => `Cut from the ${base} Version`,
   onlyIn: (version: string) => `Only in the ${version} Version`,
-  none: (version: string) => `No swaps yet: the ${version} Version plays the same Cards. Cut a Card and add another instead below.`,
+  none: (version: string) => `No swaps in the ${version} Version yet. Cut a Card below and add another.`,
   /** A Version, for undo labels: `Duel Version`. */
   version: (version: string) => `${version} Version`,
   keep: (card: string, target: string) => `Keep ${card} in the ${target}`,
@@ -43,7 +43,7 @@ export const upgradeSwaps = {
   changes: (deck: string) => `What this Upgrade changes in ${deck}`,
   /** The Deck, when the Upgrade plans one of its Versions. */
   deckVersion: (deck: string, version: string) => `${deck} (${version} Version)`,
-  none: (deck: string) => `No changes yet: this Upgrade plays the same Cards as ${deck}. Cut a Card or add one below.`,
+  none: (deck: string) => `No changes to ${deck} yet. Cut a Card or add one below.`,
   cutFrom: (deck: string) => `Cut from ${deck}`,
   added: 'Added by the Upgrade',
   add: 'Add a Card…  (Ctrl+K)',

@@ -12,7 +12,9 @@ import { listTexture } from '@shared/listTexture'
 import { listTypeface } from '@shared/listTypeface'
 import { preferredVersions } from '@shared/listPreference'
 import { holdsCopies } from '@shared/listHolds'
+import { categoryOf, groupsByCategory, listCategories, sameCategory } from '@shared/listCategories'
 import { showsEnergyCurve } from '@shared/listEnergy'
+import { listBracket } from '@shared/brackets'
 import { activeVariant, BASE, baseLabel, variantSwaps, versionFormatLabel } from '@shared/listVersion'
 import { sumOf } from '@shared/totals'
 import { FORMATS, holdsNoCopies } from '@shared/formats'
@@ -52,8 +54,11 @@ import { useStoredToggle } from '../hooks/useStoredToggle'
 import { useListVersion } from '../hooks/useListVersion'
 import { useUpgradeSwaps } from '../hooks/useUpgradeSwaps'
 import { useStableHandlers } from '../hooks/useStableHandlers'
+import { useDeckBracket } from '../hooks/useDeckBracket'
+import { useStoredValue } from '../hooks/useStoredValue'
 import { versionActions } from '../lib/versionActions'
 import { listRows, maybeRows, summarize, type Row } from '../lib/summary'
+import { BracketPanel } from './BracketPanel'
 import { CardRow, type RowHandlers } from './CardRow'
 import { CardTile } from './CardTile'
 import { Collapsible } from './Collapsible'
@@ -65,11 +70,29 @@ import { copyLabel } from './InventoryVersions'
 import { ListAddCards } from './ListAddCards'
 import { ListDialogs, type ListDialog } from './ListDialogs'
 import { ListHeader } from './ListHeader'
-import { ListTable } from './ListTable'
+import { ListTable, type CategoryControls } from './ListTable'
+import { ContextMenu, type MenuItem } from './MenuButton'
 import { ListValueCards } from './ListValueCards'
 import { substituteCopies } from './SubstituteDialog'
 import { SwapTable } from './SwapTable'
 import { useToast } from './Toasts'
+
+/** The panel open in the facts row: Statistics, the Bracket section, or neither. */
+type FactsPanel = 'stats' | 'bracket' | 'none'
+
+/** localStorage key of the open panel, for every list. */
+const FACTS_PANEL_KEY = 'mtg-dreams.factsPanel'
+
+const isFactsPanel = (value: string): value is FactsPanel => value === 'stats' || value === 'bracket' || value === 'none'
+
+/** @returns Whether Statistics was left open before the panels folded each other (its old key). */
+function statsWasOpen(): boolean {
+  try {
+    return localStorage.getItem('mtg-dreams.statsOpen') === 'true'
+  } catch {
+    return false
+  }
+}
 
 /** Props of {@link ListView}. */
 interface ListViewProps {
@@ -103,6 +126,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   const [filters, setFilters] = useState<CardFilters>(NO_FILTERS)
   const [hideOwned, setHideOwned] = useState(false)
   const [onlyProblems, setOnlyProblems] = useState(false)
+  /** The right-click menu open on a row or section; null if none. */
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null)
 
   const settings = useSettings()
   const { bundleBasics } = settings
@@ -153,6 +178,14 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   /** Cards a starting hand draws from: the main deck, its commanders aside. */
   const drawable = mainRows.reduce((sum, row) => sum + (isCommander(row) || analysis.isCompanion(row) ? 0 : row.line.qty), 0)
   const leaderRows = leaders.rows
+  // The bracket the Deck declares, against what its Cards say, in formats with brackets.
+  const declaredBracket = listBracket(list.lines)
+  const deckRows = useMemo(() => rows.filter((row) => !row.side && !row.maybe), [rows])
+  // Statistics and the Bracket section fold each other, so the page never holds both open.
+  const [factsPanel, setFactsPanel] = useStoredValue<FactsPanel>(FACTS_PANEL_KEY, statsWasOpen() ? 'stats' : 'none', isFactsPanel)
+  const togglePanel = (panel: FactsPanel) => setFactsPanel(factsPanel === panel ? 'none' : panel)
+  // Salt and the average deck it compares against load only once the Bracket section opens.
+  const bracket = useDeckBracket(deckRows, leaderRows.map((row) => row.line.name), format, declaredBracket, factsPanel === 'bracket')
   // A deck page outside commander formats is headed by a Card's art: the one its banner header names, else its biggest spell.
   const fallsBack = !format?.commander && (isDeck || !!format)
   const banner = fallsBack ? bannerRow(mainRows, listBanner(list.lines)) : null
@@ -193,7 +226,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
   }, [list, actions, settings.priceBasis, printingsVersion])
 
   const visibleRows = sortRows(filterRows(tableRows, list.kind, analysis, { filters, hideOwned, onlyProblems }), sort, sortReverse)
-  const sections = sectionRows(visibleRows, analysis)
+  const byCategory = groupsByCategory(list.lines)
+  const sections = sectionRows(visibleRows, analysis, byCategory)
 
   const filtering = filtersActive(filters) || hideOwned || onlyProblems
   const dataLoading = needsCardData(filters) && tableRows.some((row) => !row.info && !row.entry?.data?.notFound)
@@ -287,6 +321,64 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
     rename: (row, name) => actions.updateCard(list, row.line.id, { name })
   })
 
+  /** Categories are edited on the list itself, not in a version's view. */
+  const categorizing = byCategory && !other
+  /** A main-deck Card, which a category section can hold. */
+  const categorizable = (row: Row) => categorizing && !row.side && !row.maybe && !isCommander(row) && !analysis.isCompanion(row)
+  const rowOf = (lineId: string) => tableRows.find((row) => row.line.id === lineId)
+  const putIn = (row: Row, category: string | null) => {
+    const current = categoryOf(row.line)
+    if (current === category || (current && category && sameCategory(current, category))) return
+    actions.setCategory(list, row.bundledIds ?? [row.line.id], category)
+  }
+  const categoryControls: CategoryControls | undefined = categorizing
+    ? {
+        onRowMenu: (lineId, x, y) => {
+          const row = rowOf(lineId)
+          if (!row || !categorizable(row)) return false
+          const current = categoryOf(row.line)
+          const ids = row.bundledIds ?? [row.line.id]
+          setContextMenu({
+            x,
+            y,
+            items: [
+              ...listCategories(list.lines).map((name) => ({
+                label: name,
+                checked: !!current && sameCategory(current, name),
+                onSelect: () => putIn(row, name)
+              })),
+              { label: ui.list.categories.add, onSelect: () => setDialog({ kind: 'category-name', ids }) },
+              ...(current ? [{ label: ui.list.categories.none, onSelect: () => putIn(row, null) }] : [])
+            ]
+          })
+          return true
+        },
+        onSectionMenu: (section, x, y) => {
+          const name = section.category
+          if (!name) return
+          setContextMenu({
+            x,
+            y,
+            items: [
+              { label: ui.list.categories.rename, onSelect: () => setDialog({ kind: 'category-rename', name }) },
+              { label: ui.list.categories.delete, danger: true, onSelect: () => actions.deleteCategory(list, name) }
+            ]
+          })
+        },
+        onDrop: (lineId, category) => {
+          const row = rowOf(lineId)
+          if (row && categorizable(row)) putIn(row, category)
+        }
+      }
+    : undefined
+
+  /** Groups the list by category or by type; the first time, says how to give a Card a category. */
+  const groupBy = (on: boolean) => {
+    if (on === byCategory) return
+    actions.setGroupByCategory(list, on)
+    if (on && listCategories(list.lines).length === 0) toast(ui.list.categories.hint)
+  }
+
   // Game Changers count toward Commander brackets: shown in Commander, and in lists of no format.
   const showsGameChangers = !format || !!format.commander?.brackets
 
@@ -301,6 +393,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       issues={analysis.issuesOf(row)}
       allowed={analysis.allowedOf(row)}
       gameChanger={showsGameChangers && !!row.info?.gameChanger}
+      bracketMarks={row.maybe || row.side ? undefined : bracket?.marks.get(nameKey(row.line.name))}
       shortfall={analysis.shortfallOf(row)}
       change={row.maybe ? null : changeOf(row)}
       swapTag={swapTag(row)}
@@ -309,6 +402,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       maxQty={maxFor(row.line)}
       maxTitle={limitFor(row.line.name)}
       handlers={rowHandlers}
+      draggable={categorizable(row)}
     />
   )
 
@@ -325,6 +419,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       shortfall={analysis.shortfallOf(row)}
       onOpen={() => setDialog({ kind: 'card', lineId: row.line.id })}
       onPick={() => chooseCommander(row)}
+      draggable={categorizable(row)}
     />
   )
 
@@ -413,6 +508,7 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       filtering={filtering}
       dataLoading={dataLoading}
       picking={picking !== null}
+      categories={categoryControls}
     />
   )
 
@@ -468,6 +564,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
           holdsCopies={isDeck && holdsCopies(list.lines, settings.decksHoldCopies)}
           onToggleHoldsCopies={isDeck ? toggleHoldsCopies : undefined}
           energyCurve={energyCurve}
+          groupByCategory={byCategory}
+          onGroupBy={groupBy}
           epigraph={epigraph}
           badgeShape={listBadge(list.lines) ?? 'circle'}
           badgeChoice={listBadge(list.lines)}
@@ -496,6 +594,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
         />
 
         <DeckStats
+          open={factsPanel === 'stats'}
+          onToggle={() => togglePanel('stats')}
           rows={statsRows}
           leaders={leaderRows.map((row) => row.line.name)}
           table={format}
@@ -503,6 +603,15 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
           manaValue={filters.manaValue}
           onManaValue={(manaValue) => setFilters({ ...filters, manaValue })}
         />
+
+        {bracket && (
+          <BracketPanel
+            open={factsPanel === 'bracket'}
+            onToggle={() => togglePanel('bracket')}
+            bracket={bracket}
+            onDeclare={other ? undefined : (level) => actions.setListBracket(list, level)}
+          />
+        )}
 
         {isBrew && (
           <p className="brew-note">
@@ -611,6 +720,8 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
           banner={fallsBack ? { row: banner } : null}
           palette={palette ? { identity, key: palette.key, banner: palette.banner } : null}
         />
+
+        {contextMenu && <ContextMenu {...contextMenu} onClose={() => setContextMenu(null)} />}
       </div>
     </DeckThemeContext.Provider>
   )

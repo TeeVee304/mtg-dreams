@@ -16,7 +16,7 @@ export const list = {
     colors: 'Colors',
     identity: (name: string, colors: string) => `${name}: ${colors}`,
     brew: 'Brew',
-    brewHint: 'An idea: it counts toward nothing, not even Most Wanted',
+    brewHint: 'Not counted in Most Wanted or Trades',
     preferredVersions: 'Universes…',
     preferredSticker: (group: string) => `${group} Versions`,
     preferredStickerHint: 'Click to change',
@@ -59,6 +59,9 @@ export const list = {
     badgeAuto: 'By Theme',
     badgeShapes: { circle: 'Circle', square: 'Square', diamond: 'Diamond' },
     format: 'Format',
+    groupBy: 'Group by',
+    groupByType: 'Type',
+    groupByCategory: 'Category',
     advanced: 'Advanced',
     rename: 'Rename',
     deleteVersion: (version: string) => `Delete ${version} Version`,
@@ -121,11 +124,18 @@ export const list = {
   complete: {
     title: (upgrade: boolean, brew: boolean) => (upgrade ? 'Upgrade complete!' : brew ? 'Brew complete!' : 'Wishlist complete!'),
     ownAll: (cards: string) => `You own all ${cards}.`,
-    next: (upgrades: string | null) => (upgrades ? `Ready to apply it to “${upgrades}”?` : 'Ready to become a Deck?'),
+    next: (upgrades: string | null) => (upgrades ? `Apply it to “${upgrades}”?` : 'Make it a Deck?'),
     applying: 'Applying…',
     apply: 'Apply upgrade',
     moving: 'Moving…',
     move: 'Move to Decks'
+  },
+  categories: {
+    add: 'New category…',
+    none: 'No category',
+    rename: 'Rename category…',
+    delete: 'Delete category',
+    hint: 'Right-click a Card to give it a category.'
   },
   commanderCut: 'Commanders lead every Version. Change them with “Change Commander”.',
   versionAdded: (list: string, version: string) => `“${list}” has a ${version} Version, identical until you change it`,
@@ -137,17 +147,17 @@ export const list = {
   upgradeFailed: (error: string) => `Could not apply the upgrade: ${error}`,
   versionCopied: (version: string) => `${version} Version copied to clipboard`,
   copied: (isDeck: boolean) => `${isDeck ? 'Deck' : 'List'} copied to clipboard`,
-  brewNote: 'A Brew will not add Cards to Most Wanted nor Trades.',
+  brewNote: 'Brews are not counted in Most Wanted or Trades.',
   fullList: (version: string) => `Full ${version} List`,
   empty: (noun: string) => `This ${noun} is empty.`,
   emptyDeckHint: 'Search your Inventory above to add Cards, or use Edit as text to paste a decklist.',
   emptyListHint: 'Search for a Card above, add a Precon, or use Edit as text to paste a whole list.',
   /** Picking Commanders. */
   sharesCommand: (card: string, leader: string) => `${card} now shares command with ${leader}`,
-  noLongerCommander: (card: string, alone: string | null) => `${card} is no longer your Commander${alone ? `; ${alone} leads alone` : ''}`,
-  nowLeads: (card: string, noun: string) => `${card} now leads this ${noun}`,
+  noLongerCommander: (card: string, alone: string | null) => `${card} is no longer your Commander${alone ? `; ${alone} is the only one` : ''}`,
+  nowLeads: (card: string, noun: string) => `${card} is now this ${noun}’s Commander`,
   /** A commander and the partner it names ("Partner with"), added together. */
-  leadTogether: (card: string, partner: string, noun: string) => `${card} and ${partner} now lead this ${noun}`
+  leadTogether: (card: string, partner: string, noun: string) => `${card} and ${partner} are now this ${noun}’s Commanders`
 }
 
 /** A list's dialogs: renaming, deleting, editing as text, Versions, upgrades. */
@@ -212,6 +222,12 @@ export const listDialogs = {
     message: (swaps: number, base: string) => `Its ${count.swaps(swaps)} will be deleted. The ${base} Version stays as it is.`,
     confirm: (version: string) => `Delete ${version} Version`
   },
+  categoryName: {
+    add: 'New category',
+    rename: (category: string) => `Rename the ${category} category`,
+    label: 'Name, e.g. “Ramp” or “Removal”',
+    addConfirm: 'Add'
+  },
   versionName: {
     rename: (version: string) => `Rename the ${version} Version`,
     add: 'Add a Version',
@@ -226,7 +242,7 @@ export const listDialogs = {
   },
   preferred: {
     title: 'Universes',
-    intro: 'Show Cards in the art of a set you love.',
+    intro: 'Show Cards in the art of the sets you pick.',
     rules: 'Cards with no Version chosen show the cheapest Version from the sets you pick, when one has art first printed there. Versions you chose, Cards you own and basic Lands stay as they are.',
     none: 'None',
     noneHint: 'The cheapest Version of each Card',
@@ -239,8 +255,8 @@ export const listDialogs = {
     noMatch: 'No set group has its own Versions of these Cards.',
     cardsLoading: 'Some Cards are still loading, so the counts may grow.',
     current: (group: string) => `Preferring ${group} Versions`,
-    preferring: (list: string, group: string) => `“${list}” now prefers ${group} Versions`,
-    stopped: (list: string) => `“${list}” shows the cheapest Versions again`
+    preferring: (list: string, group: string) => `“${list}” uses ${group} Versions`,
+    stopped: (list: string) => `“${list}” uses the cheapest Versions`
   },
   upgrade: {
     title: 'Upgrade of…',

@@ -1,3 +1,4 @@
+import { withBracket } from '@shared/brackets'
 import { copiesToAdd, type CopyPool } from '@shared/copies'
 import { cardLines, parseList, serializeList } from '@shared/decklist'
 import { withCommanders, withFormat } from '@shared/formats'
@@ -88,8 +89,8 @@ export function AppDialogs(props: AppDialogsProps) {
           onClose={close}
           onFromPrecon={() => setDialog({ kind: 'precon', list: dialog.list })}
           onWizard={dialog.list !== 'deck' ? () => setDialog({ kind: 'wizard' }) : undefined}
-          onCreate={async (name, text, formatId, addToInventory) => {
-            const lines = withFormat(parseList(text), formatId)
+          onCreate={async (name, text, formatId, bracket, addToInventory) => {
+            const lines = withBracket(withFormat(parseList(text), formatId), bracket)
             const created = await actions.createList(dialog.list, name, serializeList(lines))
             const missing = addToInventory ? copiesToAdd(cardLines(lines), state.inventory, pool) : []
             if (missing.length > 0) actions.addOwned(missing)

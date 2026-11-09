@@ -358,6 +358,31 @@ async function searchPrints(query: string, lookup: Lookup, maxPages: number): Pr
   return result
 }
 
+/** Most pages {@link searchNameKeys} reads: 175 cards each. */
+const NAME_PAGES = 8
+
+/**
+ * @param query - A Scryfall search, e.g. `otag:extra-turn`.
+ * @returns The nameKeys of the cards it finds, each face's too; none if it finds nothing.
+ * @throws Error when Scryfall can't be reached.
+ */
+export async function searchNameKeys(query: string): Promise<string[]> {
+  let url: string | null = `${env().scryfallApi}/cards/search?unique=cards&q=${encodeURIComponent(query)}`
+  const keys = new Set<string>()
+  for (let page = 0; url && page < NAME_PAGES; page++) {
+    // A handful of requests a week, which the Bracket section waits on.
+    const body = await searchQueue.run(() => getJson(url!), 'high').promise
+    if (!body) break
+    for (const card of body.data ?? []) {
+      if (typeof card?.name !== 'string') continue
+      keys.add(nameKey(card.name))
+      for (const face of card.card_faces ?? []) if (typeof face?.name === 'string') keys.add(nameKey(face.name))
+    }
+    url = body.has_more ? body.next_page : null
+  }
+  return [...keys]
+}
+
 /** Pages of token Versions fetched: 175 Versions each. */
 const TOKEN_VERSION_PAGES = 2
 

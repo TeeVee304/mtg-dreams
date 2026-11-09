@@ -361,9 +361,9 @@ function CardText({ info, line, printing, back }: CardTextProps) {
   const printedOf = (i: number): PrintedFace | null => printed?.[twoSided ? index : i] ?? null
 
   let label: string = text.oracleText
-  if (rulesText === 'printed') {
-    if (!line.lang) label = text.noPrintedText.english
-    else if (local === undefined) label = text.noPrintedText.loading
+  // An English copy has no printed text apart from Oracle: it keeps the plain label.
+  if (rulesText === 'printed' && line.lang) {
+    if (local === undefined) label = text.noPrintedText.loading
     else label = printed ? text.printedText(languageLabel(line.lang)) : text.noPrintedText.missing
   }
   const hasText = shown.some((face) => face.text)

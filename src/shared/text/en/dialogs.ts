@@ -13,7 +13,7 @@ export const dialogs = {
     keepMine: 'Keep mine',
     loadOther: 'Load the other Version',
     body: (name: string) =>
-      `${name} was changed outside MTG Dreams, maybe synced from another computer, so your latest change here wasn't saved.`,
+      `${name} was changed outside MTG Dreams. Your latest change here wasn't saved.`,
     loadOtherHint: "shows what's in the file now, without your latest changes.",
     keepMineHint: 'saves your Version over the other one.'
   },
@@ -42,12 +42,12 @@ export const dialogs = {
     or: 'Or',
     orLower: 'or',
     fromPrecon: 'start from an official Precon…',
-    wizard: 'let the Deck Wizard plan a Commander Deck…'
+    wizard: 'plan a Commander Deck with the Deck Wizard…'
   },
   created: {
     deck: (name: string, cards: number) => `Created Deck “${name}” and added its ${count.cards(cards)} to your Inventory`,
     list: (name: string, cards: number) => `Created “${name}” with ${count.cards(cards)}`,
-    brew: (name: string, cards: number) => `Created Brew “${name}” with ${count.cards(cards)}: make it a Wishlist once you want it`,
+    brew: (name: string, cards: number) => `Created Brew “${name}” with ${count.cards(cards)}`,
     kind: (kind: ListKind, name: string, cards: number) => `Created ${terms.kinds[kind]} “${name}” with ${count.cards(cards)}`
   },
   dataFolderChanged: 'Data folder changed',

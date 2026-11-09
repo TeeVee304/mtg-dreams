@@ -24,6 +24,11 @@ export interface CardLine {
   worthless?: true
   /** `{Stand-in}`: a wishlist line whose printing you lack, served by any copy you own of the Card. */
   standIn?: true
+  /**
+   * `[Ramp]`, `[Ramp,Removal]`: the list's own categories for the Card; the first names its section
+   * when the list is grouped by category. Absent for none.
+   */
+  categories?: string[]
 }
 
 /** Non-card line (blank, comment, section header). Stored verbatim for lossless round-trips. */

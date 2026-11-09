@@ -404,6 +404,19 @@ describe('sectionRows', () => {
     expect(analysis.sideboardCards).toBe(16)
     expect(sections[1].warning).toBe('Max 15 in Modern')
   })
+
+  it('splits the main deck by first category, alphabetically, then Uncategorized; the commander stays on top', () => {
+    const { lines, rows } = rowsOf(
+      '// Format: Commander\n// Commander: Atraxa\n1 Atraxa [Leader]\n1 Sol Ring [Ramp,Artifact]\n1 Llanowar Elves [ramp,]\n1 Command Tower\n1 Island [Draw]'
+    )
+    const sections = sectionRows(rows, analyzeList('deck', lines, rows), true)
+    expect(sections.map((s) => [s.label, names(s.rows), s.category])).toEqual([
+      ['Commander', ['Atraxa'], undefined],
+      ['Draw', ['Island'], 'Draw'],
+      ['Ramp', ['Sol Ring', 'Llanowar Elves'], 'Ramp'],
+      ['Uncategorized', ['Command Tower'], null]
+    ])
+  })
 })
 
 describe('copy limits', () => {

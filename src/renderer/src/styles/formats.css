@@ -23,6 +23,12 @@
   cursor: help;
 }
 
+/* In the Version cell, after the printing. */
+.chip.price-change {
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
 /* A wishlist's price moves, compactly: green ↓ cheaper cards, red ↑ pricier ones. */
 .price-moves {
   display: inline-flex;

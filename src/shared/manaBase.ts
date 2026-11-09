@@ -133,6 +133,25 @@ const LAND_FORMULAS: LandFormula[] = [
   { deckSize: 60, base: 19.59, perManaValue: 1.9 }
 ]
 
+/** A chance this high counts as likely. */
+const LIKELY = 0.5
+/** The last turn {@link manaTurn} looks at. */
+const LAST_TURN = 20
+
+/**
+ * The turn a Deck likely has an amount of mana by: one source a turn, cheap ramp counted as a Land
+ * drop, as the On curve row counts it.
+ * @param onPlay - Two-player odds, on the play.
+ * @returns That turn; null if not by turn 20.
+ */
+export function manaTurn(base: ManaBase, mana: number, onPlay = false): number | null {
+  const sources = Math.min(base.library, base.lands + base.ramp.cheap)
+  for (let turn = Math.max(1, mana); turn <= LAST_TURN; turn++) {
+    if (atLeast(base.library, sources, seen(turn, onPlay), mana) >= LIKELY) return turn
+  }
+  return null
+}
+
 /** A land formula: base + perManaValue × average mana value − 0.28 × cheap ramp. */
 export interface LandFormula {
   deckSize: number

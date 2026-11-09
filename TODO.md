@@ -80,7 +80,7 @@ By then, most of what it needs already exists.
 - In a Wishlists's Token view, the user must be able to browse token versions (even if considered free). ***DONE***
 - I placed, in a Middle-earth wishlist, 'Ring of Barahir' and the tag below said 'Use Sword of the Animist'. Just do it, do not ask for permission, as the result will be the same - the original card name, but with the version the user wants. (*Is this assumption correct?*) ***DONE***
 - Replace term '***Five-Color***' with '***WUBRG***'. ***DONE***
-- Optional *Bracket* calculator, for Commander. To Discuss.
+- Optional *Bracket* calculator, for Commander. ***DONE***
 
 ## Ordered
 **Suggested by:** a user.<br>
@@ -321,7 +321,7 @@ These steps close the gaps:
 
 ## Storage Settings
 A place in Settings to see and clear what the app stores. ***DONE***
-- Show the size of each cache: card data, price guide, images, precons, EDHREC decks, tokens, set groups.
+- Show the size of each cache: card data, price guide, images, precons, EDHREC decks, bracket data, tokens, set groups.
 - One button clears them all.
   - Never clear the price history. It is a record of prices over time and cannot be downloaded again.
   - Never clear settings or the data folder.

@@ -27,8 +27,9 @@
   color: var(--text);
 }
 
-/* The Statistics panel's name in the deck's display face; its summary stays in the body face. */
-.view[data-palette] .stats-title-name {
+/* The Statistics and Bracket panels' names in the deck's display face; their summaries stay in the body face. */
+.view[data-palette] .stats-title-name,
+.view[data-palette] .bracket-heading-name {
   font-family: var(--font-display);
   font-size: 1.15em;
   font-weight: var(--deck-title-weight);
@@ -209,76 +210,155 @@
   --tag-ink: var(--deck-sticker-ink-3);
 }
 
-/* Figures and Statistics ---------------------------------------------------------- */
+/* Figures, Statistics and Bracket ------------------------------------------------ */
 
-/* The figures and Statistics as palette cards on one row. Folded, Statistics is a third card beside
-   Deck value and Cards; open, the figures stack on the left and the whole panel opens beside them,
-   every part of it as before (statistics-decisions). */
-.view[data-palette] .facts-row {
+/* The figures, Statistics and the Bracket as cards on one row: in the deck's palette, or the app's
+   panel color in Simple UI and plain lists. Folded, Statistics and the Bracket are cards beside the
+   figures. Open, Statistics opens beside the figures, which stack on the left, every part of it as
+   before (statistics-decisions); the Bracket opens under them all, the row's width. */
+.view .facts-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(190px, 260px)) minmax(0, 1fr);
   align-items: stretch;
   gap: 12px;
 }
 
-.view[data-palette] .facts-row .summary-item {
+/* Both panels folded: they share the rest of the row. */
+.view .facts-row:has(.bracket-panel:not(.open)):not(:has(.stats-panel.open)) {
+  grid-template-columns: repeat(2, minmax(190px, 260px)) repeat(2, minmax(0, 1fr));
+}
+
+.view .facts-row .summary-item {
   order: 0;
   margin-left: 0;
   padding: 14px 18px 16px;
   border-radius: 12px;
-  background: var(--deck-panel);
+  background: var(--deck-panel, var(--panel));
   justify-content: center;
 }
 
-.view[data-palette] .facts-row .summary-item.accent .summary-value {
-  color: var(--deck-accent-text);
+.view .facts-row .summary-item.accent .summary-value {
+  color: var(--deck-accent-text, var(--accent-text));
 }
 
-.view[data-palette] .facts-row .collapsible {
+.view .facts-row .collapsible {
   order: 0;
   border: none;
   border-radius: 12px;
-  background: var(--deck-panel);
+  background: var(--deck-panel, var(--panel));
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-.view[data-palette] .facts-row .brew-note {
+/* A folded panel's title bar: the chevron holds the left edge, centered, and in a narrow card the
+   summary drops under the title instead of running past the card. */
+.view .facts-row .collapsible-toggle {
+  position: relative;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+  padding-left: 34px;
+}
+
+/* The chevron lines up with the title's icon, not the whole toggle, so a summary wrapped under the
+   title doesn't pull it down: the toggle's top padding plus half the icon (the curve is 22px tall,
+   the medal 32px). */
+.view .facts-row .collapsible-chevron {
+  position: absolute;
+  left: 14px;
+  top: calc(10px + 11px);
+  translate: 0 -50%;
+}
+
+.view .facts-row .bracket-panel .collapsible-chevron {
+  top: calc(10px + 16px);
+}
+
+.view .facts-row .collapsible-toggle > .muted {
+  min-width: 0;
+}
+
+/* A folded card lights up whole on hover, not just its title bar's band. */
+.view .facts-row .collapsible-toggle:hover:not(:disabled) {
+  background: none;
+}
+
+.view .facts-row .collapsible:not(.open):has(.collapsible-toggle:hover) {
+  background: var(--hover);
+}
+
+/* Statistics' name drops under its curve when a wide typeface can't fit both on one line. */
+.view .facts-row .stats-title {
+  flex-wrap: wrap;
+  min-width: 0;
+  row-gap: 4px;
+}
+
+.view .facts-row .brew-note {
   grid-column: 1 / -1;
 }
 
-.view[data-palette] .facts-row:has(.collapsible.open) {
+.view .facts-row .bracket-panel.open {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+}
+
+.view .facts-row:has(.stats-panel.open) {
   grid-template-columns: minmax(190px, 240px) minmax(0, 1fr);
   grid-template-rows: auto 1fr;
   align-items: start;
 }
 
-.view[data-palette] .facts-row:has(.collapsible.open) .summary-item {
+/* The folded Bracket stacks under the figures, and Statistics spans it too. */
+.view .facts-row:has(.stats-panel.open):has(.bracket-panel:not(.open)) {
+  grid-template-rows: auto auto 1fr;
+}
+
+.view .facts-row:has(.stats-panel.open) .summary-item,
+.view .facts-row:has(.stats-panel.open) .bracket-panel:not(.open) {
   grid-column: 1;
 }
 
-.view[data-palette] .facts-row .collapsible.open {
+.view .facts-row .stats-panel.open {
   grid-column: 2;
   grid-row: 1 / span 2;
   justify-content: flex-start;
 }
 
+.view .facts-row:has(.bracket-panel:not(.open)) .stats-panel.open {
+  grid-row: 1 / span 3;
+}
+
 /* Short of room for the curve and the mana base side by side beside the figures, the panel opens
    under them, where they still sit side by side. */
 @media (max-width: 1560px) {
-  .view[data-palette] .facts-row:has(.collapsible.open) {
+  .view .facts-row:has(.stats-panel.open) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: auto;
   }
 
-  .view[data-palette] .facts-row:has(.collapsible.open) .summary-item {
+  /* The folded Bracket keeps Statistics' place on the top row, and Statistics opens under it. */
+  .view .facts-row:has(.stats-panel.open):has(.bracket-panel:not(.open)) {
+    grid-template-columns: repeat(2, minmax(190px, 260px)) minmax(0, 1fr);
+    grid-template-rows: auto;
+    align-items: stretch;
+  }
+
+  .view .facts-row:has(.stats-panel.open) .bracket-panel:not(.open) {
+    grid-row: 1;
+    grid-column: 3;
+  }
+
+  .view .facts-row:has(.stats-panel.open) .summary-item {
     grid-column: auto;
   }
 
-  .view[data-palette] .facts-row .collapsible.open {
+  .view .facts-row .stats-panel.open,
+  .view .facts-row:has(.bracket-panel:not(.open)) .stats-panel.open {
     grid-column: 1 / -1;
-    grid-row: auto;
+    grid-row: 2;
   }
 }
 

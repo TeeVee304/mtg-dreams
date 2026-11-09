@@ -117,6 +117,9 @@ async function removeOutdatedCaches(): Promise<void> {
 }
 
 app.commandLine.appendSwitch('disk-cache-size', String(DISK_CACHE_BYTES))
+// Settings and caches stay in the folder named before the app became Dreams; tests pass their own.
+if (!app.commandLine.hasSwitch('user-data-dir')) app.setPath('userData', join(app.getPath('appData'), 'MTG Dreams'))
+
 // Saved card images load like web images (see `cardImages.ts`).
 protocol.registerSchemesAsPrivileged([{ scheme: SAVED_IMAGE_SCHEME, privileges: { standard: true, secure: true } }])
 
@@ -145,6 +148,8 @@ if (!app.requestSingleInstanceLock()) {
       mtgjsonApi: (!app.isPackaged && process.env.MTG_DREAMS_MTGJSON_API) || SERVICES.mtgjsonApi,
       priceGuideUrl: (!app.isPackaged && process.env.MTG_DREAMS_PRICE_GUIDE_URL) || SERVICES.priceGuideUrl,
       edhrecJson: (!app.isPackaged && process.env.MTG_DREAMS_EDHREC_JSON) || SERVICES.edhrecJson,
+      edhrecTop: (!app.isPackaged && process.env.MTG_DREAMS_EDHREC_TOP) || SERVICES.edhrecTop,
+      spellbookApi: (!app.isPackaged && process.env.MTG_DREAMS_SPELLBOOK_API) || SERVICES.spellbookApi,
       cardImagesUrl: (!app.isPackaged && process.env.MTG_DREAMS_CARD_IMAGES_URL) || SERVICES.cardImagesUrl
     })
     startConnectivity()

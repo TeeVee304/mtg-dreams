@@ -8,7 +8,7 @@ export const wanted = {
     `${count.cards(cards)} to buy · ${total} to complete every ${withDecks ? 'Deck and Wishlist' : 'Wishlist'}`,
   stillLoading: (n: number) => ` (${n} still loading)`,
   completers: (n: number) => ` · ${n} complete a list`,
-  onTheWay: (n: number) => `${n} ordered, on the way`,
+  onTheWay: (n: number) => `${n} Ordered`,
   copyHint: 'As “N Card Name” lines, e.g. for a Cardmarket wants list',
   copyAsText: 'Copy as text',
   copied: (what: string) => `${what} copied to clipboard`,
@@ -75,7 +75,7 @@ export const wanted = {
   },
   planner: {
     title: 'Budget Planner',
-    summary: 'How many Cards can you get with this?',
+    summary: 'What a budget buys',
     budget: 'Budget',
     budgetLabel: 'Budget in euros',
     for: 'for',

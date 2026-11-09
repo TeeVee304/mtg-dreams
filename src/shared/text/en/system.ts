@@ -1,6 +1,9 @@
 /** The app's name, its window and its native menus and dialogs. */
 export const app = {
-  name: 'MTG Dreams'
+  /** The window, taskbar and shortcuts. */
+  name: 'Dreams',
+  /** The sidebar's wordmark. */
+  brand: 'MTG Dreams'
 }
 
 /** The right-click menu. */

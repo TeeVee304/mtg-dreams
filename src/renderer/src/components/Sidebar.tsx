@@ -292,7 +292,7 @@ export function Sidebar(props: SidebarProps) {
     <aside className={`sidebar${rail ? ' rail' : ''}`}>
       <div className="brand">
         <img className="brand-mark" src={THEME_ICONS[settings.color]} alt="" draggable={false} />
-        <span className="brand-name">{ui.app.name}</span>
+        <span className="brand-name">{ui.app.brand}</span>
       </div>
 
       <nav className="nav-fixed">

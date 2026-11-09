@@ -1,5 +1,6 @@
 import type { SortKey } from './cards'
 import type { OrderStamps } from './ordered'
+import type { BracketTags, SpellbookCombo } from './brackets'
 import type { DeckTokenData, TokenInfo } from './tokens'
 import type { SetGroup } from './setGroups'
 import type { ThemeColor } from './themes'
@@ -134,7 +135,7 @@ export interface PrintingsOptions {
 }
 
 /** What Settings calls the caches it shows and clears. */
-export type CacheGroup = 'cards' | 'prices' | 'images' | 'precons' | 'edhrec' | 'tokens' | 'setGroups'
+export type CacheGroup = 'cards' | 'prices' | 'images' | 'precons' | 'edhrec' | 'brackets' | 'tokens' | 'setGroups'
 
 /** Disk used by the caches. */
 export interface CacheSizes {
@@ -236,6 +237,16 @@ export interface TrackerApi {
    * @param chosen - Token Versions the list chose (Scryfall ids), returned among the tokens.
    */
   getDeckTokens(names: string[], chosen?: string[]): Promise<DeckTokenData>
+  /** @returns Scryfall's bracket tags per card; a tag unknown offline is null. Never rejects. */
+  getBracketTags(): Promise<BracketTags>
+  /** @returns EDHREC's salt by nameKey, for the saltier cards; null when unknown offline. Never rejects. */
+  getBracketSalt(): Promise<Record<string, number> | null>
+  /**
+   * @param commanders - At most 4 names.
+   * @param cards - The other cards, at most 600 names.
+   * @returns Commander Spellbook's combos in a Deck; null when unreachable with nothing cached. Never rejects.
+   */
+  getBracketCombos(commanders: string[], cards: string[]): Promise<SpellbookCombo[] | null>
   /** @returns The Versions of a token, by its oracle id, newest first; none offline with nothing cached. Never rejects. */
   getTokenVersions(oracleId: string): Promise<TokenInfo[]>
   /**

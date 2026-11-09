@@ -1,7 +1,7 @@
 /**
  * Personal list settings: how you keep a list, not what the deck is. They are written as header lines
  * (`// Color: Blue`, `// Palette: Gruul`, `// Badge: square`, `// Texture: grain`, `// Typeface: Anton`, `// Banner: …`, `// Hold copies: No`, `// Upgrade of: …`, `// Upgrade version: Duel`,
- * `// Preferred Versions: Innistrad`, `// Token Versions: …`) while the
+ * `// Preferred Versions: Innistrad`, `// Token Versions: …`, `// Group by: Category`) while the
  * app works with a list, but stored apart from its file, in `lists.json`, so the file holds only the
  * deck: copying, sharing or opening it elsewhere gives no personal settings. A file that has such
  * headers (an old file, or text pasted with them) gives them up to `lists.json` when saved. The old
@@ -14,7 +14,7 @@
 export type ListMeta = Partial<Record<MetaField, string>>
 
 /** A personal setting. */
-export type MetaField = 'color' | 'palette' | 'badge' | 'texture' | 'typeface' | 'banner' | 'holdsCopies' | 'upgradeOf' | 'upgradeVersion' | 'preferredVersions' | 'tokenVersions' | 'energyCurve'
+export type MetaField = 'color' | 'palette' | 'badge' | 'texture' | 'typeface' | 'banner' | 'holdsCopies' | 'upgradeOf' | 'upgradeVersion' | 'preferredVersions' | 'tokenVersions' | 'energyCurve' | 'groupBy'
 
 /** Each setting's header label, as written, and the label pattern read back; in the order written. */
 const FIELDS: { field: MetaField; label: string; pattern: string }[] = [
@@ -29,7 +29,8 @@ const FIELDS: { field: MetaField; label: string; pattern: string }[] = [
   { field: 'upgradeVersion', label: 'Upgrade version', pattern: 'upgrade\\s+version' },
   { field: 'preferredVersions', label: 'Preferred Versions', pattern: 'preferred\\s+versions' },
   { field: 'tokenVersions', label: 'Token Versions', pattern: 'token\\s+versions' },
-  { field: 'energyCurve', label: 'Energy curve', pattern: 'energy\\s+curve' }
+  { field: 'energyCurve', label: 'Energy curve', pattern: 'energy\\s+curve' },
+  { field: 'groupBy', label: 'Group by', pattern: 'group\\s+by' }
 ]
 
 /** Label pattern of the old Unbuilt header, read as Hold copies (see {@link fromUnbuilt}). */

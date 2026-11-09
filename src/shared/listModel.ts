@@ -35,6 +35,7 @@ import {
   type DeckSizeCheck,
   type LegalityIssue
 } from './formats'
+import { categoryOf, sortCategories } from './listCategories'
 import { ui } from './text'
 import { maybeboardIds, SIDEBOARD_MAX } from './sideboard'
 import { sumOf } from './totals'
@@ -363,6 +364,9 @@ export function shortfallNote(row: ModelRow): { label: string; title: string } {
 /** Id of the maybeboard's section ({@link sectionRows}). */
 export const MAYBEBOARD_SECTION = 'Maybeboard'
 
+/** Id of the section of main-deck Cards with no category, in a list grouped by category ({@link sectionRows}). */
+export const UNCATEGORIZED_SECTION = 'uncategorized'
+
 /** Rendered list section. */
 export interface Section<R> {
   id: string
@@ -370,26 +374,54 @@ export interface Section<R> {
   rows: R[]
   /** Section-level rule violation, shown beside the label. */
   warning?: string | null
+  /** A list grouped by category: the category of a main-deck section, null for Uncategorized; absent for other sections. */
+  category?: string | null
 }
 
 /**
- * @returns Commander section, one per {@link TYPE_GROUPS} entry for the main deck, then the sideboard
- * and the maybeboard (neither split by type); empty sections omitted.
+ * @param byCategory - Splits the main deck by the Cards' first category (alphabetically, then
+ * Uncategorized) instead of by type.
+ * @returns Commander section, one per {@link TYPE_GROUPS} entry (or category) for the main deck, then
+ * the sideboard and the maybeboard (neither split); empty sections omitted.
  */
-export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysis<R>): Section<R>[] {
+export function sectionRows<R extends ModelRow>(rows: R[], analysis: ListAnalysis<R>, byCategory = false): Section<R>[] {
   const { isCommander, isCompanion } = analysis
+  const main = rows.filter((row) => !row.side && !row.maybe && !isCommander(row) && !isCompanion(row))
   const sections: Section<R>[] = [
     { id: 'Commander', label: ui.sections.commander(analysis.commanderKeys.length), rows: rows.filter(isCommander) },
     { id: 'Companion', label: ui.sections.companion, rows: rows.filter((row) => isCompanion(row) && !isCommander(row)) },
-    ...TYPE_GROUPS.map((group) => ({
-      id: group.id as string,
-      label: group.label as string,
-      rows: rows.filter((row) => !row.side && !row.maybe && !isCommander(row) && !isCompanion(row) && typeGroup(row.info) === group.id)
-    })),
+    ...(byCategory
+      ? categorySections(main)
+      : TYPE_GROUPS.map((group) => ({
+          id: group.id as string,
+          label: group.label as string,
+          rows: main.filter((row) => typeGroup(row.info) === group.id)
+        }))),
     { id: 'Sideboard', label: ui.sections.sideboard, rows: rows.filter((row) => row.side && !isCompanion(row)), warning: analysis.sideboardIssue },
     { id: MAYBEBOARD_SECTION, label: ui.sections.maybeboard, rows: rows.filter((row) => row.maybe) }
   ]
   return sections.filter((section) => section.rows.length > 0)
+}
+
+/** @returns One section per first category of the rows, alphabetically, then Uncategorized. */
+function categorySections<R extends ModelRow>(rows: R[]): Section<R>[] {
+  const byName = new Map<string, { name: string; rows: R[] }>()
+  const none: R[] = []
+  for (const row of rows) {
+    const name = categoryOf(row.line)
+    if (!name) {
+      none.push(row)
+      continue
+    }
+    const group = byName.get(name.toLowerCase())
+    if (group) group.rows.push(row)
+    else byName.set(name.toLowerCase(), { name, rows: [row] })
+  }
+  const groups = sortCategories([...byName.values()].map((group) => group.name)).map((name) => byName.get(name.toLowerCase())!)
+  return [
+    ...groups.map((group) => ({ id: `Category:${group.name.toLowerCase()}`, label: group.name, rows: group.rows, category: group.name })),
+    { id: UNCATEGORIZED_SECTION, label: ui.sections.uncategorized, rows: none, category: null }
+  ]
 }
 
 /** @returns Total land copies. */

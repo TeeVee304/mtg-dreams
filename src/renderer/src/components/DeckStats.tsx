@@ -1,19 +1,19 @@
-import { Fragment, useId, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useId, useLayoutEffect, useRef, useState, type CSSProperties, type RefObject } from 'react'
 import { COLOR_NAMES } from '@shared/cards'
 import { CURVE_TOP, deckStats, STAT_COLORS, type CurveCard, type CurveColumn, type DeckStats as Stats, type StatsRow } from '@shared/deckStats'
 import { manaBase, type ManaBase, type Table } from '@shared/manaBase'
 import { nameKey } from '@shared/decklist'
 import { ui } from '@shared/text'
 import { sumOf } from '@shared/totals'
+import { useResizeObserver } from '../hooks/useResizeObserver'
 import { MANA_SYMBOLS } from '../lib/artwork'
-import { useStoredToggle } from '../hooks/useStoredToggle'
 import { Collapsible } from './Collapsible'
-
-/** localStorage key of the panel's open state. */
-const OPEN_KEY = 'mtg-dreams.statsOpen'
 
 /** Props of {@link DeckStats}. */
 interface DeckStatsProps {
+  /** Open; the page keeps it, so opening the Bracket section can fold it. */
+  open: boolean
+  onToggle: () => void
   /** Main deck rows, the Companion aside. */
   rows: Array<StatsRow & { line: { name: string; qty: number } }>
   /** The commanders, who start in the command zone: they are cast, but never drawn. */
@@ -35,8 +35,7 @@ interface DeckStatsProps {
  * mana value makes and spends. Beside it, the mana base: Lands, ramp, and each color's sources against
  * its target. A curve column filters the list to its mana value.
  */
-export function DeckStats({ rows, leaders, table, energy, manaValue, onManaValue }: DeckStatsProps) {
-  const [open, toggle] = useStoredToggle(OPEN_KEY, false)
+export function DeckStats({ open, onToggle: toggle, rows, leaders, table, energy, manaValue, onManaValue }: DeckStatsProps) {
   const stats = deckStats(rows)
   const leaderKeys = leaders.map(nameKey)
   const base = open
@@ -46,11 +45,13 @@ export function DeckStats({ rows, leaders, table, energy, manaValue, onManaValue
         stats.averageManaValue
       )
     : null
+  const stretch = usePlotStretch(open && stats.spells > 0 && !!base)
 
   return (
     <Collapsible
       open={open}
       onToggle={toggle}
+      className="stats-panel"
       title={
         <span className="nav-icon-name stats-title">
           <MiniCurve stats={stats} />
@@ -72,12 +73,39 @@ export function DeckStats({ rows, leaders, table, energy, manaValue, onManaValue
     >
       {stats.spells > 0 && base && (
         <div className="deck-stats-body">
-          <ManaCurve stats={stats} base={base} energy={energy} selected={manaValue} onSelect={onManaValue} />
-          <ManaBaseSide base={base} />
+          <ManaCurve stats={stats} base={base} energy={energy} stretch={stretch.px} curveRef={stretch.curve} selected={manaValue} onSelect={onManaValue} />
+          <ManaBaseSide base={base} sideRef={stretch.side} />
         </div>
       )}
     </Collapsible>
   )
+}
+
+/**
+ * How much taller the curve's plot grows so the curve ends where the mana base beside it does: a
+ * mana base of many colors runs past the curve's own height. None when the mana base sits under it.
+ * The dots keep their size; only the plot, its lines and its tide grow.
+ */
+function usePlotStretch(shown: boolean): { curve: RefObject<HTMLDivElement | null>; side: RefObject<HTMLElement | null>; px: number } {
+  const curve = useRef<HTMLDivElement>(null)
+  const side = useRef<HTMLElement>(null)
+  const [px, setPx] = useState(0)
+  const measure = () => {
+    const plot = curve.current?.getBoundingClientRect()
+    const base = side.current?.getBoundingClientRect()
+    if (!plot || !base) return
+    setPx((current) => {
+      if (base.top >= plot.bottom - 2) return 0
+      // The curve's height without the stretch it has now, against the mana base's.
+      const next = Math.max(0, Math.round(base.height - (plot.height - current)))
+      return Math.abs(next - current) > 1 ? next : current
+    })
+  }
+  useLayoutEffect(() => {
+    if (shown) measure()
+  }, [shown])
+  useResizeObserver(shown, () => [curve.current, side.current], measure)
+  return { curve, side, px }
 }
 
 /** Curve column label; the last is `N+`. */
@@ -249,6 +277,10 @@ interface ManaCurveProps {
   energy: boolean
   selected: number | null
   onSelect: (manaValue: number | null) => void
+  /** Px the plot grows, to end with the mana base beside it. */
+  stretch: number
+  /** The curve's element, which {@link usePlotStretch} measures. */
+  curveRef: RefObject<HTMLDivElement | null>
 }
 
 /**
@@ -257,7 +289,7 @@ interface ManaCurveProps {
  * the mana values and the chance of being on curve at each; with `energy`, the energy each mana value
  * makes and spends. A column is a toggle filtering the list; hovering it details its spells.
  */
-function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) {
+function ManaCurve({ stats, base, energy, stretch, curveRef, selected, onSelect }: ManaCurveProps) {
   const text = ui.stats
   const [hovered, setHovered] = useState<{ column: CurveColumn; left: number } | null>(null)
   // Mana value 0 only when a spell costs nothing.
@@ -270,14 +302,15 @@ function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) 
   const made = sumOf(stats.curve, (column) => column.energy.made)
   const spent = sumOf(stats.curve, (column) => column.energy.spent)
   const energyMax = Math.max(1, ...stats.curve.map((column) => Math.max(column.energy.made, column.energy.spent)))
-  const plot = energy ? PLOT_WITH_ENERGY : PLOT
+  const plain = energy ? PLOT_WITH_ENERGY : PLOT
+  // Taller to meet the mana base's bottom; the dots keep the room they had.
+  const plot = { ...plain, height: plain.height + stretch }
   const layout = dotLayout(Math.max(0, ...columns.map(totalOf)), plot.dots)
   const { dot, gap, abreast } = layout
   // A column is never narrower than its dots, with room either side; it widens into spare room.
   const width = Math.max(COLUMN.min, dot * abreast + gap * (abreast - 1) + 12)
   // The lines' names hang past the last column's center: the curve keeps just that room on its right,
   // measured again as the columns widen or narrow.
-  const curveRef = useRef<HTMLDivElement>(null)
   const [overhang, setOverhang] = useState(0)
   // The widest name: its overhang at the narrowest columns sets the least width, whatever the columns'
   // width now. Measured from the live overhang, the least width would shrink as the columns widen, and a
@@ -286,30 +319,17 @@ function ManaCurve({ stats, base, energy, selected, onSelect }: ManaCurveProps) 
   // The row labels' width: with the narrowest columns and the overhang, the least the curve needs.
   const [labels, setLabels] = useState(0)
   const withRamp = base.ramp.cheap > 0
-  useLayoutEffect(() => {
+  const measure = () => {
     const curve = curveRef.current
-    if (!curve) return
-    const measure = () => {
-      const plot = curve.querySelector('.stats-lines')?.getBoundingClientRect().right
-      if (plot === undefined) return
-      const ends = [...curve.querySelectorAll('.stats-line-name')].map((span) => span.getBoundingClientRect().right)
-      setOverhang(Math.max(0, Math.ceil(Math.max(plot, ...ends) - plot)))
-      setNames(Math.ceil(Math.max(0, ...[...curve.querySelectorAll('.stats-line-name')].map((span) => span.getBoundingClientRect().width))))
-      setLabels(Math.ceil(Math.max(0, ...[...curve.querySelectorAll('.stats-label')].map((label) => label.getBoundingClientRect().width))))
-    }
-    measure()
-    // On the next frame, so a resize never answers its own notification.
-    let frame = 0
-    const observer = new ResizeObserver(() => {
-      cancelAnimationFrame(frame)
-      frame = requestAnimationFrame(measure)
-    })
-    observer.observe(curve)
-    return () => {
-      observer.disconnect()
-      cancelAnimationFrame(frame)
-    }
-  }, [withRamp, columns.length])
+    const plot = curve?.querySelector('.stats-lines')?.getBoundingClientRect().right
+    if (!curve || plot === undefined) return
+    const ends = [...curve.querySelectorAll('.stats-line-name')].map((span) => span.getBoundingClientRect().right)
+    setOverhang(Math.max(0, Math.ceil(Math.max(plot, ...ends) - plot)))
+    setNames(Math.ceil(Math.max(0, ...[...curve.querySelectorAll('.stats-line-name')].map((span) => span.getBoundingClientRect().width))))
+    setLabels(Math.ceil(Math.max(0, ...[...curve.querySelectorAll('.stats-label')].map((label) => label.getBoundingClientRect().width))))
+  }
+  useLayoutEffect(measure, [withRamp, columns.length])
+  useResizeObserver(true, () => [curveRef.current], measure, [withRamp, columns.length])
 
   return (
     <div
@@ -450,12 +470,12 @@ function CurveTip({ column, left, on }: { column: CurveColumn; left: number; on:
 }
 
 /** The mana base beside the curve, in cards: Lands and the suggested count, ramp by kind, and each color's sources against its target. */
-function ManaBaseSide({ base }: { base: ManaBase }) {
+function ManaBaseSide({ base, sideRef }: { base: ManaBase; sideRef: RefObject<HTMLElement | null> }) {
   const text = ui.stats
   const scale = Math.max(1, ...base.colors.map((need) => Math.max(need.sources, need.target))) * 1.1
   const { ramp } = base
   return (
-    <aside className="stats-side">
+    <aside className="stats-side" ref={sideRef}>
       <div className="stats-cards">
         <section className="stats-card">
           <h4>{text.lands}</h4>

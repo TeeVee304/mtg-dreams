@@ -259,7 +259,7 @@ describe('legalityIssue', () => {
       code: 'unreleased',
       severity: 'warning',
       message: 'Not out yet',
-      detail: 'Release date 13-11-2999. Scryfall sets its legality once it is out.'
+      detail: 'Releases 13-11-2999'
     })
     expect(legalityIssue(commander, card({ commander: 'not_legal' }, { releasesOn: '2000-01-01' }), 1)?.code).toBe('notLegal')
     expect(legalityIssue(commander, card({ commander: 'banned' }, { releasesOn: '2999-11-13' }), 1)?.code).toBe('banned')

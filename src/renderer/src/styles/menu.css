@@ -35,6 +35,16 @@
   animation: menu-in 0.12s ease-out;
 }
 
+/* A right-click menu (ContextMenu): opens at the pointer, kept inside the window. */
+.context-menu {
+  position: fixed;
+  z-index: 60;
+}
+
+.context-menu .menu-list {
+  position: static;
+}
+
 .menu-list button {
   border: none;
   background: none;

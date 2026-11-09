@@ -21,5 +21,5 @@ export const value = {
   rises: 'Biggest rises',
   falls: 'Biggest falls',
   none: 'None',
-  noHistory: "Price changes show up here after Cardmarket's next daily price update: MTG Dreams keeps its own history from the day it first sees your Cards."
+  noHistory: "Price changes show after Cardmarket's next daily price update."
 }

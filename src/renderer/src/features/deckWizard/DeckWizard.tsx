@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { bundledBasic } from '@shared/basics'
+import { withBracket, type BracketLevel } from '@shared/brackets'
 import { shortName, TYPE_GROUPS, type ColorFilter } from '@shared/cards'
 import type { CopyPool } from '@shared/copies'
 import { STAT_COLORS } from '@shared/deckStats'
@@ -220,9 +221,11 @@ export function DeckWizard({ onClose, onCreate, lists, inventory, pool }: DeckWi
       })
     : []
   const chosenCompanion = companion && fitting.includes(companion) ? companion : null
+  // The bracket picked here becomes the Deck's declared bracket.
+  const bracketLevel = filters.bracket ? ((BRACKETS.findIndex((one) => one.id === filters.bracket) + 1) as BracketLevel) : null
   const deckText = (deck: AverageDeck) => {
-    const text = averageDeckText(deck)
-    return chosenCompanion ? serializeList(withCompanion(parseList(text), chosenCompanion)) : text
+    const lines = withBracket(parseList(averageDeckText(deck)), bracketLevel)
+    return serializeList(chosenCompanion ? withCompanion(lines, chosenCompanion) : lines)
   }
   const save = (kind: ListKind) =>
     create.run(() => (deck ? onCreate(kind, preconListName(listName.trim(), namesOf(kind)), deckText(deck), total) : undefined))

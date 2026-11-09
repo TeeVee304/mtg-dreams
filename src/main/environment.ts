@@ -24,6 +24,10 @@ export interface Environment {
   priceGuideUrl: string
   /** EDHREC's average decks base URL. */
   edhrecJson: string
+  /** EDHREC's top-cards pages base URL (the salt survey). */
+  edhrecTop: string
+  /** Commander Spellbook's API base URL. */
+  spellbookApi: string
   /** Scryfall's card image base URL. */
   cardImagesUrl: string
 }
@@ -34,6 +38,8 @@ export const SERVICES = {
   mtgjsonApi: 'https://mtgjson.com/api/v5',
   priceGuideUrl: 'https://downloads.s3.cardmarket.com/productCatalog/priceGuide/price_guide_1.json',
   edhrecJson: EDHREC_JSON,
+  edhrecTop: 'https://json.edhrec.com/pages/top',
+  spellbookApi: 'https://backend.commanderspellbook.com',
   cardImagesUrl: 'https://cards.scryfall.io'
 }
 

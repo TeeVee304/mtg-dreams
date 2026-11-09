@@ -53,12 +53,10 @@ export function SettingsDialog(props: SettingsDialogProps) {
   return (
     <Modal title={text.title} onClose={onClose}>
       <section className="settings-section">
-        <h3>{text.color}</h3>
+        <h3>{text.appearance}</h3>
+        <p className="setting-label setting-heading">{text.color}</p>
         <ColorOptions value={settings.color} onChange={(color) => color && change({ color })} />
-      </section>
-
-      <section className="settings-section">
-        <h3>{text.mode}</h3>
+        <p className="setting-label setting-heading">{text.mode}</p>
         <div className="theme-options" role="radiogroup" aria-label={text.mode}>
           {THEMES.map((theme) => (
             <button
@@ -75,10 +73,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
             </button>
           ))}
         </div>
-      </section>
-
-      <section className="settings-section">
-        <h3>{text.ui}</h3>
         <label className="setting-toggle">
           <span className="setting-text">
             <span className="setting-label">{text.simpleUI}</span>
@@ -95,7 +89,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
         <label className="setting-toggle">
           <span className="setting-text">
             <span className="setting-label">{text.deckMotion}</span>
-            <span className="muted small">{text.deckMotionHint}</span>
           </span>
           <input
             type="checkbox"
@@ -124,6 +117,13 @@ export function SettingsDialog(props: SettingsDialogProps) {
             onChange={(event) => change({ cardImages: event.target.checked })}
           />
         </label>
+        <div className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.rulesText}</span>
+            <span className="muted small">{text.rulesTextHint}</span>
+          </span>
+          <Segmented label={text.rulesText} options={RULES_TEXTS} value={settings.rulesText} onChange={(rulesText) => change({ rulesText })} />
+        </div>
         <label className="setting-toggle">
           <span className="setting-text">
             <span className="setting-label">{text.basics}</span>
@@ -137,56 +137,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
             onChange={(event) => change({ bundleBasics: event.target.checked })}
           />
         </label>
-        <label className="setting-toggle">
-          <span className="setting-text">
-            <span className="setting-label">{text.skipUniversesBeyond}</span>
-            <span className="muted small">{text.skipUniversesBeyondHint}</span>
-          </span>
-          <input
-            type="checkbox"
-            role="switch"
-            className="switch"
-            checked={settings.skipUniversesBeyond}
-            onChange={(event) => change({ skipUniversesBeyond: event.target.checked })}
-          />
-        </label>
-        <label className="setting-toggle">
-          <span className="setting-text">
-            <span className="setting-label">{text.skipSecretLair}</span>
-            <span className="muted small">{text.skipSecretLairHint}</span>
-          </span>
-          <input
-            type="checkbox"
-            role="switch"
-            className="switch"
-            checked={settings.skipSecretLair}
-            onChange={(event) => change({ skipSecretLair: event.target.checked })}
-          />
-        </label>
-      </section>
-
-      <section className="settings-section">
-        <h3>{text.language}</h3>
-        <label className="setting-toggle">
-          <span className="setting-text">
-            <span className="setting-label">{text.skipPhyrexian}</span>
-            <span className="muted small">{text.skipPhyrexianHint}</span>
-          </span>
-          <input
-            type="checkbox"
-            role="switch"
-            className="switch"
-            checked={settings.skipPhyrexian}
-            onChange={(event) => change({ skipPhyrexian: event.target.checked })}
-          />
-        </label>
-        <div className="setting-toggle">
-          <span className="setting-text">
-            <span className="setting-label">{text.rulesText}</span>
-            <span className="muted small">{text.rulesTextHint}</span>
-          </span>
-          <Segmented label={text.rulesText} options={RULES_TEXTS} value={settings.rulesText} onChange={(rulesText) => change({ rulesText })} />
-        </div>
       </section>
 
       <section className="settings-section">
@@ -228,6 +178,47 @@ export function SettingsDialog(props: SettingsDialogProps) {
             className="switch"
             checked={settings.plainBrews}
             onChange={(event) => change({ plainBrews: event.target.checked })}
+          />
+        </label>
+      </section>
+
+      <section className="settings-section">
+        <h3>{text.versions}</h3>
+        <p className="muted small settings-hint">{text.versionsHint}</p>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.skipUniversesBeyond}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.skipUniversesBeyond}
+            onChange={(event) => change({ skipUniversesBeyond: event.target.checked })}
+          />
+        </label>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.skipSecretLair}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.skipSecretLair}
+            onChange={(event) => change({ skipSecretLair: event.target.checked })}
+          />
+        </label>
+        <label className="setting-toggle">
+          <span className="setting-text">
+            <span className="setting-label">{text.skipPhyrexian}</span>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className="switch"
+            checked={settings.skipPhyrexian}
+            onChange={(event) => change({ skipPhyrexian: event.target.checked })}
           />
         </label>
       </section>
@@ -322,8 +313,6 @@ export function SettingsDialog(props: SettingsDialogProps) {
         </div>
       </section>
 
-      <StorageSection />
-
       <section className="settings-section">
         <h3>{text.dataFolder}</h3>
         <p className="data-dir" title={dataDir}>
@@ -338,6 +327,8 @@ export function SettingsDialog(props: SettingsDialogProps) {
           </button>
         </div>
       </section>
+
+      <StorageSection />
       {error && <p className="warn">{error}</p>}
       <p className="muted tiny settings-credits">{text.credits}</p>
     </Modal>

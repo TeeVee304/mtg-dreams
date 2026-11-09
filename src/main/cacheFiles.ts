@@ -1,5 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { env } from './environment'
 
@@ -75,6 +75,22 @@ export async function cacheEntries(folder: string): Promise<string[]> {
 /** Deletes cache files and folders, with what they hold. Errors are ignored. */
 export async function removeCacheEntries(names: string[]): Promise<void> {
   await Promise.all(names.map((name) => rm(pathOf(name), { recursive: true, force: true }).catch(() => undefined)))
+}
+
+/**
+ * Keeps a cache folder to its newest files, deleting the rest and forgetting them in memory.
+ * @param folder - Path relative to userData.
+ * @param keep - Most files kept.
+ */
+export async function pruneCacheFolder(folder: string, keep: number): Promise<void> {
+  const names = await cacheEntries(folder)
+  if (names.length <= keep) return
+  const dated = await Promise.all(
+    names.map(async (name) => ({ name: `${folder}/${name}`, at: await stat(pathOf(`${folder}/${name}`)).then((info) => info.mtimeMs, () => 0) }))
+  )
+  const old = dated.sort((a, b) => b.at - a.at).slice(keep).map((entry) => entry.name)
+  for (const name of old) memory.delete(name)
+  await removeCacheEntries(old)
 }
 
 /** A cached answer from a service, with when it was fetched. */

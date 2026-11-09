@@ -29,7 +29,19 @@ describe('parseCardLine', () => {
     expect(parseCardLine('2x Counterspell')).toMatchObject({ qty: 2, name: 'Counterspell' })
   })
 
-  it('parses Archidekt exports, dropping categories and labels', () => {
+  it('keeps categories: Archidekt\'s, and the app\'s own', () => {
+    expect(parseCardLine('1x Sol Ring (cmm) 410 [Ramp,Artifact] ^Have,#37d67a^')).toMatchObject({ categories: ['Ramp', 'Artifact'] })
+    expect(parseCardLine('1x Atraxa, Grand Unifier [Commander{top}]')?.categories).toBeUndefined()
+    expect(parseCardLine('1 Sol Ring [Ramp]')).toMatchObject({ name: 'Sol Ring', set: undefined, categories: ['Ramp'] })
+    expect(parseCardLine('1 Sol Ring <410> [CMM] [Card Draw]')).toMatchObject({ set: 'cmm', collector: '410', categories: ['Card Draw'] })
+    expect(parseCardLine('1 Sol Ring [ETB,]')).toMatchObject({ set: undefined, categories: ['ETB'] })
+    // Written back so it reads the same; one that could pass for a set code gets a comma.
+    for (const line of ['1 Sol Ring <410> [CMM] (F) [Ramp,Artifact]', '1 Sol Ring [ETB,]', '1 Sol Ring [ramp,]', '1 Sol Ring [Mana Rocks]']) {
+      expect(serializeList(parseList(line))).toBe(`${line}\n`)
+    }
+  })
+
+  it('parses Archidekt exports, dropping labels', () => {
     expect(parseCardLine('1x Wandering Archaic // Explore the Vastlands (stx) 6 [Maybeboard{noDeck}{noPrice}]')).toMatchObject({
       qty: 1, name: 'Wandering Archaic // Explore the Vastlands', set: 'stx', collector: '6', foil: false
     })
@@ -40,7 +52,7 @@ describe('parseCardLine', () => {
     expect(parseCardLine('1 Island [DMU]')).toMatchObject({ name: 'Island', set: 'dmu' })
   })
 
-  it("moves Archidekt's {noDeck} Cards to a Sideboard or Maybeboard section", () => {
+  it("moves Archidekt's {noDeck} Cards to a Sideboard or Maybeboard section, keeping their other categories", () => {
     const text = [
       '1x Sol Ring (cmm) 410 [Ramp]',
       '1x Wandering Archaic // Explore the Vastlands (stx) 6 [Maybeboard{noDeck}{noPrice}]',
@@ -48,8 +60,8 @@ describe('parseCardLine', () => {
       '1x Fireblast (all) 100 [Removal{noDeck}]'
     ].join('\n')
     expect(serializeList(parseList(text))).toBe(
-      '1 Sol Ring <410> [CMM]\n\nSideboard\n1 Pyroblast <213> [ICE]\n\nMaybeboard\n' +
-        '1 Wandering Archaic // Explore the Vastlands <6> [STX]\n1 Fireblast <100> [ALL]\n'
+      '1 Sol Ring <410> [CMM] [Ramp]\n\nSideboard\n1 Pyroblast <213> [ICE]\n\nMaybeboard\n' +
+        '1 Wandering Archaic // Explore the Vastlands <6> [STX]\n1 Fireblast <100> [ALL] [Removal]\n'
     )
   })
 

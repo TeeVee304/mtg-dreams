@@ -5,6 +5,7 @@ import { cardLines, nameKey, parseInventory, parseList, serializeList } from '@s
 import { listFormat, withCommanders, withFormat, withoutMissingCommanders } from '@shared/formats'
 import type { Version } from '@shared/inventory'
 import { withBadge } from '@shared/listBadge'
+import { withBracket, type BracketLevel } from '@shared/brackets'
 import { withBanner } from '@shared/listBanner'
 import { withTexture } from '@shared/listTexture'
 import { withTypeface } from '@shared/listTypeface'
@@ -12,6 +13,7 @@ import { withColor, withPalette } from '@shared/listColor'
 import type { IdentityKey } from '@shared/deckPalettes'
 import { withPreferredVersions } from '@shared/listPreference'
 import { withHoldsCopies } from '@shared/listHolds'
+import { withCategory, withGroupByCategory, withoutCategory, withRenamedCategory } from '@shared/listCategories'
 import { appliedUpgrade, upgradeOf, upgradeTarget, withUpgradeOf } from '@shared/listUpgrade'
 import {
   withAbsorbedIns,
@@ -458,6 +460,28 @@ export class LibraryStore {
       this.updateLines(target, (lines) => withEnergyCurve(lines, on), { label: ui.changes.energyCurve(target.name, on) })
     },
 
+    /** Groups a list's main deck by its Cards' categories, or by Card type again. */
+    setGroupByCategory: (target: ListRef, on: boolean) => {
+      this.updateLines(target, (lines) => withGroupByCategory(lines, on), { label: ui.changes.groupBy(target.name, on) })
+    },
+
+    /** Puts card lines in a category, as their first, or in none (`null`). */
+    setCategory: (target: ListRef, ids: string[], category: string | null) => {
+      this.updateLines(target, (lines) => withCategory(lines, ids, category), {
+        label: ui.changes.categorized(cardName(this.state.lists, target, ids[0]), category?.trim() || null)
+      })
+    },
+
+    /** Renames a category on every Card of a list. */
+    renameCategory: (target: ListRef, from: string, to: string) => {
+      this.updateLines(target, (lines) => withRenamedCategory(lines, from, to), { label: ui.changes.renamedCategory(from, to.trim()) })
+    },
+
+    /** Takes a category off every Card of a list; announced, with Undo. */
+    deleteCategory: (target: ListRef, name: string) => {
+      this.updateLines(target, (lines) => withoutCategory(lines, name), { label: ui.changes.deletedCategory(name), announce: true })
+    },
+
     /**
      * Makes a deck hold its copies, or hold none (it then uses every owned copy without reserving any),
      * whatever the Decks hold Copies setting says.
@@ -528,6 +552,11 @@ export class LibraryStore {
     /** Sets the color a Rulebreaker commander lets the list add, or removes it (`null`). */
     setRulebreakerColor: (target: ListRef, color: string | null) => {
       this.updateLines(target, (lines) => withRulebreakerColor(lines, color), { label: ui.changes.rulebreakerColor })
+    },
+
+    /** Declares the bracket a Deck plays at, or none (`null`). */
+    setListBracket: (target: ListRef, level: BracketLevel | null) => {
+      this.updateLines(target, (lines) => withBracket(lines, level), { label: ui.changes.bracket(level) })
     },
 
     /** Sets the shape of the Background and Companion badges, or leaves it round (`null`). */

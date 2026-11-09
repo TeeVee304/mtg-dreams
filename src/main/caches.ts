@@ -21,6 +21,7 @@ export const CACHE_GROUPS: Record<CacheGroup, string[]> = {
   images: [IMAGES_FOLDER],
   precons: ['precons'],
   edhrec: ['edhrec'],
+  brackets: ['brackets'],
   tokens: ['token-cache.json'],
   setGroups: ['set-groups.json']
 }

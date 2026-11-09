@@ -22,7 +22,7 @@ import {
   type Variant
 } from '@shared/listVersion'
 import { unownedCards } from '@shared/copies'
-import { countLines, nameKey, parseList, serializeCard, serializeList } from '@shared/decklist'
+import { cleanCategory, countLines, nameKey, parseList, serializeCard, serializeList } from '@shared/decklist'
 import { withPreferredPrintings } from '@shared/listPreference'
 import type { ListAnalysis } from '@shared/listModel'
 import type { Board } from '@shared/sideboard'
@@ -65,6 +65,9 @@ export type ListDialog =
   | { kind: 'variant-format'; formatId: string | null; label: string; variant: Variant; swaps: number }
   /** Names a new version, or renames `version`. */
   | { kind: 'version-name'; version: ListVersion | null }
+  /** Names a new category for card lines (a bundled basic's are several). */
+  | { kind: 'category-name'; ids: string[] }
+  | { kind: 'category-rename'; name: string }
 
 /** Props of {@link ListDialogs}. */
 interface ListDialogsProps {
@@ -386,6 +389,26 @@ export function ListDialogs(props: ListDialogsProps) {
               toast(ui.list.versionAdded(list.name, name))
             }
             props.onVersion(name)
+            onClose()
+          }}
+        />
+      )
+    }
+    case 'category-name':
+    case 'category-rename': {
+      const renaming = dialog.kind === 'category-rename' ? dialog.name : null
+      return (
+        <PromptDialog
+          title={renaming ? text.categoryName.rename(renaming) : text.categoryName.add}
+          label={renaming ? text.name : text.categoryName.label}
+          initial={renaming ?? ''}
+          confirmLabel={renaming ? text.renameConfirm : text.categoryName.addConfirm}
+          onClose={onClose}
+          onSubmit={(value) => {
+            if (!cleanCategory(value)) throw new Error(ui.changes.enterName)
+            if (dialog.kind === 'category-rename') {
+              if (value.trim() !== dialog.name) actions.renameCategory(list, dialog.name, value)
+            } else actions.setCategory(list, dialog.ids, value)
             onClose()
           }}
         />

@@ -134,6 +134,8 @@ async function setup(userData?: string) {
     mtgjsonApi: base,
     priceGuideUrl: base,
     edhrecJson: base,
+    edhrecTop: base,
+    spellbookApi: base,
     cardImagesUrl: base
   })
   return { dir, scryfall: await import('./scryfall'), resolver: await import('./cardResolver') }

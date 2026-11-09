@@ -49,13 +49,37 @@ const WORTHLESS_RE = /\s*\{(?:worthless|no value)\}$/i
 const STAND_IN_RE = /\s*\{stand-in\}$/i
 
 /**
+ * @returns Whether a bracketed word could be a Goldfish `[SET]`: 2 to 8 letters and digits, all one
+ * case (`[DMU]`, `[2xm]`). A mixed-case word (`[Ramp]`) is a category.
+ */
+const looksLikeSet = (inner: string) => /^[A-Za-z0-9]{2,8}$/.test(inner) && (inner === inner.toUpperCase() || inner === inner.toLowerCase())
+
+/**
  * @param inner - A bracketed suffix's text.
  * @param before - The line before it.
- * @returns Whether it is an Archidekt category rather than a Goldfish `[SET]`: it has braces, commas
- * or spaces, or follows an Arena-style `(SET) num` (Goldfish lines never have one).
+ * @returns Whether it is a category (Archidekt's, or the app's) rather than a Goldfish `[SET]`: it has
+ * braces, commas or spaces, follows an Arena-style `(SET) num` (Goldfish lines never have one), or is
+ * no set code at all.
  */
 function isArchidektCategory(inner: string, before: string): boolean {
-  return /[{},\s]/.test(inner) || ARENA_SET_RE.test(before.replace(FOIL_RE, ''))
+  return /[{},\s]/.test(inner) || !looksLikeSet(inner) || ARENA_SET_RE.test(before.replace(FOIL_RE, ''))
+}
+
+/** Archidekt categories that are a board or a section, not a category of their own. */
+const BOARD_CATEGORY = /^(commander|companion|side(board)?|maybe(board)?)$/i
+
+/** @returns The categories of an Archidekt-style `[Ramp,Removal]` suffix, without flags (`{noDeck}`) or boards. */
+function categoriesOf(inner: string): string[] {
+  const names = inner.split(',').map((name) => cleanCategory(name.replace(/\{[^{}]*\}/g, '')))
+  return [...new Set(names.filter((name) => name && !BOARD_CATEGORY.test(name)))]
+}
+
+/** Longest category name kept. */
+const MAX_CATEGORY = 40
+
+/** @returns A category name fit for a card line: no brackets, braces or commas, spaces collapsed; `''` if nothing is left. */
+export function cleanCategory(name: string): string {
+  return name.replace(/[[\]{},]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, MAX_CATEGORY).trim()
 }
 
 /** Sideboard section header the app writes. */
@@ -65,8 +89,8 @@ export const MAYBEBOARD_TEXT = 'Maybeboard'
 
 /**
  * Parses `N[x] Name` with optional suffixes in any order: `<tag>`, `[SET]`, `(F)`/`*F*`, `(SET) num`,
- * `{DE}` (a language besides English), `{Worthless}`, `{Stand-in}`. Archidekt's `[Category]` and `^Label^` are
- * dropped.
+ * `{DE}` (a language besides English), `{Worthless}`, `{Stand-in}`, `[Category]` (Archidekt's, also
+ * `[Ramp,Removal]`). Archidekt's `^Label^` is dropped.
  * @returns Card fields; null if not a card line.
  */
 export function parseCardLine(line: string): Omit<CardLine, 'id' | 'kind'> | null {
@@ -122,7 +146,11 @@ function parseTaggedLine(line: string): { card: Omit<CardLine, 'id' | 'kind'>; b
 
   const name = rest.replace(/\s+/g, ' ').trim()
   if (!name) return null
-  const card = { qty, name, set, collector: collector || undefined, foil, ...(lang && { lang }), ...(worthless && { worthless: true as const }), ...(standIn && { standIn: true as const }) }
+  const categories = category ? categoriesOf(category) : []
+  const card = {
+    qty, name, set, collector: collector || undefined, foil, ...(lang && { lang }), ...(worthless && { worthless: true as const }),
+    ...(standIn && { standIn: true as const }), ...(categories.length > 0 && { categories })
+  }
   const board = !category || !/\{nodeck\}/i.test(category) ? 'main' : /^sideboard(?![a-z])/i.test(category) ? 'side' : 'maybe'
   return { card, board }
 }
@@ -152,7 +180,11 @@ export function parseList(text: string): ListLine[] {
   return lines
 }
 
-/** @returns Canonical line: `N Name <collector> [SET] (F) {DE} {Worthless} {Stand-in}`. */
+/**
+ * @returns Canonical line: `N Name <collector> [SET] (F) {DE} {Worthless} {Stand-in} [Category]`. A
+ * lone category that could pass for a set code (`ETB`, `ramp`) is written `[ETB,]`, so it reads back
+ * as one.
+ */
 export function serializeCard(card: Omit<CardLine, 'id' | 'kind'>): string {
   let line = `${card.qty} ${card.name}`
   if (card.collector) line += ` <${card.collector}>`
@@ -161,6 +193,10 @@ export function serializeCard(card: Omit<CardLine, 'id' | 'kind'>): string {
   if (card.lang) line += ` {${card.lang.toUpperCase()}}`
   if (card.worthless) line += ' {Worthless}'
   if (card.standIn) line += ' {Stand-in}'
+  if (card.categories?.length) {
+    const joined = card.categories.join(',')
+    line += ` [${joined}${card.categories.length === 1 && looksLikeSet(joined) ? ',' : ''}]`
+  }
   return line
 }
 

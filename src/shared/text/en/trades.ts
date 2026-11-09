@@ -21,7 +21,7 @@ export const trades = {
   rename: 'Rename…',
   remove: 'Remove…',
   plainList: (friend: string) =>
-    `Imported from a plain Card list, so it only says what ${friend} has. Ask them to share their list from MTG Dreams to see what they want too.`,
+    `Imported from a plain Card list, so it only lists what ${friend} has. Ask them to share their list from MTG Dreams to see what they want too.`,
   plainLists: 'Imported from plain Card lists.',
   canGiveYou: (friend: string) => `${friend} can give you`,
   youCanGive: (friend: string) => `You can give ${friend}`,

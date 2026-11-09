@@ -21,10 +21,12 @@ interface CardTileProps {
   shortfall: number
   onOpen: () => void
   onPick: () => void
+  /** Can be dragged to another section (a list grouped by category). */
+  draggable?: boolean
 }
 
 /** Grid view card: image with quantity, owned state and issue badges; name and price below. Click opens or picks. */
-export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall, onOpen, onPick }: CardTileProps) {
+export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall, onOpen, onPick, draggable }: CardTileProps) {
   const { line, resolution, entry, owned, unit } = row
   const printing = resolution?.printing ?? null
   const image = printing?.imageNormal ?? printing?.imageSmall
@@ -48,6 +50,8 @@ export function CardTile({ row, isDeck, pick, leader, crowned, issue, shortfall,
     <button
       type="button"
       className={classes.join(' ')}
+      data-line-id={line.id}
+      draggable={draggable || undefined}
       onClick={pick ? () => pick === 'ok' && onPick() : onOpen}
       disabled={!!row.bundledIds && !pick}
       title={

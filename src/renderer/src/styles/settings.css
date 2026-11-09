@@ -104,8 +104,22 @@ input.switch:checked::after {
   overflow-wrap: anywhere;
 }
 
-.storage-hint {
+.storage-hint,
+.settings-hint {
   margin: 0 0 8px;
+}
+
+/* A control's own name inside a section (Appearance's Color and Mode). */
+.setting-heading {
+  margin: 14px 0 6px;
+}
+
+.settings-section h3 + .setting-heading {
+  margin-top: 0;
+}
+
+.theme-options + .setting-toggle {
+  margin-top: 14px;
 }
 
 /* Each cache with its size, in two columns across the dialog; the total and Clear under a rule. */

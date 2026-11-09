@@ -8,8 +8,9 @@ import { useNarrowTables } from '../hooks/useNarrow'
 import type { PriceChange } from '../stores/history'
 import { localizedQueryOf } from '../stores/localizedImages'
 import type { Row } from '../lib/summary'
+import type { BracketMarks } from '../hooks/useDeckBracket'
 import { CardmarketButton, NameCell, Price } from './CardCells'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 import { LanguageFlag } from './LanguageFlag'
 import { Skeleton } from './Placeholders'
 import { Stepper } from './Stepper'
@@ -28,8 +29,10 @@ interface CardRowProps {
   issues: LegalityIssue[]
   /** Why the Card is allowed despite a rule, shown on hover over its name. */
   allowed?: string[]
-  /** Shows the Game Changer chip: the Card is one, and the format has brackets. */
+  /** Shows the Game Changer mark: the Card is one, and the format has brackets. */
   gameChanger: boolean
+  /** What the Card does that the brackets limit, and the declared bracket it breaks. */
+  bracketMarks?: BracketMarks
   /** Deck copies not covered by the inventory copies left by lists ahead. */
   shortfall: number
   /** Wishlist price change past the alert threshold, either way. */
@@ -45,6 +48,8 @@ interface CardRowProps {
   maxTitle?: string
   /** What the row's controls do; the same object every render, so the row re-renders only when its data changes. */
   handlers: RowHandlers
+  /** Can be dragged to another section (a list grouped by category); never from its controls. */
+  draggable?: boolean
 }
 
 /** What a {@link CardRow}'s controls do, given its row. */
@@ -87,7 +92,7 @@ function sameRowProps(a: CardRowProps, b: CardRowProps): boolean {
 }
 
 function CardRowView(props: CardRowProps) {
-  const { row, pick, leader, crowned, isDeck, issues, allowed, gameChanger, shortfall, change, swapTag, swapLabel, maxQty, maxTitle, otherVersions, handlers } = props
+  const { row, pick, leader, crowned, isDeck, issues, allowed, gameChanger, bracketMarks, shortfall, change, swapTag, swapLabel, maxQty, maxTitle, otherVersions, handlers, draggable } = props
   const onPick = () => handlers.pick(row)
   const onQty = (qty: number) => handlers.qty(row, qty)
   const onToggleOwned = () => handlers.toggleOwned(row)
@@ -119,9 +124,23 @@ function CardRowView(props: CardRowProps) {
     pick && `pick-${pick}`
   ].filter(Boolean)
 
+  // Beside the Version, since its price is that printing's.
+  const changeChip = change && (
+    <span
+      className={`chip price-change ${change.direction === 'down' ? 'cheaper' : 'pricier'}`}
+      title={ui.card.priceChange(formatEur(change.was), formatDate(change.since), formatEur(row.unit))}
+    >
+      {change.direction === 'down' ? ui.card.cheaper(change.percent) : ui.card.pricier(change.percent)}
+    </span>
+  )
+
   return (
     <tr
       className={classes.length ? classes.join(' ') : undefined}
+      data-line-id={line.id}
+      draggable={draggable || undefined}
+      // Dragged by its name, picture or empty space: a field or button keeps its own mouse use.
+      onMouseDown={draggable ? (event) => (event.currentTarget.draggable = !(event.target as Element).closest('input, button, a, select, textarea')) : undefined}
       onClickCapture={
         pick
           ? (event) => {
@@ -210,8 +229,20 @@ function CardRowView(props: CardRowProps) {
         )}
         {line.foil && <span className="chip foil">{ui.common.foil}</span>}
         {gameChanger && (
-          <span className="chip game-changer" title={ui.card.gameChanger}>
-            {ui.card.gameChangerTag}
+          <span className="bracket-mark game-changer" role="img" aria-label={ui.card.gameChanger} title={ui.card.gameChanger}>
+            <Icon name="bolt" />
+          </span>
+        )}
+        {bracketMarks &&
+          markList(bracketMarks).map((mark) => (
+            <span key={mark.icon} className={`bracket-mark${mark.early ? ' early' : ''}`} role="img" aria-label={mark.label} title={mark.label}>
+              <Icon name={mark.icon} />
+            </span>
+          ))}
+        {bracketMarks?.above && (
+          <span className="chip above-bracket" title={ui.bracket.aboveHint(ui.bracket.reasons[bracketMarks.above.reason], bracketMarks.above.level)}>
+            <Icon name="warning" />
+            {ui.bracket.above(bracketMarks.above.level)}
           </span>
         )}
         {swapTag === 'only' && (
@@ -226,14 +257,6 @@ function CardRowView(props: CardRowProps) {
           >
             {issues[0].message}
             {issues.length > 1 && <span className="chip-more">{ui.rules.more(issues.length - 1)}</span>}
-          </span>
-        )}
-        {change && (
-          <span
-            className={`chip ${change.direction === 'down' ? 'cheaper' : 'pricier'}`}
-            title={ui.card.priceChange(formatEur(change.was), formatDate(change.since), formatEur(row.unit))}
-          >
-            {change.direction === 'down' ? ui.card.cheaper(change.percent) : ui.card.pricier(change.percent)}
           </span>
         )}
         {shortfall > 0 && (
@@ -263,6 +286,7 @@ function CardRowView(props: CardRowProps) {
           <span className="name-version">
             <VersionCell row={row} otherVersions={otherVersions} />
             {row.line.lang && <LanguageFlag code={row.line.lang} />}
+            {changeChip}
           </span>
         )}
       </NameCell>
@@ -270,6 +294,7 @@ function CardRowView(props: CardRowProps) {
         <td className="col-version">
           <VersionCell row={row} otherVersions={otherVersions} />
           {row.line.lang && <LanguageFlag code={row.line.lang} />}
+          {changeChip}
         </td>
       )}
       <td className="col-num">
@@ -300,6 +325,16 @@ function CardRowView(props: CardRowProps) {
       </td>
     </tr>
   )
+}
+
+/** @returns A Card's bracket marks beside its name, beyond the Game Changer's: its icon, label, and whether it is early. */
+function markList(marks: BracketMarks): { icon: IconName; label: string; early?: boolean }[] {
+  const text = ui.bracket
+  const list: { icon: IconName; label: string; early?: boolean }[] = []
+  if (marks.combo) list.push({ icon: 'combo', label: marks.combo === 'early' ? text.earlyComboPiece : text.comboPiece, early: marks.combo === 'early' })
+  if (marks.extraTurn) list.push({ icon: 'extraTurn', label: text.reasons.extraTurns })
+  if (marks.landDenial) list.push({ icon: 'landDenial', label: text.reasons.landDenial })
+  return list
 }
 
 /**

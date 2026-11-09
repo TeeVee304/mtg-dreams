@@ -51,6 +51,9 @@
 - **Order your decks** the same way. When you own fewer copies of a card than your decks need, the decks higher up
   get them first. New decks start at the bottom.
 - A **Statistics** panel shows the mana curve and the colors of the cards besides lands.
+- A **Bracket** panel (Commander) checks a deck against the official Commander Brackets: Game Changers, two-card combos
+  (from Commander Spellbook, early or late by your mana base), mass land denial and extra turns (from Scryfall's tags).
+  Declare the bracket you play at, when creating the deck or in the panel; cards above it are flagged. Salt comes from EDHREC.
 - A **Tokens** panel at the bottom lists the tokens, emblems and helpers the cards create, with which cards make each one.
 
 ### Deck Wizard
@@ -91,7 +94,7 @@ npm run dist
 
 - This creates `dist/mtg-dreams-setup-<version>.exe`, which runs on any Windows PC without Node.js.
 - It installs for the current Windows user, without admin rights.
-- It adds Start Menu and Desktop shortcuts, and an uninstaller: *Uninstall MTG Dreams* in the Start Menu, or under
+- It adds Start Menu and Desktop shortcuts, and an uninstaller: *Uninstall Dreams* in the Start Menu, or under
   *Settings → Apps*.
 - The installer isn't code-signed, so Windows SmartScreen warns the first time: choose *More info → Run anyway*.
 - Running a newer installer updates the app; your data is kept.

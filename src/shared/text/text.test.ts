@@ -53,9 +53,10 @@ const ALLOWED: Record<string, true | string[]> = {
     '{} /DeckList.json', '{} /decks/ {} .json', 'Deck name'],
   'shared/deckWizard/averageDeck.ts': ['Exhibition', 'Core', 'Upgraded', 'Optimized'],
   // List files: the headers and markers the app writes and reads back.
-  'shared/listMeta.ts': ['Color', 'Palette', 'Badge', 'Texture', 'Typeface', 'Banner', 'Hold copies', 'Upgrade of', 'Upgrade version', 'Preferred Versions', 'Token Versions', 'Energy curve', 'No'],
+  'shared/listMeta.ts': ['Color', 'Palette', 'Badge', 'Texture', 'Typeface', 'Banner', 'Hold copies', 'Upgrade of', 'Upgrade version', 'Preferred Versions', 'Token Versions', 'Energy curve', 'Group by', 'No'],
   'shared/listHolds.ts': ['Yes', 'No'],
   'shared/listEnergy.ts': ['Yes'],
+  'shared/listCategories.ts': ['Category'],
   'shared/decklist.ts': ['Sideboard', 'Maybeboard', '{Stand-in}'],
   'shared/listVersion.ts': ['Duel', 'Commander', '// {} : On', '// Version: {}'],
   'shared/trade.ts': ['// MTG Dreams trade list: {} ( {} )', '// Have', '// Want', 'card name'],
@@ -71,10 +72,11 @@ const ALLOWED: Record<string, true | string[]> = {
   // The names checks give values they reject, in errors only a bug can raise.
   'shared/settings.ts': ['price basis', 'alert threshold', 'alert amount', 'rules text'],
   'main/storage.ts': ['MTG Dreams', 'MTG Dream', 'MTG Wishlist Tracker', 'list kind', '.txt'],
-  'main/ipc.ts': ['cardmarket.com', 'scryfall.com', 'edhrec.com', 'Wishlist order', 'Deck order', 'product numbers'],
+  'main/ipc.ts': ['cardmarket.com', 'scryfall.com', 'edhrec.com', 'commanderspellbook.com', 'Wishlist order', 'Deck order', 'product numbers'],
   'main/deckWizard/index.ts': ['Deck filters', 'Commanders'],
   // Services, as named in their errors, and their queries.
   'main/priceGuide.ts': ['Cardmarket'],
+  'main/brackets.ts': ['Commander Spellbook', 'otag:mass-land-denial f:commander', 'otag:extra-turn f:commander'],
   'main/scryfall.ts': ['Scryfall', '!" {} " game:paper', '( {} ) lang:any -lang:en', '!" {} " lang: {} -is:digital']
 }
 

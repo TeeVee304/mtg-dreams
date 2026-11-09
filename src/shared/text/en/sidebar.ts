@@ -21,7 +21,7 @@ export const sidebar = {
   showAll: (n: number) => `Show all ${n}`,
   noDecks: 'No Decks yet.',
   noWishlists: 'No Wishlists yet.',
-  brewsHint: 'Decks you are toying with, kept out of Most Wanted.',
+  brewsHint: 'Deck ideas, kept out of Most Wanted.',
   trades: 'Trades',
   friends: (n: number) => (n === 0 ? 'No friends yet' : n === 1 ? '1 friend' : `${n} friends`),
   shareTrade: 'Share my Trade list',
@@ -47,8 +47,8 @@ export const welcome = {
   planFirst: 'Or plan first:',
   newDeck: 'New Deck',
   newWishlist: 'New Wishlist',
-  wizardCommander: 'Let the Deck Wizard plan a Commander Deck',
+  wizardCommander: 'Plan a Commander Deck with the Deck Wizard',
   buildFrom: (cards: number) => `Build a Deck from the ${count.cards(cards)} you own, or plan one with a Wishlist.`,
   newToCommander: 'New to Commander?',
-  wizardWithYou: 'Let the Deck Wizard plan a Deck with you'
+  wizardWithYou: 'Plan a Deck with the Deck Wizard'
 }
