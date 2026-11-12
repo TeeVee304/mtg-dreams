@@ -158,7 +158,7 @@ function inlineText(): string[] {
 /** The app's terms, capitalized wherever they name its things. */
 const TERMS = /\b(card|commander|deck|land|wishlist|brew|inventory|version|copy|copies|trade|precon|sideboard|maybeboard|partner|background|format|collection|theme|token)(s|es)?\b/
 /** Catalog text where a term is plain English: an action, a Card's own name, or a game rule. */
-const PLAIN = ['Copy as text', 'Copy image', 'Copy image address', 'Copy', 'colorless', 'Trade list copied. Paste it in a chat with your friend.']
+const PLAIN = ['Copy as text', 'Copy image', 'Copy image address', 'Copy', 'colorless', 'Trade list copied. Paste it in a chat with your friend.', 'No game-ending two-card combos.']
 
 /** @returns The catalog's text with a term in lowercase, as `file:line: text`. */
 function lowercaseTerms(): string[] {

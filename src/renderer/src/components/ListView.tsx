@@ -262,9 +262,6 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       })
     : null
   const viewActions = versionEdits?.actions ?? actions
-  /** Swap tag of a row in a version's view: a card only it plays. */
-  const insIds = new Set(swaps.ins.map((line) => line.id))
-  const swapTag = (row: Row) => (other && insIds.has(row.line.id) ? 'only' : null)
 
   const addFormatVersion = () => {
     if (!formatVariant) return
@@ -396,8 +393,6 @@ export function ListView({ list, lists, inventory, pool, actions, onOpenList }: 
       bracketMarks={row.maybe || row.side ? undefined : bracket?.marks.get(nameKey(row.line.name))}
       shortfall={analysis.shortfallOf(row)}
       change={row.maybe ? null : changeOf(row)}
-      swapTag={swapTag(row)}
-      swapLabel={other?.label}
       otherVersions={otherVersionsOf(row)}
       maxQty={maxFor(row.line)}
       maxTitle={limitFor(row.line.name)}

@@ -119,6 +119,9 @@ export interface BracketCard {
   gameChanger?: boolean
 }
 
+/** Early combos first, then by the turn they come together; never last. */
+const byTiming = (a: BracketCombo, b: BracketCombo) => Number(b.early) - Number(a.early) || (a.turn ?? 99) - (b.turn ?? 99)
+
 /**
  * @param cards - The Deck's cards, commanders included.
  * @param combos - Commander Spellbook's combos, timed; null if unchecked.
@@ -133,7 +136,7 @@ export function bracketFacts(cards: BracketCard[], data: BracketCardData, combos
     gameChangers: unique.filter((card) => card.gameChanger).map((card) => card.name),
     landDenial: inTag(data.landDenial),
     extraTurns: inTag(data.extraTurns),
-    combos: combos && combos.filter((combo) => combo.twoCard && combo.gameEnding),
+    combos: combos && combos.filter((combo) => combo.twoCard && combo.gameEnding).sort(byTiming),
     loops: { extraTurns: !!combos?.some((combo) => combo.extraTurns), landDenial: !!combos?.some((combo) => combo.landDenial) },
     tagged: data.landDenial !== null && data.extraTurns !== null
   }

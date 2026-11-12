@@ -4,16 +4,16 @@ export const bracket = {
   estimated: (label: string) => `Estimated ${label}`,
   fits: (level: number) => `Fits Bracket ${level}`,
   aboveStatus: (level: number, label: string) => `Above Bracket ${level} · Estimated ${label}`,
-  turn: (turn: number | null) => (turn ? `No win expected before turn ${turn}` : 'Games can end on any turn'),
+  turn: (turn: number | null) => (turn ? `No win expected before Turn ${turn}` : 'Games can end on any Turn'),
   declared: 'Declared bracket',
-  notSet: 'Not set',
+  notSet: 'Automatic',
   levelHint: (level: number, name: string) => `Bracket ${level} · ${name}`,
   rule: 'Rule',
   rules: {
     gameChangers: 'Game Changers',
     combos: 'Two-Card combos',
     landDenial: 'Mass Land denial',
-    extraTurns: 'Extra turns'
+    extraTurns: 'Extra Turns'
   },
   none: 'None',
   notChecked: 'Not checked',
@@ -25,13 +25,13 @@ export const bracket = {
     unknown: 'Not checked'
   },
   combos: 'Combos',
-  noCombos: 'No game-ending two-Card combos',
+  noCombos: 'No game-ending two-card combos.',
   checking: 'Checking combos…',
   offline: 'Commander Spellbook unreachable',
   retry: 'Retry',
   moreCombos: (n: number) => `+${n} more`,
   fewerCombos: 'Show fewer',
-  timing: (mana: number, turn: number | null) => (turn ? `${mana} mana · likely turn ${turn}` : `${mana} mana`),
+  timing: (mana: number, turn: number | null) => (turn ? `${mana} Mana · likely Turn ${turn}` : `${mana} Mana`),
   early: 'Early',
   late: 'Late',
   salt: 'Salt',
@@ -52,11 +52,10 @@ export const bracket = {
     gameChangers: 'Game Changer',
     combos: 'Two-Card combo',
     landDenial: 'Mass Land denial',
-    extraTurns: 'Extra turn'
+    extraTurns: 'Extra Turn'
   },
   comboPiece: 'Two-Card combo piece',
   earlyComboPiece: 'Early two-Card combo piece',
   /** The New list dialog. */
-  optional: 'Optional',
-  leaveUnset: 'Leave unset to estimate it from the Cards'
+  optional: 'Optional'
 }

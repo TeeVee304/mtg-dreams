@@ -38,8 +38,6 @@ export const card = {
   bundledTileHint: 'Bundled basic Land: any Version counts, for free',
   officialName: "The Card's official name",
   gameChanger: 'On the Commander Game Changer list',
-  onlyIn: (version: string) => `Only in the ${version} Version`,
-  only: (version: string) => `${version} only`,
   priceChange: (was: string, date: string, now: string) => `${was} when added on ${date}, now ${now}`,
   cheaper: (percent: number) => `↓ ${percent}% cheaper`,
   pricier: (percent: number) => `↑ ${percent}% pricier`,

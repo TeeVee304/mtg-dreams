@@ -37,10 +37,6 @@ interface CardRowProps {
   shortfall: number
   /** Wishlist price change past the alert threshold, either way. */
   change?: PriceChange | null
-  /** A card only the version shown plays, in that version's view. */
-  swapTag?: 'only' | null
-  /** Name of that version: `Duel`, `EDH`. */
-  swapLabel?: string
   /** The versions you own instead of the one the line names, e.g. `SLD #1 · Foil`; shown on hover over the version. */
   otherVersions?: string | null
   maxQty?: number
@@ -92,7 +88,7 @@ function sameRowProps(a: CardRowProps, b: CardRowProps): boolean {
 }
 
 function CardRowView(props: CardRowProps) {
-  const { row, pick, leader, crowned, isDeck, issues, allowed, gameChanger, bracketMarks, shortfall, change, swapTag, swapLabel, maxQty, maxTitle, otherVersions, handlers, draggable } = props
+  const { row, pick, leader, crowned, isDeck, issues, allowed, gameChanger, bracketMarks, shortfall, change, maxQty, maxTitle, otherVersions, handlers, draggable } = props
   const onPick = () => handlers.pick(row)
   const onQty = (qty: number) => handlers.qty(row, qty)
   const onToggleOwned = () => handlers.toggleOwned(row)
@@ -243,11 +239,6 @@ function CardRowView(props: CardRowProps) {
           <span className="chip above-bracket" title={ui.bracket.aboveHint(ui.bracket.reasons[bracketMarks.above.reason], bracketMarks.above.level)}>
             <Icon name="warning" />
             {ui.bracket.above(bracketMarks.above.level)}
-          </span>
-        )}
-        {swapTag === 'only' && (
-          <span className="chip duel-only" title={ui.card.onlyIn(swapLabel ?? '')}>
-            {ui.card.only(swapLabel ?? '')}
           </span>
         )}
         {issues.length > 0 && (

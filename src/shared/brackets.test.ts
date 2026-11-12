@@ -48,6 +48,14 @@ describe('bracket facts', () => {
     expect(facts.combos?.map((one) => one.id)).toEqual(["Thassa's Oracle+Demonic Consultation"])
   })
 
+  it('lists early combos first, then by the turn they come together', () => {
+    const late = combo(['A', 'B'], { early: false, turn: 9 })
+    const never = combo(['C', 'D'], { early: false, turn: null })
+    const later = combo(['E', 'F'], { early: true, turn: 5 })
+    const soon = combo(['G', 'H'], { early: true, turn: 2 })
+    expect(bracketFacts([], data(), [late, never, later, soon]).combos?.map((one) => one.id)).toEqual(['G+H', 'E+F', 'A+B', 'C+D'])
+  })
+
   it('leaves combos and tags unchecked while offline', () => {
     const offline = bracketFacts([{ name: 'Armageddon' }], NO_CARD_DATA, null)
     expect(offline.combos).toBeNull()

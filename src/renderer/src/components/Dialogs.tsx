@@ -299,10 +299,12 @@ export function NewListDialog({ kind, onCreate, onFromPrecon, onWizard, onClose 
             {ui.bracket.title} <span className="muted">{ui.bracket.optional}</span>
           </legend>
           <BracketPicker value={bracket} onChange={setBracket} variant="tiles" />
-          <span className="muted small bracket-turn">
-            <Icon name="hourglass" />
-            {bracket === null ? ui.bracket.leaveUnset : ui.bracket.turn(BRACKET_TURNS[bracket])}
-          </span>
+          {bracket !== null && (
+            <span className="muted small bracket-turn">
+              <Icon name="hourglass" />
+              {ui.bracket.turn(BRACKET_TURNS[bracket])}
+            </span>
+          )}
         </fieldset>
       )}
       <label className="field">

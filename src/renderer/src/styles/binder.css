@@ -200,11 +200,6 @@
   color: var(--duel);
 }
 
-.chip.duel-only {
-  background: var(--duel);
-  color: var(--duel-ink);
-}
-
 /* The title side takes the room, even when the banner's art comes first in the header. */
 .view-header > .header-title {
   flex: 1 1 0;
